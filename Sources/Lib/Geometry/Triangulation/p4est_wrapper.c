@@ -141,6 +141,7 @@ void F90_p4est_new ( const int dummy_comm,
 {
   p4est_t* p4est;
   P4EST_ASSERT (p4est_connectivity_is_valid (conn));
+  F90_p4est_destroy(p4est_out);
 #ifndef SC_ENABLE_MPI
   /* Create a forest that is not refined; it consists of the root octant. */                                        
   p4est = p4est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
@@ -164,6 +165,7 @@ void F90_p8est_new ( const int dummy_comm,
 {
   p8est_t* p8est;
   P4EST_ASSERT (p8est_connectivity_is_valid (conn));
+  F90_p8est_destroy(p8est_out);
 #ifndef SC_ENABLE_MPI
   /* Create a forest that is not refined; it consists of the root octant. */                                        
   p8est = p8est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
@@ -402,6 +404,11 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
   p4est_quadrant_t   *q;
   sc_array_t         *quadrants;
   
+  if ( *quad_to_quad ) free(*quad_to_quad);
+  if ( *quad_to_face ) free(*quad_to_face);
+  if ( *quad_to_half ) free(*quad_to_half);
+  if ( *quad_to_corner ) free(*quad_to_corner);
+  
   // Extract a reference to the first (and uniquely allowed) tree
   tree = p4est_tree_array_index (p4est->trees,0);
   for (iquad = 0; iquad < mesh->local_num_quadrants; iquad++) {  
@@ -448,6 +455,12 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   p8est_quadrant_t   *q;
   sc_array_t         *quadrants;
   edge_info_t edge_info;
+  
+  if ( *quad_to_quad ) free(*quad_to_quad);
+  if ( *quad_to_face ) free(*quad_to_face);
+  if ( *quad_to_half ) free(*quad_to_half);
+  if ( *quad_to_corner ) free(*quad_to_corner);
+  if ( *quad_to_half_by_edge ) free(*quad_to_half_by_edge);
   
   // Extract a reference to the first (and uniquely allowed) tree
   tree = p8est_tree_array_index (p8est->trees,0);
@@ -1266,6 +1279,12 @@ void F90_p4est_allocate_and_fill_cell_import_raw_arrays( p4est_t        * p4est,
     ssize_t result;
     p4est_quadrant_t   *q;
     
+    if ( *neighbour_ids ) free(*neighbour_ids);
+    if ( *rcv_ptrs ) free(*rcv_ptrs);
+    if ( *rcv_leids ) free(*rcv_leids);
+    if ( *snd_ptrs ) free(*snd_ptrs);
+    if ( *snd_leids ) free(*snd_leids);
+    
     *num_neighbours = 0;
     for (i=0; i < p4est_ghost->mpisize; i++)
     {
@@ -1326,6 +1345,12 @@ void F90_p8est_allocate_and_fill_cell_import_raw_arrays ( p8est_t        * p8est
     sc_array_t * quadrants;
     ssize_t result;
     p8est_quadrant_t   *q;
+    
+    if ( *neighbour_ids ) free(*neighbour_ids);
+    if ( *rcv_ptrs ) free(*rcv_ptrs);
+    if ( *rcv_leids ) free(*rcv_leids);
+    if ( *snd_ptrs ) free(*snd_ptrs);
+    if ( *snd_leids ) free(*snd_leids);
     
     *num_neighbours = 0;
     for (i=0; i < p8est_ghost->mpisize; i++)

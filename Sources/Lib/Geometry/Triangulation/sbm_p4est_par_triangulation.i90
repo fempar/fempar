@@ -176,14 +176,12 @@ subroutine p4est_par_triangulation_free ( this)
            call F90_p8est_destroy(this%p4est)
            call F90_p8est_connectivity_destroy(this%p4est_connectivity)
            call F90_p8est_mesh_destroy(this%p4est_mesh)
-           call F90_p4est_locidx_buffer_destroy(this%QHE)
            call F90_p8est_ghost_destroy(this%p4est_ghost)
         end if
 
         this%p4est_connectivity = c_null_ptr
         this%p4est              = c_null_ptr
         this%p4est_mesh         = c_null_ptr
-        this%QHE                = c_null_ptr
         this%p4est_ghost        = c_null_ptr
         
         call this%per_cell_vertex_coordinates%free()
@@ -219,26 +217,12 @@ subroutine p4est_par_triangulation_free ( this)
         cell_import => this%get_cell_import()
         call cell_import%free()
 
-        if ( this%get_num_ghost_cells() == 0 ) then
-          nullify(this%quad_to_quad)
-          nullify(this%quad_to_face)
-          nullify(this%quad_to_half)
-          nullify(this%quad_to_corner)
-          nullify(this%quad_to_half_by_edge)
-        else
-          deallocate(this%quad_to_quad)
-          deallocate(this%quad_to_face)
-          if ( associated(this%quad_to_half) ) then 
-            deallocate(this%quad_to_half)
-          end if  
-          deallocate(this%quad_to_corner)
-          if ( this%get_num_dims() == 3 ) then
-            if ( associated(this%quad_to_half_by_edge) ) then
-              deallocate(this%quad_to_half_by_edge)
-            end if
-          end if
-        end if 
-
+        if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+        if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+        if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+        if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+        if (associated(this%quad_to_half_by_edge) ) deallocate(this%quad_to_half_by_edge)
+        
         if (allocated(this%quad_coords)) &
              call memfree(this%quad_coords, __FILE__, __LINE__)
 

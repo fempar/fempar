@@ -1816,6 +1816,11 @@ subroutine p4est_bt_update_cell_import( this )
   class(environment_t), pointer :: environment
 
 #ifdef ENABLE_P4EST  
+  neighbour_ids = c_null_ptr
+  rcv_ptrs  = c_null_ptr
+  rcv_leids = c_null_ptr
+  snd_ptrs  = c_null_ptr
+  snd_leids = c_null_ptr
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_allocate_and_fill_cell_import_raw_arrays(this%p4est, &
                                                             this%p4est_ghost, &
@@ -1980,7 +1985,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
  integer(P4EST_F90_GLOIDX) :: global_num_quadrants
  integer(P4EST_F90_LOCIDX) :: num_half_faces
  integer(P4EST_F90_LOCIDX) :: num_half_edges
- type(c_ptr) :: QQ, QF, QH, QC, QQE, QE
+ type(c_ptr) :: QQ, QF, QH, QC, QQE, QE, QHE
  integer(ip) :: i
  class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
@@ -2013,6 +2018,10 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call memalloc(2, local_num_quadrants+ghost_num_quadrants, this%quad_coords, __FILE__, __LINE__)
   call memalloc(local_num_quadrants+ghost_num_quadrants, this%quad_level, __FILE__, __LINE__ )
   
+  QQ = c_null_ptr
+  QF = c_null_ptr
+  QH = c_null_ptr
+  QC = c_null_ptr
   call F90_p4est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2023,15 +2032,11 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           this%quad_coords, &
                                           this%quad_level)
   
-  if (this%get_num_ghost_cells()>0) then
-    deallocate(this%quad_to_quad)
-    deallocate(this%quad_to_face)
-    if (associated(this%quad_to_half)) then
-      deallocate(this%quad_to_half)
-    end if   
-    deallocate(this%quad_to_corner)
-  end if 
-  
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_2D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_2D,local_num_quadrants])
   if(num_half_faces>0) then 
@@ -2060,6 +2065,11 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_quad_by_edge, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_edge, __FILE__, __LINE__ )
   
+  QQ  = c_null_ptr
+  QF  = c_null_ptr
+  QH  = c_null_ptr
+  QC  = c_null_ptr
+  QHE = c_null_ptr
   call F90_p8est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2069,21 +2079,16 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           this%quad_to_quad_by_edge,&
                                           this%quad_to_edge,&
                                           num_half_edges,&
-                                          this%QHE,&
+                                          QHE,&
                                           QC, &
                                           this%quad_coords, &
                                           this%quad_level)
-  if (this%get_num_ghost_cells()>0) then
-    deallocate(this%quad_to_quad)
-    deallocate(this%quad_to_face)
-    deallocate(this%quad_to_corner)
-    if (associated(this%quad_to_half)) then
-      deallocate(this%quad_to_half)
-    end if   
-    if (associated(this%quad_to_half_by_edge)) then
-      deallocate(this%quad_to_half_by_edge)
-    end if   
-  end if
+  
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+  if (associated(this%quad_to_half_by_edge)) deallocate(this%quad_to_half_by_edge) 
   
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_3D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
@@ -2094,7 +2099,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   end if   
   call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_3D,local_num_quadrants])
   if(num_half_edges>0) then 
-    call c_f_pointer(this%QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
+    call c_f_pointer(QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
   else
     nullify(this%quad_to_half_by_edge)
   end if   

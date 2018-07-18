@@ -444,7 +444,6 @@ module p4est_triangulation_names
     type(c_ptr) :: p4est_connectivity = c_null_ptr
     type(c_ptr) :: p4est              = c_null_ptr
     type(c_ptr) :: p4est_mesh         = c_null_ptr
-    type(c_ptr) :: QHE                = c_null_ptr
     type(c_ptr) :: p4est_ghost        = c_null_ptr
     
     ! p4est quadrant connectivity (1:NUM_FACES_2D/3D,1:nQuads) => neighbor quadrant
