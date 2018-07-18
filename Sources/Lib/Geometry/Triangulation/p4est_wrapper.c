@@ -1409,7 +1409,7 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
       ranks_count[my_rank] = 0;
     }
     
-    if ( ! *old2new ) free(*old2new);
+    if ( *old2new ) free(*old2new);
     *old2new = (p4est_locidx_t *) malloc( (size_t) quadrants_old->elem_count*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*old2new) != NULL);
     old_quadrant_index=0;
     while (old_quadrant_index < quadrants_old->elem_count)
@@ -1448,10 +1448,10 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
         }
     }
     
-    if ( ! *lst_ranks ) free(*lst_ranks);
+    if ( *lst_ranks ) free(*lst_ranks);
     *lst_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*lst_ranks) != NULL);
     
-    if ( ! *ptr_ranks ) free(*ptr_ranks);
+    if ( *ptr_ranks ) free(*ptr_ranks);
     *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*ptr_ranks) != NULL);
     
     
@@ -1465,7 +1465,7 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
     free(ranks_count);
     free(ranks_visited);
     
-    if ( ! *local_ids ) free(*local_ids);
+    if ( *local_ids ) free(*local_ids);
     *local_ids = (p4est_locidx_t *) malloc( (size_t) ((*ptr_ranks)[(*num_ranks)]-1)*sizeof(p4est_locidx_t) );
         
     my_rank = p4est_old->mpirank;
@@ -1524,7 +1524,7 @@ void F90_p8est_compute_migration_control_data (p8est_t   * p8est_old,
         ranks_count[my_rank] = 0;
     }
     
-    if ( ! *old2new ) free(*old2new);
+    if ( *old2new ) free(*old2new);
     *old2new = (p4est_locidx_t *) malloc( (size_t) quadrants_old->elem_count*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*old2new) != NULL);
     old_quadrant_index=0;
     while (old_quadrant_index < quadrants_old->elem_count)
@@ -1563,10 +1563,10 @@ void F90_p8est_compute_migration_control_data (p8est_t   * p8est_old,
         }
     }
     
-    if ( ! *lst_ranks ) free(*lst_ranks);
+    if ( *lst_ranks ) free(*lst_ranks);
     *lst_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*lst_ranks) != NULL);
     
-    if ( ! *ptr_ranks ) free(*ptr_ranks);
+    if ( *ptr_ranks ) free(*ptr_ranks);
     *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*ptr_ranks) != NULL);
     
     
@@ -1580,7 +1580,7 @@ void F90_p8est_compute_migration_control_data (p8est_t   * p8est_old,
     free(ranks_count);
     free(ranks_visited);
     
-    if ( ! *local_ids ) free(*local_ids);
+    if ( *local_ids ) free(*local_ids);
     *local_ids = (p4est_locidx_t *) malloc( (size_t) ((*ptr_ranks)[(*num_ranks)]-1)*sizeof(p4est_locidx_t) );
     
     my_rank = p8est_old->mpirank;
