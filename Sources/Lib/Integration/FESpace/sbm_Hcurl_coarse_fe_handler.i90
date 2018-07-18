@@ -551,9 +551,14 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
 
+  ! Optional parameters
+  if( parameter_list%isPresent(bddc_weighting_function_case_key) ) then
   assert(parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
   FPLError = parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
-
+  else
+   weighting_function=cardinality 
+  end if
+  
   allocate( sub_assembled_w(num_dofs), stat=istat); check(istat==0)
   sub_assembled_w = 0.0_rp 
 

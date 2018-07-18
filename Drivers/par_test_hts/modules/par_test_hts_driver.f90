@@ -475,12 +475,12 @@ contains
     call this%H_previous%create(this%fe_space)
     if (this%test_params%get_is_analytical_solution() ) then 
        call this%fe_space%interpolate_vector_function( 1, this%maxwell_analytical_functions%get_solution_function(), &
-            this%H_previous,                                              &  
-            time=this%theta_method%get_initial_time() ) 
+                                                       this%H_previous,                                              &  
+                                                       time=this%theta_method%get_initial_time() ) 
     else 
        call this%fe_space%interpolate_vector_function( 1, this%hts_analytical_functions%get_initial_conditions(), &
-            this%H_previous,                                           &  
-            time=this%theta_method%get_initial_time() ) 
+                                                       this%H_previous,                                           &  
+                                                       time=this%theta_method%get_initial_time() ) 
     end if
     call this%fe_space%interpolate_dirichlet_values( this%H_previous, time=this%theta_method%get_initial_time() ) 
 
@@ -488,12 +488,12 @@ contains
     call this%H_current%create(this%fe_space)
     if (this%test_params%get_is_analytical_solution() ) then 
        call this%fe_space%interpolate_vector_function( 1, this%maxwell_analytical_functions%get_solution_function(), &
-            this%H_current,                                               &  
-            time=this%theta_method%get_current_time() ) 
+                                                       this%H_current,                                               &  
+                                                       time=0.0_rp ) 
     else 
        call this%fe_space%interpolate_vector_function( 1, this%hts_analytical_functions%get_initial_conditions(), &
-            this%H_current,                                            &  
-            time=this%theta_method%get_current_time() ) 
+                                                       this%H_current,                                            &  
+                                                       time=this%theta_method%get_current_time() ) 
     end if
     call this%fe_space%interpolate_dirichlet_values( this%H_current, time=this%theta_method%get_current_time() ) 
 
@@ -522,6 +522,8 @@ contains
 
 
     ! BDDC preconditioner 
+     ! Compute average parameters to be sent to the preconditioner for weights computation 
+    call this%compute_average_parameter_values() 
     matrix => this%fe_operator%get_matrix() 
     select type ( matrix ) 
        class is (par_sparse_matrix_t) 
@@ -615,7 +617,6 @@ contains
     if ( .not. this%environment%am_i_l1_task() ) return 
 
     ! Integrate structures needed 
-    call fe_cell_function%create(this%fe_space, field_id=1)
     call this%fe_space%set_up_cell_integration()
 
     max_cell_set_id = maxval(this%cells_set_ids)+1 ! 1-based arrays  
@@ -630,6 +631,7 @@ contains
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%create_fe_cell_iterator(fe)
     call fe%update_integration()
+    call fe_cell_function%create(this%fe_space, 1)
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     quad_coords      => fe%get_quadrature_points_coordinates()
@@ -640,14 +642,15 @@ contains
        if ( fe%is_local() ) then  
           set_id = 1 + fe%get_set_id() ! 1-based arrays 
           call fe%update_integration()
+          call fe_cell_function%update(fe, this%H_current) 
           quad_coords => fe%get_quadrature_points_coordinates()
-
-          ! Evaluate parameters on the cell 
-          call fe_cell_function%get_value(qpoin, H_value)
-          call fe_cell_function%compute_curl(qpoin, H_curl)
 
           ! Integrate cell contribution to averages 
           do qpoin=1, num_quad_points
+            ! Evaluate parameters on the cell 
+             call fe_cell_function%get_value(qpoin, H_value)
+             call fe_cell_function%compute_curl(qpoin, H_curl)
+          
              factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 		
              resistivity                       = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
              this%average_resistivity(set_id)  = this%average_resistivity(set_id)+resistivity%get(1,1)*factor
@@ -683,7 +686,7 @@ contains
 
        ! Solve the problem
        free_dof_values => this%H_current%get_free_dof_values() 
-       call this%nonlinear_solver%apply(this%fe_operator%get_translation(), free_dof_values )
+       call this%nonlinear_solver%apply(rhs_dof_values, free_dof_values )
 
        if ( this%nonlinear_solver%has_converged() ) then  ! Theta method goes forward 
           call this%compute_hysteresis_data() 
@@ -843,6 +846,8 @@ contains
        Jc = this%test_params%get_critical_current() 
        w  = this%test_params%get_external_magnetic_field_frequency() 
        h_b = 0.01_rp  
+       
+       ! User-defined H_app 
        H_app = 1.0_rp/this%test_params%get_air_permeability()*200e-3_rp*sin(2.0_rp*pi*w*this%theta_method%get_current_time())
 
        write(*,*) ' Hysteresis Data -----------------------------------------'
@@ -987,8 +992,8 @@ contains
 
     call this%timer_setup_system%start() 
     call this%setup_theta_method()
-    call this%setup_operators() 
     call this%setup_system()
+    call this%setup_operators() 
     call this%timer_setup_system%stop() 
 
     call this%initialize_output() 

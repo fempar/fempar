@@ -10,6 +10,7 @@ module par_test_hts_params_names
   character(len=*), parameter :: write_solution_key              = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key          = 'triangulation_type'    
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
+  character(len=*), parameter :: bddc_weighting_function_case_key     = 'bddc_weighting_function_case'
 
   ! MESHING parameters 
   character(len=*), parameter :: domain_limits_key             = 'domain_limits'
@@ -150,6 +151,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
  error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
  error = list%set(key = bddc_edge_continuity_algorithm_key, value =  'tangential_average_and_first_order_moment') ; check(error==0)
+ error = list%set(key = bddc_weighting_function_case_key, value =  resistivity ) ; check(error==0)
 
  ! Domain length 
  error = list%set(key = domain_limits_key     , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
@@ -216,6 +218,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
  error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
  error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
+ error = switches%set(key = bddc_weighting_function_case_key , value = '--BDDC_weighting_function_case' ) ; check(error==0)
 
  ! Domain length 
  error = switches%set(key = domain_limits_key      , value = '--domain_limits')     ; check(error==0)
@@ -282,6 +285,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
  error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
  error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
+ error = switches_ab%set(key = bddc_weighting_function_case_key , value = '-bddc_weights' )  ; check(error==0)
 
  ! Domain length 
  error = switches_ab%set(key = domain_limits_key          , value = '-dl')       ; check(error==0)
@@ -356,11 +360,11 @@ subroutine par_test_hts_params_define_parameters(this)
  write(msg(20:20),'(i1)') mpi_context
  error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
 
- msg = 'Specify BDDC space continuity: Tangent component on coarse edges (*), tangent component + first order moment (*) or one-to-one over all fine edges (*) '
- write(msg(67:67),'(i1)') tangential_average 
- write(msg(111:111),'(i1)') tangential_average_and_first_order_moment
- write(msg(149:149), '(i1)') all_dofs_in_coarse_edges
+ msg = 'Specify BDDC space continuity: Tangent component on coarse edges (TANGENTIAL_AVERAGE), tangent component + first order moment (TANGENTIAL_AVERAGE_AND_FIRST_ORDER_MOMENT) or one-to-one over all fine edges (ALL_DOFS_IN_COARSE_EDGES) '
  error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
+ 
+  msg = 'Define BDDC weighting function from: cardinality (inverse of the cardinality of each dof), resistivity, permeability, stiffness (diagonal entries of the operator).'
+  error = helpers%set(key = bddc_weighting_function_case_key, value = msg  ); check(error==0)
 
  ! Domain length parameters 
  error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
@@ -426,6 +430,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
  error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
  error = required%set(key = bddc_edge_continuity_algorithm_key , value = .false.) ; check(error==0)
+ error = required%set(key = bddc_weighting_function_case_key , value = .false.) ; check(error==0)
 
  ! Domain length 
  error = required%set(key = domain_limits_key     , value = .false.) ; check(error==0)

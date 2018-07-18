@@ -177,9 +177,6 @@ subroutine hts_discrete_integration_integrate_tangent ( this, fe_space, assemble
  assert (associated(this%source_term)) 
  assert (associated(this%H_previous))
  assert (associated(this%H_current))
-
-	! Update hanging dof values 
-	call fe_space%update_hanging_dof_values(this%H_current)
 	
  call fe_space%set_up_cell_integration()
  call fe_space%create_fe_cell_iterator(fe)
@@ -305,10 +302,6 @@ subroutine hts_discrete_integration_integrate_residual ( this, fe_space, assembl
  assert (associated(this%source_term)) 
  assert (associated(this%H_previous))
  assert (associated(this%H_current))
-
-	! Update hanging dof values 
-	call fe_space%update_hanging_dof_values(this%H_previous)
-	call fe_space%update_hanging_dof_values(this%H_current)
 	
  call fe_space%set_up_cell_integration()
  call fe_space%create_fe_cell_iterator(fe)
