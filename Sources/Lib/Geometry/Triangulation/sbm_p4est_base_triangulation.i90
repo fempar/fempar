@@ -1985,7 +1985,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
  integer(P4EST_F90_GLOIDX) :: global_num_quadrants
  integer(P4EST_F90_LOCIDX) :: num_half_faces
  integer(P4EST_F90_LOCIDX) :: num_half_edges
- type(c_ptr) :: QQ, QF, QH, QC, QQE, QE, QHE
+ type(c_ptr) :: QQ, QF, QH, QC, QQE, QE
  integer(ip) :: i
  class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
@@ -2069,7 +2069,6 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   QF  = c_null_ptr
   QH  = c_null_ptr
   QC  = c_null_ptr
-  QHE = c_null_ptr
   call F90_p8est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2079,7 +2078,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           this%quad_to_quad_by_edge,&
                                           this%quad_to_edge,&
                                           num_half_edges,&
-                                          QHE,&
+                                          this%QHE,&
                                           QC, &
                                           this%quad_coords, &
                                           this%quad_level)
@@ -2099,7 +2098,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   end if   
   call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_3D,local_num_quadrants])
   if(num_half_edges>0) then 
-    call c_f_pointer(QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
+    call c_f_pointer(this%QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
   else
     nullify(this%quad_to_half_by_edge)
   end if   
