@@ -465,6 +465,7 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   p8est_quadrant_t   *q;
   sc_array_t         *quadrants;
   edge_info_t edge_info;
+  p4est_locidx_t *aux_quad_to_half_by_edge;
   
   if ( *quad_to_quad ) free(*quad_to_quad);
   if ( *quad_to_face ) free(*quad_to_face);
@@ -491,12 +492,12 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
     quad_to_edge[i] = -1;
   }
   // Allocate to maximum possible size. All edges are half-size edge
-  *quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*12*mesh->local_num_quadrants*sizeof(p4est_locidx_t) );
+  aux_quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*12*mesh->local_num_quadrants*sizeof(p4est_locidx_t) );
   
   edge_info.local_num_quadrants       = mesh->local_num_quadrants;
   edge_info.quad_to_quad_by_edge      = quad_to_quad_by_edge;
   edge_info.quad_to_edge              = quad_to_edge;
-  edge_info.quad_to_half_by_edge      = *quad_to_half_by_edge;
+  edge_info.quad_to_half_by_edge      = aux_quad_to_half_by_edge;
   edge_info.quad_to_half_by_edge_size = 0;
   p8est_iterate(p8est, ghost, &edge_info, NULL, NULL,edge_callback, NULL);
 
@@ -506,7 +507,12 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   if(mesh->quad_to_half->elem_count>0) *quad_to_half = (p4est_locidx_t *) mesh->quad_to_half->array;
   *quad_to_corner=mesh->quad_to_corner;
   
-  *quad_to_half_by_edge = (p4est_locidx_t *) realloc( *quad_to_half_by_edge, (size_t) 2*edge_info.quad_to_half_by_edge_size*sizeof(p4est_locidx_t) );  
+  *quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*edge_info.quad_to_half_by_edge_size*sizeof(p4est_locidx_t) );  
+  for(i=0;i<2*edge_info.quad_to_half_by_edge_size;i++)
+  {
+    (*quad_to_half_by_edge)[i] = aux_quad_to_half_by_edge[i];
+  }
+  free(aux_quad_to_half_by_edge);
   *num_half_edges = edge_info.quad_to_half_by_edge_size;
   
   quadrants = &(ghost->ghosts);
