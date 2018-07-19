@@ -282,6 +282,7 @@ contains
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_hex_mesh_domain_limits(), &
+                  this%test_params%get_num_cells_x_dir(), &
                   this%test_params%get_nparts())
              cells_set( cell%get_gid() ) = cell_id
              if (cell_id > max_cell_id) then
@@ -306,7 +307,7 @@ contains
 
   contains
 
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,domain_limits,nparts)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,domain_limits,num_cells_x_dir,nparts)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
@@ -315,6 +316,7 @@ contains
       integer(ip)  , intent(in)  :: nchannel_x_direction(3)
       integer(ip)  , intent(in)  :: nparts_with_channels(3)
       real(rp)     , intent(in)  :: domain_limits(6)
+      real(rp)     , intent(in)  :: num_cells_x_dir(3)
       integer(ip)  , intent(in)  :: nparts(3)
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
@@ -558,6 +560,18 @@ contains
          end do
          if ( cell_set_id /= 1 ) cell_set_id = 2
       else if ( inclusion == 8 ) then
+         i = mod(mod(l1_rank,nparts(1)),2)
+         j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(1),2)
+         k = mod(l1_rank/(nparts(1)*nparts(2)),2)
+         if (((i==0) .and. (j==0) .and. (k==0)).or.&
+              (i==0 .and. j==1 .and. k==0).or.&
+              (i==1 .and. j==0 .and. k==0).or.&
+              ((i==0) .and. (j==0) .and. (k==1))) then
+            cell_set_id=2
+         else 
+            cell_set_id=1
+         end if
+      else if ( inclusion == 9 ) then
          i = mod(mod(l1_rank,nparts(1)),2)
          j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(1),2)
          k = mod(l1_rank/(nparts(1)*nparts(2)),2)

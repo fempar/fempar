@@ -43,6 +43,7 @@ module par_pb_bddc_linear_elasticity_params_names
        procedure, non_overridable             :: get_hex_mesh_domain_limits
        procedure, non_overridable             :: get_is_a_beam
        procedure, non_overridable             :: get_nparts
+       procedure, non_overridable             :: get_num_cells_x_dir
        !procedure, non_overridable             :: get_num_dims
   end type par_pb_bddc_linear_elasticity_params_t
 
@@ -440,6 +441,19 @@ contains
     call memfree(num_parts_x_dir)
 
   end function get_nparts
-  
+
+!==================================================================================================
+  function get_num_cells_x_dir(this)
+    implicit none
+    class(par_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
+    real(rp)                                   :: get_num_cells_x_dir(3)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(num_cells_x_dir_key, get_num_cells_x_dir))
+    error = list%Get(key = num_cells_x_dir_key, Value = get_num_cells_x_dir)
+    assert(error==0)
+  end function get_num_cells_x_dir
+
  
 end module par_pb_bddc_linear_elasticity_params_names
