@@ -2654,6 +2654,9 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     end do
   end if
   
+  ! * IMPORTANT NOTE *: This set of 4x pointer re-associations does NOT cause
+  ! any memory leak. These pointers are associated with C data arrays that
+  ! in turn are to be deallocated by an internal p4est subroutine later on
   this%quad_to_quad   => quad_to_quad
   this%quad_to_face   => quad_to_face
   this%quad_to_half   => quad_to_half
@@ -2663,6 +2666,10 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     call memfree (this%quad_to_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_quad_by_edge, this%quad_to_quad_by_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_edge, this%quad_to_edge, __FILE__, __LINE__)
+    
+    ! * IMPORTANT NOTE *: This pointer re-associations will cause a memory leak if 
+    ! we do not deallocate (free) in advance the C data array it is associated to 
+    call F90_p4est_locidx_buffer_destroy(this%QHE)
     this%quad_to_half_by_edge   => quad_to_half_by_edge
     
     do i=1, cell_import%get_num_neighbours()

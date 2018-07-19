@@ -276,21 +276,25 @@ void F90_p8est_mesh_new(p8est_t        *p8est,
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **p4est_connectivity)
 {
     if (*p4est_connectivity) p4est_connectivity_destroy(*p4est_connectivity);
+    *p4est_connectivity = NULL;
 }
 
 void F90_p8est_connectivity_destroy(p8est_connectivity_t **p8est_connectivity)
 {
     if (*p8est_connectivity) p8est_connectivity_destroy(*p8est_connectivity);
+    *p8est_connectivity = NULL;
 }
 
 void F90_p4est_destroy(p4est_t **p4est)
 {
     if (*p4est) p4est_destroy(*p4est);
+    *p4est = NULL;
 }
 
 void F90_p8est_destroy(p8est_t **p8est)
 {
     if (*p8est) p8est_destroy(*p8est);
+    *p8est = NULL;
 }
 
 void F90_p4est_mesh_destroy(p4est_mesh_t **p4est_mesh)
@@ -299,6 +303,7 @@ void F90_p4est_mesh_destroy(p4est_mesh_t **p4est_mesh)
     {    
       p4est_mesh_destroy(*p4est_mesh);
     }   
+    *p4est_mesh = NULL;
 }
 
 void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
@@ -307,6 +312,7 @@ void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
     {    
       p8est_mesh_destroy(*p8est_mesh);
     }   
+    *p8est_mesh = NULL;
 }
 
 void F90_p4est_ghost_destroy(p4est_ghost_t **p4est_ghost)
@@ -314,7 +320,8 @@ void F90_p4est_ghost_destroy(p4est_ghost_t **p4est_ghost)
     if (*p4est_ghost) 
     {    
         p4est_ghost_destroy(*p4est_ghost);
-    }   
+    }
+    *p4est_ghost = NULL;
 }
 
 void F90_p8est_ghost_destroy(p8est_ghost_t **p8est_ghost)
@@ -323,16 +330,19 @@ void F90_p8est_ghost_destroy(p8est_ghost_t **p8est_ghost)
     {    
         p8est_ghost_destroy(*p8est_ghost);
     }   
+    *p8est_ghost = NULL;
 }
 
 void F90_p4est_locidx_buffer_destroy(p4est_locidx_t **buffer)
 {
   if (*buffer) free(*buffer);
+  *buffer = NULL;
 }
 
 void F90_p4est_int8_buffer_destroy(int8_t **buffer)
 {
   if (*buffer) free(*buffer);
+  *buffer = NULL;
 }
 
 void F90_p4est_get_mesh_info (p4est_t        *p4est,
