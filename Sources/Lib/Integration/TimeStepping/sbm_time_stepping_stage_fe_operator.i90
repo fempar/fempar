@@ -197,36 +197,39 @@ end subroutine time_stepping_stage_fe_operator_compute_residual
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   implicit none
-  class(time_stepping_stage_fe_operator_t), intent(in) :: this
+  class(time_stepping_stage_fe_operator_t), intent(in) :: this  
+  class(serial_fe_space_t)     , pointer :: fe_sp
   class(environment_t)         , pointer :: environment
   class(assembler_t)           , pointer :: this_assembler
-  class(discrete_integration_t), pointer :: di_mass_op
-  class(discrete_integration_t), pointer :: di_fe_op
-  class(serial_fe_space_t)     , pointer :: fe_sp
-  class(serial_fe_space_t)     , pointer :: trial_fe_sp
+  class(assembler_t)           , pointer :: fe_op_assembler
+  class(assembler_t)           , pointer :: mass_assembler
   integer(ip)                  , pointer :: state
-  class(vector_t)              , pointer :: residual
+  class(vector_t)              , pointer :: this_residual
+  class(vector_t)              , pointer :: fe_op_residual
+  class(vector_t)              , pointer :: mass_residual
  
   state => this%get_state() 
   assert (associated(state))
+  
+  fe_sp            => this%get_fe_space()
+  environment      => fe_sp%get_environment()
 
   this_assembler   => this%get_assembler()
-  fe_sp            => this%get_fe_space()
-  trial_fe_sp      => this%get_trial_fe_space()
-  environment      => fe_sp%get_environment()
-  di_fe_op         => this%fe_op%get_discrete_integration()
-  di_mass_op       => this%mass_op%get_discrete_integration()
+  fe_op_assembler  => this%fe_op%get_assembler()
+  mass_assembler   => this%mass_op%get_assembler()
+
+
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
-      residual => this_assembler%get_array()
-      if ( associated(trial_fe_sp) ) then
-         call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
-         if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
-      else
-         call di_fe_op%integrate_residual( fe_sp, this_assembler )
-         if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, this_assembler ) 
-      end if
+      this_residual  => this_assembler%get_array()
+      fe_op_residual => fe_op_assembler%get_array()
+      mass_residual  => mass_assembler%get_array()
+     
+      call this%fe_op%compute_residual(fe_op_residual)
+      if ( this%i == this%j )  call this%mass_op%compute_residual(mass_residual)
+      
+      this_residual = fe_op_residual + mass_residual
     end if
 
     if (this%get_state() == tangent_computed) then
@@ -244,45 +247,43 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(serial_fe_space_t)     , pointer :: fe_sp
-  class(serial_fe_space_t)     , pointer :: trial_fe_sp
   class(environment_t)         , pointer :: environment
-  class(discrete_integration_t), pointer :: di_fe_op
-  class(discrete_integration_t), pointer :: di_mass_op
-  class(assembler_t)           , pointer :: assembler
+  class(assembler_t)           , pointer :: this_assembler
+  class(assembler_t)           , pointer :: fe_op_assembler
+  class(assembler_t)           , pointer :: mass_assembler
   integer(ip)                  , pointer :: state
-  class(matrix_t)              , pointer :: tangent
-  class(array_t)               , pointer :: array 
+  class(matrix_t)              , pointer :: this_tangent
+  class(matrix_t)              , pointer :: fe_op_tangent
+  class(matrix_t)              , pointer :: mass_matrix
     
   state => this%get_state() 
   assert (associated(state))
 
   fe_sp       => this%get_fe_space()
-  trial_fe_sp => this%get_trial_fe_space()
   environment => fe_sp%get_environment()
-  di_fe_op    => this%fe_op%get_discrete_integration()
-  di_mass_op  => this%mass_op%get_discrete_integration()
-  assembler   => this%get_assembler()
+
+  this_assembler  => this%get_assembler()
+  fe_op_assembler => this%fe_op%get_assembler()
+  mass_assembler  => this%mass_op%get_assembler()
 
   if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
-       tangent => assembler%get_matrix()
-       if ( associated(this%get_trial_fe_space()) ) then
-          if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
-            call di_fe_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
-            call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
-          end if
-          call di_mass_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
-       else
-          if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
-            call di_fe_op%integrate_tangent( fe_sp, assembler )
-            call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
-          end if
-          call di_mass_op%integrate_tangent( fe_sp, assembler )
-          ! amartin: Can we avoid calling compress storage? 
-          call assembler%compress_storage(csr_format)        
+       this_tangent  => this_assembler%get_matrix()
+       fe_op_tangent => fe_op_assembler%get_matrix()
+       mass_matrix   => mass_assembler%get_matrix()
+       
+       call fe_op_assembler%set_matrix(this_tangent)
+       call mass_assembler%set_matrix(this_tangent)
+       
+       if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
+         call this%fe_op%compute_tangent()         
+         call this_tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) )
        end if
+       call this%mass_op%compute_tangent()   
     end if
-    call assembler%compress_storage(this%get_sparse_matrix_storage_format())
+    
+    call this_assembler%compress_storage(this%get_sparse_matrix_storage_format())
+
     if (this%get_state() == residual_computed) then
        call this%set_state(assembler_computed)
     else ! created
