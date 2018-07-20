@@ -54,6 +54,69 @@ contains
     nullify(this%fe_space)
   end subroutine free
   
+  subroutine integrate_galerkin ( this, fe_space, assembler )
+    implicit none
+    class(mass_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)         , intent(inout) :: fe_space
+    class(assembler_t)      , intent(inout) :: assembler
+
+    ! FE space traversal-related data types
+    class(fe_cell_iterator_t), allocatable :: fe
+
+    ! FE integration-related data types
+    type(quadrature_t)       , pointer :: quad
+    real(rp)            , allocatable  :: shape_values(:,:)
+
+    ! FE matrix and vector i.e., A_K + f_K
+    real(rp), allocatable              :: elmat(:,:), elvec(:)
+
+    integer(ip)  :: istat
+    integer(ip)  :: qpoint, num_quad_points
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
+    real(rp)     :: factor
+
+    
+    
+    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+    
+    call fe_space%create_fe_cell_iterator(fe)
+    do while ( .not. fe%has_finished() )
+       
+       ! Update FE-integration related data structures
+       call fe%update_integration()
+          
+       ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe%get_quadrature()
+       num_quad_points =  quad%get_num_quadrature_points()
+       num_dofs        =  fe%get_num_dofs()
+       
+
+       ! Compute element matrix and vector
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+       call fe%get_values(shape_values)
+       do qpoint = 1, num_quad_points
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof = 1, num_dofs
+             do jdof = 1, num_dofs
+                ! A_K(i,j) = (phi_i,phi_j)
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_values(jdof,qpoint) * shape_values(idof,qpoint)
+             end do
+          end do
+       end do
+       
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
+       call fe%next()
+    end do
+    call fe_space%free_fe_cell_iterator(fe)
+
+    call memfree(shape_values, __FILE__, __LINE__)
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+  end subroutine integrate_galerkin
+  
   subroutine integrate_tangent ( this, fe_space, assembler )
     implicit none
     class(mass_discrete_integration_t), intent(in)    :: this
