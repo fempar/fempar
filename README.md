@@ -25,6 +25,9 @@ which commit in `experimental` this is happening, but only that it happens at th
 **NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
 compiler error raises when compiling FoX, a third party library of XH5For. 
 
+**NOTE**: `test_transient_poisson` do not pass with Intel Fortran compiler 18.0.0 for `create_time_stepping_integration` commit 5176d2976659c64f45e35022bfea5dcb1e72045e
+due to a compiler BUG (see issue #250). Thus, avoid using this Intel Fortran compiler version. 
+
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
 The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
