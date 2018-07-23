@@ -182,10 +182,10 @@ contains
     call this%matrix%free_in_stages(action)
     call this%array%free_in_stages(action)
     if ( action == free_clean ) then
+       deallocate(this%matrix)
        nullify(this%matrix)   
-       if(associated(this%matrix)) deallocate(this%matrix)
-       nullify(this%array)
-       if(associated(this%array)) deallocate(this%array)
+       deallocate(this%array)
+       nullify(this%array)  
     end if
   end subroutine assembler_free_in_stages
   

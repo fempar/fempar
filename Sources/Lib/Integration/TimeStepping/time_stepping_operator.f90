@@ -129,6 +129,7 @@ module time_stepping_names
      procedure          :: compute_residual          => time_stepping_stage_fe_operator_compute_residual
      procedure, private :: compute_internal_residual => time_stepping_stage_fe_operator_compute_internal_residual
      procedure          :: compute_tangent           => time_stepping_stage_fe_operator_compute_tangent
+     procedure, private :: add_matrix                => time_stepping_stage_fe_operator_add_matrix
   end type time_stepping_stage_fe_operator_t
 
   ! sbadia: to make auto-documentation style
