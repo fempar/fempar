@@ -3426,9 +3426,6 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   end if
   num_cell_faces = reference_fe%get_num_facets()
 
-  allocate(fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
-  allocate(coarser_fe_fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
-
   ! Computation of constraints     
   do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
