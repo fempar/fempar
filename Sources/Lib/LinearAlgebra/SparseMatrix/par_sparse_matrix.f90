@@ -63,6 +63,7 @@ private
         procedure,                  public :: allocate                       => par_sparse_matrix_allocate
         procedure,                  public :: init                           => par_sparse_matrix_init
         procedure,                  public :: scal                           => par_sparse_matrix_scal
+        procedure,                  public :: add                            => par_sparse_matrix_add
         procedure,                  public :: free_in_stages                 => par_sparse_matrix_free_in_stages  
         generic,                    public :: create                         => par_sparse_matrix_create_square, &
                                                                                 par_sparse_matrix_create_rectangular
@@ -226,10 +227,25 @@ contains
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t), intent(inout) :: this
         real(rp),                   intent(in)    :: alpha
+
     !-----------------------------------------------------------------
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%scal(alpha)
     end subroutine par_sparse_matrix_scal
+    
+    subroutine par_sparse_matrix_add(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Add two matrices
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        real(rp),                   intent(in)    :: alpha
+        class(matrix_t),            intent(in)    :: op1
+        real(rp),                   intent(in)    :: beta
+        class(matrix_t),            intent(in)    :: op2
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        call this%sparse_matrix%add(alpha, op1, beta, op2)
+    end subroutine par_sparse_matrix_add
     
     subroutine par_sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------

@@ -69,6 +69,8 @@ private
         procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
         procedure, public :: scal                                    => csr_sparse_matrix_scal
+        procedure, public :: add                                     => csr_sparse_matrix_add
+        procedure, public :: add_coo                                 => csr_sparse_matrix_add_coo
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
         procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
         procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
@@ -989,8 +991,55 @@ contains
     !-----------------------------------------------------------------
         if(allocated(this%val)) this%val(1:this%get_nnz()) = val*this%val(1:this%get_nnz())
     end subroutine csr_sparse_matrix_scal
+    
+    subroutine csr_sparse_matrix_add(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Sum CSR values this = alpha*op1 + beta*op2
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(inout)  :: this
+        real(rp),                    intent(in)     :: alpha
+        class(base_sparse_matrix_t), intent(in)     :: op1
+        real(rp),                    intent(in)     :: beta
+        class(base_sparse_matrix_t), intent(in)     :: op2
+    !-----------------------------------------------------------------
+        select type(op1)
+        class is (csr_sparse_matrix_t) 
+           select type(op2)
+           class is (csr_sparse_matrix_t) 
+              assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
+              assert( this%get_nnz() == op1%get_nnz() ) 
+              assert( size(this%irp) == size(op1%irp) )
+              assert( size(op1%irp)  == size(op2%irp) )
+              assert( size(op1%ja)   == size(op2%ja)  )
+              assert( allocated(this%val) ) 
+              this%val(1:this%get_nnz()) = alpha*op1%val(1:op1%get_nnz()) + beta*op2%val(1:op2%get_nnz())
+           class DEFAULT
+              call this%add_coo( alpha, op1, beta, op2 ) 
+           end select
+        class DEFAULT
+           call this%add_coo( alpha, op1, beta, op2 )
+        end select
+    end subroutine csr_sparse_matrix_add
 
-
+    subroutine csr_sparse_matrix_add_coo(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Sum mixted COO and CSR values this = alpha*op1 + beta*op2
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(inout)  :: this
+        real(rp),                    intent(in)     :: alpha
+        class(base_sparse_matrix_t), intent(in)     :: op1
+        real(rp),                    intent(in)     :: beta
+        class(base_sparse_matrix_t), intent(in)     :: op2
+        
+        class(coo_sparse_matrix_t), allocatable     :: tmp
+    !-----------------------------------------------------------------
+        allocate( tmp) 
+        call this%copy_to_coo_body( tmp )
+        call tmp%add( alpha, op1, beta, op2 )
+        call this%move_from_coo_body( tmp )
+        call tmp%free()  
+    end subroutine csr_sparse_matrix_add_coo
+    
     subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix

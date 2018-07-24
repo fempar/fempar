@@ -271,13 +271,16 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
        this_tangent  => this_assembler%get_matrix()
        fe_op_tangent => fe_op_assembler%get_matrix()
        mass_matrix   => mass_assembler%get_matrix()
-       
-       if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
-         call this%fe_op%compute_tangent()
-         call this%add_matrix(this_tangent, 1.0_rp, fe_op_tangent, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j))
-       end if
+       !if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
+       !  call this%fe_op%compute_tangent()
+       !  !call this%add_matrix(this_tangent, 1.0_rp, fe_op_tangent, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j))
+       !end if
+           !call this_assembler%compress_storage(this%get_sparse_matrix_storage_format())
+
+       call this%fe_op%compute_tangent()
        call this%mass_op%compute_tangent()
-       call this%add_matrix(this_tangent, 1.0_rp, mass_matrix, 1.0_rp) 
+       !call this%add_matrix(this_tangent, 1.0_rp, mass_matrix, 1.0_rp) 
+       call this_tangent%add(1.0_rp, mass_matrix, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j), fe_op_tangent)
     end if
     
     call this_assembler%compress_storage(this%get_sparse_matrix_storage_format())
@@ -291,26 +294,3 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   end if
 end subroutine time_stepping_stage_fe_operator_compute_tangent
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_add_matrix(this, matrix_1, alpha, matrix_2, beta)
-  implicit none
-  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
-  class(matrix_t)                         , intent(inout) :: matrix_1
-  real(rp)                                , intent(in)    :: alpha
-  class(matrix_t)                         , intent(in)    :: matrix_2
-  real(rp)                                , intent(in)    :: beta
-  class(matrix_iterator_t)                , allocatable   :: iterator
-  
-  if ( .not. alpha == 1.0_rp ) call matrix_1%scal( alpha )
-  call matrix_2%create_iterator(1,1,iterator)
-  
-  do while ( .not. iterator%has_finished() )
-     select type(matrix_1)
-     class is (sparse_matrix_t)  
-        call matrix_1%insert(iterator%get_row(), iterator%get_column(), iterator%get_entry() * beta )
-     class DEFAULT
-        assert(.false.) 
-     end select
-     call iterator%next()
-  end do
-end subroutine time_stepping_stage_fe_operator_add_matrix
