@@ -70,7 +70,8 @@ private
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
         procedure, public :: scal                                    => csr_sparse_matrix_scal
         procedure, public :: add                                     => csr_sparse_matrix_add
-        procedure, public :: add_coo                                 => csr_sparse_matrix_add_coo
+        procedure         :: add_coo                                 => csr_sparse_matrix_add_coo
+        procedure, public :: copy                                    => csr_sparse_matrix_copy
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
         procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
         procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
@@ -1031,14 +1032,37 @@ contains
         real(rp),                    intent(in)     :: beta
         class(base_sparse_matrix_t), intent(in)     :: op2
         
-        class(coo_sparse_matrix_t), allocatable     :: tmp
+        class(coo_sparse_matrix_t),  allocatable    :: tmp
     !-----------------------------------------------------------------
         allocate( tmp) 
         call this%copy_to_coo_body( tmp )
         call tmp%add( alpha, op1, beta, op2 )
         call this%move_from_coo_body( tmp )
-        call tmp%free()  
     end subroutine csr_sparse_matrix_add_coo
+    
+    subroutine csr_sparse_matrix_copy(this, op )
+    !-----------------------------------------------------------------
+    !< Copy into CSR values
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(inout)  :: this
+        class(base_sparse_matrix_t), intent(in)     :: op
+        
+        class(coo_sparse_matrix_t),  allocatable    :: tmp
+    !-----------------------------------------------------------------
+        select type(op)
+        class is (csr_sparse_matrix_t) 
+           assert( op%state_is_assembled() )
+           assert( this%get_nnz() == op%get_nnz() )          
+           assert( size(this%irp) == size(op%irp) )
+           assert( allocated(this%val) ) 
+           this%val(1:this%get_nnz()) = op%val(1:this%get_nnz())
+        class DEFAULT
+           allocate( tmp) 
+           call this%copy_to_coo_body( tmp )
+           call tmp%copy( op )
+           call this%move_from_coo_body( tmp ) 
+        end select
+    end subroutine csr_sparse_matrix_copy
     
     subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------

@@ -88,6 +88,7 @@ private
         procedure,                  public :: init                             => sparse_matrix_init
         procedure,                  public :: scal                             => sparse_matrix_scal
         procedure,                  public :: add                              => sparse_matrix_add
+        procedure,                  public :: copy                             => sparse_matrix_copy
         procedure,                  public :: free_in_stages                   => sparse_matrix_free_in_stages  
         generic,                    public :: create                           => sparse_matrix_create_square, &
                                                                                   sparse_matrix_create_rectangular
@@ -370,6 +371,23 @@ contains
            assert( .false. )
         end select
     end subroutine sparse_matrix_add
+    
+    subroutine sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Copy matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        class(matrix_t),        intent(in)    :: op
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        select type(op)
+        class is (sparse_matrix_t)       
+           assert(allocated(op%State))
+           call this%State%copy(op%State)
+        class DEFAULT
+           assert( .false. )
+        end select
+    end subroutine sparse_matrix_copy
     
     subroutine sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------

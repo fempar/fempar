@@ -270,17 +270,15 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
     if ( environment%am_i_l1_task() ) then
        this_tangent  => this_assembler%get_matrix()
        fe_op_tangent => fe_op_assembler%get_matrix()
-       mass_matrix   => mass_assembler%get_matrix()
-       !if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
-       !  call this%fe_op%compute_tangent()
-       !  !call this%add_matrix(this_tangent, 1.0_rp, fe_op_tangent, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j))
-       !end if
-           !call this_assembler%compress_storage(this%get_sparse_matrix_storage_format())
-
-       call this%fe_op%compute_tangent()
+       mass_matrix   => mass_assembler%get_matrix()  
+       
        call this%mass_op%compute_tangent()
-       !call this%add_matrix(this_tangent, 1.0_rp, mass_matrix, 1.0_rp) 
-       call this_tangent%add(1.0_rp, mass_matrix, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j), fe_op_tangent)
+       if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
+          call this%fe_op%compute_tangent()
+          call this_tangent%add(1.0_rp, mass_matrix, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j), fe_op_tangent)
+       else 
+          call this_tangent%copy( mass_matrix ) 
+       end if
     end if
     
     call this_assembler%compress_storage(this%get_sparse_matrix_storage_format())

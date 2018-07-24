@@ -64,6 +64,7 @@ private
         procedure,                  public :: init                           => par_sparse_matrix_init
         procedure,                  public :: scal                           => par_sparse_matrix_scal
         procedure,                  public :: add                            => par_sparse_matrix_add
+        procedure,                  public :: copy                           => par_sparse_matrix_copy
         procedure,                  public :: free_in_stages                 => par_sparse_matrix_free_in_stages  
         generic,                    public :: create                         => par_sparse_matrix_create_square, &
                                                                                 par_sparse_matrix_create_rectangular
@@ -246,6 +247,17 @@ contains
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%add(alpha, op1, beta, op2)
     end subroutine par_sparse_matrix_add
+    
+    subroutine par_sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Add two matrices
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        class(matrix_t),            intent(in)    :: op
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        call this%sparse_matrix%copy( op )
+    end subroutine par_sparse_matrix_copy
     
     subroutine par_sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------

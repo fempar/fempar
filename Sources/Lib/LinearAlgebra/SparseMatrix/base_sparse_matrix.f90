@@ -128,6 +128,7 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
      procedure(base_sparse_matrix_scal)             ,         public, deferred :: scal
      procedure(base_sparse_matrix_add)              ,         public, deferred :: add
+     procedure(base_sparse_matrix_copy)             ,         public, deferred :: copy
      procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
      procedure(base_sparse_matrix_update_bounded_values_body),              &
           public, deferred :: update_bounded_values_body
@@ -403,6 +404,7 @@ module base_sparse_matrix_names
         procedure, public :: scal                                    => coo_sparse_matrix_scal
         procedure, public :: add                                     => coo_sparse_matrix_add_two
         procedure         :: add_coo                                 => coo_sparse_matrix_add_coo
+        procedure, public :: copy                                    => coo_sparse_matrix_copy
         procedure, public :: copy_to_coo_body                        => coo_sparse_matrix_copy_to_coo_body
         procedure, public :: copy_from_coo_body                      => coo_sparse_matrix_copy_from_coo_body
         procedure, public :: copy_to_fmt_body                        => coo_sparse_matrix_copy_to_fmt_body
@@ -564,6 +566,13 @@ module base_sparse_matrix_names
             real(rp),                     intent(in)    :: beta
             class(base_sparse_matrix_t),  intent(in)    :: op2
         end subroutine base_sparse_matrix_add
+        
+        subroutine base_sparse_matrix_copy(this, op )
+            import base_sparse_matrix_t
+            import rp
+            class(base_sparse_matrix_t),  intent(inout) :: this
+            class(base_sparse_matrix_t),  intent(in)    :: op
+        end subroutine base_sparse_matrix_copy
 
         subroutine base_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
@@ -2973,11 +2982,30 @@ contains
          assert( this%get_nnz() == op1%get_nnz() ) 
          assert( op1%get_nnz() == op2%get_nnz() ) 
          assert( size(op1%ia) == size(op2%ia) )
-         assert( size(op1%ia) == size(op2%ia) )
+         assert( size(op1%ja) == size(op2%ja) )
          assert( allocated(this%val) ) 
          this%val(1:this%get_nnz()) =  alpha*op1%val(1:this%get_nnz()) + beta*op2%val(1:this%get_nnz())
 
     end subroutine coo_sparse_matrix_add_coo
+    
+    subroutine coo_sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Copy into COO values
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t),  intent(inout)  :: this
+        class(base_sparse_matrix_t), intent(in)     :: op
+    !-----------------------------------------------------------------
+        select type(op)
+        class is (coo_sparse_matrix_t) 
+           assert( op%state_is_assembled() )
+           assert( this%get_nnz() == op%get_nnz() )          
+           assert( size(this%ia) == size(op%ia) )
+           assert( allocated(this%val) ) 
+           this%val(1:this%get_nnz()) =  op%val(1:this%get_nnz())
+        class DEFAULT
+           call op%copy_to_coo_body( this )
+        end select
+    end subroutine coo_sparse_matrix_copy
 
     subroutine coo_sparse_matrix_append_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
