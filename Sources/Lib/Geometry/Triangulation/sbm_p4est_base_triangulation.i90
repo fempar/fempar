@@ -1816,6 +1816,11 @@ subroutine p4est_bt_update_cell_import( this )
   class(environment_t), pointer :: environment
 
 #ifdef ENABLE_P4EST  
+  neighbour_ids = c_null_ptr
+  rcv_ptrs  = c_null_ptr
+  rcv_leids = c_null_ptr
+  snd_ptrs  = c_null_ptr
+  snd_leids = c_null_ptr
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_allocate_and_fill_cell_import_raw_arrays(this%p4est, &
                                                             this%p4est_ghost, &
@@ -2013,6 +2018,10 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call memalloc(2, local_num_quadrants+ghost_num_quadrants, this%quad_coords, __FILE__, __LINE__)
   call memalloc(local_num_quadrants+ghost_num_quadrants, this%quad_level, __FILE__, __LINE__ )
   
+  QQ = c_null_ptr
+  QF = c_null_ptr
+  QH = c_null_ptr
+  QC = c_null_ptr
   call F90_p4est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2023,15 +2032,11 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           this%quad_coords, &
                                           this%quad_level)
   
-  if (this%get_num_ghost_cells()>0) then
-    deallocate(this%quad_to_quad)
-    deallocate(this%quad_to_face)
-    if (associated(this%quad_to_half)) then
-      deallocate(this%quad_to_half)
-    end if   
-    deallocate(this%quad_to_corner)
-  end if 
-  
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_2D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_2D,local_num_quadrants])
   if(num_half_faces>0) then 
@@ -2060,6 +2065,10 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_quad_by_edge, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_edge, __FILE__, __LINE__ )
   
+  QQ  = c_null_ptr
+  QF  = c_null_ptr
+  QH  = c_null_ptr
+  QC  = c_null_ptr
   call F90_p8est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2073,17 +2082,12 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           QC, &
                                           this%quad_coords, &
                                           this%quad_level)
-  if (this%get_num_ghost_cells()>0) then
-    deallocate(this%quad_to_quad)
-    deallocate(this%quad_to_face)
-    deallocate(this%quad_to_corner)
-    if (associated(this%quad_to_half)) then
-      deallocate(this%quad_to_half)
-    end if   
-    if (associated(this%quad_to_half_by_edge)) then
-      deallocate(this%quad_to_half_by_edge)
-    end if   
-  end if
+  
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+  if (associated(this%quad_to_half_by_edge)) deallocate(this%quad_to_half_by_edge) 
   
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_3D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
@@ -2650,6 +2654,9 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     end do
   end if
   
+  ! * IMPORTANT NOTE *: This set of 4x pointer re-associations does NOT cause
+  ! any memory leak. These pointers are associated with C data arrays that
+  ! in turn are to be deallocated by an internal p4est subroutine later on
   this%quad_to_quad   => quad_to_quad
   this%quad_to_face   => quad_to_face
   this%quad_to_half   => quad_to_half
@@ -2659,6 +2666,10 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     call memfree (this%quad_to_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_quad_by_edge, this%quad_to_quad_by_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_edge, this%quad_to_edge, __FILE__, __LINE__)
+    
+    ! * IMPORTANT NOTE *: This pointer re-associations will cause a memory leak if 
+    ! we do not deallocate (free) in advance the C data array it is associated to 
+    call F90_p4est_locidx_buffer_destroy(this%QHE)
     this%quad_to_half_by_edge   => quad_to_half_by_edge
     
     do i=1, cell_import%get_num_neighbours()

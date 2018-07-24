@@ -48,6 +48,8 @@ void F90_p4est_mesh_destroy(p4est_mesh_t **);
 void F90_p8est_mesh_destroy(p8est_mesh_t **);
 void F90_p4est_ghost_destroy(p4est_ghost_t **);
 void F90_p8est_ghost_destroy(p8est_ghost_t **);
+void F90_p4est_destroy(p4est_t **);
+void F90_p8est_destroy(p8est_t **);
 int refine_callback_2d(p4est_t *,p4est_topidx_t, p4est_quadrant_t *);
 int refine_callback_3d(p8est_t *,p4est_topidx_t, p8est_quadrant_t *);
 void init_fn_callback_2d(p4est_t *,p4est_topidx_t,p4est_quadrant_t *);
