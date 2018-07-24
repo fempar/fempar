@@ -35,7 +35,7 @@ module time_stepping_mass_discrete_integration_names
      type(fe_function_t)                       :: fe_function 
      class(serial_fe_space_t),         pointer :: fe_space => NULL()
    contains
-     procedure :: integrate_galerkin    => integrate_tangent 
+     procedure :: integrate_galerkin
      procedure :: integrate_tangent
      procedure :: integrate_residual 
      procedure :: set_evaluation_point

@@ -173,6 +173,12 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time)
   call di_fe_op%set_current_time(time)
   call di_fe_mass_op%set_current_time(time)
   
+  call this%mass_op%force_compute()
+  select type(fe_op => this%fe_op)
+  class is (fe_affine_operator_t)  
+     call fe_op%force_compute()
+  end select
+  
 end subroutine time_stepping_stage_fe_operator_set_evaluation_time
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -201,35 +207,34 @@ subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   class(serial_fe_space_t)     , pointer :: fe_sp
   class(environment_t)         , pointer :: environment
   class(assembler_t)           , pointer :: this_assembler
-  class(assembler_t)           , pointer :: fe_op_assembler
-  class(assembler_t)           , pointer :: mass_assembler
   integer(ip)                  , pointer :: state
   class(vector_t)              , pointer :: this_residual
-  class(vector_t)              , pointer :: fe_op_residual
-  class(vector_t)              , pointer :: mass_residual
- 
+  class(vector_t)          , allocatable :: fe_op_residual
+  class(vector_t)          , allocatable :: mass_residual  
+  
   state => this%get_state() 
   assert (associated(state))
-  
+
   fe_sp            => this%get_fe_space()
   environment      => fe_sp%get_environment()
-
   this_assembler   => this%get_assembler()
-  fe_op_assembler  => this%fe_op%get_assembler()
-  mass_assembler   => this%mass_op%get_assembler()
-
-
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
+    
       this_residual  => this_assembler%get_array()
-      fe_op_residual => fe_op_assembler%get_array()
-      mass_residual  => mass_assembler%get_array()
+      call this_residual%mold(fe_op_residual)
+      call this_residual%mold(mass_residual)
+      call fe_op_residual%clone(this_residual)
+      call mass_residual%clone(this_residual)
      
       call this%fe_op%compute_residual(fe_op_residual)
       if ( this%i == this%j )  call this%mass_op%compute_residual(mass_residual)
       
       this_residual = fe_op_residual + mass_residual
+      
+      call fe_op_residual%free()
+      call mass_residual%free()
     end if
 
     if (this%get_state() == tangent_computed) then
