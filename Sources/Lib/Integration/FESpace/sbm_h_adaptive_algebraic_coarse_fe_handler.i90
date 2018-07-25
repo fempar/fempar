@@ -280,6 +280,7 @@ subroutine h_adaptive_algebraic_l1_setup_constraint_matrix(this, field_id, par_f
      end if
      call object%next()
   end do
+  call visited_dofs%free()
   call par_fe_space%free_fe_cell_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef)
