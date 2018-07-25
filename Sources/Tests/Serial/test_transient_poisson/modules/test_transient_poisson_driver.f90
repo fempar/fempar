@@ -89,6 +89,7 @@ module test_transient_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: check_convergence_order
      procedure        , private :: is_exact_solution
+     procedure        , private :: print_time_step
      procedure        , private :: initialize_output
      procedure        , private :: finalize_output
      procedure        , private :: write_time_step
@@ -101,6 +102,7 @@ module test_transient_poisson_driver_names
 
 contains
 
+  ! -----------------------------------------------------------------------------------------------
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_transient_poisson_driver_t ), intent(inout) :: this
@@ -108,6 +110,7 @@ contains
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_triangulation(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -153,6 +156,7 @@ contains
        
   end subroutine setup_triangulation
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_reference_fes(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -183,7 +187,8 @@ contains
     
     call this%triangulation%free_cell_iterator(cell)
   end subroutine setup_reference_fes
-
+  
+ ! -----------------------------------------------------------------------------------------------
   subroutine setup_fe_space(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this    
@@ -197,6 +202,7 @@ contains
     call this%setup_cell_quadratures_degree()
   end subroutine setup_fe_space
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_cell_quadratures_degree (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -210,6 +216,7 @@ contains
     call this%fe_space%free_fe_cell_iterator(fe)
   end subroutine setup_cell_quadratures_degree
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_system (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -239,7 +246,7 @@ contains
                                    time=this%time_operator%get_current_time())
   end subroutine setup_system
   
-  
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_solver (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -297,23 +304,26 @@ contains
     call parameter_list%free()
   end subroutine setup_solver
   
-  
+  ! -----------------------------------------------------------------------------------------------
   subroutine assemble_system (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
   end subroutine assemble_system
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine solve_system(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout)   :: this
 
     do while ( .not. this%time_operator%has_finished() )
+       call this%print_time_step()
        call this%time_solver%advance_fe_function(this%solution)
        call this%write_time_step( this%time_operator%get_current_time() )
        call this%check_solution( this%time_operator%get_current_time())
     end do
   end subroutine solve_system
-    
+  
+  ! -----------------------------------------------------------------------------------------------
   subroutine check_solution(this,current_time)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -385,7 +395,7 @@ contains
         l2 = this%get_error_norm(dt,final_time,time_integration_scheme)
         l2 = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
        
-        write(*,*) 'Exact solution test for: ', time_integration_scheme , ' ...  pass' 
+        write(*,'(a32,a25,a12)') 'Exact solution test for:     ', time_integration_scheme , '... pass' 
       else
         !Local error convergence test
         dt           = 1.0e-04
@@ -393,11 +403,11 @@ contains
         l2_prev      = this%get_error_norm(dt,dt,time_integration_scheme)
         l2           = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
         if ( abs((l2 - l2_prev*dt_variation**(convergence_order+1)) / l2) < order_tol ) then
-          write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
-          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)!add to the same line as above
+          write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a2)') 'Local  convergence test for: ', time_integration_scheme , '... pass', &
+          '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order+1, ' )'
         else
-          write(*,*) 'Local  convergence test for: ', time_integration_scheme ,char(9) ,' ...  fail' 
-          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation) !add to the same line as above
+          write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a6,f6.3,a2)') 'Local  convergence test for: ', time_integration_scheme , '... fail', &
+          '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order+1, ', tol=', order_tol, ')'
           check( .false. )
         endif
         
@@ -408,11 +418,11 @@ contains
         l2_prev      = this%get_error_norm(dt,final_time,time_integration_scheme)
         l2           = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
         if ( abs((l2 - l2_prev*dt_variation**convergence_order) / l2) < order_tol ) then
-          write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
-          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)!add to the same line as above
+          write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a2)') 'Global convergence test for: ', time_integration_scheme ,'... pass' , &
+          '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order, ' )'
         else
-          write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
-          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation) !add to the same line as above
+          write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a6,f6.3,a2)') 'Global convergence test for: ', time_integration_scheme ,'... fail', &
+          '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order, ', tol=', order_tol, ' )'
           check( .false. )
         endif
       endif
@@ -420,6 +430,7 @@ contains
     endif  
   end subroutine check_convergence_order
   
+  ! -----------------------------------------------------------------------------------------------
   function get_error_norm ( this , dt , final_time, time_integration_scheme)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -441,6 +452,7 @@ contains
     call error_norm%free()                 
   end function get_error_norm
   
+  ! -----------------------------------------------------------------------------------------------
   function is_exact_solution ( this ) 
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -451,6 +463,16 @@ contains
       is_exact_solution = .false.
     endif
   end function is_exact_solution
+  
+  ! -----------------------------------------------------------------------------------------------
+  subroutine print_time_step ( this )
+    implicit none
+    class(test_transient_poisson_driver_t), intent(inout) :: this
+    if ( .not. this%test_params%get_is_test() .or. this%is_exact_solution() ) then
+      call this%time_operator%print(6)
+    end if
+  end subroutine print_time_step
+  
   ! -----------------------------------------------------------------------------------------------
   subroutine initialize_output(this)
     implicit none
@@ -489,6 +511,7 @@ contains
     endif
   end subroutine finalize_output
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine run_simulation(this) 
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this    
@@ -507,6 +530,7 @@ contains
     call this%free()
   end subroutine run_simulation
   
+  ! -----------------------------------------------------------------------------------------------
   subroutine free(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this

@@ -154,6 +154,16 @@ function time_stepping_operator_get_order( this )
   time_stepping_operator_get_order =  this%scheme%order
 end function time_stepping_operator_get_order
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_print( this, luout )
+  implicit none
+  class(time_stepping_operator_t), intent(in) :: this
+  integer(ip)                    , intent(in) :: luout
+  write(luout,*) '==============================================================================='
+  write(luout,'(a18, e10.3,a11,e10.3,a6,a22)') 'Solving for t=', this%current_initial_time, 'with dt=', this%dt, 'for ', this%scheme%time_integration_scheme
+  write(luout,*) '==============================================================================='
+end subroutine time_stepping_operator_print
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function time_stepping_operator_has_finished( this )
   implicit none
