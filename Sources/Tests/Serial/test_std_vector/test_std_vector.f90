@@ -84,6 +84,11 @@ program test_std_vector
     check ( v%get(i) == i+1)
   end do
   
+  call v%init(3)
+  do i=1, v%size()
+    check ( v%get(i) == 3)
+  end do  
+  
   
    
   call v%free()

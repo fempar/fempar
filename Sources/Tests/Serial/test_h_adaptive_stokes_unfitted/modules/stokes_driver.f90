@@ -65,7 +65,7 @@ module stokes_driver_names
      type(ParameterList_t)                        :: parameter_list
      type(unfitted_p4est_serial_triangulation_t)  :: triangulation
      class(level_set_function_t), allocatable     :: level_set_function
-     type(serial_unfitted_hp_adaptive_fe_space_t) :: fe_space 
+     type(serial_unfitted_fe_space_t)             :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(stokes_cG_discrete_integration_t)       :: cG_integration
      type(stokes_conditions_t)                    :: conditions

@@ -46,6 +46,8 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
 #ifdef ENABLE_P4EST
   call this%free()
   
+  call this%set_single_octree_mesh(.true.)
+  
   if(present(environment)) then
      call this%set_environment(environment)
      p_environment => this%get_environment()

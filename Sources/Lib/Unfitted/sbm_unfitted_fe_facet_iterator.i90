@@ -42,8 +42,6 @@ subroutine unfitted_fe_facet_iterator_create( this, fe_space, vef )
       unfitted_integration_manager => fe_space%unfitted_integration
     class is (par_unfitted_fe_space_t)
       unfitted_integration_manager => fe_space%unfitted_integration  
-    class is ( serial_unfitted_hp_adaptive_fe_space_t)
-      unfitted_integration_manager => fe_space%unfitted_integration  
     class default
       check(.false.)
   end select
@@ -172,13 +170,13 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   ! Recover info about the quadrature of the current facet
   quadrature => this%get_quadrature()
   quadrature_points_coordinates => quadrature%get_coordinates()
-  quadrature_weights     => quadrature%get_weights()
+  quadrature_weights     => quadrature%get_pointer_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
   num_dim_facet          =  quadrature%get_num_dims()
 
   ! Recover info about the quadrature of the sub-facet
   quadrature_subfacet => this%unfitted_integration_manager%quadrature_fitted_subfacet
-  quadrature_weights_subfacet     => quadrature_subfacet%get_weights()
+  quadrature_weights_subfacet     => quadrature_subfacet%get_pointer_weights()
   num_gp_subfacet                 =  quadrature_subfacet%get_num_quadrature_points()
   num_dim_subfacet                =  quadrature_subfacet%get_num_dims()
 
@@ -199,7 +197,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
     call this%get_ref_coords_of_subvef( isubfacet, nodal_coords_subfacet )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call cell_map_subfacet%update(quadrature_subfacet )
+    call cell_map_subfacet%update(quadrature_subfacet, no_ressemblance )
 
     ! Determine if the current sub-cell is interior or exterior
     if ( this%is_interior_subvef(isubfacet) ) then

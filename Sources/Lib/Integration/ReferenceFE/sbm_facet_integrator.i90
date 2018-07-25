@@ -62,7 +62,7 @@ subroutine cell_map_facet_restriction_update( this, facet_lid, subfacet_lid, qua
 
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature)
+  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature,no_ressemblance)
 
 end subroutine cell_map_facet_restriction_update
 
@@ -380,7 +380,7 @@ subroutine cell_integrator_facet_restriction_update(this, cell_map, facet_lid, s
   integer(ip)                              , intent(in)    :: subfacet_lid
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_map)
+  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(no_ressemblance,cell_map)
 end subroutine cell_integrator_facet_restriction_update
 
 !==================================================================================================

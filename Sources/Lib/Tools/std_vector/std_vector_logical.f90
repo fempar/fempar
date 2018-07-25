@@ -47,6 +47,7 @@ contains
   STD_VECTOR_ERASE(logical,logical)
   STD_VECTOR_COPY(logical,logical)
   STD_VECTOR_SET(logical,logical)
+  STD_VECTOR_INIT(logical,logical)
   STD_VECTOR_CAT(logical,logical)
   STD_VECTOR_SIZE(logical,logical)
   STD_VECTOR_CAPACITY(logical,logical)

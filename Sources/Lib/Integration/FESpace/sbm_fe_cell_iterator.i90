@@ -30,15 +30,59 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   implicit none
   class(fe_cell_iterator_t)            , intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
-  integer(ip) :: istat
+  integer(ip) :: istat, field_id
   call this%free()
+  call aux_create(this, fe_space)
+  call this%set_integration_updated(.false.)
+  allocate ( this%previous_cell, mold=this, stat=istat ); check(istat==0)
+  call aux_create(this%previous_cell,fe_space)
+  call this%previous_cell%set_integration_updated(.false.)
+  ! Initialize previous_cell to point to one cell past the end
+  call aux_set_gid(this%previous_cell,fe_space%triangulation%get_num_cells()+1)
+  this%cell_integration_is_set_up = fe_space%cell_integration_was_set_up()
+  
+  if ( this%cell_integration_is_set_up .and. this%fe_space%cell_quadratures%size() == 1 ) then
+    this%single_quad_cell_map_cell_integs = .true.
+    this%previous_cell%single_quad_cell_map_cell_integs = .true.
+    this%quadrature => this%fe_space%cell_quadratures%get_pointer(1)
+    this%previous_cell%quadrature => this%quadrature
+    assert ( this%fe_space%cell_maps%size() == 1 ) 
+    this%cell_map => this%fe_space%cell_maps%get_pointer(1)
+    this%previous_cell%cell_map => this%cell_map
+    assert ( this%fe_space%cell_integrators%size() == this%fe_space%get_num_fields() )
+    do field_id = 1, this%fe_space%get_num_fields()
+      this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(field_id)
+      this%previous_cell%cell_integrators(field_id)%p => this%cell_integrators(field_id)%p
+    end do
+  else 
+    this%single_quad_cell_map_cell_integs = .false.
+    this%previous_cell%single_quad_cell_map_cell_integs = .false.
+    nullify(this%quadrature)
+    nullify(this%previous_cell%quadrature)
+    nullify(this%cell_map)
+    nullify(this%previous_cell%cell_map)
+    do field_id = 1, this%fe_space%get_num_fields()
+      nullify(this%cell_integrators(field_id)%p)
+      nullify(this%previous_cell%cell_integrators(field_id)%p)
+    end do
+  end if 
+  
+end subroutine fe_cell_iterator_create
+
+subroutine aux_create(this, fe_space) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)      :: this
+  class(serial_fe_space_t) , target, intent(in) :: fe_space
+  class(triangulation_t), pointer :: triangulation
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
   call this%allocate_performance_scratch_data()
   call this%init_performance_scratch_data()
-  call this%first()
-end subroutine fe_cell_iterator_create
+  call aux_first(this) 
+  triangulation => fe_space%get_triangulation()
+  call this%set_single_octree_mesh(triangulation%is_single_octree_mesh())
+end subroutine aux_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
   implicit none
@@ -57,7 +101,22 @@ end subroutine fe_cell_iterator_free_cell
 subroutine fe_cell_iterator_free (this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  integer(ip) :: istat, iblock, ifield
+  integer(ip) :: istat
+  call aux_free(this)
+  if (associated(this%previous_cell)) then
+    call aux_free(this%previous_cell)
+    deallocate ( this%previous_cell, stat=istat ); check(istat==0)
+    nullify(this%previous_cell)
+  end if   
+  call this%set_integration_updated(.false.)
+  call this%set_single_octree_mesh(.false.)
+  this%cell_integration_is_set_up = .false. 
+end subroutine fe_cell_iterator_free
+
+subroutine aux_free (this) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat 
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
       call this%free_cell(this%fe_space%triangulation)
@@ -66,8 +125,12 @@ subroutine fe_cell_iterator_free (this)
   call this%free_assembly_scratch_data()
   call this%free_performance_scratch_data()
   call this%nullify_fe_space()
-end subroutine fe_cell_iterator_free
-
+  nullify(this%cell_map)
+  nullify(this%quadrature)
+  this%single_quad_cell_map_cell_integs = .false.
+end subroutine aux_free   
+  
+ 
 subroutine fe_cell_iterator_allocate_assembly_scratch_data ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
@@ -99,7 +162,6 @@ subroutine fe_cell_iterator_free_assembly_scratch_data ( this )
   if ( allocated(this%cell_integrators) ) then
     deallocate ( this%cell_integrators, stat=istat ); check(istat==0);
   end if
-  nullify(this%cell_map)
   if ( allocated(this%gid_to_lid_map) ) then
     do iblock = 1, this%fe_space%get_num_blocks()
        call this%gid_to_lid_map(iblock)%free()
@@ -129,7 +191,7 @@ subroutine fe_cell_iterator_init_performance_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, i
   ! If (same) set of reference FEs on top of all cells ...
-  if ( size(this%fe_space%set_ids_to_reference_fes,2) == 1 ) then 
+  if ( this%fe_space%same_reference_fes_on_all_cells ) then 
     do i=1, this%fe_space%num_fields
       this%reference_fes(i)%p => this%fe_space%reference_fes(i)%p
     end do   
@@ -141,7 +203,7 @@ subroutine fe_cell_iterator_update_performance_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, i
   ! If (potentially) different set of reference FEs on top of all cells ...
-  if ( size(this%fe_space%set_ids_to_reference_fes,2) > 1 ) then 
+  if ( .not. this%fe_space%same_reference_fes_on_all_cells ) then 
     do i=1, this%fe_space%num_fields
       this%reference_fes(i)%p => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(i)%get(this%get_gid()))%p
     end do   
@@ -169,26 +231,76 @@ end subroutine fe_cell_iterator_free_final
 subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+         call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if   
+    end if
+  end if  
   call base_fe_cell_iterator_next(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
-  end if   
+  end if 
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_next
 
 subroutine fe_cell_iterator_first(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  call base_fe_cell_iterator_first(this)
-  call this%update_performance_scratch_data()
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+          call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if
+    end if
+  end if   
+  call aux_first(this)
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_first
+
+subroutine aux_first(this) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  call base_fe_cell_iterator_first(this)
+  if ( .not. this%has_finished() ) then
+    call this%update_performance_scratch_data()
+  end if
+end subroutine aux_first
 
 subroutine fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  call base_fe_cell_iterator_set_gid(this,lid)
-  call this%update_performance_scratch_data()
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+          call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if    
+    end if   
+  end if
+  call aux_set_gid(this,lid)
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_set_gid
+
+subroutine aux_set_gid(this, gid)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: gid
+  call base_fe_cell_iterator_set_gid(this,gid)
+  if ( .not. this%has_finished() ) then
+    call this%update_performance_scratch_data()
+  end if
+end subroutine aux_set_gid
 
 subroutine fe_cell_iterator_set_fe_space(this,fe_space)
   implicit none
@@ -207,8 +319,24 @@ function fe_cell_iterator_count_own_dofs_cell ( this, field_id )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)              , intent(in)   :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_cell
+  
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+    fe_cell_iterator_count_own_dofs_cell  = this%count_own_dofs_cell_w_scratch_data(field_id)
+  else
+    fe_cell_iterator_count_own_dofs_cell =  this%count_own_dofs_cell_general(field_id)
+  end if 
+  
+end function fe_cell_iterator_count_own_dofs_cell
+
+
+function fe_cell_iterator_count_own_dofs_cell_general ( this, field_id )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
-  integer(ip) :: fe_cell_iterator_count_own_dofs_cell 
+  integer(ip) :: fe_cell_iterator_count_own_dofs_cell_general
   
   ! Local variables
   integer(ip) :: ivef
@@ -220,10 +348,44 @@ function fe_cell_iterator_count_own_dofs_cell ( this, field_id )
   reference_fe => this%get_reference_fe(field_id)
   ivef = this%get_num_vefs()+1
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-  fe_cell_iterator_count_own_dofs_cell = own_dofs_on_vef_iterator%get_size() 
-end function fe_cell_iterator_count_own_dofs_cell
+  fe_cell_iterator_count_own_dofs_cell_general = own_dofs_on_vef_iterator%get_size() 
+end function fe_cell_iterator_count_own_dofs_cell_general
+
+function fe_cell_iterator_count_own_dofs_cell_w_scratch_data ( this, field_id )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)         , intent(in)   :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_cell_w_scratch_data 
+  
+  ! Local variables
+  integer(ip) :: ivef, spos, epos
+  
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
+  assert ( .not. this%is_void(field_id) ) 
+  ivef = size(this%fe_space%ptr_own_dofs_n_face(field_id)%a)-1
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)
+  fe_cell_iterator_count_own_dofs_cell_w_scratch_data = epos-spos
+end function fe_cell_iterator_count_own_dofs_cell_w_scratch_data
+
+
 
 subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof, are_free_dofs )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip)         , intent(in)      :: field_id
+  integer(ip)         , intent(inout)   :: current_dof
+  logical, optional   , intent(in)      :: are_free_dofs
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+     call this%generate_own_dofs_cell_w_scratch_data(field_id, current_dof, are_free_dofs)
+  else
+     call this%generate_own_dofs_cell_general(field_id, current_dof, are_free_dofs)
+  end if 
+end subroutine fe_cell_iterator_generate_own_dofs_cell
+
+subroutine fe_cell_iterator_generate_own_dofs_cell_general ( this, field_id, current_dof, are_free_dofs )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(inout)   :: this
@@ -265,9 +427,69 @@ subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_cell_iterator_generate_own_dofs_cell
+end subroutine fe_cell_iterator_generate_own_dofs_cell_general
+
+subroutine fe_cell_iterator_generate_own_dofs_cell_w_scratch_data ( this, field_id, current_dof, are_free_dofs )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip)         , intent(in)      :: field_id
+  integer(ip)         , intent(inout)   :: current_dof
+  logical, optional   , intent(in)      :: are_free_dofs
+
+  ! Local variables
+  integer(ip) :: spos, epos, ivef, i 
+  integer(ip) :: base_pos_lst_dofs_gids
+  logical     :: are_free
+  integer(ip) :: dof_lid
+  integer(ip), pointer :: p_lst_dofs_gids(:)
+
+  assert ( .not. this%is_void(field_id) ) 
+
+  if (present(are_free_dofs)) then
+    are_free = are_free_dofs
+  else
+    are_free = .true.
+  end if
+  
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
+  ivef = size(this%fe_space%ptr_own_dofs_n_face(field_id)%a)-1
+  
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current fe
+  do i=spos,epos 
+    current_dof = current_dof + 1
+    dof_lid     = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if (are_free) then
+      p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = current_dof
+    else
+      p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = -current_dof
+    end if
+  end do
+end subroutine fe_cell_iterator_generate_own_dofs_cell_w_scratch_data
 
 subroutine fe_cell_iterator_generate_own_dofs_vef ( this, ivef, field_id, current_dof, free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)               , intent(in)    :: ivef
+  integer(ip)               , intent(in)    :: field_id
+  integer(ip)               , intent(inout) :: current_dof
+  logical              , intent(in)    :: free_dofs_loop
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+   call this%generate_own_dofs_vef_w_scratch_data(ivef,field_id, current_dof, free_dofs_loop)
+  else
+   call this%generate_own_dofs_vef_general(ivef,field_id, current_dof, free_dofs_loop)
+  end if 
+end subroutine fe_cell_iterator_generate_own_dofs_vef
+
+subroutine fe_cell_iterator_generate_own_dofs_vef_general ( this, ivef, field_id, current_dof, free_dofs_loop )
   implicit none
   class(fe_cell_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: ivef
@@ -302,7 +524,46 @@ subroutine fe_cell_iterator_generate_own_dofs_vef ( this, ivef, field_id, curren
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_cell_iterator_generate_own_dofs_vef
+end subroutine fe_cell_iterator_generate_own_dofs_vef_general
+
+subroutine fe_cell_iterator_generate_own_dofs_vef_w_scratch_data ( this, ivef, field_id, current_dof, free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  logical              , intent(in)    :: free_dofs_loop
+
+  integer(ip) :: base_pos_lst_dofs_gids
+  integer(ip), pointer :: p_lst_dofs_gids(:)
+  integer(ip) :: dof_lid, i, spos, epos 
+ 
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%num_fields )
+  assert ( .not. this%is_void(field_id) ) 
+  
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+  
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+ 
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current fe
+  do i=spos,epos 
+    dof_lid = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if ( p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) >= 0 ) then
+      current_dof = current_dof + 1
+      if ( free_dofs_loop ) then ! A free dofs loop is surrounding this call 
+        p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = current_dof
+      else                       ! A fixed dofs loop is surrounding this call 
+        p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = -current_dof
+      end if
+    end if
+  end do
+end subroutine fe_cell_iterator_generate_own_dofs_vef_w_scratch_data
 
 function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   implicit none
@@ -310,6 +571,19 @@ function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   integer(ip)          , intent(in) :: ivef
   integer(ip)          , intent(in) :: field_id
   integer(ip) :: fe_cell_iterator_count_own_dofs_vef
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+    fe_cell_iterator_count_own_dofs_vef = this%count_own_dofs_vef_w_scratch_data(ivef,field_id)
+  else
+    fe_cell_iterator_count_own_dofs_vef = this%count_own_dofs_vef_general(ivef,field_id)
+  end if 
+end function fe_cell_iterator_count_own_dofs_vef
+
+function fe_cell_iterator_count_own_dofs_vef_general ( this, ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(in) :: this
+  integer(ip)          , intent(in) :: ivef
+  integer(ip)          , intent(in) :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_vef_general
 
   integer(ip) :: base_pos_lst_dofs_gids
   class(reference_fe_t), pointer :: reference_fe
@@ -324,17 +598,70 @@ function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   
   reference_fe => this%get_reference_fe(field_id)
   
-  fe_cell_iterator_count_own_dofs_vef = 0
+  fe_cell_iterator_count_own_dofs_vef_general = 0
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) >= 0 ) then
-      fe_cell_iterator_count_own_dofs_vef = fe_cell_iterator_count_own_dofs_vef + 1
+      fe_cell_iterator_count_own_dofs_vef_general = fe_cell_iterator_count_own_dofs_vef_general + 1
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end function fe_cell_iterator_count_own_dofs_vef
+end function fe_cell_iterator_count_own_dofs_vef_general
 
-subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
+function fe_cell_iterator_count_own_dofs_vef_w_scratch_data ( this, ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(in) :: this
+  integer(ip)          , intent(in) :: ivef
+  integer(ip)          , intent(in) :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_vef_w_scratch_data
+  integer(ip) :: base_pos_lst_dofs_gids
+  integer(ip) :: i, spos, epos, dof_lid
+  integer(ip), pointer  :: p_lst_dofs_gids(:)
+  
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%num_fields )
+  assert ( .not. this%is_void(field_id) ) 
+  
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+ 
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+  
+  fe_cell_iterator_count_own_dofs_vef_w_scratch_data = 0
+  do i=spos, epos
+    dof_lid = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if ( p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) >= 0 ) then
+      fe_cell_iterator_count_own_dofs_vef_w_scratch_data = & 
+           fe_cell_iterator_count_own_dofs_vef_w_scratch_data + 1
+    end if
+  end do
+end function fe_cell_iterator_count_own_dofs_vef_w_scratch_data
+
+subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, &
+                                                      ivef, &
+                                                      field_id, &
+                                                      current_dof, &
+                                                      components_code, &
+                                                      free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  logical              , intent(in)    :: components_code(:)
+  logical              , intent(in)    :: free_dofs_loop
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+    call this%generate_own_dofs_vef_component_wise_w_scratch_data(ivef,field_id,current_dof,components_code,free_dofs_loop)
+  else
+    call this%generate_own_dofs_vef_component_wise_general(ivef,field_id,current_dof,components_code,free_dofs_loop)
+  end if 
+end subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise
+
+
+subroutine fci_generate_own_dofs_vef_component_wise_general ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
   implicit none
   class(fe_cell_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: ivef
@@ -348,6 +675,7 @@ subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, f
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
+  assert ( reference_fe%has_nodal_quadrature() )
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -375,9 +703,73 @@ subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, f
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise
+end subroutine fci_generate_own_dofs_vef_component_wise_general
+
+subroutine fci_generate_own_dofs_vef_component_wise_w_scratch_data ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  logical              , intent(in)    :: components_code(:)
+  logical              , intent(in)    :: free_dofs_loop
+  integer(ip) :: base_pos_lst_dofs_gids, component_id, local_within_ref_fe_dof_id
+  integer(ip) :: i, spos, epos
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip), pointer :: p_lst_dofs_gids(:)
+  
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
+  
+#ifdef DEBUG   
+  reference_fe => this%get_reference_fe(field_id)
+  assert ( size(components_code) == reference_fe%get_num_field_components() )
+  assert ( reference_fe%has_nodal_quadrature() )
+#endif
+    
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+  
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+  
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current fe
+  do i=spos,epos
+    local_within_ref_fe_dof_id = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if ( p_lst_dofs_gids(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) >= 0 ) then
+      component_id = this%fe_space%dofs_component(field_id)%a(local_within_ref_fe_dof_id)
+      if ( components_code(component_id) ) then 
+       current_dof = current_dof +1 
+       if ( free_dofs_loop ) then ! A free dofs loop is surrounding this call 
+         p_lst_dofs_gids(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) = current_dof
+       else
+         p_lst_dofs_gids(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) = -current_dof
+       end if
+      end if  
+    end if
+  end do
+end subroutine fci_generate_own_dofs_vef_component_wise_w_scratch_data
+
+
 
 subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ivef, source_fe, source_ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)               , intent(in)    :: target_ivef
+  class(fe_cell_iterator_t) , intent(in)    :: source_fe
+  integer(ip)               , intent(in)    :: source_ivef
+  integer(ip)               , intent(in)    :: field_id
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+     call this%fetch_own_dofs_vef_from_source_fe_w_scratch_data(target_ivef, source_fe, source_ivef, field_id)
+  else
+     call this%fetch_own_dofs_vef_from_source_fe_general(target_ivef, source_fe, source_ivef, field_id)
+  end if 
+end subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+
+subroutine fci_fetch_own_dofs_vef_from_source_fe_general ( this, target_ivef, source_fe, source_ivef, field_id )
   implicit none
   class(fe_cell_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: target_ivef
@@ -428,7 +820,62 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
         call own_dofs_on_vef_iterator_target%next()
       end do
   end if
-end subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+end subroutine fci_fetch_own_dofs_vef_from_source_fe_general
+
+subroutine fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data ( this, target_ivef, source_fe, source_ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: target_ivef
+  class(fe_cell_iterator_t) , intent(in)    :: source_fe
+  integer(ip)          , intent(in)    :: source_ivef
+  integer(ip)          , intent(in)    :: field_id
+
+  integer(ip)                    :: base_pos_lst_dofs_gids_source
+  type(list_iterator_t)          :: own_dofs_on_vef_iterator_target
+  integer(ip)                    :: base_pos_lst_dofs_gids_target
+  
+  integer(ip)                    :: source_dof_LID_cell, target_dof_LID_cell
+  integer(ip)                    :: target_dof_LID_vef
+  integer(ip)                    :: source_dof_LID_vef
+  integer(ip)                    :: permutation_index
+  integer(ip)                    :: source_ivef_dim
+  integer(ip), pointer           :: p_lst_dofs_gids(:)
+  integer(ip)                    :: i, spos, epos
+  class(reference_fe_t), pointer :: reference_fe_source 
+
+  assert ( target_ivef <= this%get_num_vefs() )
+  assert ( source_ivef <= source_fe%get_num_vefs() )
+  assert ( field_id <= this%get_num_fields() )
+  assert ( .not. this%is_void(field_id) ) 
+  
+  base_pos_lst_dofs_gids_target = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+  
+  base_pos_lst_dofs_gids_source = this%fe_space%ptr_dofs_x_fe(field_id)%get(source_fe%get_gid())-1
+  reference_fe_source => source_fe%reference_fes(field_id)%p
+  source_ivef_dim = reference_fe_source%get_n_face_dim(source_ivef)
+
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(target_ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(target_ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within target fe
+  if ( epos >= spos ) then 
+      permutation_index = this%get_permutation_index( source_fe, &
+                                                      target_ivef, &
+                                                      source_ivef )
+      do i=spos,epos 
+        target_dof_LID_vef = i-spos+1 
+        source_dof_LID_vef = reference_fe_source%permute_dof_LID_n_face(target_dof_LID_vef, &
+                                                                    source_ivef_dim, & 
+                                                                    permutation_index)
+        target_dof_LID_cell = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+        source_dof_LID_cell = reference_fe_source%translate_dof_lid_n_face_to_dof_lid_cell(source_dof_LID_vef, source_ivef)
+        p_lst_dofs_gids(base_pos_lst_dofs_gids_target+target_dof_LID_cell) = &                                                      
+            p_lst_dofs_gids(base_pos_lst_dofs_gids_source+source_dof_LID_cell)
+      end do
+  end if 
+end subroutine fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data
 
 subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
   implicit none
@@ -501,7 +948,7 @@ subroutine fe_cell_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
   do i = start_pos_lst_dofs_gids, end_pos_lst_dofs_gids
-    if ( this%fe_space%lst_dofs_gids%get(i) > 0 ) then
+    if ( this%fe_space%is_free_dof(this%fe_space%lst_dofs_gids%get(i)) ) then
       call this%fe_space%lst_dofs_gids%set(i,perm_old2new(this%fe_space%lst_dofs_gids%get(i)))
     end if
   end do
@@ -521,26 +968,72 @@ subroutine fe_cell_iterator_update_assembly_scratch_data( this)
   call this%get_fe_dofs(this%fe_dofs)
 end subroutine fe_cell_iterator_update_assembly_scratch_data
 
-
-
 subroutine fe_cell_iterator_update_integration( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
   type(quadrature_t)       , pointer :: quadrature
-
-  call this%update_cell_map()
-  coordinates => this%cell_map%get_coordinates()
-  call this%get_nodes_coordinates(coordinates)
-
-  quadrature => this%get_quadrature()
-  call this%cell_map%update(quadrature)
-  call this%update_cell_integrators()
-  do field_id = 1, this%get_num_fields()
-     call this%cell_integrators(field_id)%p%update(this%cell_map)
-  end do
+  type(cell_map_t)         , pointer :: cell_map
+  type(cell_integrator_t)  , pointer :: cell_integrator
+  integer(ip) :: cell_ressemblance
+  integer(ip) :: prev_get_lev, this_get_lev
+  real(rp) :: scaling_factor
+  if ( .not. this%is_integration_updated() ) then
+    call this%update_cell_map()
+    call this%update_cell_integrators()
   
+    ! Update integration data structures of previous cell
+    ! This is required to drive comparisons required to
+    ! decide whether the current cell is either a translation 
+    ! or translation + scaling of the previous cell
+    ! If the previous cell is not a valid cell or it is cut, there is nothing
+    ! that can be re-used
+    cell_ressemblance = no_ressemblance
+    if ( .not. this%previous_cell%has_finished() ) then
+       if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
+          call this%previous_cell%update_cell_map()
+          call this%previous_cell%update_cell_integrators()
+          this_get_lev = this%get_level()
+          prev_get_lev = this%previous_cell%get_level()
+          if ( this_get_lev == prev_get_lev ) then
+             cell_ressemblance = is_only_translated
+          else
+             cell_ressemblance = is_scaled_and_translated
+             scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+          end if
+       end if
+    end if
+    
+    ! Cell map update
+    cell_map    => this%get_cell_map()
+    coordinates => cell_map%get_coordinates()
+    call this%get_nodes_coordinates(coordinates)
+    quadrature => this%get_quadrature()
+    ! If cell_ressemblance is either translation or translation + scaling .AND.
+    ! the cell map of previous cell and that of the current cell are strictly 
+    ! the same instance, then ... (Note: it might happen that the cell map of
+    ! the previous cell is set up with a difference quadrature of the current
+    ! cell)
+    if ( cell_ressemblance /= no_ressemblance .and. &
+         associated(cell_map,this%previous_cell%cell_map) ) then
+       call cell_map%update(quadrature, cell_ressemblance, scaling_factor)
+    else
+       call cell_map%update(quadrature, no_ressemblance)
+    end if
+    
+    ! Cell integrators update
+    do field_id = 1, this%get_num_fields()
+       cell_integrator => this%get_cell_integrator(field_id)
+       if ( cell_ressemblance /= no_ressemblance .and. &
+            associated(cell_integrator,this%previous_cell%cell_integrators(field_id)%p) ) then
+          call cell_integrator%update(cell_ressemblance,this%cell_map,scaling_factor) 
+       else
+          call cell_integrator%update(no_ressemblance,this%cell_map)
+       end if
+    end do
+    call this%set_integration_updated(.true.)
+ end if
 end subroutine fe_cell_iterator_update_integration
 
 function fe_cell_iterator_get_fe_space(this)
@@ -711,7 +1204,10 @@ subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field ( this
   integer(ip)            , intent(in)    :: field_id
   integer(ip), pointer :: fe_dofs(:)
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  if ( any( (fe_dofs(:) < 0) .and. (fe_dofs(:) >= -this%fe_space%num_dirichlet_dofs) ) ) call this%fe_space%at_strong_dirichlet_boundary_x_fe(field_id)%set(this%get_gid(),.true.)
+  if ( associated(fe_dofs) ) then 
+    if ( any( (fe_dofs(:) < 0) .and. (fe_dofs(:) >= -this%fe_space%num_dirichlet_dofs) ) ) & 
+        call this%fe_space%at_strong_dirichlet_boundary_x_fe(field_id)%set(this%get_gid(),.true.)
+  end if       
 end subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field
 
 subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
@@ -721,12 +1217,14 @@ subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  do i=1, size(fe_dofs)
-    if ( this%is_fixed_dof(fe_dofs(i)) ) then
-      call this%fe_space%has_fixed_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
-      exit
-    end if  
-  end do  
+  if ( associated(fe_dofs) ) then
+    do i=1, size(fe_dofs)
+      if ( this%is_fixed_dof(fe_dofs(i)) ) then
+        call this%fe_space%has_fixed_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
+        exit
+      end if  
+    end do  
+  end if   
 end subroutine fe_cell_iterator_set_has_fixed_dofs
 
 subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
@@ -736,12 +1234,14 @@ subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  do i=1, size(fe_dofs)
-    if ( this%is_hanging_dof(fe_dofs(i)) ) then
-      call this%fe_space%has_hanging_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
-      exit
-    end if
-  end do
+  if ( associated(fe_dofs) ) then
+    do i=1, size(fe_dofs)
+      if ( this%is_hanging_dof(fe_dofs(i)) ) then
+        call this%fe_space%has_hanging_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
+        exit
+      end if
+    end do
+  end if 
 end subroutine fe_cell_iterator_set_has_hanging_dofs
 
 subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields ( this )
@@ -760,6 +1260,14 @@ function fe_cell_iterator_is_free_dof ( this, dof_lid )
   logical :: fe_cell_iterator_is_free_dof
   fe_cell_iterator_is_free_dof = this%fe_space%is_free_dof(dof_lid)
 end function fe_cell_iterator_is_free_dof
+
+function fe_cell_iterator_is_ghost_dof ( this, dof_lid )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip)              , intent(in) :: dof_lid
+  logical :: fe_cell_iterator_is_ghost_dof
+  fe_cell_iterator_is_ghost_dof = this%fe_space%is_ghost_dof(dof_lid)
+end function fe_cell_iterator_is_ghost_dof
 
 function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   implicit none
@@ -844,15 +1352,18 @@ function fe_cell_iterator_get_quadrature ( this )
   type(quadrature_t), pointer      :: fe_cell_iterator_get_quadrature
   integer(ip) :: cell_quadratures_key, cell_quadratures_position
   integer(ip) :: istat
+  if ( .not. this%single_quad_cell_map_cell_integs ) then
+    cell_quadratures_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                               this%get_quadrature_degree())
   
-  cell_quadratures_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                          this%get_quadrature_degree())
-  
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_quadratures_key, &
-                                                          val=cell_quadratures_position, &
-                                                          stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
+    call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_quadratures_key, &
+                                                              val=cell_quadratures_position, &
+                                                              stat=istat)
+    assert ( .not. istat == key_not_found )
+    fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
+  else
+    fe_cell_iterator_get_quadrature => this%quadrature
+  end if  
 end function fe_cell_iterator_get_quadrature
 
 function fe_cell_iterator_get_cell_map ( this )
@@ -868,17 +1379,17 @@ subroutine fe_cell_iterator_update_cell_map ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: cell_maps_position, cell_maps_key
   integer(ip) :: istat
+  if ( .not. this%single_quad_cell_map_cell_integs ) then
+    cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                         this%get_quadrature_degree())
   
-  cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                   this%get_quadrature_degree())
+    call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
+                                                             val=cell_maps_position, &
+                                                             stat=istat)
   
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
-                                                          val=cell_maps_position, &
-                                                          stat=istat)
-  
-  assert ( .not. istat == key_not_found )
-  this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
-  
+    assert ( .not. istat == key_not_found )
+    this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
+  end if
 end subroutine fe_cell_iterator_update_cell_map
 
 !==================================================================================================
@@ -887,18 +1398,23 @@ subroutine fe_cell_iterator_update_cell_integrators ( this )
   class(fe_cell_iterator_t), intent(inout)   :: this
   integer(ip) :: cell_integrators_position_key
   integer(ip) :: cell_integrators_position
-  integer(ip) :: istat, field_id
-  do field_id = 1, this%get_num_fields()
-     cell_integrators_position_key = &
-           this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+  integer(ip) :: istat, field_id, num_fields
+  type(cell_integrator_t), pointer :: cell_integrators(:)
+  if ( .not. this%single_quad_cell_map_cell_integs ) then
+    num_fields = this%get_num_fields()
+    cell_integrators => this%fe_space%cell_integrators%get_pointer()
+    do field_id = 1, num_fields
+       cell_integrators_position_key = &
+             this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
                                                                   this%get_quadrature_degree(), &
                                                                   this%fe_space%field_cell_to_ref_fes(field_id)%get(this%get_gid()))  
-     call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
-                                                           val=cell_integrators_position, &
-                                                           stat=istat)
-     assert ( .not. istat == key_not_found )
-     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(cell_integrators_position) 
-  end do  
+       call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
+                                                        val=cell_integrators_position, &
+                                                        stat=istat)
+       assert ( .not. istat == key_not_found )
+       this%cell_integrators(field_id)%p => cell_integrators(cell_integrators_position) 
+    end do
+  end if 
 end subroutine fe_cell_iterator_update_cell_integrators
 
 
@@ -920,11 +1436,62 @@ subroutine fe_cell_iterator_set_cell_integrator ( this, field_id, cell_integrato
 end subroutine fe_cell_iterator_set_cell_integrator
 
 !==================================================================================================
+subroutine fe_cell_iterator_nullify_cell_map ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  nullify(this%cell_map)
+end subroutine fe_cell_iterator_nullify_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_nullify_cell_integrators ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: field_id
+  do field_id=1, this%get_num_fields()
+    nullify(this%cell_integrators(field_id)%p)
+  end do   
+end subroutine fe_cell_iterator_nullify_cell_integrators
+
+!==================================================================================================
+function fe_cell_iterator_is_integration_updated ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  logical :: fe_cell_iterator_is_integration_updated
+  fe_cell_iterator_is_integration_updated = this%integration_updated
+end function fe_cell_iterator_is_integration_updated
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_integration_updated ( this, integration_updated )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: integration_updated
+  this%integration_updated = integration_updated
+end subroutine fe_cell_iterator_set_integration_updated
+
+!==================================================================================================
+function fe_cell_iterator_is_single_octree_mesh ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical :: fe_cell_iterator_is_single_octree_mesh
+  fe_cell_iterator_is_single_octree_mesh = this%single_octree_mesh
+end function fe_cell_iterator_is_single_octree_mesh
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_single_octree_mesh ( this, single_octree_mesh )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: single_octree_mesh
+  this%single_octree_mesh = single_octree_mesh
+end subroutine fe_cell_iterator_set_single_octree_mesh
+
+!==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)
   implicit none
   class(fe_cell_iterator_t)   , target, intent(in) :: this
   type(point_t), pointer :: fe_cell_iterator_get_quadrature_points_coordinates(:)
-  fe_cell_iterator_get_quadrature_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
+  type(cell_map_t), pointer :: cell_map
+  cell_map => this%get_cell_map()
+  fe_cell_iterator_get_quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 end function fe_cell_iterator_get_quadrature_points_coordinates
 
 !==================================================================================================
@@ -933,8 +1500,20 @@ function fe_cell_iterator_get_det_jacobian ( this, i )
   class(fe_cell_iterator_t), intent(in) :: this
   integer(ip)    , intent(in) :: i
   real(rp) :: fe_cell_iterator_get_det_jacobian
-  fe_cell_iterator_get_det_jacobian = this%cell_map%get_det_jacobian(i)
+  type(cell_map_t), pointer :: cell_map
+  cell_map => this%get_cell_map()
+  fe_cell_iterator_get_det_jacobian = cell_map%get_det_jacobian(i)
 end function fe_cell_iterator_get_det_jacobian
+
+!==================================================================================================
+subroutine  fe_cell_iterator_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                 , intent(inout) :: det_jacobians(:)
+  type(cell_map_t), pointer :: cell_map
+  cell_map => this%get_cell_map()
+  call cell_map%get_det_jacobians(det_jacobians)
+end subroutine  fe_cell_iterator_get_det_jacobians
 
 !==================================================================================================
 function fe_cell_iterator_get_cell_integrator ( this, field_id )
@@ -950,8 +1529,10 @@ function fe_cell_iterator_get_interpolation_duties ( this, field_id )
   class(fe_cell_iterator_t), intent(in)   :: this
   integer(ip)              , intent(in)   :: field_id
   type(interpolation_duties_t), pointer :: fe_cell_iterator_get_interpolation_duties
+  type(cell_integrator_t), pointer :: cell_integrator
+  cell_integrator => this%get_cell_integrator(field_id)
   fe_cell_iterator_get_interpolation_duties => & 
-    this%cell_integrators(field_id)%p%get_interpolation_duties_real_cell()
+    cell_integrator%get_interpolation_duties_real_cell()
 end function fe_cell_iterator_get_interpolation_duties
 
 subroutine fe_cell_iterator_get_fe_vef(this, ivef, fe_vef)
@@ -1027,10 +1608,8 @@ function fe_cell_iterator_is_void(this, field_id)
   class(fe_cell_iterator_t), intent(in)    :: this
   integer(ip),          intent(in)    :: field_id
   logical                             :: fe_cell_iterator_is_void
-  class(reference_fe_t), pointer :: reference_fe
-  reference_fe => this%get_reference_fe(field_id)
   fe_cell_iterator_is_void =  .false.
-  select type (reference_fe)
+  select type (ref_fe => this%reference_fes(field_id)%p)
     class is (void_reference_fe_t)
       fe_cell_iterator_is_void =  .true.
   end select
@@ -1054,12 +1633,11 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_fu
   type(fe_function_t)      , intent(in)    :: fe_function
   real(rp)                 , intent(in)    :: elmat(:,:)
   real(rp)                 , intent(inout) :: elvec(:)
-  
-  integer(ip) :: idof, elmat_col, field_id, spos
-  
-  class(reference_fe_t)      , pointer :: reference_fe
+  integer(ip) :: idof, elmat_col, field_id, spos, dof_gid
   type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  
+  assert ( this%is_integration_updated() )
   
   strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
@@ -1067,17 +1645,15 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_fu
   elmat_col = 0
   do field_id = 1, this%fe_space%get_num_fields()
     if ( this%at_strong_dirichlet_boundary(field_id) ) then
-      reference_fe => this%get_reference_fe(field_id)
-      spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-      do idof = 1, reference_fe%get_num_shape_functions()
+      do idof = 1, size(this%fe_dofs(field_id)%p)
         elmat_col = elmat_col + 1
-        if ( this%fe_space%lst_dofs_gids%get(spos+idof-1) < 0 ) then
-          elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_gids%get(spos+idof-1))
+        dof_gid = this%fe_dofs(field_id)%p(idof)
+        if ( this%fe_space%is_strong_dirichlet_dof(dof_gid) ) then 
+          elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(abs(dof_gid))
         end if
       end do
     end if
   end do
-  
 end subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming
 
 subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, fe_function )
@@ -1090,6 +1666,8 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, f
   integer(ip) :: ifield, i_lid, i_gid, i_gid_hanging, k_lid, k_gid, pos, spos, epos
   real(rp) :: weight
   integer(ip) :: offset
+  
+  assert ( this%is_integration_updated() )
   
   strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
@@ -1145,7 +1723,6 @@ subroutine fe_cell_iterator_assembly_array ( this,  &
   call this%update_assembly_scratch_data()
   call assembler%assembly_array( this%fe_space%num_fields,           &
                                  this%fe_space%get_field_blocks(),   &
-                                 this%fe_space%get_field_coupling(), &
                                  this%num_cell_dofs_x_field,         &
                                  this%fe_dofs,                       &
                                  elvec )
@@ -1217,7 +1794,6 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
                                     elmat )
     call assembler%assembly_array( this%fe_space%num_fields,            &
                                    this%fe_space%get_field_blocks(),    &
-                                   this%fe_space%get_field_coupling(),  &
                                    this%num_cell_dofs_x_field,          &
                                    this%fe_dofs,                        &
                                    elvec )
@@ -1233,7 +1809,6 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
                                      this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,           &
                                     this%fe_space%get_field_blocks(),   &
-                                    this%fe_space%get_field_coupling(), &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%extended_elvec%a )
@@ -1252,6 +1827,8 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   real(rp)                 , intent(in)    :: elmat(:,:)
   real(rp)                 , intent(inout) :: elvec(:)
   class(assembler_t)       , intent(inout) :: assembler
+  integer(ip), pointer :: field_blocks(:)
+  logical, pointer :: field_coupling(:,:)
   
   logical :: no_hanging_node_constraints
   integer(ip) :: ifield
@@ -1265,19 +1842,20 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   end do
   
   call this%update_assembly_scratch_data()
+  field_blocks   => this%fe_space%get_field_blocks()
+  field_coupling => this%fe_space%get_field_coupling()
   if ( no_hanging_node_constraints ) then
     call this%impose_strong_dirichlet_bcs ( fe_function, elmat, elvec )
     call assembler%assembly_matrix( this%fe_space%num_fields,           &
-                                    this%fe_space%get_field_blocks(),   &
-                                    this%fe_space%get_field_coupling(), &
+                                    field_blocks,   &
+                                    field_coupling, &
                                     this%num_cell_dofs_x_field,         &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%fe_dofs,                       &
                                     elmat )
     call assembler%assembly_array( this%fe_space%num_fields,            &
-                                   this%fe_space%get_field_blocks(),    &
-                                   this%fe_space%get_field_coupling(),  &
+                                   field_blocks,    &
                                    this%num_cell_dofs_x_field,          &
                                    this%fe_dofs,                        &
                                    elvec )
@@ -1285,16 +1863,15 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
      call this%apply_constraints ( elmat, elvec )
      call this%impose_strong_dirichlet_bcs ( fe_function )
      call assembler%assembly_matrix( this%fe_space%num_fields,           &
-                                     this%fe_space%get_field_blocks(),   &
-                                     this%fe_space%get_field_coupling(), &
+                                     field_blocks,   &
+                                     field_coupling, &
                                      this%num_cell_dofs_x_field,         &
                                      this%num_cell_dofs_x_field,         &
                                      this%fe_dofs,                       &
                                      this%fe_dofs,                       &
                                      this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,           &
-                                    this%fe_space%get_field_blocks(),   &
-                                    this%fe_space%get_field_coupling(), &
+                                    field_blocks,   &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%extended_elvec%a )
@@ -1366,8 +1943,10 @@ subroutine fe_cell_iterator_get_values_scalar (this, values, field_id)
   real(rp), allocatable        , intent(inout) :: values(:,:)
   integer(ip)     , optional   , intent(in)    :: field_id
   integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%get_values(values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_values(values)
 end subroutine fe_cell_iterator_get_values_scalar
 
 subroutine fe_cell_iterator_get_values_vector (this, values, field_id)
@@ -1376,8 +1955,10 @@ subroutine fe_cell_iterator_get_values_vector (this, values, field_id)
   type(vector_field_t), allocatable, intent(inout) :: values(:,:)
   integer(ip)     , optional       , intent(in)    :: field_id
   integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%get_values(values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_values(values)
 end subroutine fe_cell_iterator_get_values_vector
 
 subroutine fe_cell_iterator_get_gradients_scalar (this, gradients, field_id)
@@ -1386,8 +1967,10 @@ subroutine fe_cell_iterator_get_gradients_scalar (this, gradients, field_id)
   type(vector_field_t),        allocatable, intent(inout) :: gradients(:,:)
   integer(ip)     , optional              , intent(in)    :: field_id
   integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%get_gradients(gradients)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_gradients(gradients)
 end subroutine fe_cell_iterator_get_gradients_scalar
 
 subroutine fe_cell_iterator_get_gradients_vector (this, gradients, field_id)
@@ -1396,8 +1979,10 @@ subroutine fe_cell_iterator_get_gradients_vector (this, gradients, field_id)
   type(tensor_field_t),     allocatable, intent(inout)  :: gradients(:,:)
   integer(ip)     , optional           , intent(in)     :: field_id
   integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%get_gradients(gradients)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_gradients(gradients)
 end subroutine fe_cell_iterator_get_gradients_vector
 
 subroutine fe_cell_iterator_get_divergences_vector (this, divergences, field_id)
@@ -1406,8 +1991,10 @@ subroutine fe_cell_iterator_get_divergences_vector (this, divergences, field_id)
   real(rp), allocatable     , intent(inout) :: divergences(:,:)
   integer(ip)  , optional   , intent(in)    :: field_id
   integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%get_divergences(divergences)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_divergences(divergences)
 end subroutine fe_cell_iterator_get_divergences_vector
 
 subroutine fe_cell_iterator_get_curls_vector (this, curls, field_id)
@@ -1416,9 +2003,35 @@ subroutine fe_cell_iterator_get_curls_vector (this, curls, field_id)
   type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
   integer(ip)     , optional       , intent(in)    :: field_id
   integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%get_curls(curls)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_curls(curls)
 end subroutine fe_cell_iterator_get_curls_vector
+
+subroutine fe_cell_iterator_get_laplacians_scalar (this, laplacians, field_id)
+  implicit none
+  class(fe_cell_iterator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional   , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_laplacians(laplacians)
+end subroutine fe_cell_iterator_get_laplacians_scalar
+
+subroutine fe_cell_iterator_get_laplacians_vector (this, laplacians, field_id)
+  implicit none
+  class(fe_cell_iterator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional       , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%get_laplacians(laplacians)
+end subroutine fe_cell_iterator_get_laplacians_vector
 
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_fe_function_scalar ( this,                     &
@@ -1433,7 +2046,8 @@ subroutine fe_cell_iterator_evaluate_fe_function_scalar ( this,                 
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_fe_function_scalar
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_fe_function_vector ( this,                     &
@@ -1448,7 +2062,8 @@ subroutine fe_cell_iterator_evaluate_fe_function_vector ( this,                 
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_fe_function_vector
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_fe_function_tensor ( this,                     &
@@ -1463,7 +2078,8 @@ subroutine fe_cell_iterator_evaluate_fe_function_tensor ( this,                 
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_fe_function_tensor
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_gradient_fe_function_scalar ( this,                     &
@@ -1478,7 +2094,8 @@ subroutine fe_cell_iterator_evaluate_gradient_fe_function_scalar ( this,        
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_gradient_fe_function_scalar
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector ( this,                     &
@@ -1493,7 +2110,8 @@ subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector ( this,        
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar ( this,                     &
@@ -1508,7 +2126,8 @@ subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar ( this,       
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector ( this,                     &
@@ -1523,7 +2142,8 @@ subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector ( this,       
   integer(ip)                             :: field_id_
   type(cell_integrator_t), pointer :: cell_integrator
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  call this%cell_integrators(field_id_)%p%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
+  cell_integrator => this%get_cell_integrator(field_id_)
+  call cell_integrator%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
 subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
@@ -1533,167 +2153,181 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
   real(rp), intent(in) :: elvec(:)
 
   integer(ip) :: ifield, jfield, i_lid, j_lid, i_gid, i_gid_hanging, j_gid, total_num_dofs
+  integer(ip) :: num_fields, num_dofs_field, num_dofs_field_i, num_dofs_field_j
   integer(ip) :: current_i, current_extended_i, current_j, current_extended_j
   integer(ip) :: k_lid, k_gid, pos, spos, epos, iblock
   real(rp) :: weight
   integer(ip), pointer :: field_blocks(:)
   integer(ip) :: offset
+  integer(ip), pointer :: p_ptr_constraining_free_dofs(:)
+  integer(ip), pointer :: p_constraining_free_dofs(:)
+  real(rp), pointer :: p_constraining_free_dofs_coefficients(:)
   
-  field_blocks            => this%get_field_blocks()
-  
-     ! Count number of free dofs involved in the assembly of this cell
-     ! i.e., the free dofs of the cell + all other free dofs that constrain
-     ! hanging dofs of the cell
-     do ifield=1, this%get_num_fields() 
-        iblock = field_blocks(ifield)
-        ! Only if hanging nodes perform the following work
-        if ( this%has_hanging_dofs(ifield) ) then
-           ! Initialize extended_fe_dofs
-           call this%extended_fe_dofs(ifield)%resize(0)
-           ! First, insert all free nodes
-           do i_lid=1, this%get_num_dofs_field(ifield)
-              i_gid = this%fe_dofs(ifield)%p(i_lid)
-              if ( this%is_free_dof(i_gid) ) then
-                 ! Global to local map for free dofs (dofs already belonging to the cell)
-                 this%gid_to_lid_map(iblock)%a(i_gid) = i_lid
-              end if
-              ! Insert all dofs belonging to the cell
-              call this%extended_fe_dofs(ifield)%push_back(i_gid)
-           end do
-           do i_lid=1, this%get_num_dofs_field(ifield)
-              i_gid = this%fe_dofs(ifield)%p(i_lid)
-              if ( this%is_hanging_dof(i_gid) ) then
-                 ! Only for hanging dofs, find outer constraining dofs
-                 i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
-                 do j_lid= this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging), &
-                    this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging+1)-1
-                    j_gid = this%fe_space%constraining_free_dofs%get(j_lid)
-                    ! If not touched constraining free dof, compute gid to lid map, and insert this dof
-                    ! in extended_fe_dofs
-                    if ( this%gid_to_lid_map(iblock)%a(j_gid) == 0 ) then
-                       this%num_cell_dofs_x_field(ifield) = this%num_cell_dofs_x_field(ifield)+1
-                       this%gid_to_lid_map(iblock)%a(j_gid) = this%num_cell_dofs_x_field(ifield)
-                       call this%extended_fe_dofs(ifield)%push_back(j_gid) 
-                    end if
-                 end do
-              end if
-           end do
-           ! Update the fe_dofs array with the extended ones
-           this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_pointer()
-        end if
+  field_blocks                          => this%get_field_blocks()
+  num_fields                            = this%get_num_fields()
+  p_ptr_constraining_free_dofs          => this%fe_space%ptr_constraining_free_dofs%get_pointer()
+  p_constraining_free_dofs              => this%fe_space%constraining_free_dofs%get_pointer()
+  p_constraining_free_dofs_coefficients => this%fe_space%constraining_free_dofs_coefficients%get_pointer()
+
+  ! Count number of free dofs involved in the assembly of this cell
+  ! i.e., the free dofs of the cell + all other free dofs that constrain
+  ! hanging dofs of the cell
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     ! Only if hanging nodes perform the following work
+     if ( this%has_hanging_dofs(ifield) ) then
+        ! Initialize extended_fe_dofs
+        call this%extended_fe_dofs(ifield)%resize(0)
         
-     end do
-     
-     ! Compute all extended dofs, and resize elmat and elvec accordingly
-     total_num_dofs = sum(this%num_cell_dofs_x_field)
-     call this%extended_elmat%resize(total_num_dofs, total_num_dofs)
-     call this%extended_elvec%resize(total_num_dofs)
-     
-     this%extended_elmat%a(1:total_num_dofs,1:total_num_dofs) = 0.0_rp
-     this%extended_elvec%a(1:total_num_dofs) = 0.0_rp
-     
-     current_i          = 1 
-     current_extended_i = 1     
-     do ifield=1, this%get_num_fields()   
+        num_dofs_field = this%get_num_dofs_field(ifield)
+        
+        ! First, insert all free nodes
+        do i_lid=1, num_dofs_field
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_free_dof(i_gid) ) then
+              ! Global to local map for free dofs (dofs already belonging to the cell)
+              this%gid_to_lid_map(iblock)%a(i_gid) = i_lid
+           end if
+           ! Insert all dofs belonging to the cell
+           call this%extended_fe_dofs(ifield)%push_back(i_gid)
+        end do
+        do i_lid=1, num_dofs_field
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_hanging_dof(i_gid) ) then
+              ! Only for hanging dofs, find outer constraining dofs
+              i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+              do j_lid= p_ptr_constraining_free_dofs(i_gid_hanging), &
+                   p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+                 j_gid = p_constraining_free_dofs(j_lid)
+                 ! If not touched constraining free dof, compute gid to lid map, and insert this dof
+                 ! in extended_fe_dofs
+                 if ( this%gid_to_lid_map(iblock)%a(j_gid) == 0 ) then
+                    this%num_cell_dofs_x_field(ifield) = this%num_cell_dofs_x_field(ifield)+1
+                    this%gid_to_lid_map(iblock)%a(j_gid) = this%num_cell_dofs_x_field(ifield)
+                    call this%extended_fe_dofs(ifield)%push_back(j_gid) 
+                 end if
+              end do
+           end if
+        end do
+        ! Update the fe_dofs array with the extended ones
+        this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_pointer()
+     end if
+
+  end do
+
+  ! Compute all extended dofs, and resize elmat and elvec accordingly
+  total_num_dofs = sum(this%num_cell_dofs_x_field)
+  call this%extended_elmat%resize(total_num_dofs, total_num_dofs)
+  call this%extended_elvec%resize(total_num_dofs)
+
+  this%extended_elmat%a(1:total_num_dofs,1:total_num_dofs) = 0.0_rp
+  this%extended_elvec%a(1:total_num_dofs) = 0.0_rp
+
+  current_i          = 1 
+  current_extended_i = 1     
+  do ifield=1, num_fields   
+     num_dofs_field_i = this%get_num_dofs_field(ifield)
      current_j          = 1 
      current_extended_j = 1   
-     do jfield=1, this%get_num_fields() 
+     do jfield=1, num_fields 
+        num_dofs_field_j = this%get_num_dofs_field(jfield)
         ! For every field, insert the cell dofs entries
-        this%extended_elmat%a(current_extended_i:current_extended_i+this%get_num_dofs_field(ifield)-1, &
-             & current_extended_j:current_extended_j+this%get_num_dofs_field(jfield)-1) = &
-             & elmat(current_i:current_i+this%get_num_dofs_field(ifield)-1, &
-             & current_j:current_j+this%get_num_dofs_field(jfield)-1)
-           current_j = current_j + this%get_num_dofs_field(jfield)
-           current_extended_j = current_extended_j + this%num_cell_dofs_x_field(jfield)  
-    end do
-    this%extended_elvec%a(current_extended_i:current_extended_i+this%get_num_dofs_field(ifield)-1) &
-         & = elvec(current_i:current_i+this%get_num_dofs_field(ifield)-1)
-    current_i = current_i + this%get_num_dofs_field(ifield)
-    current_extended_i = current_extended_i + this%num_cell_dofs_x_field(ifield)       
-    end do
+        this%extended_elmat%a(current_extended_i:current_extended_i+num_dofs_field_i-1, &
+             & current_extended_j:current_extended_j+num_dofs_field_j-1) = &
+             & elmat(current_i:current_i+num_dofs_field_i-1, &
+             & current_j:current_j+num_dofs_field_j-1)
+        current_j = current_j + num_dofs_field_j
+        current_extended_j = current_extended_j + this%num_cell_dofs_x_field(jfield)  
+     end do
+     this%extended_elvec%a(current_extended_i:current_extended_i+num_dofs_field_i-1) &
+          & = elvec(current_i:current_i+num_dofs_field_i-1)
+     current_i = current_i + num_dofs_field_i
+     current_extended_i = current_extended_i + this%num_cell_dofs_x_field(ifield)       
+  end do
 
-     ! Now, we want to compute the matrix entries for the constraining free dofs, both the own constraining free dofs
-     ! and the outer ones
-     do ifield=1, this%get_num_fields() 
-        iblock = field_blocks(ifield)
-        if (ifield==1) then
-          offset = 0
-        else
-          offset = offset + this%num_cell_dofs_x_field(ifield-1)
+  ! Now, we want to compute the matrix entries for the constraining free dofs, both the own constraining free dofs
+  ! and the outer ones
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     if (ifield==1) then
+        offset = 0
+     else
+        offset = offset + this%num_cell_dofs_x_field(ifield-1)
+     end if
+     num_dofs_field = this%get_num_dofs_field(ifield)
+     do i_lid=1, this%get_num_dofs_field(ifield)
+        i_gid = this%fe_dofs(ifield)%p(i_lid)
+        ! i is a hanging DoF?
+        if ( this%is_hanging_dof(i_gid) ) then
+           ! Traverse constraining free DoFs of i
+           i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+           spos = p_ptr_constraining_free_dofs(i_gid_hanging)
+           epos = p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+           do pos=spos, epos 
+              k_gid = p_constraining_free_dofs(pos)
+              weight = p_constraining_free_dofs_coefficients(pos)
+              k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
+              ! free dofs, add the hanging dof row * weighting in the free dof row (for extended elmat and elvec)
+              this%extended_elmat%a(k_lid+offset,:) = this%extended_elmat%a(k_lid+offset,:) + weight*this%extended_elmat%a(i_lid+offset,:)
+              this%extended_elvec%a(k_lid+offset)   = this%extended_elvec%a(k_lid+offset)   + weight*this%extended_elvec%a(i_lid+offset)
+           end do
         end if
+     end do
+  end do
+
+  ! Idem for columns
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     if (ifield==1) then
+        offset = 0
+     else
+        offset = offset + this%num_cell_dofs_x_field(ifield-1)
+     end if
+     do i_lid=1, this%get_num_dofs_field(ifield)
+        i_gid = this%fe_dofs(ifield)%p(i_lid)
+        ! i is a hanging DoF?
+        if ( this%is_hanging_dof(i_gid) ) then
+           ! Traverse constraining free DoFs of i
+           i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+           spos = p_ptr_constraining_free_dofs(i_gid_hanging)
+           epos = p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+           do pos=spos, epos 
+              k_gid = p_constraining_free_dofs(pos)
+              weight = p_constraining_free_dofs_coefficients(pos)
+              k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
+              ! free dofs, add the hanging dof column * weighting in the free dof column (for extended elmat and elvec)
+              this%extended_elmat%a(:,k_lid+offset) = this%extended_elmat%a(:,k_lid+offset) + weight*this%extended_elmat%a(:,i_lid+offset)
+           end do
+        end if
+     end do
+  end do
+
+  ! Initialize gid_to_lid_map to zero
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     ! Only if hanging nodes perform the following work
+     if ( this%has_hanging_dofs(ifield) ) then
         do i_lid=1, this%get_num_dofs_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
-           ! i is a hanging DoF?
            if ( this%is_hanging_dof(i_gid) ) then
-              ! Traverse constraining free DoFs of i
+              ! Only for hanging dofs, find outer constraining dofs
               i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
-              spos = this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging)
-              epos = this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging+1)-1
-              do pos=spos, epos 
-                 k_gid = this%fe_space%constraining_free_dofs%get(pos)
-                 weight = this%fe_space%constraining_free_dofs_coefficients%get(pos)
-                 k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
-                 ! free dofs, add the hanging dof row * weighting in the free dof row (for extended elmat and elvec)
-                 this%extended_elmat%a(k_lid+offset,:) = this%extended_elmat%a(k_lid+offset,:) + weight*this%extended_elmat%a(i_lid+offset,:)
-                 this%extended_elvec%a(k_lid+offset)   = this%extended_elvec%a(k_lid+offset)   + weight*this%extended_elvec%a(i_lid+offset)
+              do j_lid= p_ptr_constraining_free_dofs(i_gid_hanging), &
+                   p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+                 j_gid = p_constraining_free_dofs(j_lid)
+                 ! If not touched constraining free dof, compute gid to lid map, and insert this dof
+                 ! in extended_fe_dofs
+                 this%gid_to_lid_map(iblock)%a(j_gid) = 0
               end do
-           end if
-        end do
-     end do
-
-     ! Idem for columns
-     do ifield=1, this%get_num_fields() 
-        iblock = field_blocks(ifield)
-        if (ifield==1) then
-          offset = 0
-        else
-          offset = offset + this%num_cell_dofs_x_field(ifield-1)
-        end if
-        do i_lid=1, this%get_num_dofs_field(ifield)
-           i_gid = this%fe_dofs(ifield)%p(i_lid)
-           ! i is a hanging DoF?
-           if ( this%is_hanging_dof(i_gid) ) then
-              ! Traverse constraining free DoFs of i
-              i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
-              spos = this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging)
-              epos = this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging+1)-1
-              do pos=spos, epos 
-                 k_gid = this%fe_space%constraining_free_dofs%get(pos)
-                 weight = this%fe_space%constraining_free_dofs_coefficients%get(pos)
-                 k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
-                 ! free dofs, add the hanging dof column * weighting in the free dof column (for extended elmat and elvec)
-                 this%extended_elmat%a(:,k_lid+offset) = this%extended_elmat%a(:,k_lid+offset) + weight*this%extended_elmat%a(:,i_lid+offset)
-              end do
-           end if
-        end do
-     end do
-     
-     ! Initialize gid_to_lid_map to zero
-     do ifield=1, this%get_num_fields() 
-       iblock = field_blocks(ifield)
-       ! Only if hanging nodes perform the following work
-       if ( this%has_hanging_dofs(ifield) ) then
-         do i_lid=1, this%get_num_dofs_field(ifield)
-           i_gid = this%fe_dofs(ifield)%p(i_lid)
-           if ( this%is_hanging_dof(i_gid) ) then
-                 ! Only for hanging dofs, find outer constraining dofs
-                 i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
-                 do j_lid= this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging), &
-                    this%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging+1)-1
-                    j_gid = this%fe_space%constraining_free_dofs%get(j_lid)
-                    ! If not touched constraining free dof, compute gid to lid map, and insert this dof
-                    ! in extended_fe_dofs
-                    this%gid_to_lid_map(iblock)%a(j_gid) = 0
-                 end do 
            else if ( this%is_free_dof(i_gid) ) then
-             ! Global to local map for free dofs (dofs already belonging to the cell)
-             this%gid_to_lid_map(iblock)%a(i_gid) = 0
+              ! Global to local map for free dofs (dofs already belonging to the cell)
+              this%gid_to_lid_map(iblock)%a(i_gid) = 0
            end if
-         end do
-       end if
-     end do
-     
-   end subroutine fe_cell_iterator_apply_constraints
+        end do
+     end if
+  end do
+
+end subroutine fe_cell_iterator_apply_constraints
 
 
 

@@ -314,7 +314,7 @@ module triangulation_names
        integer(ip)           , intent(in) :: target_vef_lid
        integer(ip) :: get_permutation_index_interface
      end function get_permutation_index_interface
-
+     
      function get_reference_fe_interface ( this )
        import :: cell_iterator_t, reference_fe_t 
        class(cell_iterator_t), intent(in) :: this 
@@ -631,6 +631,9 @@ module triangulation_names
        
   type, abstract :: triangulation_t 
      private
+  
+     logical                               :: single_octree_mesh = .false.
+  
      ! num of space dimensions
      integer(ip)                           :: num_dims = 0
 
@@ -680,8 +683,14 @@ module triangulation_names
      ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
      ! whether it is transformed, refined, coarsened, etc.)
      procedure(is_conforming_interface)         , deferred :: is_conforming
- 
+  
      ! Getters
+     ! Returns .true. if the triangulation is octree-like, and  it is composed of a 
+     ! single octree. Single octree-meshes are such that, for all cells, the mapping 
+     ! that transforms among the reference coordinate system and the real cell
+     ! coordinate system is composed of translation and/or scalings. Therefore, e.g., 
+     ! no rotations are permitted.
+     procedure, non_overridable :: is_single_octree_mesh    => triangulation_is_single_octree_mesh
      procedure, non_overridable :: get_num_dims             => triangulation_get_num_dims
      procedure, non_overridable :: get_num_cells            => triangulation_get_num_cells
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
@@ -691,6 +700,7 @@ module triangulation_names
      procedure(get_num_proper_vefs_interface)   , deferred :: get_num_proper_vefs
      procedure(get_num_improper_vefs_interface) , deferred :: get_num_improper_vefs
      
+     procedure, non_overridable :: set_single_octree_mesh   => triangulation_set_single_octree_mesh
      procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
      procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
      procedure, non_overridable :: set_num_ghost_cells      => triangulation_set_num_ghost_cells
@@ -720,7 +730,8 @@ module triangulation_names
      procedure :: create_itfc_vef_iterator => triangulation_create_itfc_vef_iterator
     
      ! Get num Reference FEs
-     procedure(get_num_reference_fes_interface) , deferred :: get_num_reference_fes
+     procedure(get_num_reference_fes_interface)      , deferred :: get_num_reference_fes
+     procedure(tria_get_reference_fe_interface)      , deferred :: get_reference_fe
      procedure(get_max_num_shape_functions_interface), deferred :: get_max_num_shape_functions
  
      ! Objects-related traversals
@@ -788,7 +799,7 @@ module triangulation_names
        class(triangulation_t) , intent(in) :: this
        logical :: is_conforming_interface 
      end function is_conforming_interface 
-  
+     
      function get_num_proper_vefs_interface ( this )
        import :: triangulation_t, ip
        class(triangulation_t) , intent(in) :: this
@@ -830,6 +841,13 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_num_reference_fes_interface
      end function get_num_reference_fes_interface
+     
+     function tria_get_reference_fe_interface ( this, ref_fe_geo_id )
+       import :: triangulation_t, reference_fe_t, ip
+       class(triangulation_t), target, intent(in) :: this 
+       integer(ip)                   , intent(in) :: ref_fe_geo_id
+       class(reference_fe_t), pointer :: tria_get_reference_fe_interface
+     end function tria_get_reference_fe_interface 
 
      function compute_max_cells_set_id_interface ( this ) 
        import :: triangulation_t, ip
@@ -1049,6 +1067,7 @@ module triangulation_names
      
      ! Getters
      procedure                           :: get_num_reference_fes            => bst_get_num_reference_fes
+     procedure                           :: get_reference_fe                 => bst_get_reference_fe
      procedure                           :: get_max_num_shape_functions      => bst_get_max_num_shape_functions
      procedure                           :: is_tet_mesh                      => bst_is_tet_mesh
      procedure                           :: is_hex_mesh                      => bst_is_hex_mesh

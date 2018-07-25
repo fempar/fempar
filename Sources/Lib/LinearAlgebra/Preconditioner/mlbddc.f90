@@ -36,7 +36,7 @@ module mlbddc_names
  ! Integration related modules
  use triangulation_names
  use fe_space_names
- use fe_nonlinear_operator_names
+ use fe_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -269,6 +269,7 @@ module mlbddc_names
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
    procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
    procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
+   procedure, private                  :: create_vector_spaces                             => base_mlbddc_create_vector_spaces
 end type base_mlbddc_t
  
  type, extends(base_mlbddc_t) :: mlbddc_t
@@ -281,10 +282,10 @@ end type base_mlbddc_t
    type(parameterlist_t)            , pointer :: parameter_list
    
    ! Pointer to the fe_nonlinear_operator_t this mlbddc_t instance has been created from
-   type(fe_nonlinear_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
+   type(fe_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
-    procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces
+    procedure,                  private :: create_vector_spaces                            => mlbddc_create_vector_spaces
 
     ! Symbolic-setup related TBPs
     procedure,                  private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
@@ -311,7 +312,7 @@ end type base_mlbddc_t
  contains
  
    procedure, non_overridable          :: create                                            => mlbddc_coarse_create
-   procedure, non_overridable          :: create_vector_spaces                              => mlbddc_coarse_create_vector_spaces
+   procedure, private                  :: create_vector_spaces                              => mlbddc_coarse_create_vector_spaces
    
    
    ! Symbolic setup-related TBPs

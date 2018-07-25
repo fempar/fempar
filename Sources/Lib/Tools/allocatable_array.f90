@@ -58,6 +58,8 @@ module allocatable_array_ip1_names
    contains
      procedure, non_overridable :: create         => allocatable_array_ip1_create
      procedure, non_overridable :: free           => allocatable_array_ip1_free
+     procedure, non_overridable :: assign         => allocatable_array_ip1_assign
+     generic  :: assignment(=) => assign
   end type allocatable_array_ip1_t
 
   public :: allocatable_array_ip1_t
@@ -84,6 +86,15 @@ contains
     this%nd1 = 0
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip1_free
+  
+  subroutine allocatable_array_ip1_assign(this,array_in)
+    implicit none
+    class(allocatable_array_ip1_t), intent(inout) :: this
+    type(allocatable_array_ip1_t) , intent(in)    :: array_in
+    call this%free()
+    call this%create(array_in%nd1)
+    this%a = array_in%a
+  end subroutine allocatable_array_ip1_assign
   
 # include "mem_body.i90"
 
@@ -300,6 +311,8 @@ module allocatable_array_rp1_names
      procedure, non_overridable :: move_alloc_out => allocatable_array_rp1_move_alloc_out
      procedure, non_overridable :: move_alloc_in  => allocatable_array_rp1_move_alloc_in
      procedure, non_overridable :: get_array      => allocatable_array_rp1_get_array
+     procedure, non_overridable :: assign         => allocatable_array_rp1_assign
+     generic  :: assignment(=) => assign
   end type allocatable_array_rp1_t
   
   public :: allocatable_array_rp1_t
@@ -362,6 +375,15 @@ contains
     real(rp), pointer :: allocatable_array_rp1_get_array(:)
     allocatable_array_rp1_get_array => this%a
   end function allocatable_array_rp1_get_array
+  
+  subroutine allocatable_array_rp1_assign(this,array_in)
+    implicit none
+    class(allocatable_array_rp1_t), intent(inout) :: this
+    type(allocatable_array_rp1_t) , intent(in)    :: array_in
+    call this%free()
+    call this%create(array_in%nd1)
+    this%a = array_in%a
+  end subroutine allocatable_array_rp1_assign
   
 
 # include "mem_body.i90"
