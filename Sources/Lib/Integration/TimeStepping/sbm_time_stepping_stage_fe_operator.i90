@@ -227,6 +227,7 @@ subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
       call this_residual%mold(mass_residual)
       call fe_op_residual%clone(this_residual)
       call mass_residual%clone(this_residual)
+      call mass_residual%init(0.0_rp)
      
       call this%fe_op%compute_residual(fe_op_residual)
       if ( this%i == this%j )  call this%mass_op%compute_residual(mass_residual)
