@@ -532,7 +532,9 @@ contains
          i_y = int(coord%get(2)/(size_sub_object*mesh_size))
          i_z = int(coord%get(3)/(size_sub_object*mesh_size))
          cell_set_id = (i_z*(num_cells_x_dir(1)/size_sub_object)+ i_y)*(num_cells_x_dir(2)/size_sub_object)+i_x+1 
-
+         if (mod(cell_set_id,4)==3) then
+            cell_set_id = 1
+         end if 
       end if
 
     end function cell_set_id
