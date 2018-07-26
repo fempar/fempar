@@ -659,17 +659,17 @@ contains
             cell_set_id = 1
          end if   
       else if ( inclusion == 11 ) then
-         i = mod(mod(l1_rank,nparts(1)),2)
-         j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(1),2)
-         k = mod(l1_rank/(nparts(1)*nparts(2)),2)
-         if (((i==0) .and. (j==0) .and. (k==0)).or.&
-              (i==0 .and. j==1 .and. k==0).or.&
-              (i==1 .and. j==0 .and. k==0).or.&
-              ((i==0) .and. (j==0) .and. (k==1))) then
-            cell_set_id=2
-         else 
-            cell_set_id=1
-         end if
+         do i=1, num_dims
+            mesh_size=(domain_limits(2*i)-domain_limits(2*i-1))/num_cells_x_dir(i)
+            short_sizes(i)=mesh_size
+            long_size(i) = (num_cells_x_dir(i)/nparts(i)-2)*mesh_size         
+         enddo
+         do i=1,num_dims
+            call origin%set(i,0.0_rp); 
+         enddo 
+         do i=1,num_dims-1
+            call (origin%set
+         enddo 
 
       end if
 
