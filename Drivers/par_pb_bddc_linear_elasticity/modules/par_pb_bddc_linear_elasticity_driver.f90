@@ -327,6 +327,7 @@ contains
       real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
       real(rp)    :: box_width, half_channel_width, center, eps, mesh_size
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
+      real(rp) :: short_sizes(3), long_sizes(3)
       real(rp) :: p1_c(256), p2_c(256)
 
 
@@ -662,14 +663,21 @@ contains
          do i=1, num_dims
             mesh_size=(domain_limits(2*i)-domain_limits(2*i-1))/num_cells_x_dir(i)
             short_sizes(i)=mesh_size
-            long_size(i) = (num_cells_x_dir(i)/nparts(i)-2)*mesh_size         
+            long_sizes(i) = (num_cells_x_dir(i)/nparts(i)-2)*mesh_size         
          enddo
          do i=1,num_dims
-            call origin%set(i,0.0_rp); 
+            call origin%set(i,0.0_rp) 
+            call opposite%set(i,0.0_rp) 
          enddo 
+         call origin%set(1,short_sizes(1))
          do i=1,num_dims-1
-            call (origin%set
+            call opposite%set(i,short_sizes(i)+long_sizes(i))
          enddo 
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+            cell_set_id = 2
+         else 
+            cell_set_id = 1 
+         end if  
 
       end if
 
