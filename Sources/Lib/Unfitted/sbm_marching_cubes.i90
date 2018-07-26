@@ -1078,8 +1078,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   class(cell_iterator_t), allocatable  :: cell
   class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: n_subfacets, n_subnodes,  n_nodes_subfacet
-  integer(ip), parameter :: safety_offset = 0
-  
+
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
 
@@ -1103,7 +1102,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   end do
 
   !Allocate place holders for the sub-mesh
-  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets + safety_offset
+  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets
   n_subnodes      = this%get_max_num_subnodes_in_cell()
   n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
   call this%allocate_nsubcells_arrays()
@@ -1125,8 +1124,7 @@ subroutine marching_cubes_allocate_nsubcells_arrays( this )
   integer(ip)                            :: n_subcells
   integer(ip)                            :: n_nodes_subcell
   integer(ip),                parameter  :: num_facets_tet = 4
- integer(ip), parameter :: safety_offset = 0
-  n_subcells      = this%mc_table_max_num_sub_cells  + safety_offset
+  n_subcells      = this%mc_table_max_num_sub_cells
   n_nodes_subcell = this%get_max_num_nodes_in_subcell()
   call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
   call memalloc(n_subcells,this%subcells_status,__FILE__,__LINE__)
