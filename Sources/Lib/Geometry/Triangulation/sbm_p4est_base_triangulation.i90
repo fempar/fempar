@@ -1884,6 +1884,57 @@ function p4est_bt_get_previous_num_ghost_cells ( this )
   p4est_bt_get_previous_num_ghost_cells = this%previous_num_ghost_cells
 end function p4est_bt_get_previous_num_ghost_cells
 
+subroutine p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data ( this) 
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(list_t), pointer :: dofs_n_face
+  type(list_iterator_t) :: dofs_n_face_iterator
+  integer(ip) :: num_n_faces
+  integer(ip) :: current
+  integer(ip) :: field_id, i 
+  integer(ip) :: istat, icell
+  
+  call this%free_reference_fe_geo_scratch_data()
+    
+  dofs_n_face => this%reference_fe_geo%get_dofs_n_face()
+  num_n_faces    = dofs_n_face%get_num_pointers()
+  
+  call memalloc ( num_n_faces+1, & 
+                  this%ptr_dofs_n_face, __FILE__, __LINE__ ) 
+   
+  this%ptr_dofs_n_face(1) = 1
+  do i=1, num_n_faces
+     this%ptr_dofs_n_face(i+1) = this%ptr_dofs_n_face(i) + &
+                                    dofs_n_face%get_sublist_size(i)
+  end do
+   
+  call memalloc ( this%ptr_dofs_n_face(num_n_faces+1)-1, & 
+                  this%lst_dofs_n_face, __FILE__, __LINE__ ) 
+   
+  current=1
+  do i=1, dofs_n_face%get_num_pointers()
+     dofs_n_face_iterator = this%reference_fe_geo%create_dofs_n_face_iterator(i)
+     do while( .not. dofs_n_face_iterator%is_upper_bound() )
+        this%lst_dofs_n_face(current) = dofs_n_face_iterator%get_current()
+        current = current + 1
+        call dofs_n_face_iterator%next()
+     end do
+  end do
+  
+end subroutine p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
+
+subroutine p4est_bt_free_reference_fe_geo_scratch_data(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  if ( allocated(this%ptr_dofs_n_face) ) then
+    call memfree(this%ptr_dofs_n_face, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%lst_dofs_n_face) ) then
+    call memfree(this%lst_dofs_n_face, __FILE__, __LINE__ )
+  end if  
+end subroutine p4est_bt_free_reference_fe_geo_scratch_data
+
 subroutine p4est_bt_fill_cells_set (this, cells_set)
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this

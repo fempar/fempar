@@ -223,6 +223,7 @@ module triangulation_names
      procedure          :: is_ghost               => itfc_vef_iterator_is_ghost
      procedure          :: is_local               => itfc_vef_iterator_is_local
      procedure          :: is_at_interface        => itfc_vef_iterator_is_at_interface
+     procedure          :: is_cut                 => itfc_vef_iterator_is_cut
      
      ! h-adaptive FEM
      procedure          :: is_proper                        => itfc_vef_iterator_is_proper
@@ -1003,6 +1004,7 @@ module triangulation_names
      procedure                           :: is_local                  => bst_vef_iterator_is_local
      procedure                           :: is_ghost                  => bst_vef_iterator_is_ghost
      procedure                           :: is_at_interface           => bst_vef_iterator_is_at_interface
+     procedure                           :: is_cut                    => bst_vef_iterator_is_cut
      
      procedure                           :: get_num_cells_around      => bst_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around           => bst_vef_iterator_get_cell_around

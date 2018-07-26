@@ -1139,7 +1139,7 @@ contains
          this%x(ipoint) = quadrature_points_coordinates(qpoint)%get(1)
          this%y(ipoint) = quadrature_points_coordinates(qpoint)%get(2)
          this%z(ipoint) = quadrature_points_coordinates(qpoint)%get(3)
-         call fe_facet%get_normals(qpoint,normal_vec)
+         call fe_facet%get_normal(qpoint,normal_vec)
          this%v_x(ipoint) = normal_vec(1)%get(1)
          this%v_y(ipoint) = normal_vec(1)%get(2)
          this%v_z(ipoint) = normal_vec(1)%get(3)

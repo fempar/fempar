@@ -107,7 +107,7 @@ contains
     allocate( this%coordinates_quadrature(1:this%num_quadrature_points), stat = istat ); check(istat==0)
 
     call memalloc( this%num_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
-    call memalloc( this%num_dims, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
+    call memalloc( SPACE_DIM, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
     
     this%reference_fe_geometry => reference_fe_geometry
 
@@ -238,7 +238,7 @@ contains
    type(vector_field_t), intent(inout) :: normal
    integer(ip) :: idime
    assert ( allocated(this%normals) )
-   do idime = 1, this%num_dims
+   do idime = 1, SPACE_DIM
      call normal%set(idime,this%normals(idime,qpoint))
    end do
   end subroutine  piecewise_cell_map_get_normal

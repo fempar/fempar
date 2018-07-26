@@ -75,7 +75,9 @@ subroutine p4est_serial_triangulation_create (this, parameters)
                                      1, &
                                      field_type_scalar, & 
                                      conformity=.true.)  
-  
+ 
+  call this%allocate_and_gen_reference_fe_geo_scratch_data()
+
   dummy_comm = 0
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
@@ -205,6 +207,7 @@ subroutine p4est_serial_triangulation_free ( this)
   this%previous_num_ghost_cells = -1
 
   call this%reference_fe_geo%free()
+  call this%free_reference_fe_geo_scratch_data()
   call this%free_environment()
   
   call triangulation_free(this)
