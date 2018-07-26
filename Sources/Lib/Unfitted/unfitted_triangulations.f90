@@ -338,6 +338,9 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create
     procedure, non_overridable, private :: subnodes_data_free             => marching_cubes_subnodes_data_free
+    procedure, non_overridable, private :: allocate_nsubcells_arrays      => marching_cubes_allocate_nsubcells_arrays
+    procedure, non_overridable, private :: reallocate_nsubcells_arrays    => marching_cubes_reallocate_nsubcells_arrays
+    
   end type marching_cubes_t
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t

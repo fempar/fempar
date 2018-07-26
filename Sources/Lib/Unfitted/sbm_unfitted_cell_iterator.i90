@@ -580,6 +580,8 @@ subroutine unfitted_cell_iterator_generate_subcells(this)
   ierror = delaunay_init_and_compute_f90(num_dims, num_points, points, num_cells)
   check(ierror == 0)
   this%marching_cubes%num_subcells = num_cells
+  call this%marching_cubes%reallocate_nsubcells_arrays()
+  
 
   ! Fill in the cells connectivities
   cells => this%marching_cubes%sub_cells_node_ids
@@ -632,6 +634,7 @@ subroutine unfitted_cell_iterator_generate_subcells_status(this)
       end if
     end do
   end do
+  
 
 end subroutine unfitted_cell_iterator_generate_subcells_status
 
@@ -680,6 +683,12 @@ subroutine unfitted_cell_iterator_generate_boundary_subfacets(this)
         if (ineig>0) then
           if (this%marching_cubes%subcells_status(ineig)==1) then
             nsfacet = nsfacet + 1
+            ! memrealloc is here since the number of subfacets is determined by delaunay and cannot be known beforehand
+            call memrealloc_if_more_space_needed ( &
+                 this%marching_cubes%get_max_num_nodes_in_subfacet(), &
+                 nsfacet, &
+                 this%marching_cubes%unfitted_sub_facets_node_ids, &
+                __FILE__, __LINE__ )
             this%marching_cubes%unfitted_sub_facets_node_ids(:,nsfacet) = Te(FACETS(:,isfacet))
           end if
         end if
