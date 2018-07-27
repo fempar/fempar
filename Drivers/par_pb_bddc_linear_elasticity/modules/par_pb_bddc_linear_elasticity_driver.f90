@@ -682,7 +682,27 @@ contains
          if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
             cell_set_id = 2
          end if  
-
+      else if ( inclusion == 12 ) then
+         cell_set_id = 1
+         call offset%init(0.0_rp)
+         do i=1, num_dims
+            mesh_size=(domain_limits(2*i)-domain_limits(2*i-1))/num_cells_x_dir(i)
+            short_sizes(i)=mesh_size
+            long_sizes(i) = (num_cells_x_dir(i)/nparts(i)-2)*mesh_size         
+            call offset%set(i,(num_cells_x_dir(i)/nparts(i))*mesh_size)         
+         enddo
+         call origin%init(0.0_rp) 
+         call opposite%init(0.0_rp) 
+         call origin%set(1,short_sizes(1))
+         do i=1,num_dims-1
+            call opposite%set(i,short_sizes(i)+long_sizes(i))
+         enddo 
+         call opposite%set(num_dims,short_sizes(num_dims))
+         origin = origin + offset
+         opposite = opposite + offset
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+            cell_set_id = 2
+         end if  
       end if
 
     end function cell_set_id
