@@ -444,7 +444,14 @@ module fe_space_names
     class(fe_cell_iterator_t) , allocatable  :: fe2
     type(p_fe_cell_iterator_t)               :: fes_around(2)
     type(facet_maps_t), pointer              :: facet_maps => NULL()
-    type(p_facet_integrator_t), allocatable :: facet_integrators(:)
+    type(p_facet_integrator_t), allocatable  :: facet_integrators(:)
+    
+    ! Scratch data to optimize some TBPs of this data type
+    class(reference_fe_t), pointer           :: ref_fe_geo => NULL()
+    logical                                  :: facet_integration_is_set_up        = .false.
+    logical                                  :: single_quad_facet_map_facet_integs = .false.
+    logical                                  :: integration_updated                = .false.
+    logical                                  :: single_octree_mesh                 = .false.
    contains
     procedure                           :: create                         => fe_facet_iterator_create
     procedure                           :: free                           => fe_facet_iterator_free
@@ -492,9 +499,14 @@ module fe_space_names
     procedure, non_overridable          :: get_subfacet_lid_cell_around  => fe_facet_iterator_get_subfacet_lid_cell_around
     
     procedure                           :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
+    procedure                           :: get_normal                        => fe_facet_iterator_get_normal
     procedure                           :: get_normals                       => fe_facet_iterator_get_normals
     procedure                           :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
+    procedure                           :: get_det_jacobians                 => fe_facet_iterator_get_det_jacobians
     procedure                           :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    procedure                           :: compute_characteristic_lengths    => fe_facet_iterator_compute_characteristic_lengths
+
+
     
     procedure                           :: get_fes_around  => fe_facet_iterator_get_fes_around
     
@@ -521,6 +533,10 @@ module fe_space_names
     & fe_facet_iterator_evaluate_gradient_fe_function_vector
     
     procedure, non_overridable :: get_current_qpoints_perm => fe_facet_iterator_get_current_qpoints_perm
+    procedure, non_overridable :: is_integration_updated   => fe_facet_iterator_is_integration_updated
+    procedure, non_overridable :: set_integration_updated  => fe_facet_iterator_set_integration_updated
+    procedure, non_overridable :: is_single_octree_mesh    => fe_facet_iterator_is_single_octree_mesh
+    procedure, non_overridable :: set_single_octree_mesh   => fe_facet_iterator_set_single_octree_mesh
     
   end type fe_facet_iterator_t
       
@@ -554,6 +570,7 @@ module fe_space_names
      type(hash_table_ip_ip_t)                    :: cell_integrators_position             ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
+     logical                                     :: facet_integration_is_set_up = .false.
      type(std_vector_quadrature_t)               :: facet_quadratures
      type(std_vector_facet_maps_t)               :: facet_maps
      type(std_vector_facet_integrator_t)         :: facet_integrators
@@ -684,16 +701,18 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_and_init_facet_quadratures_degree => serial_fe_space_allocate_and_init_facet_quadratures_degree
      procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
      
-     procedure, non_overridable, private :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
-     procedure, non_overridable, private :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
+     procedure, non_overridable          :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
+     procedure, non_overridable          :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
      
      procedure                 , private :: fill_facet_gids                    => serial_fe_space_fill_facet_gids
      procedure, non_overridable, private :: free_facet_gids                    => serial_fe_space_free_facet_gids
      
-     procedure, non_overridable, private :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
-     procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
+     procedure, non_overridable          :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
+     procedure, non_overridable          :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
      procedure                           :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
+     procedure                           :: get_facet_integration_is_set_up          => serial_fe_space_get_facet_integration_is_set_up
+     procedure                           :: set_facet_integration_is_set_up          => serial_fe_space_set_facet_integration_is_set_up
      procedure, non_overridable, private :: free_facet_integration                   => serial_fe_space_free_facet_integration
      procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
      procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key
@@ -718,7 +737,8 @@ module fe_space_names
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
      procedure, non_overridable          :: get_max_num_nodal_quadrature_points       => serial_fe_space_get_max_num_nodal_quadrature_points
-     procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points     
+     procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points   
+     procedure, non_overridable          :: get_num_facet_quadratures                  => serial_fe_space_get_num_facet_quadratures
      procedure, non_overridable          :: get_max_order                                => serial_fe_space_get_max_order
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
@@ -1333,6 +1353,7 @@ module fe_space_names
    type(serial_scalar_array_t)   :: free_ghost_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
    type(serial_scalar_array_t)   :: constraining_x_fixed_dof_values ! C_D u_D
+   integer(ip), pointer          :: field_blocks(:) => null()
   contains
      procedure, non_overridable          :: create                         => fe_function_create
      procedure, non_overridable          :: gather_nodal_values_through_iterator => fe_function_gather_nodal_values_through_iterator

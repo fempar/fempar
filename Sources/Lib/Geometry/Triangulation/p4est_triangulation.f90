@@ -408,6 +408,7 @@ module p4est_triangulation_names
      procedure                           :: is_at_interface           => p4est_vef_iterator_is_at_interface
      procedure                           :: is_proper                       => p4est_vef_iterator_is_proper
      procedure                           :: is_within_valid_range           => p4est_vef_iterator_is_within_valid_range
+     procedure                           :: is_cut                          => p4est_vef_iterator_is_cut
      
      procedure                           :: get_num_cells_around            => p4est_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around                 => p4est_vef_iterator_get_cell_around
@@ -492,6 +493,11 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
     type(std_vector_integer_igp_t)         :: cell_ggids
+    
+     ! Scratch data required to optimize p4est_vef_iterator_get_nodes_coordinates
+     integer(ip), allocatable              :: ptr_dofs_n_face(:)
+     integer(ip), allocatable              :: lst_dofs_n_face(:)
+    
   contains
     procedure                                   :: is_conforming                                 =>  p4est_base_triangulation_is_conforming
   
@@ -531,6 +537,9 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
     procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
     procedure                 , non_overridable  :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
+    
+    procedure, private                           :: allocate_and_gen_reference_fe_geo_scratch_data     => p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
+    procedure, private                           :: free_reference_fe_geo_scratch_data                 => p4est_bt_free_reference_fe_geo_scratch_data
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator

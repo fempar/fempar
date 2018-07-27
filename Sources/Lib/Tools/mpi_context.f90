@@ -573,9 +573,11 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, y )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -697,9 +699,10 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_rp_wo_beta (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_rp_wo_beta (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
+    end if
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -823,9 +826,11 @@ contains
        end if
     end do
     
-    ! Unpack recv buffers
-    call unpack_variable_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size_rcv, unpack_idx, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_variable_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size_rcv, unpack_idx, rcvbuf, y )
+    end if 
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -886,8 +891,10 @@ contains
     call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1))*chunk_size_, rcvbuf, __FILE__,__LINE__)
 
     ! Pack send buffers
-    call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
-
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+    end if 
+    
     ! First post all the non blocking receives   
     do i=1, num_rcv
        proc_to_comm = list_rcv(i) - 1 
@@ -952,9 +959,11 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -1008,9 +1017,11 @@ contains
     call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1))*chunk_size_, sndbuf, __FILE__,__LINE__)
     call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1))*chunk_size_, rcvbuf, __FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
-
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+    end if 
+      
     ! First post all the non blocking receives   
     do i=1, num_rcv
        proc_to_comm = list_rcv(i) - 1
@@ -1075,9 +1086,11 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y, mask )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then
+      ! Unpack recv buffers
+      call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y, mask )
+    end if 
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -1286,9 +1299,11 @@ contains
 
     call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1))*chunk_size_, sndbuf, __FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
-
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+    end if 
+    
     ! First post all the non blocking receives   
     do i=1, num_rcv
        proc_to_comm = list_rcv(i) - 1 
@@ -1408,8 +1423,10 @@ contains
     call memalloc (ptr_chunk_size_snd(num_snd+1)-ptr_chunk_size_snd(1),sndbuf,__FILE__,__LINE__)
     call memalloc (ptr_chunk_size_rcv(num_rcv+1)-ptr_chunk_size_rcv(1),rcvbuf,__FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_variable_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_variable_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    end if 
     
     ! First post all the non blocking receives   
     do i=1, num_rcv
@@ -1475,9 +1492,11 @@ contains
        end if
     end do
     
-    ! Unpack recv buffers
-    call unpack_variable_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_variable_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -1538,8 +1557,10 @@ contains
     call memalloc (ptr_chunk_size_snd(num_snd+1)-ptr_chunk_size_snd(1),sndbuf,__FILE__,__LINE__)
     call memalloc (ptr_chunk_size_rcv(num_rcv+1)-ptr_chunk_size_rcv(1),rcvbuf,__FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_variable_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_variable_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    end if 
     
     ! First post all the non blocking receives   
     do i=1, num_rcv
@@ -1605,9 +1626,11 @@ contains
        end if
     end do
     
-    ! Unpack recv buffers
-    call unpack_variable_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_variable_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 

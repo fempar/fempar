@@ -94,7 +94,9 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
                                         1, &
                                         field_type_scalar, & 
                                         conformity=.true.)  
-     
+    
+     call this%allocate_and_gen_reference_fe_geo_scratch_data()
+ 
      context => p_environment%get_l1_context()
      select type(context)
      class is (mpi_context_t)
@@ -248,6 +250,7 @@ subroutine p4est_par_triangulation_free ( this)
         this%bounding_box_limits = 0.0_rp
         
         call this%reference_fe_geo%free()
+        call this%free_reference_fe_geo_scratch_data()
         
         context => p_environment%get_l1_context()
         select type(context)
@@ -321,12 +324,20 @@ subroutine p4est_par_triangulation_redistribute ( this )
   if ( p_environment%am_i_l1_task() ) then
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%cell_weights%get_pointer()
-      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p4est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if 
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old) 
       call F90_p4est_partition(this%p4est)
     else if ( this%get_num_dims() == 3 ) then
       user_pointer => this%cell_weights%get_pointer()
-      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p8est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old) 
       call F90_p8est_partition(this%p4est)
     end if

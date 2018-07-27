@@ -115,7 +115,7 @@ module unfitted_fe_spaces_names
     procedure, non_overridable :: update_facet_maps_interpolation  => unfitted_fe_facet_iterator_update_facet_maps_interpolation
     procedure, non_overridable :: update_facet_integrators_interpolation => uffi_update_facet_integrators_interpolation
     procedure :: get_quadrature_points_coordinates    => unfitted_fe_facet_iterator_get_quadrature_points_coordinates
-    procedure :: get_normals                          => unfitted_fe_facet_iterator_get_normals
+    procedure :: get_normal                           => unfitted_fe_facet_iterator_get_normal
     procedure :: get_det_jacobian                     => unfitted_fe_facet_iterator_get_det_jacobian
     procedure :: compute_characteristic_length        => unfitted_fe_facet_iterator_compute_characteristic_length
 

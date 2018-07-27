@@ -94,7 +94,11 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   if ( p_environment%am_i_l1_task () ) then
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
-      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else 
+        call F90_p4est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if 
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
       call F90_p4est_refine(this%p4est)
       call F90_p4est_coarsen(this%p4est)
@@ -103,7 +107,11 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
-      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p8est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
       call F90_p8est_refine(this%p4est)
       call F90_p8est_coarsen(this%p4est)
@@ -1884,6 +1892,57 @@ function p4est_bt_get_previous_num_ghost_cells ( this )
   p4est_bt_get_previous_num_ghost_cells = this%previous_num_ghost_cells
 end function p4est_bt_get_previous_num_ghost_cells
 
+subroutine p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data ( this) 
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(list_t), pointer :: dofs_n_face
+  type(list_iterator_t) :: dofs_n_face_iterator
+  integer(ip) :: num_n_faces
+  integer(ip) :: current
+  integer(ip) :: field_id, i 
+  integer(ip) :: istat, icell
+  
+  call this%free_reference_fe_geo_scratch_data()
+    
+  dofs_n_face => this%reference_fe_geo%get_dofs_n_face()
+  num_n_faces    = dofs_n_face%get_num_pointers()
+  
+  call memalloc ( num_n_faces+1, & 
+                  this%ptr_dofs_n_face, __FILE__, __LINE__ ) 
+   
+  this%ptr_dofs_n_face(1) = 1
+  do i=1, num_n_faces
+     this%ptr_dofs_n_face(i+1) = this%ptr_dofs_n_face(i) + &
+                                    dofs_n_face%get_sublist_size(i)
+  end do
+   
+  call memalloc ( this%ptr_dofs_n_face(num_n_faces+1)-1, & 
+                  this%lst_dofs_n_face, __FILE__, __LINE__ ) 
+   
+  current=1
+  do i=1, dofs_n_face%get_num_pointers()
+     dofs_n_face_iterator = this%reference_fe_geo%create_dofs_n_face_iterator(i)
+     do while( .not. dofs_n_face_iterator%is_upper_bound() )
+        this%lst_dofs_n_face(current) = dofs_n_face_iterator%get_current()
+        current = current + 1
+        call dofs_n_face_iterator%next()
+     end do
+  end do
+  
+end subroutine p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
+
+subroutine p4est_bt_free_reference_fe_geo_scratch_data(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  if ( allocated(this%ptr_dofs_n_face) ) then
+    call memfree(this%ptr_dofs_n_face, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%lst_dofs_n_face) ) then
+    call memfree(this%lst_dofs_n_face, __FILE__, __LINE__ )
+  end if  
+end subroutine p4est_bt_free_reference_fe_geo_scratch_data
+
 subroutine p4est_bt_fill_cells_set (this, cells_set)
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
@@ -2923,15 +2982,17 @@ subroutine p4est_base_triangulation_update_cell_ggids ( this )
   end do
   global_ggids => this%cell_ggids%get_pointer()
   
-  if ( this%get_num_dims() == 2 ) then
-    call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
-                                    this%global_first_quadrant, &
-                                    global_ggids(this%get_num_local_cells()+1:))
-  else if ( this%get_num_dims() == 3 ) then
-    call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
-                                    this%global_first_quadrant, &
-                                    global_ggids(this%get_num_local_cells()+1:))
-  end if
+  if ( associated(global_ggids) ) then
+    if ( this%get_num_dims() == 2 ) then
+      call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
+                                      this%global_first_quadrant, &
+                                      global_ggids(this%get_num_local_cells()+1:))
+    else if ( this%get_num_dims() == 3 ) then
+      call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
+                                      this%global_first_quadrant, &
+                                      global_ggids(this%get_num_local_cells()+1:))
+    end if
+  end if   
 #else  
   call this%not_enabled_error()
 #endif  
@@ -2983,8 +3044,10 @@ subroutine p4est_base_triangulation_update_cell_myparts ( this )
                                       P)
     end if 
   else if ( this%get_num_dims() == 3 ) then
+    if (size(global_myparts)>this%get_num_local_cells()) then
       call F90_p8est_fill_ghost_procs(this%p4est_ghost,&
                                       P)    
+    end if
   end if
 #else  
   call this%not_enabled_error()

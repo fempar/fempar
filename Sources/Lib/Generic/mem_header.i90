@@ -33,6 +33,7 @@
 !
 ! generic_memalloc_interface
 ! generic_memrealloc_interface
+! generic_memrealloc_if_more_space_needed
 ! generic_memfree_interface
 ! generic_memmovealloc_interface
 !
@@ -46,6 +47,10 @@
      module procedure generic_memrealloc_1, generic_memrealloc_2, &
           &           generic_memrealloc_3, generic_memrealloc_4
   end interface generic_memrealloc_interface
+  interface generic_memrealloc_if_more_space_needed_interface
+    module procedure generic_memrealloc_if_more_space_needed_1, &
+                     generic_memrealloc_if_more_space_needed_2
+  end interface generic_memrealloc_if_more_space_needed_interface
 #ifdef generic_memfree_interface
   interface generic_memfree_interface
      module procedure generic_memfree_1,generic_memfree_2, &

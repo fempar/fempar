@@ -86,6 +86,9 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   type(facet_integrator_t), pointer :: facet_integrator
   class(reference_fe_t), pointer    :: reference_fe_geo
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
+  integer(ip) :: cell_ressemblance(2)
+  real(rp) :: scaling_factor(2)
+  integer(ip) :: cell_gid(2)
    
   fes_around => this%get_fes_around()
   
@@ -125,21 +128,30 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
                                                  facet_lpos_within_cells_around(icell_around), &
                                                  subfacet_lid_within_cells_around(icell_around))
     call fes_around(icell_around)%p%get_nodes_coordinates(coords)
+    cell_gid(icell_around) = fes_around(icell_around)%p%get_gid()
   end do
 
   reference_fe_geo => fes_around(1)%p%get_reference_fe_geo()
   quadrature => this%get_quadrature()
 
-  call this%unfitted_facet_maps%update(facet_lpos_within_cells_around,   &
-                       subfacet_lid_within_cells_around, &
-                       quadrature,                       &
-                       reference_fe_geo)
+  cell_ressemblance=no_ressemblance
+  scaling_factor=1.0_rp
+  call this%unfitted_facet_maps%update(cell_gid, &
+                                       facet_lpos_within_cells_around,   &
+                                       subfacet_lid_within_cells_around, &
+                                       quadrature,                       &
+                                       reference_fe_geo, &
+                                       cell_ressemblance, &
+                                       scaling_factor)
 
   do field_id = 1, fes_around(1)%p%get_num_fields()
-    call this%unfitted_facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
-                                subfacet_lid_within_cells_around, &
-                                this%unfitted_facet_maps, &             
-                                this%get_facet_permutation_index())
+    call this%unfitted_facet_integrators(field_id)%p%update(cell_gid, & 
+                                                            facet_lpos_within_cells_around,  &
+                                                            subfacet_lid_within_cells_around, &
+                                                            this%unfitted_facet_maps, &             
+                                                            this%get_facet_permutation_index(), &
+                                                            cell_ressemblance, &
+                                                            scaling_factor)
   end do
 
 end subroutine unfitted_fe_facet_iterator_update_integration
@@ -347,21 +359,21 @@ function unfitted_fe_facet_iterator_get_quadrature_points_coordinates(this)
 end function unfitted_fe_facet_iterator_get_quadrature_points_coordinates
 
 !=============================================================================================
-subroutine unfitted_fe_facet_iterator_get_normals(this, qpoint, normal)
+subroutine unfitted_fe_facet_iterator_get_normal(this, qpoint, normal)
   implicit none
   class(unfitted_fe_facet_iterator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: qpoint
   type(vector_field_t)    , intent(out)   :: normal(2)
   if ( this%is_cut() ) then
-    call this%unfitted_facet_maps%get_normals(qpoint, normal)
+    call this%unfitted_facet_maps%get_normal(qpoint, normal)
   else if ( this%is_interior() ) then
-    call this%fe_facet_iterator_t%get_normals(qpoint, normal)
+    call this%fe_facet_iterator_t%get_normal(qpoint, normal)
   else if ( this%is_exterior() ) then
-    call this%unfitted_facet_maps%get_normals(qpoint, normal)
+    call this%unfitted_facet_maps%get_normal(qpoint, normal)
   else
     check(.false.)
   end if
-end subroutine unfitted_fe_facet_iterator_get_normals
+end subroutine unfitted_fe_facet_iterator_get_normal
 
 !=============================================================================================
 function unfitted_fe_facet_iterator_get_det_jacobian( this, i )
