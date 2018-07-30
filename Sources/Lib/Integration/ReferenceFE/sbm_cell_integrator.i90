@@ -661,6 +661,7 @@ subroutine assign_cell_integrator( this, other )
   this%num_shape_functions = other%num_shape_functions
   this%num_quadrature_points = other%num_quadrature_points
   this%reference_fe => other%reference_fe
+  this%last_visited_cell_lev = other%last_visited_cell_lev
   call this%interpolation_reference_cell%copy(other%interpolation_reference_cell)
   call this%interpolation_real_cell%copy(other%interpolation_real_cell)
 end subroutine assign_cell_integrator

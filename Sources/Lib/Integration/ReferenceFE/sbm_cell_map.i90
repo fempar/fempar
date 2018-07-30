@@ -641,6 +641,7 @@ subroutine assign_cell_map ( this, other )
 
   call this%free()
   call this%base_map_t%copy(other%base_map_t)
+  this%last_visited_cell_lev = other%last_visited_cell_lev
 
   call memalloc(SPACE_DIM, &
                 SPACE_DIM, &
