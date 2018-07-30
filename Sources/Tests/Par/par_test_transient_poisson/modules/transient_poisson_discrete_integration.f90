@@ -34,8 +34,14 @@ module transient_poisson_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: transient_poisson_cG_discrete_integration_t
      type(transient_poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(fe_function_t)                 , pointer :: fe_function          => NULL()
+     class(serial_fe_space_t),             pointer :: fe_space => NULL()
+     type(fe_function_t)                           :: fe_function
+     real(rp)                                      :: current_time = 0.0_rp
    contains
+     procedure :: set_current_time
+     procedure :: set_up
+     procedure :: set_evaluation_point
+     procedure :: get_boundary_data
      procedure :: set_analytical_functions
      procedure :: set_fe_function
      procedure :: integrate_galerkin
@@ -44,7 +50,43 @@ module transient_poisson_discrete_integration_names
   public :: transient_poisson_cG_discrete_integration_t
   
 contains
-   
+  subroutine set_up ( this, fe_space, fe_function ) 
+     implicit none
+     class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
+     class(serial_fe_space_t),         target, intent(in)    :: fe_space
+     type(fe_function_t),            optional, intent(in)    :: fe_function
+     
+     this%fe_space => fe_space
+     if( present( fe_function ) ) then
+       this%fe_function = fe_function
+     else 
+       call this%fe_function%create( this%fe_space )
+     endif
+  end subroutine set_up
+     
+     
+  subroutine set_current_time (this, current_time)
+     implicit none
+     class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
+     real(rp)                                , intent(in)    :: current_time
+     this%current_time = current_time
+     call this%fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time)
+  end subroutine set_current_time
+  
+  subroutine set_evaluation_point ( this, evaluation_point )
+    implicit none
+    class(transient_poisson_cG_discrete_integration_t), intent(inout)  :: this
+    class(vector_t)                   , intent(in)     :: evaluation_point
+    call this%fe_function%set_free_dof_values(evaluation_point)
+  end subroutine set_evaluation_point
+  
+  function get_boundary_data ( this )
+    implicit none
+    class(transient_poisson_cG_discrete_integration_t),    intent(inout)    :: this
+    class(vector_t) , pointer :: get_boundary_data
+    get_boundary_data => this%fe_function%get_fixed_dof_values() 
+  end function get_boundary_data
+
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
      class(transient_poisson_cG_discrete_integration_t)    ,intent(inout)  :: this
@@ -55,8 +97,8 @@ contains
   subroutine set_fe_function (this, fe_function)
      implicit none
      class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
-     type(fe_function_t)             , target, intent(in)    :: fe_function
-     this%fe_function => fe_function
+     type(fe_function_t)                               , intent(in)    :: fe_function
+     this%fe_function = fe_function
   end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
@@ -86,7 +128,6 @@ contains
     class(scalar_function_t), pointer :: source_term
     
     assert (associated(this%analytical_functions)) 
-    assert (associated(this%fe_function)) 
 
     source_term => this%analytical_functions%get_source_term()
 

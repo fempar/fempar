@@ -31,6 +31,8 @@ module par_test_transient_poisson_driver_names
   use transient_poisson_discrete_integration_names
   use transient_poisson_conditions_names
   use transient_poisson_analytical_functions_names
+  use time_stepping_names
+
 # include "debug.i90"
 
   implicit none
@@ -61,7 +63,10 @@ module par_test_transient_poisson_driver_names
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)                   :: fe_op
+     type(nonlinear_solver_t)                     :: nl_solver
+     type(time_stepping_operator_t)               :: time_operator
+     type(dirk_solver_t)                          :: time_solver
      
 #ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
@@ -74,7 +79,7 @@ module par_test_transient_poisson_driver_names
      ! Poisson problem solution FE function
      type(fe_function_t)                   :: solution
      
-     ! Environment required for fe_affine_operator + vtk_handler
+     ! Environment required for fe_op + vtk_handler
      type(environment_t)                    :: par_environment
 
      ! Timers
@@ -395,17 +400,27 @@ end subroutine free_timers
     call this%poisson_integration%set_analytical_functions(this%poisson_analytical_functions)
     
     ! if (test_single_scalar_valued_reference_fe) then
-    call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+    call this%fe_op%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_integration )
     
+    call this%time_operator%create( fe_op                   = this%fe_op, &
+                                    initial_time            = 0.0_rp , &
+                                    final_time              = 1.0_rp , &
+                                    time_step               = 1.0_rp , &
+                                    time_integration_scheme = 'backward_euler' )  
+  
     call this%solution%create(this%fe_space) 
-    call this%fe_space%interpolate_dirichlet_values(this%solution)
-    call this%poisson_integration%set_fe_function(this%solution)
+    call this%poisson_integration%set_up( fe_space = this%fe_space, fe_function = this%solution ) 
+    call this%poisson_integration%set_analytical_functions(this%poisson_analytical_functions) 
     
+    call this%fe_space%interpolate(field_id=1, &
+                                   function = this%poisson_analytical_functions%get_solution_function(), &
+                                   fe_function=this%solution, &
+                                   time=this%time_operator%get_current_time())
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -476,16 +491,27 @@ end subroutine free_timers
 
     ! Set-up MLBDDC preconditioner
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    call this%mlbddc%create(this%fe_op, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
 #endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
+    
+    call this%nl_solver%create( convergence_criteria = abs_res_norm, &
+                               abs_tol = 1.0e-6_rp, &
+                               rel_tol = 1.0e-6_rp, &
+                               max_iters = 10_ip, &
+                               linear_solver = this%iterative_linear_solver, &
+                               environment = this%fe_space%get_environment(),&
+                               fe_operator = this%time_operator%get_fe_operator())
+   
+   call this%time_solver%create( ts_op = this%time_operator, &
+                                 nl_solver = this%nl_solver )
 
 #ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_op%get_matrix(), this%mlbddc) 
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
@@ -493,7 +519,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_op%get_matrix(), .identity. this%fe_op) 
     call parameter_list%free()
 #endif   
     
@@ -503,11 +529,11 @@ end subroutine free_timers
   subroutine assemble_system (this)
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
-    class(matrix_t)                  , pointer       :: matrix
-    class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%compute()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
+    !class(matrix_t)                  , pointer       :: matrix
+    !class(vector_t)                  , pointer       :: rhs
+    !call this%fe_op%compute()
+    !rhs                => this%fe_op%get_translation()
+    !matrix             => this%fe_op%get_matrix()
     
     !select type(matrix)
     !class is (sparse_matrix_t)  
@@ -532,11 +558,12 @@ end subroutine free_timers
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
 
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
+    do while ( .not. this%time_operator%has_finished() )
+       call this%time_operator%print(6)
+       call this%time_solver%advance_fe_function(this%solution)
+       !call this%write_time_step( this%time_operator%get_current_time() )
+       call this%check_solution()
+    end do
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
@@ -557,21 +584,22 @@ end subroutine free_timers
   subroutine check_solution(this)
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
+    real(rp)                                      :: current_time 
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    
+    current_time = this%time_operator%get_current_time()
     call error_norm%create(this%fe_space,1)    
-    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
+    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm, time=current_time)   
+    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm, time=current_time)   
+    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time)   
+    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm, time=current_time)   
+    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm, time=current_time)   
+    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm, time=current_time) 
+    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm, time=current_time) 
+    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm, time=current_time)   
+    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm, time=current_time)   
+    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm, time=current_time) 
+    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm, time=current_time)  
     if ( this%par_environment%am_i_l1_root() ) then
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
@@ -664,7 +692,7 @@ end subroutine free_timers
     
     call this%solution%free() 
     call this%iterative_linear_solver%free()
-    call this%fe_affine_operator%free()
+    call this%fe_op%free()
 #ifdef ENABLE_MKL    
     call this%mlbddc%free()
 #endif       

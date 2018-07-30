@@ -15,7 +15,7 @@ module par_test_transient_poisson_params_names
   type, extends(parameter_handler_t) :: par_test_transient_poisson_params_t
      private
      contains
-       procedure :: define_parameters  => par_test_transient_poisson_params_tdefine_parameters
+       procedure :: define_parameters  => par_test_transient_poisson_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -33,7 +33,7 @@ module par_test_transient_poisson_params_names
 contains
 
   !==================================================================================================
-  subroutine par_test_transient_poisson_params_tdefine_parameters(this)
+  subroutine par_test_transient_poisson_params_define_parameters(this)
     implicit none
     class(par_test_transient_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
@@ -147,7 +147,7 @@ contains
     error = required%set(key = use_void_fes_key              , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_case_key         , value = .false.) ; check(error==0)
 
-  end subroutine par_test_transient_poisson_params_tdefine_parameters
+  end subroutine par_test_transient_poisson_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
