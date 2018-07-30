@@ -1892,7 +1892,6 @@ public :: cell_integrator_t, p_cell_integrator_t
      integer(ip)                          :: current_facet_lid
      integer(ip)                          :: current_subfacet_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
-     integer(ip), allocatable             :: last_visited_cell_lev(:)
    contains
      procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
      procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
