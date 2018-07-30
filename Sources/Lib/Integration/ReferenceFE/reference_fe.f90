@@ -290,7 +290,6 @@ module reference_fe_names
      integer(ip)                   :: current_facet_lid
      integer(ip)                   :: current_subfacet_lid
      type(cell_map_t), allocatable :: cell_map(:)
-     integer(ip), allocatable      :: last_visited_cell_lev(:)
    contains
      procedure, non_overridable :: create                    => cell_map_facet_restriction_create
      procedure, non_overridable :: update                    => cell_map_facet_restriction_update
