@@ -34,36 +34,22 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   call this%free()
   call aux_create(this, fe_space)
   call this%set_integration_updated(.false.)
-  allocate ( this%previous_cell, mold=this, stat=istat ); check(istat==0)
-  call aux_create(this%previous_cell,fe_space)
-  call this%previous_cell%set_integration_updated(.false.)
-  ! Initialize previous_cell to point to one cell past the end
-  call aux_set_gid(this%previous_cell,fe_space%triangulation%get_num_cells()+1)
   this%cell_integration_is_set_up = fe_space%cell_integration_was_set_up()
-  
   if ( this%cell_integration_is_set_up .and. this%fe_space%cell_quadratures%size() == 1 ) then
     this%single_quad_cell_map_cell_integs = .true.
-    this%previous_cell%single_quad_cell_map_cell_integs = .true.
     this%quadrature => this%fe_space%cell_quadratures%get_pointer(1)
-    this%previous_cell%quadrature => this%quadrature
     assert ( this%fe_space%cell_maps%size() == 1 ) 
     this%cell_map => this%fe_space%cell_maps%get_pointer(1)
-    this%previous_cell%cell_map => this%cell_map
     assert ( this%fe_space%cell_integrators%size() == this%fe_space%get_num_fields() )
     do field_id = 1, this%fe_space%get_num_fields()
       this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(field_id)
-      this%previous_cell%cell_integrators(field_id)%p => this%cell_integrators(field_id)%p
     end do
   else 
     this%single_quad_cell_map_cell_integs = .false.
-    this%previous_cell%single_quad_cell_map_cell_integs = .false.
     nullify(this%quadrature)
-    nullify(this%previous_cell%quadrature)
     nullify(this%cell_map)
-    nullify(this%previous_cell%cell_map)
     do field_id = 1, this%fe_space%get_num_fields()
       nullify(this%cell_integrators(field_id)%p)
-      nullify(this%previous_cell%cell_integrators(field_id)%p)
     end do
   end if 
   
@@ -103,11 +89,6 @@ subroutine fe_cell_iterator_free (this)
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat
   call aux_free(this)
-  if (associated(this%previous_cell)) then
-    call aux_free(this%previous_cell)
-    deallocate ( this%previous_cell, stat=istat ); check(istat==0)
-    nullify(this%previous_cell)
-  end if   
   call this%set_integration_updated(.false.)
   call this%set_single_octree_mesh(.false.)
   this%cell_integration_is_set_up = .false. 
@@ -230,17 +211,7 @@ end subroutine fe_cell_iterator_free_final
 
 subroutine fe_cell_iterator_next(this)
   implicit none
-  class(fe_cell_iterator_t), intent(inout) :: this
-  if ( this%cell_integration_is_set_up ) then
-    if ( .not. this%has_finished() ) then
-      if ( this%is_local() ) then
-        if ( .not. this%is_cut() ) then
-          call aux_set_gid(this%previous_cell,this%get_gid())
-         call this%previous_cell%set_integration_updated(this%is_integration_updated())
-        end if
-      end if   
-    end if
-  end if  
+  class(fe_cell_iterator_t), intent(inout) :: this 
   call base_fe_cell_iterator_next(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
@@ -250,17 +221,7 @@ end subroutine fe_cell_iterator_next
 
 subroutine fe_cell_iterator_first(this)
   implicit none
-  class(fe_cell_iterator_t), intent(inout) :: this
-  if ( this%cell_integration_is_set_up ) then
-    if ( .not. this%has_finished() ) then
-      if ( this%is_local() ) then
-        if ( .not. this%is_cut() ) then
-          call aux_set_gid(this%previous_cell,this%get_gid())
-          call this%previous_cell%set_integration_updated(this%is_integration_updated())
-        end if
-      end if
-    end if
-  end if   
+  class(fe_cell_iterator_t), intent(inout) :: this 
   call aux_first(this)
   call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_first
@@ -278,16 +239,6 @@ subroutine fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  if ( this%cell_integration_is_set_up ) then
-    if ( .not. this%has_finished() ) then
-      if ( this%is_local() ) then
-        if ( .not. this%is_cut() ) then
-          call aux_set_gid(this%previous_cell,this%get_gid())
-          call this%previous_cell%set_integration_updated(this%is_integration_updated())
-        end if
-      end if    
-    end if   
-  end if
   call aux_set_gid(this,lid)
   call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_set_gid
@@ -982,20 +933,22 @@ subroutine fe_cell_iterator_update_integration( this )
   if ( .not. this%is_integration_updated() ) then
     call this%update_cell_map()
     call this%update_cell_integrators()
-  
-    ! Update integration data structures of previous cell
-    ! This is required to drive comparisons required to
-    ! decide whether the current cell is either a translation 
-    ! or translation + scaling of the previous cell
-    ! If the previous cell is not a valid cell or it is cut, there is nothing
-    ! that can be re-used
+    
+    ! Cell map update
+    cell_map    => this%get_cell_map()
+    coordinates => cell_map%get_coordinates()
+    call this%get_nodes_coordinates(coordinates)
+    quadrature => this%get_quadrature()
+    
+    ! Decide whether the current cell is either a translation 
+    ! or translation + scaling of the previous visited cell
+    ! If there is no previous visited cell, then prev_get_lev == -1
+    this_get_lev = this%get_level()
     cell_ressemblance = no_ressemblance
-    if ( .not. this%previous_cell%has_finished() ) then
-       if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
-          call this%previous_cell%update_cell_map()
-          call this%previous_cell%update_cell_integrators()
-          this_get_lev = this%get_level()
-          prev_get_lev = this%previous_cell%get_level()
+    scaling_factor = 1.0_rp
+    if ( this%is_single_octree_mesh() ) then 
+       prev_get_lev = cell_map%get_last_visited_cell_lev()
+       if ( prev_get_lev >= 0 ) then
           if ( this_get_lev == prev_get_lev ) then
              cell_ressemblance = is_only_translated
           else
@@ -1009,12 +962,20 @@ subroutine fe_cell_iterator_update_integration( this )
     ! Cell integrators update
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
-       if ( cell_ressemblance /= no_ressemblance .and. &
-            associated(cell_integrator,this%previous_cell%cell_integrators(field_id)%p) ) then
-          call cell_integrator%update(this_get_lev,cell_ressemblance,this%cell_map,scaling_factor) 
-       else
-          call cell_integrator%update(this_get_lev,no_ressemblance,this%cell_map)
-       end if
+       cell_ressemblance = no_ressemblance
+       scaling_factor = 1.0_rp
+       if ( this%is_single_octree_mesh() ) then
+         prev_get_lev = cell_integrator%get_last_visited_cell_lev()
+         if ( prev_get_lev >= 0 ) then
+          if ( this_get_lev == prev_get_lev ) then
+             cell_ressemblance = is_only_translated
+          else
+             cell_ressemblance = is_scaled_and_translated
+             scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+          end if
+         end if
+       end if 
+       call cell_integrator%update(this_get_lev,cell_ressemblance,this%cell_map,scaling_factor)
     end do
     call this%set_integration_updated(.true.)
  end if
