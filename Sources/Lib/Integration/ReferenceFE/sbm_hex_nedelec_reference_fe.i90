@@ -692,7 +692,9 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      do vertex_within_cell_id=1,d_fe_geo%get_num_vertices()
         call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
      end do
-     call cell_map%update(cell_quadrature,no_ressemblance)
+     call cell_map%update(cell_lev          = 0, &
+                          quadrature        = cell_quadrature, &
+                          cell_ressemblance = no_ressemblance)
 
      ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
      do qpoint = 1, cell_quadrature%num_quadrature_points

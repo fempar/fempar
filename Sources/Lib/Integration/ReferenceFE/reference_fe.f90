@@ -201,6 +201,8 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t
      private
+     integer(ip)              :: last_visited_cell_lev = -1
+     
      type(cell_map_duties_t)  :: my_duties
      ! Map's Jacobian inverse (SPACE_DIM,SPACE_DIM,num_quadrature_points)
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
@@ -229,6 +231,7 @@ module reference_fe_names
      procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
      procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
+     procedure, non_overridable :: get_last_visited_cell_lev         => cell_map_get_last_visited_cell_lev
   end type cell_map_t
   
   interface assignment(=)

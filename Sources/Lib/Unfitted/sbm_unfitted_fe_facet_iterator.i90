@@ -209,7 +209,9 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
     call this%get_ref_coords_of_subvef( isubfacet, nodal_coords_subfacet )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call cell_map_subfacet%update(quadrature_subfacet, no_ressemblance )
+    call cell_map_subfacet%update(cell_lev          = 0, &
+                                  quadrature        = quadrature_subfacet, &
+                                  cell_ressemblance = no_ressemblance )
 
     ! Determine if the current sub-cell is interior or exterior
     if ( this%is_interior_subvef(isubfacet) ) then
