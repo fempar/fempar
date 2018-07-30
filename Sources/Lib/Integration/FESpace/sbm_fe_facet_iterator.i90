@@ -322,7 +322,7 @@ subroutine fe_facet_iterator_update_integration( this )
           prev_get_lev = this%facet_integrators(field_id)%p%get_last_visited_cell_lev(icell_around, &
                                                                   facet_lpos_within_cells_around(icell_around), &
                                                                   subfacet_lid_within_cells_around(icell_around))
-          if ( prev_get_lev > 0 ) then
+          if ( prev_get_lev >= 0 ) then
             if ( this_get_lev == prev_get_lev ) then
               cell_ressemblance(icell_around) = is_only_translated
             else
