@@ -504,7 +504,7 @@ subroutine cell_integrator_facet_restriction_update(this, &
   real(rp)                                  , intent(in)    :: scaling_factor
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_ressemblance,cell_map,scaling_factor)
+  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_lev,cell_ressemblance,cell_map,scaling_factor)
   this%last_visited_cell_lev(facet_lid+subfacet_lid*this%num_facets) = cell_lev
 end subroutine cell_integrator_facet_restriction_update
 

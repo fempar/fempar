@@ -1772,6 +1772,7 @@ public :: void_reference_fe_t
 type cell_integrator_t 
 
 private
+integer(ip)                    :: last_visited_cell_lev = -1
 integer(ip)                    :: num_shape_functions
 integer(ip)                    :: num_quadrature_points
 class(reference_fe_t), pointer :: reference_fe
@@ -1870,7 +1871,8 @@ procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_fun
 procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_vector
 generic :: evaluate_laplacian_fe_function => cell_integrator_evaluate_laplacian_fe_function_scalar, &
 & cell_integrator_evaluate_laplacian_fe_function_vector
-
+procedure, non_overridable :: get_last_visited_cell_lev  => cell_integrator_get_last_visited_cell_lev
+     
 end type cell_integrator_t
 
 interface assignment(=)

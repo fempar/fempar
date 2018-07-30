@@ -1004,32 +1004,16 @@ subroutine fe_cell_iterator_update_integration( this )
           end if
        end if
     end if
-    
-    ! Cell map update
-    cell_map    => this%get_cell_map()
-    coordinates => cell_map%get_coordinates()
-    call this%get_nodes_coordinates(coordinates)
-    quadrature => this%get_quadrature()
-    ! If cell_ressemblance is either translation or translation + scaling .AND.
-    ! the cell map of previous cell and that of the current cell are strictly 
-    ! the same instance, then ... (Note: it might happen that the cell map of
-    ! the previous cell is set up with a difference quadrature of the current
-    ! cell)
-    if ( cell_ressemblance /= no_ressemblance .and. &
-         associated(cell_map,this%previous_cell%cell_map) ) then
-       call cell_map%update(quadrature, cell_ressemblance, scaling_factor)
-    else
-       call cell_map%update(quadrature, no_ressemblance)
-    end if
+    call cell_map%update(this_get_lev,quadrature, cell_ressemblance, scaling_factor)
     
     ! Cell integrators update
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
        if ( cell_ressemblance /= no_ressemblance .and. &
             associated(cell_integrator,this%previous_cell%cell_integrators(field_id)%p) ) then
-          call cell_integrator%update(cell_ressemblance,this%cell_map,scaling_factor) 
+          call cell_integrator%update(this_get_lev,cell_ressemblance,this%cell_map,scaling_factor) 
        else
-          call cell_integrator%update(no_ressemblance,this%cell_map)
+          call cell_integrator%update(this_get_lev,no_ressemblance,this%cell_map)
        end if
     end do
     call this%set_integration_updated(.true.)

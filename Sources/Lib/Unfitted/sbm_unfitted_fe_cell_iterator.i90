@@ -247,7 +247,8 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   type(point_t)            , pointer :: coordinates(:)
   type(cell_map_t)           , pointer :: cell_map
   type(quadrature_t)       , pointer :: quadrature
-  type(cell_integrator_t), pointer :: cell_integrator
+  type(cell_integrator_t), pointer  :: cell_integrator
+  integer(ip)                       :: this_get_lev  
   
   assert(this%is_local())
   
@@ -261,16 +262,18 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
     call this%update_cut_quadratures()
     call this%update_cut_cell_maps()
     call this%update_cut_cell_integrators()
-  
+    
+    this_get_lev = this%get_level()
+    
     cell_map => this%get_cell_map()
     coordinates => cell_map%get_coordinates()
     call this%get_nodes_coordinates(coordinates)
 
     quadrature => this%get_quadrature()
-    call cell_map%update(quadrature,no_ressemblance)
+    call cell_map%update(this_get_lev,quadrature,no_ressemblance)
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
-       call cell_integrator%update(no_ressemblance,cell_map)
+       call cell_integrator%update(this_get_lev,no_ressemblance,cell_map)
     end do
     call this%set_integration_updated(.true.)
   end if

@@ -1168,6 +1168,7 @@ subroutine sufs_setup_only_cell_aggregation_constraints ( this )
   integer(ip) :: idirichlet
   logical(ip), allocatable :: first_ref_fe_visited_x_field(:)
   real(rp) :: coefficient
+  integer(ip) :: root_fe_get_lev
 
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
@@ -1341,13 +1342,14 @@ subroutine sufs_setup_only_cell_aggregation_constraints ( this )
 
         ! Evaluate the root_fe shape functions at these points
         root_reference_fe => root_fe%get_reference_fe(field_id)
+        root_fe_get_lev = root_fe%get_level()
         if (first_ref_fe_visited_x_field(field_id)) then
           call cell_integrator(field_id)%create(nodal_quad_in_root_fe(field_id),root_reference_fe)
           first_ref_fe_visited_x_field(field_id) = .false.
         else
           call cell_integrator(field_id)%update_interpolation(nodal_quad_in_root_fe(field_id))
         end if
-        call cell_integrator(field_id)%update(no_ressemblance,root_cell_map)
+        call cell_integrator(field_id)%update(root_fe_get_lev,no_ressemblance,root_cell_map)
         if (root_reference_fe%get_field_type() == field_type_scalar) then
           call cell_integrator(field_id)%get_values(shape_values_scalar)
         else if (root_reference_fe%get_field_type() == field_type_vector) then
