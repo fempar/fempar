@@ -247,7 +247,8 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   type(point_t)            , pointer :: coordinates(:)
   type(cell_map_t)           , pointer :: cell_map
   type(quadrature_t)       , pointer :: quadrature
-  type(cell_integrator_t), pointer :: cell_integrator
+  type(cell_integrator_t), pointer  :: cell_integrator
+  integer(ip)                       :: this_get_lev  
   
   assert(this%is_local())
   
@@ -261,16 +262,18 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
     call this%update_cut_quadratures()
     call this%update_cut_cell_maps()
     call this%update_cut_cell_integrators()
-  
+    
+    this_get_lev = this%get_level()
+    
     cell_map => this%get_cell_map()
     coordinates => cell_map%get_coordinates()
     call this%get_nodes_coordinates(coordinates)
 
     quadrature => this%get_quadrature()
-    call cell_map%update(quadrature,no_ressemblance)
+    call cell_map%update(this_get_lev,quadrature,no_ressemblance)
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
-       call cell_integrator%update(no_ressemblance,cell_map)
+       call cell_integrator%update(this_get_lev,no_ressemblance,cell_map)
     end do
     call this%set_integration_updated(.true.)
   end if
@@ -305,6 +308,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
   type(point_t),      pointer :: mapped_quadrature_coords_subelem(:)
   integer(ip)                 :: subcell, idi
   real(rp)                    :: coef, dV_subelem
+  integer(ip)                 :: this_get_lev
 
   assert(this%is_local())
   assert(this%is_cut())
@@ -327,10 +331,11 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
   assert( num_gp  == num_gp_subelem*this%get_num_subcells() )
 
   ! Recover the fe map between the reference sub-element and the reference element
-  cell_map_subelem                   => this%unfitted_integration_manager%cell_map_subelem
+  cell_map_subelem                 => this%unfitted_integration_manager%cell_map_subelem
   nodal_coords_subelem             => cell_map_subelem%get_coordinates()
   mapped_quadrature_coords_subelem => cell_map_subelem%get_quadrature_points_coordinates()
-
+  this_get_lev = this%get_level()
+  
   ! Compute modified quadrature for the element
   igp = 1
   do subcell = 1, this%get_num_subcells()
@@ -339,7 +344,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
     call this%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call cell_map_subelem%update( quadrature_subelem, no_ressemblance )
+    call cell_map_subelem%update( this_get_lev, quadrature_subelem, no_ressemblance )
 
     ! Determine if the current sub-cell is interior or exterior
     ! TODO this way of discarding the exterior sub-cells can be improved
@@ -488,12 +493,14 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   class  (reference_fe_t), pointer  :: reference_fe_geometry
   integer(ip) :: field_id
   type(point_t), pointer :: coordinates(:)
+  integer(ip)            :: this_get_lev
 
   assert(this%is_local())
   quad => this%get_boundary_quadrature()
   cell_map => this%get_boundary_cell_map()
   reference_fe_geometry => this%get_reference_fe_geo()
-
+  this_get_lev = this%get_level()
+  
   ! The quadrature points have changed.
   ! Update the interior interpolation of fe map and cell integrators
   call cell_map%update_interpolation( quad, reference_fe_geometry )
@@ -507,12 +514,12 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   call this%get_nodes_coordinates(coordinates)
 
   ! Compute the jacobian and co
-  call cell_map%update( quad, no_ressemblance )
+  call cell_map%update(this_get_lev, quad, no_ressemblance )
 
   ! Compute shape function derivatives 
   do field_id = 1, this%get_num_fields()
     cell_int => this%get_boundary_cell_integrator(field_id)
-     call cell_int%update(no_ressemblance,cell_map)
+     call cell_int%update(this_get_lev,no_ressemblance,cell_map)
   end do
 
   ! At this point we can extract info about shape function from the cell integrator

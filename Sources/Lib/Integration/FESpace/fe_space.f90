@@ -198,10 +198,7 @@ module fe_space_names
     type(p_reference_fe_t)             , allocatable :: reference_fes(:)
     logical                                          :: single_quad_cell_map_cell_integs = .false.
     
-    
-    ! Scratch member variables required to determine the type of cell 
-    ! ressemblance among a current visited cell and the previous visited one
-    class(fe_cell_iterator_t)          , pointer     :: previous_cell => NULL()   
+    ! Scratch member variables required to perform cell integration optimizations
     logical                                          :: integration_updated        = .false.
     logical                                          :: single_octree_mesh         = .false.
     logical                                          :: cell_integration_is_set_up = .false.

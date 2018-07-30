@@ -88,7 +88,7 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
   integer(ip) :: cell_ressemblance(2)
   real(rp) :: scaling_factor(2)
-  integer(ip) :: cell_gid(2)
+  integer(ip) :: cell_lev(2)
    
   fes_around => this%get_fes_around()
   
@@ -128,7 +128,7 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
                                                  facet_lpos_within_cells_around(icell_around), &
                                                  subfacet_lid_within_cells_around(icell_around))
     call fes_around(icell_around)%p%get_nodes_coordinates(coords)
-    cell_gid(icell_around) = fes_around(icell_around)%p%get_gid()
+    cell_lev(icell_around) = fes_around(icell_around)%p%get_level()
   end do
 
   reference_fe_geo => fes_around(1)%p%get_reference_fe_geo()
@@ -136,7 +136,7 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
 
   cell_ressemblance=no_ressemblance
   scaling_factor=1.0_rp
-  call this%unfitted_facet_maps%update(cell_gid, &
+  call this%unfitted_facet_maps%update(cell_lev, &
                                        facet_lpos_within_cells_around,   &
                                        subfacet_lid_within_cells_around, &
                                        quadrature,                       &
@@ -145,7 +145,7 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
                                        scaling_factor)
 
   do field_id = 1, fes_around(1)%p%get_num_fields()
-    call this%unfitted_facet_integrators(field_id)%p%update(cell_gid, & 
+    call this%unfitted_facet_integrators(field_id)%p%update(cell_lev, & 
                                                             facet_lpos_within_cells_around,  &
                                                             subfacet_lid_within_cells_around, &
                                                             this%unfitted_facet_maps, &             
@@ -209,7 +209,9 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
     call this%get_ref_coords_of_subvef( isubfacet, nodal_coords_subfacet )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call cell_map_subfacet%update(quadrature_subfacet, no_ressemblance )
+    call cell_map_subfacet%update(cell_lev          = 0, &
+                                  quadrature        = quadrature_subfacet, &
+                                  cell_ressemblance = no_ressemblance )
 
     ! Determine if the current sub-cell is interior or exterior
     if ( this%is_interior_subvef(isubfacet) ) then

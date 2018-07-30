@@ -49,16 +49,14 @@ subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geo
                                                      reference_fe_geometry )
     end do
   end do
-  call memalloc(this%num_facets*(this%num_subfacets+1), this%last_visited_cell_lev, __FILE__, __LINE__ )
-  this%last_visited_cell_lev = -1
 end subroutine cell_map_facet_restriction_create
 
 !==================================================================================================
-subroutine cell_map_facet_restriction_update( this, cell_gid, facet_lid, subfacet_lid, quadrature, cell_ressemblance, scaling_factor)
+subroutine cell_map_facet_restriction_update( this, cell_lev, facet_lid, subfacet_lid, quadrature, cell_ressemblance, scaling_factor)
   implicit none
   ! Parameters
   class(cell_map_facet_restriction_t), intent(inout) :: this
-  integer(ip)                        , intent(in)    :: cell_gid
+  integer(ip)                        , intent(in)    :: cell_lev
   integer(ip)                        , intent(in)    :: facet_lid
   integer(ip)                        , intent(in)    :: subfacet_lid
   type(quadrature_t)                 , intent(in)    :: quadrature
@@ -66,8 +64,7 @@ subroutine cell_map_facet_restriction_update( this, cell_gid, facet_lid, subface
   real(rp)                           , intent(in)    :: scaling_factor
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature,cell_ressemblance,scaling_factor)
-  this%last_visited_cell_lev(facet_lid+subfacet_lid*this%num_facets) = cell_gid 
+  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(cell_lev,quadrature,cell_ressemblance,scaling_factor)
  end subroutine cell_map_facet_restriction_update
 
 !==================================================================================================
@@ -106,9 +103,6 @@ subroutine cell_map_facet_restriction_free( this)
      deallocate(this%cell_map, stat = istat)
      check(istat == 0)
   end if
-  if (allocated(this%last_visited_cell_lev)) then
-    call memfree(this%last_visited_cell_lev, __FILE__, __LINE__) 
-  end if
   this%num_facets = 0
   this%num_subfacets = 0
   this%current_facet_lid = 0
@@ -133,8 +127,6 @@ subroutine cell_map_facet_restriction_copy( this, other )
       call assign_cell_map(this%cell_map(i),other%cell_map(i))
     end do
   end if
-  call memalloc( size(other%last_visited_cell_lev), this%last_visited_cell_lev,__FILE__,__LINE__) 
-  this%last_visited_cell_lev(:) = other%last_visited_cell_lev(:)
 end subroutine cell_map_facet_restriction_copy
 
 !==================================================================================================
@@ -173,7 +165,7 @@ function cell_map_facet_restriction_get_last_visited_cell_lev(this,facet_lid,sub
   assert ( facet_lid >= 1 .and. facet_lid <= this%num_facets )
   assert ( subfacet_lid >= 0 .and. subfacet_lid <= this%num_subfacets )
   cell_map_facet_restriction_get_last_visited_cell_lev = & 
-    this%last_visited_cell_lev(facet_lid+subfacet_lid * this%num_facets)
+    this%cell_map(facet_lid+subfacet_lid * this%num_facets)%get_last_visited_cell_lev()
 end function  cell_map_facet_restriction_get_last_visited_cell_lev
   
 
@@ -218,7 +210,7 @@ end subroutine facet_maps_free
 
 !==================================================================================================
 subroutine facet_maps_update(this, &
-                             cell_gid, &
+                             cell_lev, &
                              facet_lid, &
                              subfacet_lid, &
                              facet_quadrature, &
@@ -228,7 +220,7 @@ subroutine facet_maps_update(this, &
   implicit none
   ! Parameters
   class(facet_maps_t)  , intent(inout) :: this
-  integer(ip)          , intent(in)    :: cell_gid(2)
+  integer(ip)          , intent(in)    :: cell_lev(2)
   integer(ip)          , intent(in)    :: facet_lid(2)
   integer(ip)          , intent(in)    :: subfacet_lid(2)
   type(quadrature_t)   , intent(in)    :: facet_quadrature
@@ -238,10 +230,10 @@ subroutine facet_maps_update(this, &
   real   (rp) :: reorientation_factor
 
   ! Update cell_maps
-  call this%cell_maps(1)%update(cell_gid(1),facet_lid(1),subfacet_lid(1),facet_quadrature,cell_ressemblance(1),scaling_factor(1))
+  call this%cell_maps(1)%update(cell_lev(1),facet_lid(1),subfacet_lid(1),facet_quadrature,cell_ressemblance(1),scaling_factor(1))
   if (.not. this%is_at_boundary) then
      assert ( facet_lid(2) >= 1 )
-     call this%cell_maps(2)%update(cell_gid(2),facet_lid(2),subfacet_lid(2),facet_quadrature,cell_ressemblance(2),scaling_factor(2))
+     call this%cell_maps(2)%update(cell_lev(2),facet_lid(2),subfacet_lid(2),facet_quadrature,cell_ressemblance(2),scaling_factor(2))
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
@@ -457,7 +449,7 @@ function facet_maps_get_last_visited_cell_lev ( this, neighbour_id, facet_lid, s
   integer(ip) :: indx
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
   indx = facet_lid+subfacet_lid*this%cell_maps(neighbour_id)%num_facets
-  facet_maps_get_last_visited_cell_lev = this%cell_maps(neighbour_id)%last_visited_cell_lev(indx)
+  facet_maps_get_last_visited_cell_lev = this%cell_maps(neighbour_id)%cell_map(indx)%get_last_visited_cell_lev()
 end function facet_maps_get_last_visited_cell_lev
 
 
@@ -482,13 +474,11 @@ subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_
       call this%cell_integrator(cell_int_index)%restricted_to_facet(quadrature,reference_fe,facet_lid,subfacet_lid-1)
     end do
   end do
-  call memalloc(this%num_facets*(this%num_subfacets+1), this%last_visited_cell_lev, __FILE__, __LINE__ )
-  this%last_visited_cell_lev = -1
 end subroutine cell_integrator_facet_restriction_create
 
 !==================================================================================================
 subroutine cell_integrator_facet_restriction_update(this, &
-                                                    cell_gid, &
+                                                    cell_lev, &
                                                     cell_map, &
                                                     facet_lid, &
                                                     subfacet_lid, &
@@ -496,7 +486,7 @@ subroutine cell_integrator_facet_restriction_update(this, &
                                                     scaling_factor)
   implicit none
   class(cell_integrator_facet_restriction_t), intent(inout) :: this
-  integer(ip)                               , intent(in)    :: cell_gid
+  integer(ip)                               , intent(in)    :: cell_lev
   type(cell_map_t)                          , intent(in)    :: cell_map
   integer(ip)                               , intent(in)    :: facet_lid
   integer(ip)                               , intent(in)    :: subfacet_lid
@@ -504,8 +494,7 @@ subroutine cell_integrator_facet_restriction_update(this, &
   real(rp)                                  , intent(in)    :: scaling_factor
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_ressemblance,cell_map,scaling_factor)
-  this%last_visited_cell_lev(facet_lid+subfacet_lid*this%num_facets) = cell_gid
+  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_lev,cell_ressemblance,cell_map,scaling_factor)
 end subroutine cell_integrator_facet_restriction_update
 
 !==================================================================================================
@@ -536,9 +525,6 @@ subroutine cell_integrator_facet_restriction_free(this)
      end do
      deallocate(this%cell_integrator, stat = istat); check(istat==0);
   end if
-  if (allocated(this%last_visited_cell_lev)) then
-    call memfree(this%last_visited_cell_lev, __FILE__, __LINE__) 
-  end if
   this%num_facets = 0
   this%num_subfacets = 0
   this%current_facet_lid = 0
@@ -563,8 +549,6 @@ subroutine cell_integrator_facet_restriction_copy(this, other)
       call assign_cell_integrator(this%cell_integrator(i),other%cell_integrator(i))
     end do
   end if
-  call memalloc ( size(other%last_visited_cell_lev), this%last_visited_cell_lev,__FILE__,__LINE__) 
-  this%last_visited_cell_lev(:) = other%last_visited_cell_lev(:)
 end subroutine cell_integrator_facet_restriction_copy
 
 !==================================================================================================
@@ -590,7 +574,7 @@ function cell_integrator_facet_restriction_get_last_visited_cell_lev(this,facet_
   assert ( facet_lid >= 1 .and. facet_lid <= this%num_facets )
   assert ( subfacet_lid >= 0 .and. subfacet_lid <= this%num_subfacets )
   cell_integrator_facet_restriction_get_last_visited_cell_lev = & 
-    this%last_visited_cell_lev(facet_lid+subfacet_lid * this%num_facets)
+    this%cell_integrator(facet_lid+subfacet_lid * this%num_facets)%get_last_visited_cell_lev()
 end function  cell_integrator_facet_restriction_get_last_visited_cell_lev
 
 
@@ -652,7 +636,7 @@ end subroutine facet_integrator_free
 
 !==================================================================================================
 subroutine facet_integrator_update(this, &
-                                   cell_gid, &
+                                   cell_lev, &
                                    facet_lid, &
                                    subfacet_lid, &
                                    facet_map, &
@@ -662,7 +646,7 @@ subroutine facet_integrator_update(this, &
   implicit none
   ! Parameters
   class(facet_integrator_t), intent(inout) :: this
-  integer(ip)              , intent(in)    :: cell_gid(2)
+  integer(ip)              , intent(in)    :: cell_lev(2)
   integer(ip)              , intent(in)    :: facet_lid(2)
   integer(ip)              , intent(in)    :: subfacet_lid(2)
   type(facet_maps_t)       , intent(in)    :: facet_map
@@ -670,7 +654,7 @@ subroutine facet_integrator_update(this, &
   integer(ip)              , intent(in)    :: cell_ressemblance(2)
   real(rp)                 , intent(in)    :: scaling_factor(2)
 
-  call this%cell_integrator_facet_restriction(1)%update( cell_gid(1), &
+  call this%cell_integrator_facet_restriction(1)%update( cell_lev(1), &
                                                          facet_map%cell_maps(1)%get_current_cell_map(), &
                                                          facet_lid(1), & 
                                                          subfacet_lid(1), &
@@ -678,7 +662,7 @@ subroutine facet_integrator_update(this, &
                                                          scaling_factor(1) )
   if (.not. this%is_at_boundary) then
      this%current_permutation_index = permutation_index
-     call this%cell_integrator_facet_restriction(2)%update( cell_gid(2), &
+     call this%cell_integrator_facet_restriction(2)%update( cell_lev(2), &
                                                             facet_map%cell_maps(2)%get_current_cell_map(), &
                                                             facet_lid(2), &
                                                             subfacet_lid(2), &
@@ -967,7 +951,7 @@ function facet_integrator_get_last_visited_cell_lev(this,neighbour_id,facet_lid,
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
   indx = facet_lid+subfacet_lid*this%cell_integrator_facet_restriction(neighbour_id)%num_facets
   facet_integrator_get_last_visited_cell_lev = & 
-    this%cell_integrator_facet_restriction(neighbour_id)%last_visited_cell_lev(indx)    
+    this%cell_integrator_facet_restriction(neighbour_id)%cell_integrator(indx)%get_last_visited_cell_lev()
 end function  facet_integrator_get_last_visited_cell_lev
 
 !=================================================================================================

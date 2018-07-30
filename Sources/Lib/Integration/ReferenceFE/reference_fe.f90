@@ -201,6 +201,8 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t
      private
+     integer(ip)              :: last_visited_cell_lev = -1
+     
      type(cell_map_duties_t)  :: my_duties
      ! Map's Jacobian inverse (SPACE_DIM,SPACE_DIM,num_quadrature_points)
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
@@ -229,6 +231,7 @@ module reference_fe_names
      procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
      procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
+     procedure, non_overridable :: get_last_visited_cell_lev         => cell_map_get_last_visited_cell_lev
   end type cell_map_t
   
   interface assignment(=)
@@ -287,7 +290,6 @@ module reference_fe_names
      integer(ip)                   :: current_facet_lid
      integer(ip)                   :: current_subfacet_lid
      type(cell_map_t), allocatable :: cell_map(:)
-     integer(ip), allocatable      :: last_visited_cell_lev(:)
    contains
      procedure, non_overridable :: create                    => cell_map_facet_restriction_create
      procedure, non_overridable :: update                    => cell_map_facet_restriction_update
@@ -1769,6 +1771,7 @@ public :: void_reference_fe_t
 type cell_integrator_t 
 
 private
+integer(ip)                    :: last_visited_cell_lev = -1
 integer(ip)                    :: num_shape_functions
 integer(ip)                    :: num_quadrature_points
 class(reference_fe_t), pointer :: reference_fe
@@ -1867,7 +1870,8 @@ procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_fun
 procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_vector
 generic :: evaluate_laplacian_fe_function => cell_integrator_evaluate_laplacian_fe_function_scalar, &
 & cell_integrator_evaluate_laplacian_fe_function_vector
-
+procedure, non_overridable :: get_last_visited_cell_lev  => cell_integrator_get_last_visited_cell_lev
+     
 end type cell_integrator_t
 
 interface assignment(=)
@@ -1888,7 +1892,6 @@ public :: cell_integrator_t, p_cell_integrator_t
      integer(ip)                          :: current_facet_lid
      integer(ip)                          :: current_subfacet_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
-     integer(ip), allocatable             :: last_visited_cell_lev(:)
    contains
      procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
      procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
