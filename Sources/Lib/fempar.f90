@@ -100,6 +100,7 @@ module fempar_names
   use polynomial_names
   use fe_space_names
   use fe_cell_function_names
+  use fe_cell_predicate_library_names
   use fe_facet_function_names
   use conditions_names
   use discrete_integration_names

@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_fe_cell_predicate_driver_names
   use fempar_names
-  use fe_cell_predicate_names  
  
 # include "debug.i90"
 
