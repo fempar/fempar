@@ -26,13 +26,14 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
-subroutine fe_cell_iterator_create ( this, fe_space )
+subroutine fe_cell_iterator_create ( this, fe_space, fe_cell_predicate)
   implicit none
-  class(fe_cell_iterator_t)            , intent(inout) :: this
-  class(serial_fe_space_t), target, intent(in)    :: fe_space
+  class(fe_cell_iterator_t)                            ,  intent(inout) :: this
+  class(serial_fe_space_t)                     , target,  intent(in)    :: fe_space
+  class(fe_cell_predicate_t), optional, target,  intent(in)    :: fe_cell_predicate
   integer(ip) :: istat, field_id
   call this%free()
-  call aux_create(this, fe_space)
+  call aux_create(this, fe_space, fe_cell_predicate)
   call this%set_integration_updated(.false.)
   this%cell_integration_is_set_up = fe_space%cell_integration_was_set_up()
   if ( this%cell_integration_is_set_up .and. this%fe_space%cell_quadratures%size() == 1 ) then
@@ -55,16 +56,20 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   
 end subroutine fe_cell_iterator_create
 
-subroutine aux_create(this, fe_space) 
+subroutine aux_create(this, fe_space, fe_cell_predicate)
   implicit none
   class(fe_cell_iterator_t), intent(inout)      :: this
   class(serial_fe_space_t) , target, intent(in) :: fe_space
+  class(fe_cell_predicate_t), optional, target,  intent(in)    :: fe_cell_predicate
   class(triangulation_t), pointer :: triangulation
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
   call this%allocate_performance_scratch_data()
   call this%init_performance_scratch_data()
+  if (present(fe_cell_predicate)) then
+     this%fe_cell_predicate => fe_cell_predicate
+  end if
   call aux_first(this) 
   triangulation => fe_space%get_triangulation()
   call this%set_single_octree_mesh(triangulation%is_single_octree_mesh())
@@ -92,6 +97,7 @@ subroutine fe_cell_iterator_free (this)
   call this%set_integration_updated(.false.)
   call this%set_single_octree_mesh(.false.)
   this%cell_integration_is_set_up = .false. 
+  nullify(this%fe_cell_predicate)
 end subroutine fe_cell_iterator_free
 
 subroutine aux_free (this) 
@@ -213,6 +219,7 @@ subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this 
   call base_fe_cell_iterator_next(this)
+  call jump_cells(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
   end if 
@@ -230,15 +237,34 @@ subroutine aux_first(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   call base_fe_cell_iterator_first(this)
+  call jump_cells(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
   end if
 end subroutine aux_first
 
+subroutine jump_cells(this)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  if ( associated(this%fe_cell_predicate) ) then
+    ! Jump those cells not to be visited accordingly to
+    ! this%fe_cell_predicate
+    do while ( .not. this%has_finished())
+     if (this%fe_cell_predicate%visit_fe_cell(this)) then
+      exit
+     end if
+     call this%next()
+    end do
+  end if
+end subroutine jump_cells
+
 subroutine fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
+  if ( associated(this%fe_cell_predicate) ) then
+    massert(.false., "ERROR: not possible to call this subroutine when iterator is associated to a predicate")
+  end if
   call aux_set_gid(this,lid)
   call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_set_gid
