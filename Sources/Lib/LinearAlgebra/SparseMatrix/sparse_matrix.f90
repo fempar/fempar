@@ -365,11 +365,9 @@ contains
               assert(allocated(op2%State))
               call this%State%add(alpha,op1%State,beta,op2%State)
            class DEFAULT
-              assert( .false. )
            end select
         class DEFAULT
-           assert( .false. )
-        end select
+        end select        
     end subroutine sparse_matrix_add
     
     subroutine sparse_matrix_copy(this, op)

@@ -141,8 +141,9 @@ end function time_stepping_operator_get_matrix
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function time_stepping_operator_get_fe_operator( this )
   implicit none
-  class(time_stepping_operator_t),target, intent(in) :: this
+  class(time_stepping_operator_t),target, intent(inout) :: this
   type(time_stepping_stage_fe_operator_t) ,pointer:: time_stepping_operator_get_fe_operator
+  call this%fe_op%set_row(1,1)
   time_stepping_operator_get_fe_operator =>  this%fe_op
 end function time_stepping_operator_get_fe_operator
 

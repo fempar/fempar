@@ -45,11 +45,20 @@ module transient_poisson_discrete_integration_names
      procedure :: set_analytical_functions
      procedure :: set_fe_function
      procedure :: integrate_galerkin
+     procedure :: free
   end type transient_poisson_cG_discrete_integration_t
   
   public :: transient_poisson_cG_discrete_integration_t
   
 contains
+
+  subroutine free (this)
+    class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
+    call this%fe_function%free()
+    nullify(this%fe_space)
+    nullify(this%analytical_functions)
+  end subroutine free
+  
   subroutine set_up ( this, fe_space, fe_function ) 
      implicit none
      class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
@@ -165,7 +174,7 @@ contains
              end do
              
              ! Source term
-             call source_term%get_value(quad_coords(qpoint),source_term_value)
+             call source_term%get_value(quad_coords(qpoint),this%current_time,source_term_value)
              do idof = 1, num_dofs
                 elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
              end do

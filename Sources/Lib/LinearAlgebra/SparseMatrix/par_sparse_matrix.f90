@@ -245,7 +245,17 @@ contains
         class(matrix_t),            intent(in)    :: op2
     !-----------------------------------------------------------------
         if(.not. this%p_env%am_i_l1_task()) return
-        call this%sparse_matrix%add(alpha, op1, beta, op2)
+        select type(op1)
+        class is (par_sparse_matrix_t) 
+           select type(op2)
+           class is (par_sparse_matrix_t) 
+              call this%sparse_matrix%add(alpha, op1%sparse_matrix, beta, op2%sparse_matrix)
+           class DEFAULT
+              assert(.false.)
+           end select
+        class DEFAULT
+           assert(.false.)
+        end select
     end subroutine par_sparse_matrix_add
     
     subroutine par_sparse_matrix_copy(this, op)
@@ -256,7 +266,12 @@ contains
         class(matrix_t),            intent(in)    :: op
     !-----------------------------------------------------------------
         if(.not. this%p_env%am_i_l1_task()) return
-        call this%sparse_matrix%copy( op )
+        select type(op)
+        class is (par_sparse_matrix_t)
+          call this%sparse_matrix%copy( op%sparse_matrix )
+        class DEFAULT
+           assert(.false.)
+        end select 
     end subroutine par_sparse_matrix_copy
     
     subroutine par_sparse_matrix_create_vector_spaces(this)
