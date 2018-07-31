@@ -532,13 +532,13 @@ end subroutine free_timers
     class(fe_operator_t)                  , pointer       :: fe_op
     class(vector_t)                  , pointer       :: rhs
     !call this%fe_op%compute()
-    
-    fe_op => this%time_operator%get_fe_operator()
-    call this%time_operator%set_initial_data(this%solution%get_free_dof_values()) 
-    call fe_op%set_evaluation_point(this%solution%get_free_dof_values())
-    call fe_op%compute_residual(this%solution%get_free_dof_values())
-    call fe_op%compute_tangent()
-    !rhs                => this%fe_op%get_translation()
+    call this%time_operator%assemble(this%solution%get_free_dof_values() )
+    !fe_op => this%time_operator%get_fe_operator()
+    !call this%time_operator%set_initial_data(this%solution%get_free_dof_values()) 
+    !call fe_op%set_evaluation_point(this%solution%get_free_dof_values())
+    !call fe_op%compute_residual(this%solution%get_free_dof_values())
+    !call fe_op%compute_tangent()
+    !!rhs                => this%fe_op%get_translation()
     !matrix             => this%fe_op%get_matrix()
     
     !select type(matrix)

@@ -1011,7 +1011,7 @@ contains
               assert( this%get_nnz() == op1%get_nnz() ) 
               assert( size(this%irp) == size(op1%irp) )
               assert( size(op1%irp)  == size(op2%irp) )
-              assert( size(op1%ja)   == size(op2%ja)  )
+              !assert( size(op1%ja)   == size(op2%ja)  )
               assert( allocated(this%val) ) 
               this%val(1:this%get_nnz()) = alpha*op1%val(1:op1%get_nnz()) + beta*op2%val(1:op2%get_nnz())
            class DEFAULT

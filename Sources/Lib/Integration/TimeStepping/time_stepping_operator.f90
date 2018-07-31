@@ -189,6 +189,7 @@ module time_stepping_names
      procedure :: get_order                       => time_stepping_operator_get_order 
      procedure :: print                           => time_stepping_operator_print
      procedure :: has_finished                    => time_stepping_operator_has_finished
+     procedure :: assemble                        => time_stepping_operator_assemble
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
      procedure, private :: deallocate_dofs_stages => time_stepping_operator_deallocate_dofs_stages
      procedure, private :: get_stage_operator     => time_stepping_operator_get_stage_operator

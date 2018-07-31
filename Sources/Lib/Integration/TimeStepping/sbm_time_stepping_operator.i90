@@ -176,6 +176,20 @@ function time_stepping_operator_has_finished( this )
   endif
 end function time_stepping_operator_has_finished
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_operator_assemble( this, free_dof_values )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  class(vector_t)                , intent(inout) :: free_dof_values
+  
+    call this%set_initial_data(free_dof_values) 
+    call this%fe_op%set_row(1,1)
+    call this%fe_op%set_evaluation_time( this%current_initial_time )
+    call this%fe_op%set_evaluation_point(free_dof_values)
+    call this%fe_op%compute_residual(free_dof_values)
+    call this%fe_op%compute_tangent()
+end subroutine time_stepping_operator_assemble
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_allocate_dofs_stages( this )
   implicit none
