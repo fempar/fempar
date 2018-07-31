@@ -181,7 +181,8 @@ module fe_space_names
   
   type, extends(base_fe_cell_iterator_t) :: fe_cell_iterator_t
     private
-    class(serial_fe_space_t) , pointer     :: fe_space => NULL()
+    class(serial_fe_space_t)           , pointer     :: fe_space => NULL()
+    class(fe_cell_predicate_t), pointer     :: fe_cell_predicate => NULL()
        
     ! Scratch data to support FE assembly
     integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
@@ -374,6 +375,35 @@ module fe_space_names
   
   public :: p_fe_cell_iterator_t
   
+  ! The fe_cell predicate is conceived as a polymorphic data-type variable designed to
+  ! enhance the funcionality of fe_cell iterators. The goal is to be able
+  ! to iterate over a given set of cells, subjected to some restrictions, (e.g.,
+  ! a given cell_set_id, a plane parametrized by some spatial coordinates, and so on..,
+  ! all those defined by the user depending on his particular necessities). In addition,
+  ! the type-bound procedures of the fe_cell_iterator_t have also been modified
+  ! in order to give support to this new data-type variable. Particularly, a new optional
+  ! input argument ( fe_cell_predicate ) has been added to "fe_cell_iterator_create",
+  ! in case an actual argument is associated to this optional dummy argument, it will take 
+  ! into account the restrictions defined in the fe_cell_predicate, otherwise, the behavior 
+  ! of the fe_cell_iterator will be the default behavior (i. e. it will iterate over all cells).
+  type, abstract :: fe_cell_predicate_t
+   contains
+     procedure(visit_fe_cell_interface), deferred :: visit_fe_cell
+  end type fe_cell_predicate_t
+
+  abstract interface
+     function visit_fe_cell_interface(this, fe)
+       import :: fe_cell_predicate_t, fe_cell_iterator_t
+       implicit none
+       class(fe_cell_predicate_t),       intent(inout) :: this
+       class(fe_cell_iterator_t),        intent(in)    :: fe
+       logical   :: visit_fe_cell_interface
+     end function visit_fe_cell_interface
+  end interface
+
+  ! Types
+  public :: fe_cell_predicate_t
+
   type :: base_fe_vef_iterator_t
     private
     class(vef_iterator_t), allocatable :: vef

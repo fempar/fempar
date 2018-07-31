@@ -130,14 +130,15 @@ subroutine sufs_set_use_constraints(this,use_constraints)
 end subroutine sufs_set_use_constraints
 
 !========================================================================================
-subroutine sufs_create_fe_cell_iterator(this, fe)
+subroutine sufs_create_fe_cell_iterator(this, fe, fe_cell_predicate)
   implicit none
   class(serial_unfitted_fe_space_t), intent(in)    :: this
   class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
+  class(fe_cell_predicate_t)   , optional, intent(in) :: fe_cell_predicate
   integer(ip) :: istat
   call this%free_fe_cell_iterator(fe)
   allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
-  call fe%create(this)
+  call fe%create(this,fe_cell_predicate)
 end subroutine sufs_create_fe_cell_iterator
 
 !========================================================================================
