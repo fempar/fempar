@@ -408,10 +408,10 @@ end subroutine free_timers
                                           discrete_integration              = this%poisson_integration )
     
     call this%time_operator%create( fe_op                   = this%fe_op, &
-                                    initial_time            = 0.0_rp , &
-                                    final_time              = 0.005_rp , &
-                                    time_step               = 0.001_rp , &
-                                    time_integration_scheme = 'runge_kutta_3' )  
+                                    initial_time            = this%test_params%get_initial_time() , &
+                                    final_time              = this%test_params%get_final_time() , &
+                                    time_step               = this%test_params%get_time_step() , &
+                                    time_integration_scheme = this%test_params%get_time_integration_scheme() )  
   
     call this%solution%create(this%fe_space) 
     call this%poisson_integration%set_up( fe_space = this%fe_space, fe_function = this%solution ) 

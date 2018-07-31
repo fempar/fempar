@@ -5,13 +5,17 @@ module par_test_transient_poisson_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
-  character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
-  character(len=*), parameter :: write_solution_key         = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'
-  character(len=*), parameter :: use_void_fes_key           = 'use_void_fes'
-  character(len=*), parameter :: use_void_fes_case_key      = 'use_void_fes_case'
-
+  character(len=*), parameter :: reference_fe_geo_order_key  = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key      = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key          = 'write_solution'        
+  character(len=*), parameter :: triangulation_type_key      = 'triangulation_type'
+  character(len=*), parameter :: use_void_fes_key            = 'use_void_fes'
+  character(len=*), parameter :: use_void_fes_case_key       = 'use_void_fes_case'
+  character(len=*), parameter :: initial_time_key            = 'initial_time'
+  character(len=*), parameter :: final_time_key              = 'final_time'
+  character(len=*), parameter :: time_step_key               = 'time_step'
+  character(len=*), parameter :: time_integration_scheme_key = 'time_integration_scheme'
+  
   type, extends(parameter_handler_t) :: par_test_transient_poisson_params_t
      private
      contains
@@ -21,9 +25,13 @@ module par_test_transient_poisson_params_names
        procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
-       procedure, non_overridable             :: get_triangulation_type
+       procedure, non_overridable             :: get_triangulation_type 
        procedure, non_overridable             :: get_use_void_fes
        procedure, non_overridable             :: get_use_void_fes_case
+       procedure, non_overridable             :: get_initial_time
+       procedure, non_overridable             :: get_final_time
+       procedure, non_overridable             :: get_time_step
+       procedure, non_overridable             :: get_time_integration_scheme
        !procedure, non_overridable             :: get_num_dims
   end type par_test_transient_poisson_params_t
 
@@ -64,6 +72,10 @@ contains
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = use_void_fes_key                  , value =  .false.)                     ; check(error==0)
     error = list%set(key = use_void_fes_case_key             , value =  'popcorn')                   ; check(error==0)
+    error = list%set(key = initial_time_key                  , value =  0.0_rp)                      ; check(error==0)
+    error = list%set(key = final_time_key                    , value =  1.0_rp)                      ; check(error==0)
+    error = list%set(key = time_step_key                     , value =  1.0_rp)                      ; check(error==0)
+    error = list%set(key = time_integration_scheme_key       , value =  'backward_euler')            ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -83,6 +95,10 @@ contains
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = use_void_fes_key              , value = '--use-void-fes' )            ; check(error==0)
     error = switches%set(key = use_void_fes_case_key         , value = '--use-void-fes-case' )       ; check(error==0)
+    error = switches%set(key = initial_time_key              , value = '--initial-time' )            ; check(error==0)
+    error = switches%set(key = final_time_key                , value = '--final-time' )              ; check(error==0)
+    error = switches%set(key = time_step_key                 , value = '--time-step' )               ; check(error==0)
+    error = switches%set(key = time_integration_scheme_key   , value = '--time-integration-schem' )  ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -101,6 +117,10 @@ contains
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = use_void_fes_key              , value = '-use-voids' )  ; check(error==0)
     error = switches_ab%set(key = use_void_fes_case_key         , value = '-use-voids-case' ); check(error==0)
+    error = switches_ab%set(key = initial_time_key              , value = '-t0' )            ; check(error==0)
+    error = switches_ab%set(key = final_time_key                , value = '-tf' )            ; check(error==0)
+    error = switches_ab%set(key = time_step_key                 , value = '-dt' )            ; check(error==0)
+    error = switches_ab%set(key = time_integration_scheme_key   , value = '-rk-scheme' )     ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -117,7 +137,11 @@ contains
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_key              , value  = 'Use a hybrid FE space formed by full and void FEs' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_case_key         , value  = 'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter` ' ); check(error==0)
-    
+    error = helpers%set(key = initial_time_key              , value  = 'Initial time: t0' ); check(error==0)
+    error = helpers%set(key = final_time_key                , value  = 'Final time: tf' ); check(error==0)
+    error = helpers%set(key = time_step_key                 , value  = 'Time step size: dt' ); check(error==0)
+    error = helpers%set(key = time_integration_scheme_key   , value  = 'Time disctetization scheme of the DIRK solver.' ); check(error==0)
+
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
@@ -146,6 +170,10 @@ contains
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_key              , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_case_key         , value = .false.) ; check(error==0)
+    error = required%set(key = initial_time_key              , value = .false.) ; check(error==0)
+    error = required%set(key = final_time_key                , value = .false.) ; check(error==0)
+    error = required%set(key = time_step_key                 , value = .false.) ; check(error==0)
+    error = required%set(key = time_integration_scheme_key   , value = .false.) ; check(error==0)
 
   end subroutine par_test_transient_poisson_params_define_parameters
 
@@ -255,5 +283,57 @@ contains
     error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
     assert(error==0)
   end function get_use_void_fes_case
+  
+  !==================================================================================================
+  function get_initial_time(this)
+    implicit none
+    class(par_test_transient_poisson_params_t) , intent(in) :: this
+    real(rp)                                      :: get_initial_time
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(initial_time_key, get_initial_time))
+    error = list%Get(key = initial_time_key, Value = get_initial_time)
+    assert(error==0)
+  end function get_initial_time
+  
+    !==================================================================================================
+  function get_final_time(this)
+    implicit none
+    class(par_test_transient_poisson_params_t) , intent(in) :: this
+    real(rp)                                      :: get_final_time
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(final_time_key, get_final_time))
+    error = list%Get(key = final_time_key, Value = get_final_time)
+    assert(error==0)
+  end function get_final_time
+  
+    !==================================================================================================
+  function get_time_step(this)
+    implicit none
+    class(par_test_transient_poisson_params_t) , intent(in) :: this
+    real(rp)                                      :: get_time_step
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(time_step_key, get_time_step))
+    error = list%Get(key = time_step_key, Value = get_time_step)
+    assert(error==0)
+  end function get_time_step
+  
+    !==================================================================================================
+  function get_time_integration_scheme(this)
+    implicit none
+    class(par_test_transient_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable                 :: get_time_integration_scheme
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(time_integration_scheme_key, 'string'))
+    error = list%GetAsString(key = time_integration_scheme_key, string = get_time_integration_scheme)
+    assert(error==0)
+  end function get_time_integration_scheme
 
 end module par_test_transient_poisson_params_names
