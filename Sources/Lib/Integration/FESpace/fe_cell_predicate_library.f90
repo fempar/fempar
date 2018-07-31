@@ -34,49 +34,49 @@ module fe_cell_predicate_library_names
   private
 
   type, extends(fe_cell_predicate_t) :: fe_cell_set_id_predicate_t
-    private
+     private
      integer(ip)    ::    cell_set_id = -1
-    contains
-     procedure :: set_cell_set_id
-     procedure :: get_cell_set_id
-     procedure :: visit_fe_cell
-     procedure :: free
+   contains
+     procedure                   ::  visit_fe_cell
+     procedure, non_overridable  ::  set_cell_set_id
+     procedure, non_overridable  ::  get_cell_set_id
+     procedure, non_overridable  ::  free
   end type fe_cell_set_id_predicate_t
- 
- public :: fe_cell_set_id_predicate_t
+  
+  public :: fe_cell_set_id_predicate_t
  
 contains
-
-! ========================================================================
-function get_cell_set_id(this)
-  implicit none
-  class(fe_cell_set_id_predicate_t),  intent(in) :: this
-  integer(ip)                                    :: get_cell_set_id
-  get_cell_set_id = this%cell_set_id
-end function get_cell_set_id
-! ========================================================================
-subroutine set_cell_set_id(this, cell_set_id)
-  implicit none
-  class(fe_cell_set_id_predicate_t),  intent(inout) :: this
-  integer(ip)                      ,  intent(in)    :: cell_set_id
-  this%cell_set_id = cell_set_id
-end subroutine set_cell_set_id
-! ========================================================================
-function visit_fe_cell(this, fe)
-  implicit none
-  class(fe_cell_set_id_predicate_t),  intent(inout) :: this
-  class(fe_cell_iterator_t),          intent(in)    :: fe  
-  logical                                           :: visit_fe_cell
-  visit_fe_cell = .false.
-  if (fe%get_set_id() == this%cell_set_id) then
-     visit_fe_cell = .true.
-  end if
-end function visit_fe_cell
-! ========================================================================
-subroutine free(this)
-  implicit none
-  class(fe_cell_set_id_predicate_t),  intent(inout) :: this
-  this%cell_set_id = -1
-end subroutine free
-
+  
+  ! ========================================================================
+  function get_cell_set_id(this)
+    implicit none
+    class(fe_cell_set_id_predicate_t),  intent(in) :: this
+    integer(ip)  :: get_cell_set_id
+    get_cell_set_id = this%cell_set_id
+  end function get_cell_set_id
+  ! ========================================================================
+  subroutine set_cell_set_id(this, cell_set_id)
+    implicit none
+    class(fe_cell_set_id_predicate_t),  intent(inout) :: this
+    integer(ip)                      ,  intent(in)    :: cell_set_id
+    this%cell_set_id = cell_set_id
+  end subroutine set_cell_set_id
+  ! ========================================================================
+  function visit_fe_cell(this, fe)
+    implicit none
+    class(fe_cell_set_id_predicate_t),  intent(inout) :: this
+    class(fe_cell_iterator_t),          intent(in)    :: fe  
+    logical   :: visit_fe_cell
+    visit_fe_cell = .false.
+    if (fe%get_set_id() == this%cell_set_id) then
+       visit_fe_cell = .true.
+    end if
+  end function visit_fe_cell
+  ! ========================================================================
+  subroutine free(this)
+    implicit none
+    class(fe_cell_set_id_predicate_t),  intent(inout) :: this
+    this%cell_set_id = -1
+  end subroutine free
+  
 end module fe_cell_predicate_library_names

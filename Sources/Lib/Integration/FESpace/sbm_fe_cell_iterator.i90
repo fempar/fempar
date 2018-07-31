@@ -30,7 +30,7 @@ subroutine fe_cell_iterator_create ( this, fe_space, fe_cell_predicate)
   implicit none
   class(fe_cell_iterator_t)                            ,  intent(inout) :: this
   class(serial_fe_space_t)                     , target,  intent(in)    :: fe_space
-  class(fe_cell_predicate_t), optional, target,  intent(in)    :: fe_cell_predicate
+  class(fe_cell_predicate_t),     optional     , target,  intent(in)    :: fe_cell_predicate
   integer(ip) :: istat, field_id
   call this%free()
   call aux_create(this, fe_space, fe_cell_predicate)
@@ -58,10 +58,10 @@ end subroutine fe_cell_iterator_create
 
 subroutine aux_create(this, fe_space, fe_cell_predicate)
   implicit none
-  class(fe_cell_iterator_t), intent(inout)      :: this
-  class(serial_fe_space_t) , target, intent(in) :: fe_space
+  class(fe_cell_iterator_t),                     intent(inout) :: this
+  class(serial_fe_space_t) ,            target,  intent(in)    :: fe_space
   class(fe_cell_predicate_t), optional, target,  intent(in)    :: fe_cell_predicate
-  class(triangulation_t), pointer :: triangulation
+  class(triangulation_t),               pointer                :: triangulation
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
