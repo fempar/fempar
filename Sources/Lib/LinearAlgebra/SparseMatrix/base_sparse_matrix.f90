@@ -2947,6 +2947,7 @@ contains
         class is (coo_sparse_matrix_t) 
            select type(op2)
            class is (coo_sparse_matrix_t) ! op1 and op2 are COO
+              call op1%copy_to_coo_body( this )
               call this%add_coo( alpha, op1, beta, op2 )
            class DEFAULT ! only op1 is COO 
               call op2%copy_to_coo_body( this )
@@ -2977,12 +2978,12 @@ contains
         real(rp),                    intent(in)     :: beta
         class(coo_sparse_matrix_t),  intent(in)     :: op2
     !----------------------------------------------------------------- 
-
          assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
-         assert( this%get_nnz() == op1%get_nnz() ) 
-         assert( op1%get_nnz() == op2%get_nnz() ) 
-         assert( size(op1%ia) == size(op2%ia) )
-         assert( size(op1%ja) == size(op2%ja) )
+         
+         massert( op1%get_nnz() == op2%get_nnz(), 'coo_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' ) 
+         massert( all( op1%ia(1:op1%get_nnz()) ==  op2%ia(1:op2%get_nnz()) ), 'coo_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
+         massert( all( op1%ja(1:op1%get_nnz()) ==  op2%ja(1:op2%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
+         
          assert( allocated(this%val) ) 
          this%val(1:this%get_nnz()) =  alpha*op1%val(1:this%get_nnz()) + beta*op2%val(1:this%get_nnz())
 
@@ -2995,16 +2996,8 @@ contains
         class(coo_sparse_matrix_t),  intent(inout)  :: this
         class(base_sparse_matrix_t), intent(in)     :: op
     !-----------------------------------------------------------------
-        select type(op)
-        class is (coo_sparse_matrix_t) 
-           assert( op%state_is_assembled() )
-           assert( this%get_nnz() == op%get_nnz() )          
-           assert( size(this%ia) == size(op%ia) )
-           assert( allocated(this%val) ) 
-           this%val(1:this%get_nnz()) =  op%val(1:this%get_nnz())
-        class DEFAULT
-           call op%copy_to_coo_body( this )
-        end select
+        call op%copy_to_coo_body( this )
+
     end subroutine coo_sparse_matrix_copy
 
     subroutine coo_sparse_matrix_append_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
