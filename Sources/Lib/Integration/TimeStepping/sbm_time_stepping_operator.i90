@@ -160,9 +160,17 @@ subroutine time_stepping_operator_print( this, luout )
   implicit none
   class(time_stepping_operator_t), intent(in) :: this
   integer(ip)                    , intent(in) :: luout
-  write(luout,*) '==============================================================================='
-  write(luout,'(a18, e10.3,a11,e10.3,a6,a22)') 'Solving for t=', this%current_initial_time, 'with dt=', this%dt, 'for ', this%scheme%time_integration_scheme
-  write(luout,*) '==============================================================================='
+  class(serial_fe_space_t)       , pointer    :: fe_sp
+  class(environment_t)           , pointer    :: environment
+   
+  fe_sp       => this%fe_op%get_fe_space()
+  environment => fe_sp%get_environment()
+  
+  if (environment%am_i_l1_root()) then
+    write(luout,*) '==============================================================================='
+    write(luout,'(a18, e10.3,a11,e10.3,a6,a22)') 'Solving for t=', this%current_initial_time, 'with dt=', this%dt, 'for ', this%scheme%time_integration_scheme
+    write(luout,*) '==============================================================================='
+  end if
 end subroutine time_stepping_operator_print
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
