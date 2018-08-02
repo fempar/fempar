@@ -25,19 +25,21 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine time_stepping_operator_create (this, fe_op, initial_time, final_time, time_step, time_integration_scheme)
+subroutine time_stepping_operator_create (this, fe_op, initial_time, final_time, final_time_rel_dt_tol, time_step, time_integration_scheme)
   implicit none
   class(time_stepping_operator_t),         intent(inout) :: this
   class(fe_operator_t) ,                   intent(in)    :: fe_op
   character(len=*)               ,         intent(in)    :: time_integration_scheme
-  real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step
+  real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step, final_time_rel_dt_tol
   
   call this%scheme%create(time_integration_scheme)
   call this%fe_op%create_from_operators(this,fe_op)
   
+  
   call this%set_initial_time(initial_time)
   call this%set_final_time(final_time)
   call this%set_time_step_size(time_step)
+  this%final_time_rel_dt_tol = final_time_rel_dt_tol
 end subroutine time_stepping_operator_create
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
@@ -143,7 +145,6 @@ function time_stepping_operator_get_fe_operator( this )
   implicit none
   class(time_stepping_operator_t),target, intent(inout) :: this
   type(time_stepping_stage_fe_operator_t) ,pointer:: time_stepping_operator_get_fe_operator
-  call this%fe_op%set_row(1,1)
   time_stepping_operator_get_fe_operator =>  this%fe_op
 end function time_stepping_operator_get_fe_operator
 
@@ -179,24 +180,23 @@ function time_stepping_operator_has_finished( this )
   class(time_stepping_operator_t), intent(in) :: this
   logical :: time_stepping_operator_has_finished
   time_stepping_operator_has_finished = .false.
-  if (this%current_initial_time >= this%final_time) then
+  if (this%current_initial_time >= this%final_time - this%dt * this%final_time_rel_dt_tol ) then
     time_stepping_operator_has_finished = .true.
   endif
 end function time_stepping_operator_has_finished
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_operator_assemble( this, free_dof_values )
+subroutine time_stepping_operator_initial_assembly( this, free_dof_values )
   implicit none
   class(time_stepping_operator_t), intent(inout) :: this
-  class(vector_t)                , intent(inout) :: free_dof_values
+  class(vector_t)                , intent(in)    :: free_dof_values
   
     call this%set_initial_data(free_dof_values) 
     call this%fe_op%set_row(1,1)
     call this%fe_op%set_evaluation_time( this%current_initial_time )
     call this%fe_op%set_evaluation_point(free_dof_values)
-    call this%fe_op%compute_residual(free_dof_values)
     call this%fe_op%compute_tangent()
-end subroutine time_stepping_operator_assemble
+end subroutine time_stepping_operator_initial_assembly
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_allocate_dofs_stages( this )
