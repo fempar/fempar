@@ -83,7 +83,7 @@ contains
     
     call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
-       
+       if ( fe%is_local() ) then
        ! Update FE-integration related data structures
        call fe%update_integration()
           
@@ -108,6 +108,7 @@ contains
        end do
        
        call fe%assembly( this%fe_function, elmat, elvec, assembler )
+       end if
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
@@ -143,7 +144,7 @@ contains
     
     call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
-       
+       if ( fe%is_local() ) then
        ! Update FE-integration related data structures
        call fe%update_integration()
           
@@ -164,6 +165,7 @@ contains
           end do 
        end do
        call fe%assembly( elmat, assembler )
+       end if
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
@@ -203,7 +205,7 @@ contains
     
     call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
-       
+       if ( fe%is_local() ) then
        ! Update FE-integration related data structures
        call fe%update_integration()
        call u_h%update(fe, this%fe_function)
@@ -225,6 +227,7 @@ contains
        end do
        
        call fe%assembly( elvec, assembler )
+       end if
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
