@@ -103,8 +103,12 @@ module par_test_transient_poisson_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
+     procedure        , private :: check_time_step
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure        , private :: check_convergence_order
+     procedure        , private :: get_error_norm
+     procedure        , private :: is_exact_solution
      procedure                  :: run_simulation
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
@@ -503,7 +507,7 @@ end subroutine free_timers
     call this%nl_solver%create( convergence_criteria = abs_res_norm, &
                                abs_tol = 1.0e-6_rp, &
                                rel_tol = 1.0e-6_rp, &
-                               max_iters = 10_ip, &
+                               max_iters = 0_ip, &
                                linear_solver = this%iterative_linear_solver, &
                                environment = this%fe_space%get_environment(),&
                                fe_operator = this%time_operator%get_fe_operator())
@@ -544,42 +548,61 @@ end subroutine free_timers
     do while ( .not. this%time_operator%has_finished() )
        call this%time_operator%print(6)
        call this%time_solver%advance_fe_function(this%solution)
+       call this%check_time_step()
     end do
   end subroutine solve_system
-   
+  
+  subroutine check_time_step(this)
+    implicit none
+    class(par_test_transient_poisson_fe_driver_t), intent(in)    :: this
+    check(this%nl_solver%has_converged())
+  end subroutine check_time_step
+  
   subroutine check_solution(this)
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
     real(rp)                                      :: current_time 
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    current_time = this%time_operator%get_current_time()
-    call error_norm%create(this%fe_space,1)    
-    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm, time=current_time)   
-    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm, time=current_time)   
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time)   
-    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm, time=current_time)   
-    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm, time=current_time)   
-    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm, time=current_time) 
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm, time=current_time) 
-    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm, time=current_time)   
-    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm, time=current_time)   
-    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm, time=current_time) 
-    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm, time=current_time)  
-    if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < 1.0e-04 )
-    end if  
-    call error_norm%free()
+    real(rp) :: error_tolerance
+    
+    if ( .not. this%test_params%get_is_test() .or. this%is_exact_solution() ) then
+    
+      current_time = this%time_operator%get_current_time()
+      call error_norm%create(this%fe_space,1)    
+      mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm, time=current_time)   
+      l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm, time=current_time)   
+      l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time)   
+      lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm, time=current_time)   
+      linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm, time=current_time)   
+      h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm, time=current_time) 
+      h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm, time=current_time) 
+      w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm, time=current_time)   
+      w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm, time=current_time)   
+      w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm, time=current_time) 
+      w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm, time=current_time)  
+
+#ifdef ENABLE_MKL    
+      error_tolerance = 1.0e-08
+#else
+      error_tolerance = 1.0e-06
+#endif     
+    
+      if ( this%par_environment%am_i_l1_root() ) then
+        write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance .or. .not. this%is_exact_solution())
+        write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty;  check ( w1infty < error_tolerance .or. .not. this%is_exact_solution())
+      end if  
+      call error_norm%free()
+    end if
   end subroutine check_solution
   
   subroutine write_solution(this)
@@ -619,6 +642,104 @@ end subroutine free_timers
       end if
     endif
   end subroutine write_solution
+
+  subroutine check_convergence_order(this)
+    implicit none
+    class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
+    type(error_norms_scalar_t) :: error_norm
+    character(len=:), allocatable :: time_integration_scheme
+    real(rp) :: l2, l2_prev, dt, dt_variation, current_time, order_tol, final_time
+    integer(ip) :: convergence_order
+
+    order_tol = 0.05_rp
+    
+    if( this%test_params%get_is_test() ) then
+    time_integration_scheme = this%test_params%get_time_integration_scheme()
+    convergence_order       = this%time_operator%get_order()
+    
+      if ( this%is_exact_solution() ) then
+        !Check tolerance of all error norms
+        dt           = 1.0_rp
+        dt_variation = 0.1_rp
+        final_time   = 10_rp
+        
+        l2 = this%get_error_norm(dt,final_time,time_integration_scheme)
+        l2 = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+        if ( this%par_environment%am_i_l1_root() ) then
+           write(*,'(a32,a25,a12)') 'Exact solution test for:     ', time_integration_scheme , '... pass' 
+        end if
+      else
+        !Local error convergence test
+        dt           = 1.0e-04
+        dt_variation = 1.0e-01
+        l2_prev      = this%get_error_norm(dt,dt,time_integration_scheme)
+        l2           = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
+        if ( this%par_environment%am_i_l1_root() ) then
+        write(*,*) abs(l2/l2_prev - dt_variation**(convergence_order+1) )
+          if ( abs(l2/l2_prev - dt_variation**(convergence_order+1)) < order_tol ) then
+            write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a2)') 'Local  convergence test for: ', time_integration_scheme , '... pass', &
+            '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order+1, ' )'
+          else
+            write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a6,f6.3,a2)') 'Local  convergence test for: ', time_integration_scheme , '... fail', &
+            '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order+1, ', tol=', order_tol, ')'
+            check( .false. )
+          endif
+        end if
+        
+        !Global error convergence test
+        dt           = 1.0e-04
+        final_time   = 1.0e-03
+        dt_variation = 0.5
+        l2_prev      = this%get_error_norm(dt,final_time,time_integration_scheme)
+        l2           = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+        if ( this%par_environment%am_i_l1_root() ) then
+          if ( abs(l2/l2_prev - dt_variation**convergence_order) < order_tol ) then
+            write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a2)') 'Global convergence test for: ', time_integration_scheme ,'... pass' , &
+            '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order, ' )'
+          else
+            write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a6,f6.3,a2)') 'Global convergence test for: ', time_integration_scheme ,'... fail', &
+            '(order: test=', log(l2/l2_prev)/log(dt_variation), ', method=', convergence_order, ', tol=', order_tol, ' )'
+            check( .false. )
+          endif
+        end if
+      endif
+      deallocate(time_integration_scheme)
+    endif  
+  end subroutine check_convergence_order
+  
+  ! -----------------------------------------------------------------------------------------------
+  function get_error_norm ( this , dt , final_time, time_integration_scheme)
+    implicit none
+    class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
+    real(rp)                              , intent(in)    :: dt, final_time
+    character(len=:), allocatable         , intent(in)    :: time_integration_scheme
+    real(rp)                                              :: get_error_norm, current_time
+    type(error_norms_scalar_t) :: error_norm
+    
+    call error_norm%create(this%fe_space,1)
+    call this%time_operator%update(0.0_rp,final_time,dt,time_integration_scheme)
+    
+    call this%fe_space%interpolate(field_id=1, &
+                                   function = this%poisson_analytical_functions%get_solution_function(), &
+                                   fe_function=this%solution, &
+                                   time=this%time_operator%get_current_time())
+    call this%solve_system()
+    call this%check_solution()
+    current_time = this%time_operator%get_current_time()
+    get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) 
+    call error_norm%free()                 
+  end function get_error_norm
+  
+  function is_exact_solution ( this ) 
+    implicit none
+    class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
+    logical is_exact_solution
+    if ( this%test_params%get_time_integration_scheme() == 'trapezoidal_rule' ) then
+      is_exact_solution = .true.
+    else 
+      is_exact_solution = .false.
+    endif
+  end function is_exact_solution
   
   subroutine run_simulation(this) 
     implicit none
@@ -649,6 +770,7 @@ end subroutine free_timers
 
     call this%check_solution()
     call this%write_solution()
+    call this%check_convergence_order()
     call this%free()
   end subroutine run_simulation
   
