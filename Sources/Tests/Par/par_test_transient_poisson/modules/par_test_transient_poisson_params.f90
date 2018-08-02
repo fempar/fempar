@@ -15,6 +15,7 @@ module par_test_transient_poisson_params_names
   character(len=*), parameter :: final_time_key              = 'final_time'
   character(len=*), parameter :: time_step_key               = 'time_step'
   character(len=*), parameter :: time_integration_scheme_key = 'time_integration_scheme'
+  character(len=*), parameter :: is_test_key                 = 'is_test'
   
   type, extends(parameter_handler_t) :: par_test_transient_poisson_params_t
      private
@@ -32,7 +33,7 @@ module par_test_transient_poisson_params_names
        procedure, non_overridable             :: get_final_time
        procedure, non_overridable             :: get_time_step
        procedure, non_overridable             :: get_time_integration_scheme
-       !procedure, non_overridable             :: get_num_dims
+       procedure, non_overridable             :: get_is_test
   end type par_test_transient_poisson_params_t
 
   ! Types
@@ -76,6 +77,7 @@ contains
     error = list%set(key = final_time_key                    , value =  1.0_rp)                      ; check(error==0)
     error = list%set(key = time_step_key                     , value =  1.0_rp)                      ; check(error==0)
     error = list%set(key = time_integration_scheme_key       , value =  'backward_euler')            ; check(error==0)
+    error = list%set(key = is_test_key                       , value =  .false.)                     ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -99,6 +101,7 @@ contains
     error = switches%set(key = final_time_key                , value = '--final-time' )              ; check(error==0)
     error = switches%set(key = time_step_key                 , value = '--time-step' )               ; check(error==0)
     error = switches%set(key = time_integration_scheme_key   , value = '--time-integration-schem' )  ; check(error==0)
+    error = switches%set(key = is_test_key                   , value = '--is-test' )                 ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -121,6 +124,7 @@ contains
     error = switches_ab%set(key = final_time_key                , value = '-tf' )            ; check(error==0)
     error = switches_ab%set(key = time_step_key                 , value = '-dt' )            ; check(error==0)
     error = switches_ab%set(key = time_integration_scheme_key   , value = '-rk-scheme' )     ; check(error==0)
+    error = switches_ab%set(key = is_test_key                   , value = '-test' )     ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -141,6 +145,7 @@ contains
     error = helpers%set(key = final_time_key                , value  = 'Final time: tf' ); check(error==0)
     error = helpers%set(key = time_step_key                 , value  = 'Time step size: dt' ); check(error==0)
     error = helpers%set(key = time_integration_scheme_key   , value  = 'Time disctetization scheme of the DIRK solver.' ); check(error==0)
+    error = helpers%set(key = is_test_key                   , value  = 'Test the convergence order' ); check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -174,6 +179,7 @@ contains
     error = required%set(key = final_time_key                , value = .false.) ; check(error==0)
     error = required%set(key = time_step_key                 , value = .false.) ; check(error==0)
     error = required%set(key = time_integration_scheme_key   , value = .false.) ; check(error==0)
+    error = required%set(key = is_test_key                   , value = .false.) ; check(error==0)
 
   end subroutine par_test_transient_poisson_params_define_parameters
 
@@ -335,5 +341,18 @@ contains
     error = list%GetAsString(key = time_integration_scheme_key, string = get_time_integration_scheme)
     assert(error==0)
   end function get_time_integration_scheme
-
+    
+    !==================================================================================================
+  function get_is_test(this)
+    implicit none
+    class(par_test_transient_poisson_params_t) , intent(in) :: this
+    logical                                       :: get_is_test
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(is_test_key, get_is_test))
+    error = list%Get(key = is_test_key, Value = get_is_test)
+    assert(error==0)
+  end function get_is_test
+ 
 end module par_test_transient_poisson_params_names
