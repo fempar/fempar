@@ -171,7 +171,8 @@ contains
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_nparts(), &
                   this%test_params%get_num_cells_x_dir(), &
-                  this%test_params%get_size_sub_object())
+                  this%test_params%get_size_sub_object(), &
+                  this%test_params%get_hex_mesh_domain_limits())
           end if
           call cell%next()
        end do
@@ -189,7 +190,7 @@ contains
     
   contains
     
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts,num_cells_x_dir,size_sub_object)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts,num_cells_x_dir,size_sub_object,domain_limits)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
@@ -199,7 +200,8 @@ contains
       integer(ip)  , intent(in)  :: nparts_with_channels(3)
       integer(ip)  , intent(in)  :: nparts(3)
       integer(ip)  , intent(in)  :: num_cells_x_dir(3)
-      type(point_t) :: origin, opposite
+      real(rp)     , intent(in)  :: domain_limits(6)
+      type(point_t) :: origin, opposite, offset
       integer(ip) :: cell_set_id
       integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
       integer(ip) :: i_x, i_y, i_z
@@ -209,7 +211,7 @@ contains
       real(rp)    :: eps=1e-15_rp 
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
       real(rp) :: p1_c(256), p2_c(256)
-	  real(rp) :: short_sizes(3), long_sizes(3)
+	     real(rp) :: short_sizes(3), long_sizes(3)
 
 
       cell_set_id = 1

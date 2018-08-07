@@ -38,6 +38,7 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_nparts
        procedure, non_overridable             :: get_num_cells_x_dir
        procedure, non_overridable             :: get_size_sub_object
+       procedure, non_overridable             :: get_hex_mesh_domain_limits
        !procedure, non_overridable             :: get_num_dims
   end type par_pb_bddc_poisson_params_t
 
@@ -83,6 +84,7 @@ contains
     error = list%set(key = nchannel_x_direction_key          , value = [1,1,1])                     ; check(error==0)
     error = list%set(key = nparts_with_channels_key          , value = [1,1,1])                     ; check(error==0)
     error = list%set(key = size_sub_object_key               , value = 1)                           ; check(error==0)
+    error = list%set(key = hex_mesh_domain_limits_key        , value = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]); check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
@@ -107,7 +109,8 @@ contains
     error = switches%set(key = nchannel_x_direction_key      , value = '--nchannel_x_direction')     ; check(error==0)
     error = switches%set(key = nparts_with_channels_key      , value = '--nparts_with_channels')     ; check(error==0)
     error = switches%set(key = size_sub_object_key           , value = '--size_sub_object')          ; check(error==0)
-
+    error = switches%set(key = hex_mesh_domain_limits_key    , value = '--hex_mesh_domain_limits')   ; check(error==0)
+    
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -131,6 +134,7 @@ contains
     error = switches_ab%set(key = nchannel_x_direction_key      , value = '-nc')        ; check(error==0)
     error = switches_ab%set(key = nparts_with_channels_key      , value = '-npwc')      ; check(error==0)
     error = switches_ab%set(key = size_sub_object_key           , value = '-sso')      ; check(error==0)
+    error = switches_ab%set(key = hex_mesh_domain_limits_key    , value = '-domain_limits')      ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
@@ -152,6 +156,7 @@ contains
     error = helpers%set(key = nchannel_x_direction_key    , value  = 'Number of channels per direction')       ; check(error==0)
     error = helpers%set(key = nparts_with_channels_key    , value  = 'Number of parts per with channels')      ; check(error==0)
     error = helpers%set(key = size_sub_object_key         , value  = 'Size of subobject in number of mesh size (must be an integer)')      ; check(error==0)
+    error = helpers%set(key = hex_mesh_domain_limits_key     , value  = 'Limits of the domain')      ; check(error==0) 
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -186,6 +191,7 @@ contains
     error = required%set(key = nchannel_x_direction_key      , value = .false.) ; check(error==0)
     error = required%set(key = nparts_with_channels_key      , value = .false.) ; check(error==0)
     error = required%set(key = size_sub_object_key           , value = .false.) ; check(error==0)
+    error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
 
 
   end subroutine par_pb_bddc_poisson_params_define_parameters
@@ -384,8 +390,22 @@ contains
     call memfree(num_parts_x_dir)
 
   end function get_nparts
+  
   !==================================================================================================
-  function get_num_cells_x_dir(this)
+  function get_hex_mesh_domain_limits(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    real(rp)                                        :: get_hex_mesh_domain_limits(6)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(hex_mesh_domain_limits_key, get_hex_mesh_domain_limits))
+    error = list%Get(key = hex_mesh_domain_limits_key, Value = get_hex_mesh_domain_limits)
+    assert(error==0)
+  end function get_hex_mesh_domain_limits
+  
+  !==================================================================================================
+    function get_num_cells_x_dir(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: num_levels
