@@ -209,6 +209,7 @@ contains
       real(rp)    :: eps=1e-15_rp 
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
       real(rp) :: p1_c(256), p2_c(256)
+	  real(rp) :: short_sizes(3), long_sizes(3)
 
 
       cell_set_id = 1
@@ -534,7 +535,71 @@ contains
          cell_set_id = (i_z*(num_cells_x_dir(1)/size_sub_object)+ i_y)*(num_cells_x_dir(2)/size_sub_object)+i_x+1 
          if (mod(cell_set_id,4)==3) then
             cell_set_id = 1
-         end if 
+         end if
+	        else if ( inclusion == 11 ) then
+         cell_set_id = 1
+         call offset%init(0.0_rp)
+         do i=1, num_dims
+            mesh_size=(domain_limits(2*i)-domain_limits(2*i-1))/num_cells_x_dir(i)
+            short_sizes(i)=mesh_size
+            long_sizes(i) = (num_cells_x_dir(i)/nparts(i)-2)*mesh_size         
+            call offset%set(i,(num_cells_x_dir(i)/nparts(i))*mesh_size)         
+         enddo
+         do i=1,num_dims
+            call origin%set(i,0.0_rp) 
+            call opposite%set(i,0.0_rp) 
+         enddo 
+         call origin%set(1,short_sizes(1))
+         do i=1,num_dims-1
+            call opposite%set(i,short_sizes(i)+long_sizes(i))
+         enddo 
+         call opposite%set(num_dims,short_sizes(num_dims))
+         origin = origin + offset
+         opposite = opposite + offset
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+            cell_set_id = 2
+         end if  
+      else if ( inclusion == 12 ) then
+         cell_set_id = 1
+         call offset%init(0.0_rp)
+         do i=1, num_dims
+            mesh_size=(domain_limits(2*i)-domain_limits(2*i-1))/num_cells_x_dir(i)
+            short_sizes(i)=mesh_size
+            long_sizes(i) = (num_cells_x_dir(i)/nparts(i)-2)*mesh_size         
+            call offset%set(i,(num_cells_x_dir(i)/nparts(i))*mesh_size)         
+         enddo
+         call origin%init(0.0_rp) 
+         call opposite%init(0.0_rp) 
+         call origin%set(1,short_sizes(1))
+         do i=1,num_dims-1
+            call opposite%set(i,short_sizes(i)+long_sizes(i))
+         enddo 
+         call opposite%set(num_dims,short_sizes(num_dims))
+         origin = origin + offset
+         opposite = opposite + offset
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+            cell_set_id = 2
+         end if  
+
+         ! crossing thin channels
+         origin = origin + offset
+         opposite = opposite + offset
+         call origin%set(num_dims,origin%get(num_dims)-short_sizes(num_dims))
+         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+            cell_set_id = 2
+         end if  
+         
+         ! verticall channel
+         !call origin%init(0.0_rp)
+         !call opposite%init(0.0_rp)
+         !call origin%set(1,long_sizes(1)+short_sizes(1))
+         !call origin%set(2,short_sizes(1)) 
+         !call opposite%set(1,long_sizes(1)+2*short_sizes(1))
+         !call opposite%set(2,long_sizes(2)+2*short_sizes(2))
+         !call origin%set(num_dims,origin%get(num_dims)-short_sizes(num_dims))
+         !if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+         !   cell_set_id = 2
+         !end if  	 
       end if
 
     end function cell_set_id

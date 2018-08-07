@@ -713,16 +713,16 @@ contains
          end if  
          
          ! verticall channel
-         call origin%init(0.0_rp)
-         call opposite%init(0.0_rp)
-         call origin%set(1,long_sizes(1)+short_sizes(1))
-         call origin%set(2,short_sizes(1)) 
-         call opposite%set(1,long_sizes(1)+2*short_sizes(1))
-         call opposite%set(2,long_sizes(2)+2*short_sizes(2))
-         call origin%set(num_dims,origin%get(num_dims)-short_sizes(num_dims))
-         if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
-            cell_set_id = 2
-         end if  
+         !call origin%init(0.0_rp)
+         !call opposite%init(0.0_rp)
+         !call origin%set(1,long_sizes(1)+short_sizes(1))
+         !call origin%set(2,short_sizes(1)) 
+         !call opposite%set(1,long_sizes(1)+2*short_sizes(1))
+         !call opposite%set(2,long_sizes(2)+2*short_sizes(2))
+         !call origin%set(num_dims,origin%get(num_dims)-short_sizes(num_dims))
+         !if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
+         !   cell_set_id = 2
+         !end if  
 
       end if
 
