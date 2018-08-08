@@ -183,9 +183,9 @@ contains
     call this%array%free_in_stages(action)
     if ( action == free_clean ) then
        deallocate(this%matrix)
-       nullify(this%matrix)   
+       nullify(this%matrix)
        deallocate(this%array)
-       nullify(this%array)  
+       nullify(this%array)
     end if
   end subroutine assembler_free_in_stages
   
