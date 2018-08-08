@@ -174,6 +174,12 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   integer(ip)                         :: istat 
   logical                             :: reallocate 
 
+#ifdef DEBUG
+  if ( present(time) .or. .not. present(time_derivative_order) ) then
+    wassert(.false., "nodal_interpolator_evaluate_function :: Warning: time_derivative_order will be ignored (you didn't pass time)!") 
+  end if 
+#endif
+  
   if ( present(time) ) time_(1) = time
   reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
   reference_fe    => fe%get_reference_fe(this%field_id)
@@ -184,7 +190,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
      time_derivative_order_ = default_time_derivative_order 
   end if 
    
-  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points() 				
+  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points()
 
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
   call fe%get_nodes_coordinates( cell_coordinates ) 

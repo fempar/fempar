@@ -314,11 +314,10 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   integer(ip)                         :: reference_fe_id
 
   if ( present(time_derivative_order) ) then
-    write(*,*) 'Implement time derivative order in `tet_Hcurl_interpolator_evaluate_function_components_moments` if you want to use it'
-    assert (.false.)  
+    mcheck (.false., "tet_Hcurl_interpolator_evaluate_function_components_moments :: Implement time derivative order if you want to use it") 
   end if
   
-  if ( present(time) ) time_(1) = time 	
+  if ( present(time) ) time_(1) = time
 
   reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
   reference_fe     => fe%get_reference_fe( this%field_id ) 

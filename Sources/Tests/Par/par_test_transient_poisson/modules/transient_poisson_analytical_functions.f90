@@ -146,19 +146,19 @@ contains
   end subroutine boundary_function_get_value_space_time
   
   !===============================================================================================
-  subroutine boundary_function_get_value_temporal_derivative( this, point, time, order, result )
+  subroutine boundary_function_get_value_temporal_derivative( this, point, time, time_derivative_order, result )
     implicit none
     class(boundary_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(in)    :: time
-    integer(ip)               , intent(in)    :: order
+    integer(ip)               , intent(in)    :: time_derivative_order
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
       !result = 0 ! du/dt = 0
       !result = point%get(1) + point%get(2) !du/dt = x + y 
       result = ( point%get(1) + point%get(2) ) * 2.0_rp * time !du/dt = ( x + y ) * 2 t
-    else if ( this%num_dims == 3 .or. order > 1 ) then
+    else if ( this%num_dims == 3 .or. time_derivative_order > 1 ) then
       mcheck(.false., "Implementation pending")
     end if
   end subroutine boundary_function_get_value_temporal_derivative

@@ -3669,8 +3669,8 @@ subroutine par_fe_space_interpolate_dirichlet_values (this, fe_function, interpo
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type(:)
-		real(rp)             , optional, intent(in)    :: time
+  character(*)         , optional, intent(in)    :: interpolator_type(:)
+  real(rp)             , optional, intent(in)    :: time
   integer(ip)          , optional, intent(in)    :: time_derivative_order
 
   type(environment_t), pointer :: environment

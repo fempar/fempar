@@ -350,8 +350,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   integer(ip)                         :: fe_get_lev
   
   if ( present(time_derivative_order) ) then
-    write(*,*) 'Implement time derivative order in `hex_Hcurl_interpolator_evaluate_function_components_moments` if you want to use it'
-    assert (.false.) 
+    mcheck (.false., "hex_Hcurl_interpolator_evaluate_function_components_moments :: Implement time derivative order if you want to use it") 
   end if
 
   if ( present(time) ) time_(1) = time  
