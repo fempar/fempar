@@ -25,21 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine time_stepping_operator_create (this, fe_op, initial_time, final_time, final_time_rel_dt_tol, time_step, time_integration_scheme)
+subroutine time_stepping_operator_create (this, fe_op, initial_time, final_time, time_step, time_integration_scheme)
   implicit none
   class(time_stepping_operator_t),         intent(inout) :: this
   class(fe_operator_t) ,                   intent(in)    :: fe_op
   character(len=*)               ,         intent(in)    :: time_integration_scheme
-  real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step, final_time_rel_dt_tol
+  real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step
+  
+  call this%free()
   
   call this%scheme%create(time_integration_scheme)
   call this%fe_op%create_from_operators(this,fe_op)
-  
-  
   call this%set_initial_time(initial_time)
   call this%set_final_time(final_time)
   call this%set_time_step_size(time_step)
-  this%final_time_rel_dt_tol = final_time_rel_dt_tol
 end subroutine time_stepping_operator_create
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
@@ -179,8 +178,14 @@ function time_stepping_operator_has_finished( this )
   implicit none
   class(time_stepping_operator_t), intent(in) :: this
   logical :: time_stepping_operator_has_finished
+  real(rp), parameter :: has_finished_tol = 1.0e-8_rp
   time_stepping_operator_has_finished = .false.
-  if (this%current_initial_time >= this%final_time - this%dt * this%final_time_rel_dt_tol ) then
+  ! This method will return true in either one of these two cases:
+  ! (1) If current_initial_time is larger or equal to final_time .
+  ! (2) If current_initial_time is smaller than final_time, and distance to the end is 
+  !     "small enough" (determined by has_finished_tol) compared to the magnitude of 
+  !     current time step
+  if (this%final_time-this%current_initial_time <=  this%dt * has_finished_tol) then
     time_stepping_operator_has_finished = .true.
   endif
 end function time_stepping_operator_has_finished

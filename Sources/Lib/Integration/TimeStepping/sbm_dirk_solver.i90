@@ -30,6 +30,7 @@ subroutine dirk_solver_create( this, ts_op, nl_solver)
   class(dirk_solver_t),                    intent(inout) :: this
   type(time_stepping_operator_t) , target, intent(in)    :: ts_op
   type(nonlinear_solver_t)      ,  target, intent(in)    :: nl_solver
+  call this%free()
   this%ts_op     => ts_op
   this%nl_solver => nl_solver
 end subroutine dirk_solver_create

@@ -233,7 +233,6 @@ contains
     call this%time_operator%create( fe_op                   = this%fe_op, &
                                     initial_time            = this%test_params%get_initial_time() , &
                                     final_time              = this%test_params%get_final_time() , &
-                                    final_time_rel_dt_tol   = 1.0e-6_rp, &
                                     time_step               = this%test_params%get_time_step() , &
                                     time_integration_scheme = this%test_params%get_time_integration_scheme() )  
   

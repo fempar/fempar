@@ -165,7 +165,7 @@ module time_stepping_names
      type(time_stepping_stage_fe_operator_t)            :: fe_op
      class(vector_t)                          , pointer :: initial_value => NULL()
      class(vector_t)                      , allocatable :: dofs_stages(:)
-     real(rp)                                           :: dt, current_initial_time, final_time, final_time_rel_dt_tol
+     real(rp)                                           :: dt, current_initial_time, final_time
      
      ! sbadia: For the moment, we are not interested in full RK implementations,
      ! even though it would be an easy paper about preconditioning these schemes
