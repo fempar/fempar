@@ -141,7 +141,7 @@ module discrete_integration_names
      function get_boundary_data ( this )
        implicit none
        class(discrete_integration_t)  ,    intent(inout)    :: this
-       class(vector_t), pointer :: get_boundary_data
+       type(serial_scalar_array_t), pointer :: get_boundary_data
        mcheck(.false.,"You must implement set_current_time if you want to use it")
      end function get_boundary_data
        

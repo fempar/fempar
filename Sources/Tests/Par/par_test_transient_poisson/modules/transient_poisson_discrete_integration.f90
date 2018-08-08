@@ -83,7 +83,7 @@ contains
   function get_boundary_data ( this )
     implicit none
     class(transient_poisson_cG_discrete_integration_t),    intent(inout)    :: this
-    class(vector_t) , pointer :: get_boundary_data
+    type(serial_scalar_array_t) , pointer :: get_boundary_data
     get_boundary_data => this%fe_function%get_fixed_dof_values() 
   end function get_boundary_data
 

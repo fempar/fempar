@@ -26,6 +26,7 @@ subroutine fe_affine_operator_compute (this)
   class(environment_t), pointer :: environment
   
   assert ( associated(this%state) )
+  
   if ( .not. ( this%state == assembler_computed ) ) then
     environment => this%test_fe_space%get_environment()
     if ( environment%am_i_l1_task() ) then
@@ -36,9 +37,11 @@ subroutine fe_affine_operator_compute (this)
       end if
     end if
     call this%assembler%compress_storage(this%sparse_matrix_storage_format)
-  this%state = assembler_computed
-  end if
+    this%state = assembler_computed
+ end if
 end subroutine fe_affine_operator_compute
+
+
 
 subroutine fe_affine_operator_set_evaluation_point(this,x) 
   implicit none
@@ -62,6 +65,7 @@ subroutine fe_affine_operator_force_compute(this)
   call this%assembler%init_matrix(0.0_rp)
   call this%compute()
 end subroutine fe_affine_operator_force_compute
+
 
 function fe_affine_operator_is_linear(this)
   implicit none
