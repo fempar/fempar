@@ -2420,66 +2420,57 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
 
   neighbours_ids => cell_import%get_neighbours_ids() 
   l1_context     => environment%get_l1_context()
-  select type ( l1_context )
-  class is (mpi_context_t)
-    do i=1, cell_import%get_num_neighbours()
-       call mpi_sendrecv( quad_to_half_size_2          , 1, MPI_INTEGER, neighbours_ids(i)-1, 0,                           & 
-                          num_half_faces_x_neighbour(i), 1, MPI_INTEGER, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), & 
-                          status, ierr)
-       check(ierr==MPI_SUCCESS)
-    end do 
-  class is (serial_context_t)
-  class default
-    check(.false.)
-  end select
-
+  call l1_context%neighbours_exchange(cell_import%get_num_neighbours(), &
+                                      neighbours_ids, &
+                                      quad_to_half_size_2, &
+                                      num_half_faces_x_neighbour)
+  
   allocate ( quad_to_half_buffers(cell_import%get_num_neighbours()), stat=istat); check(istat==0); 
   do i=1, cell_import%get_num_neighbours()
-   select type ( l1_context )
+    call quad_to_half_buffers(i)%create(num_subfacets_facet*num_half_faces_x_neighbour(i))
+  end do 
+  
+  select type ( l1_context )
    class is (mpi_context_t)
-      call quad_to_half_buffers(i)%create(num_subfacets_facet*num_half_faces_x_neighbour(i))
-      call mpi_sendrecv( quad_to_half_buffer         , size(quad_to_half_buffer)      , MPI_INTEGER8, neighbours_ids(i)-1, 0, &
-                         quad_to_half_buffers(i)%a   , size(quad_to_half_buffers(i)%a), MPI_INTEGER8, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), &
-                         status, ierr)
-      check(ierr==MPI_SUCCESS)
+     call l1_context%neighbours_exchange_multiple_igp ( cell_import%get_num_neighbours(), &
+       &                             neighbours_ids, &
+       &                             size(quad_to_half_buffer), &
+       &                             quad_to_half_buffer,&
+       &                             num_subfacets_facet*num_half_faces_x_neighbour,&
+       &                             quad_to_half_buffers)
    class is (serial_context_t)
    class default
     check(.false.)
-   end select
-  end do 
+  end select
   
   if ( this%get_num_dims() == 3 ) then
     call memalloc ( cell_import%get_num_neighbours(), num_half_edges_x_neighbour, __FILE__, __LINE__ ) 
 
     neighbours_ids => cell_import%get_neighbours_ids() 
     l1_context     => environment%get_l1_context()
+    
+    call l1_context%neighbours_exchange(cell_import%get_num_neighbours(), &
+                                        neighbours_ids, &
+                                        quad_to_half_by_edge_size_2, &
+                                        num_half_edges_x_neighbour)
+    
+    allocate ( quad_to_half_by_edge_buffers(cell_import%get_num_neighbours()), stat=istat); check(istat==0); 
+    do i=1, cell_import%get_num_neighbours() 
+      call quad_to_half_by_edge_buffers(i)%create(num_subedgets_edget*num_half_edges_x_neighbour(i))
+    end do
     select type ( l1_context )
-    class is (mpi_context_t)
-      do i=1, cell_import%get_num_neighbours()
-       call mpi_sendrecv( quad_to_half_by_edge_size_2  , 1, MPI_INTEGER, neighbours_ids(i)-1, 0,                           & 
-                          num_half_edges_x_neighbour(i), 1, MPI_INTEGER, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), & 
-                          status, ierr)
-       check(ierr==MPI_SUCCESS)
-      end do 
-    class is (serial_context_t)  
-    class default
+     class is (mpi_context_t)
+       call l1_context%neighbours_exchange_multiple_igp ( cell_import%get_num_neighbours(), &
+          &                             neighbours_ids, &
+          &                             size(quad_to_half_by_edge_buffer), &
+          &                             quad_to_half_by_edge_buffer,&
+          &                             num_subedgets_edget*num_half_edges_x_neighbour,&
+          &                             quad_to_half_by_edge_buffers)
+     class is (serial_context_t)
+     class default
       check(.false.)
     end select
-
-    allocate ( quad_to_half_by_edge_buffers(cell_import%get_num_neighbours()), stat=istat); check(istat==0); 
-    do i=1, cell_import%get_num_neighbours()
-      select type ( l1_context )
-     class is (mpi_context_t)
-        call quad_to_half_by_edge_buffers(i)%create(num_subedgets_edget*num_half_edges_x_neighbour(i))
-        call mpi_sendrecv( quad_to_half_by_edge_buffer         , size(quad_to_half_by_edge_buffer)      , MPI_INTEGER8, neighbours_ids(i)-1, 0, &
-                           quad_to_half_by_edge_buffers(i)%a   , size(quad_to_half_by_edge_buffers(i)%a), MPI_INTEGER8, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), &
-                           status, ierr)
-        check(ierr==MPI_SUCCESS)
-     class is (serial_context_t)   
-     class default
-       check(.false.)
-     end select
-    end do
+    
   end if 
  
 

@@ -167,6 +167,7 @@ subroutine cell_map_free( this )
   implicit none
   class(cell_map_t), intent(inout) :: this
   call this%base_map_t%free()
+  this%last_visited_cell_lev = -1
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
      call memfree(this%inv_jacobian,__FILE__,__LINE__)
   end if
@@ -181,12 +182,13 @@ subroutine cell_map_free( this )
 end subroutine cell_map_free
 
 !==================================================================================================
-subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
+subroutine cell_map_update( this, cell_lev, quadrature, cell_ressemblance, scaling_factor)
   !-----------------------------------------------------------------------
   ! A map obtained from the (usually isoparametric) interpolation of the geometry
   !-----------------------------------------------------------------------
   implicit none    
   class(cell_map_t)      , intent(inout) :: this
+  integer(ip)            , intent(in)    :: cell_lev
   type(quadrature_t)     , intent(in)    :: quadrature
   integer(ip)            , intent(in)    :: cell_ressemblance
   real(rp) , optional,   intent(in)      :: scaling_factor 
@@ -203,6 +205,9 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
                                  cell_ressemblance == is_scaled_and_translated )
   massert (supported_cell_ressemblance , "Unknown cell_ressemblance dummy argument value on input to cell_map_update(...)")
 #endif   
+  
+  assert ( cell_lev >= 0 ) 
+  this%last_visited_cell_lev = cell_lev
       
   if (cell_ressemblance == no_ressemblance ) then
   
@@ -621,6 +626,14 @@ function cell_map_is_det_jacobian_positive ( this )
 end function cell_map_is_det_jacobian_positive
 
 !==================================================================================================
+function cell_map_get_last_visited_cell_lev( this )
+  implicit none
+  class(cell_map_t)     , intent(in)    :: this
+  integer(ip)  ::  cell_map_get_last_visited_cell_lev
+  cell_map_get_last_visited_cell_lev = this%last_visited_cell_lev
+end function cell_map_get_last_visited_cell_lev
+
+!==================================================================================================
 subroutine assign_cell_map ( this, other )
   implicit none
   type(cell_map_t)     , intent(inout) :: this
@@ -628,6 +641,7 @@ subroutine assign_cell_map ( this, other )
 
   call this%free()
   call this%base_map_t%copy(other%base_map_t)
+  this%last_visited_cell_lev = other%last_visited_cell_lev
 
   call memalloc(SPACE_DIM, &
                 SPACE_DIM, &

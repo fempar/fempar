@@ -69,17 +69,21 @@ subroutine cell_integrator_free( this )
   call this%interpolation_reference_cell%free()
   call this%interpolation_real_cell%free()
   nullify(this%reference_fe)
+  this%last_visited_cell_lev = -1    
   this%num_quadrature_points = 0
   this%num_shape_functions = 0
 end subroutine cell_integrator_free
 
 !==================================================================================================
-subroutine cell_integrator_update( this, cell_ressemblance, cell_map, scaling_factor )
+subroutine cell_integrator_update( this, cell_lev, cell_ressemblance, cell_map, scaling_factor )
   implicit none
   class(cell_integrator_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: cell_lev  
   integer(ip)             , intent(in)    :: cell_ressemblance
   type(cell_map_t)        , intent(in)    :: cell_map
   real(rp), optional      , intent(in)    :: scaling_factor
+  assert ( cell_lev >= 0 ) 
+  this%last_visited_cell_lev = cell_lev
   call this%reference_fe%apply_cell_map(cell_ressemblance, &
                                         cell_map, &
                                         this%interpolation_reference_cell, &
@@ -120,6 +124,14 @@ subroutine cell_integrator_update_interpolation_restricted_to_facet( this, quadr
   call reference_fe%create_interpolation_restricted_to_facet( facet_lid, subfacet_lid, quadrature, this%interpolation_reference_cell )
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_update_interpolation_restricted_to_facet
+
+!==================================================================================================
+function cell_integrator_get_last_visited_cell_lev( this )
+  implicit none
+  class(cell_integrator_t)     , intent(in)    :: this
+  integer(ip)  ::  cell_integrator_get_last_visited_cell_lev
+  cell_integrator_get_last_visited_cell_lev = this%last_visited_cell_lev
+end function cell_integrator_get_last_visited_cell_lev
 
 !==================================================================================================
 function cell_integrator_get_interpolation_reference_cell(this)
@@ -649,6 +661,7 @@ subroutine assign_cell_integrator( this, other )
   this%num_shape_functions = other%num_shape_functions
   this%num_quadrature_points = other%num_quadrature_points
   this%reference_fe => other%reference_fe
+  this%last_visited_cell_lev = other%last_visited_cell_lev
   call this%interpolation_reference_cell%copy(other%interpolation_reference_cell)
   call this%interpolation_real_cell%copy(other%interpolation_real_cell)
 end subroutine assign_cell_integrator

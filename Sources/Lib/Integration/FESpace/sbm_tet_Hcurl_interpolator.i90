@@ -170,6 +170,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   integer(ip)                         :: reference_fe_id 
   real(rp)                            :: time_(1) 
   integer(ip)                         :: c, d
+  integer(ip)                         :: fe_get_lev
 
   if (present(time)) time_(1) = time
   reference_fe     => fe%get_reference_fe(this%field_id)
@@ -177,6 +178,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   reference_fe_geo => fe%get_reference_fe_geo()
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
   call fe%get_nodes_coordinates( cell_coordinates ) 
+  fe_get_lev = fe%get_level()
 
   d = 0
   call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
@@ -253,7 +255,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   if ( num_interior_moments > 0 ) then 
 
      ! Update cell map 
-     call this%cell_maps(reference_fe_id)%update(this%cell_quadratures(reference_fe_id),no_ressemblance)
+     call this%cell_maps(reference_fe_id)%update(fe_get_lev,this%cell_quadratures(reference_fe_id),no_ressemblance)
 
      ! Extract quadrature points coordinates 
      num_quad_points = this%cell_quadratures(reference_fe_id)%num_quadrature_points

@@ -191,6 +191,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   type(point_t)        , pointer      :: quad_points_coordinates(:)
   integer(ip)                         :: reference_fe_id 
   real(rp)                            :: time_(1) 
+  integer(ip)                         :: fe_get_lev
 
   dof_values = 0.0_rp 
   if ( present(time) ) time_(1) = time 
@@ -199,6 +200,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   reference_fe_geo => fe%get_reference_fe_geo()
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
   call fe%get_nodes_coordinates( cell_coordinates ) 
+  fe_get_lev = fe%get_level()
 
   d = 0
   call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values) 
@@ -268,7 +270,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
                  call mapped_shape_test%add( v_shape_test%get(idime) * (1.0_rp/col_jacobian%nrm2()) * col_jacobian%get_value() )
               end do
 
-              call this%cell_maps(reference_fe_id)%update(this%cell_quadratures(reference_fe_id), no_ressemblance ) 
+              call this%cell_maps(reference_fe_id)%update(fe_get_lev,this%cell_quadratures(reference_fe_id), no_ressemblance ) 
               ! Apply Piola J^(-t) transormation to test_function ( J diagonal = scaling ) 
               do idime=1, reference_fe%get_num_dims()  
                  call this%cell_maps(reference_fe_id)%get_jacobian_column(idime,qpoint,col_jacobian)
@@ -284,7 +286,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   end if
 
   if ( reference_fe%get_order() > 1 ) then 
-     call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id), no_ressemblance )
+     call this%cell_maps(reference_fe_id)%update( fe_get_lev, this%cell_quadratures(reference_fe_id), no_ressemblance )
 
      num_quad_points  = this%cell_quadratures(reference_fe_id)%num_quadrature_points
      quad_points_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
@@ -345,6 +347,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   integer(ip)                         :: qpoint, num_quad_points 
   type(point_t)           , pointer   :: quad_points_coordinates(:)
   type(list_iterator_t)               :: own_dofs
+  integer(ip)                         :: fe_get_lev
   
   if ( present(time_derivative_order) ) then
     write(*,*) 'Implement time derivative order in `hex_Hcurl_interpolator_evaluate_function_components_moments` if you want to use it'
@@ -357,7 +360,8 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   reference_fe_geo => fe%get_reference_fe_geo()
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
   call fe%get_nodes_coordinates( cell_coordinates ) 
-
+  fe_get_lev = fe%get_level()
+  
   call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values)
   dof_values = 0.0_rp 
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
@@ -406,7 +410,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then     
 
      ! To apply mapping to test functions 
-     call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id), no_ressemblance )
+     call this%cell_maps(reference_fe_id)%update(fe_get_lev, this%cell_quadratures(reference_fe_id), no_ressemblance )
 
      do facet_id = reference_fe%get_first_facet_id(), & 
           reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
