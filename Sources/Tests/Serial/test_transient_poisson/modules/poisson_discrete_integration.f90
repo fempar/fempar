@@ -33,7 +33,7 @@ module poisson_cG_discrete_integration_names
 # include "debug.i90"
   private
   
-  type, extends(linear_discrete_integration_t) :: poisson_cG_discrete_integration_t
+  type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
      class(serial_fe_space_t),             pointer :: fe_space => NULL()
      type(fe_function_t)                           :: fe_function

@@ -31,7 +31,7 @@ module time_stepping_mass_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(linear_discrete_integration_t) :: mass_discrete_integration_t
+  type, extends(discrete_integration_t) :: mass_discrete_integration_t
      type(fe_function_t)                       :: fe_function 
      class(serial_fe_space_t),         pointer :: fe_space => NULL()
    contains
