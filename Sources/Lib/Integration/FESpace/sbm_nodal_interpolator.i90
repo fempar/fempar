@@ -175,7 +175,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   logical                             :: reallocate 
 
 #ifdef DEBUG
-  if ( present(time) .or. .not. present(time_derivative_order) ) then
+  if ( .not. present(time) .and. present(time_derivative_order) ) then
     wassert(.false., "nodal_interpolator_evaluate_function :: Warning: time_derivative_order will be ignored (you didn't pass time)!") 
   end if 
 #endif
