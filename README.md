@@ -18,9 +18,10 @@ Finite Element Multiphysics PARallel solvers
 
 **FEMPAR** compiles with GNU Fortran compiler 5.3.0 (and newer versions) and Intel Fortran compiler 16.0.0 (and newer versions).
 
-**NOTE**: we have detected that some tests (e.g., `test_poisson_unffited`) do **NOT** pass with GNU Fortran compiler 5.5.0 for `experimental` 
+**NOTE**: we have detected that some tests (e.g., `test_poisson_unffited`) do **NOT** pass with GNU Fortran compiler 5.5.0 & 6.3.0 for `experimental` 
 commit 2b44a887b4bd78fe847ea844a90d29d9f141123e due to what it seems to be a compiler BUG. Please also note that we do not actually know since 
-which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using this GNU Fortran compiler version.
+which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using these GNU Fortran compiler versions.
+We neither know whether this also happens for GNU compiler version different from the ones above. It does NOT happen with 5.4.0.
 
 **NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
 compiler error raises when compiling FoX, a third party library of XH5For. 
