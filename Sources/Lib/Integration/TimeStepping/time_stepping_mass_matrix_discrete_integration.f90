@@ -33,13 +33,12 @@ module time_stepping_mass_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: mass_discrete_integration_t
      type(fe_function_t)                       :: fe_function 
-     class(serial_fe_space_t),         pointer :: fe_space => NULL()
    contains
      procedure :: integrate_galerkin
      procedure :: integrate_tangent
      procedure :: integrate_residual 
      procedure :: set_evaluation_point
-     procedure :: set_up
+     procedure :: create_fe_function
      procedure :: set_current_time
      procedure :: free
   end type mass_discrete_integration_t
@@ -51,7 +50,6 @@ contains
   subroutine free (this)
     class(mass_discrete_integration_t), intent(inout)    :: this
     call this%fe_function%free()
-    nullify(this%fe_space)
   end subroutine free
   
   subroutine integrate_galerkin ( this, fe_space, assembler )
@@ -237,19 +235,12 @@ contains
     call u_h%free()
   end subroutine integrate_residual
   
-  subroutine set_up ( this, fe_space, fe_function ) 
+  subroutine create_fe_function ( this, fe_space ) 
      implicit none
      class(mass_discrete_integration_t), intent(inout)  :: this
-     class(serial_fe_space_t),   target, intent(in)     :: fe_space
-     type(fe_function_t),      optional, intent(in)     :: fe_function
-     
-     this%fe_space => fe_space
-     if( present( fe_function ) ) then
-       this%fe_function = fe_function
-     else 
-       call this%fe_function%create( this%fe_space )
-     endif
-  end subroutine set_up
+     class(serial_fe_space_t)          ,   intent(in)   :: fe_space
+     call this%fe_function%create( fe_space )
+  end subroutine create_fe_function
      
   subroutine set_evaluation_point ( this, evaluation_point )
     implicit none
@@ -258,11 +249,12 @@ contains
     call this%fe_function%set_free_dof_values(evaluation_point)
   end subroutine set_evaluation_point
   
-  subroutine set_current_time (this, current_time)
+  subroutine set_current_time (this, fe_space, current_time)
    implicit none
    class(mass_discrete_integration_t), intent(inout) :: this
+   class(serial_fe_space_t)          , intent(in)    :: fe_space
    real(rp)                          , intent(in)    :: current_time
-   call this%fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time , time_derivative_order = 1)
-end subroutine set_current_time
+   call fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time , time_derivative_order = 1)
+  end subroutine set_current_time
  
 end module time_stepping_mass_discrete_integration_names

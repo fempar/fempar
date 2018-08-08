@@ -92,7 +92,7 @@ subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
   
-  call this%mass_integration%set_up(this%fe_op%get_fe_space())
+  call this%mass_integration%create_fe_function(this%fe_op%get_fe_space())
   
   call this%mass_op%create ( sparse_matrix_storage_format      = this%fe_op%get_sparse_matrix_storage_format(), &
                              diagonal_blocks_symmetric_storage = this%fe_op%get_diagonal_blocks_symmetric_storage(), &
@@ -163,15 +163,16 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time)
   implicit none
   class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
   real(rp)                                           , intent(in) :: time
-
   class(discrete_integration_t)           , pointer               :: di_fe_op
   class(discrete_integration_t)           , pointer               :: di_fe_mass_op
+  class(serial_fe_space_t)                , pointer               :: fe_space
  
   di_fe_op         => this%fe_op%get_discrete_integration()
   di_fe_mass_op    => this%mass_op%get_discrete_integration()
+  fe_space         => this%fe_op%get_fe_space()
 
-  call di_fe_op%set_current_time(time)
-  call di_fe_mass_op%set_current_time(time)
+  call di_fe_op%set_current_time(fe_space,time)
+  call di_fe_mass_op%set_current_time(fe_space,time)
   
   call this%mass_op%force_compute()
   select type(fe_op => this%fe_op)

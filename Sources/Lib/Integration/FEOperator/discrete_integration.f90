@@ -130,9 +130,10 @@ module discrete_integration_names
        mcheck(.false.,"You must implement set_boundary_data if you want to use it")
      end subroutine  set_boundary_data 
           
-     subroutine set_current_time ( this, current_time)
+     subroutine set_current_time ( this, fe_space, current_time)
        implicit none
        class(discrete_integration_t)  ,    intent(inout)    :: this
+       class(serial_fe_space_t)       ,    intent(in)       :: fe_space
        real(rp)                       ,    intent(in)       :: current_time     
        mcheck(.false.,"You must implement set_current_time if you want to use it")
      end subroutine  set_current_time

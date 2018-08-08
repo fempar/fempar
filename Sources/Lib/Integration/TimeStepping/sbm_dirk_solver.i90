@@ -67,16 +67,17 @@ end subroutine dirk_solver_apply
 subroutine dirk_solver_advance_fe_function( this, fe_function)
   implicit none
   class(dirk_solver_t),    intent(inout) :: this
-  type(fe_function_t),     intent(inout) :: fe_function
-  
+  type(fe_function_t),     intent(inout) :: fe_function  
   class(discrete_integration_t), pointer :: di_fe_op
   class(vector_t),           allocatable :: free_dof_values_previous
   class(vector_t),               pointer :: free_dof_values_current, fixed_dof_values
-  
+  class(serial_fe_space_t)     , pointer :: fe_space
+  integer(ip) :: istat
+
   free_dof_values_current  =>  fe_function%get_free_dof_values()
   fixed_dof_values         =>  fe_function%get_fixed_dof_values()
   di_fe_op                 =>  this%ts_op%fe_op%fe_op%get_discrete_integration()
-  
+  fe_space                 =>  this%ts_op%fe_op%fe_op%get_fe_space()
   call free_dof_values_current%mold(free_dof_values_previous)
   call free_dof_values_previous%clone(free_dof_values_current)
   call free_dof_values_previous%copy(free_dof_values_current)
@@ -84,10 +85,11 @@ subroutine dirk_solver_advance_fe_function( this, fe_function)
   call this%apply(free_dof_values_previous,free_dof_values_current)
   
   call this%ts_op%update_current_time() 
-  call di_fe_op%set_current_time( this%ts_op%get_current_time() ) 
+  call di_fe_op%set_current_time( fe_space, this%ts_op%get_current_time() ) 
   call fixed_dof_values%copy( di_fe_op%get_boundary_data() )
   
-  call free_dof_values_previous%free
+  call free_dof_values_previous%free()
+  deallocate(free_dof_values_previous, stat=istat); check(istat==0)
 end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine dirk_solver_free( this )

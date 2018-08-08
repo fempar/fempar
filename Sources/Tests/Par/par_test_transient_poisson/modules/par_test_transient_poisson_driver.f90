@@ -419,7 +419,7 @@ end subroutine free_timers
                                     time_integration_scheme = this%test_params%get_time_integration_scheme() )  
   
     call this%solution%create(this%fe_space) 
-    call this%poisson_integration%set_up( fe_space = this%fe_space, fe_function = this%solution ) 
+    call this%poisson_integration%create_fe_function( fe_space = this%fe_space ) 
     call this%poisson_integration%set_analytical_functions(this%poisson_analytical_functions) 
     
     call this%fe_space%interpolate(field_id=1, &

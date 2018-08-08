@@ -34,12 +34,11 @@ module transient_poisson_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: transient_poisson_cG_discrete_integration_t
      type(transient_poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     class(serial_fe_space_t),             pointer :: fe_space => NULL()
      type(fe_function_t)                           :: fe_function
      real(rp)                                      :: current_time = 0.0_rp
    contains
      procedure :: set_current_time
-     procedure :: set_up
+     procedure :: create_fe_function
      procedure :: set_evaluation_point
      procedure :: get_boundary_data
      procedure :: set_analytical_functions
@@ -55,31 +54,23 @@ contains
   subroutine free (this)
     class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
     call this%fe_function%free()
-    nullify(this%fe_space)
     nullify(this%analytical_functions)
   end subroutine free
   
-  subroutine set_up ( this, fe_space, fe_function ) 
+  subroutine create_fe_function ( this, fe_space ) 
      implicit none
      class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
-     class(serial_fe_space_t),         target, intent(in)    :: fe_space
-     type(fe_function_t),            optional, intent(in)    :: fe_function
+     class(serial_fe_space_t)                          , intent(in)    :: fe_space
+     call this%fe_function%create( fe_space )
+  end subroutine create_fe_function
      
-     this%fe_space => fe_space
-     if( present( fe_function ) ) then
-       this%fe_function = fe_function
-     else 
-       call this%fe_function%create( this%fe_space )
-     endif
-  end subroutine set_up
-     
-     
-  subroutine set_current_time (this, current_time)
+  subroutine set_current_time (this, fe_space, current_time)
      implicit none
      class(transient_poisson_cG_discrete_integration_t), intent(inout) :: this
-     real(rp)                                , intent(in)    :: current_time
+     class(serial_fe_space_t)                          , intent(in)    :: fe_space
+     real(rp)                                          , intent(in)    :: current_time
      this%current_time = current_time
-     call this%fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time)
+     call fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time)
   end subroutine set_current_time
   
   subroutine set_evaluation_point ( this, evaluation_point )
