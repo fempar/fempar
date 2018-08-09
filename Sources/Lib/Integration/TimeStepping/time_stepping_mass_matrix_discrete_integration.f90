@@ -32,11 +32,9 @@ module time_stepping_mass_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: mass_discrete_integration_t
-     type(fe_function_t)                       :: fe_function 
+     type(fe_function_t) :: fe_function 
    contains
      procedure :: integrate_galerkin
-     procedure :: integrate_tangent
-     procedure :: integrate_residual 
      procedure :: set_evaluation_point
      procedure :: create_fe_function
      procedure :: set_current_time
@@ -115,125 +113,6 @@ contains
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
-  
-  subroutine integrate_tangent ( this, fe_space, assembler )
-    implicit none
-    class(mass_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)          , intent(inout) :: fe_space
-    class(assembler_t)                , intent(inout) :: assembler
-
-    ! FE space traversal-related data types
-    class(fe_cell_iterator_t), allocatable :: fe
-
-    ! FE integration-related data types
-    type(quadrature_t)       , pointer :: quad
-    real(rp)            , allocatable  :: shape_values(:,:)
-
-    ! FE matrix i.e., A_K 
-    real(rp), allocatable              :: elmat(:,:)
-
-    integer(ip)  :: istat
-    integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
-    real(rp)     :: factor
-
-    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
-    
-    call fe_space%create_fe_cell_iterator(fe)
-    do while ( .not. fe%has_finished() )
-       if ( fe%is_local() ) then
-       ! Update FE-integration related data structures
-       call fe%update_integration()
-          
-       quad            => fe%get_quadrature()
-       num_quad_points =  quad%get_num_quadrature_points()
-       num_dofs        =  fe%get_num_dofs()
-       
-       ! Compute element matrix
-       elmat = 0.0_rp
-       call fe%get_values(shape_values)
-       do qpoint = 1, num_quad_points
-          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-          do idof = 1, num_dofs
-             do jdof = 1, num_dofs
-                ! A_K(i,j) = ((phi_i),phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_values(jdof,qpoint) * shape_values(idof,qpoint)
-             end do
-          end do 
-       end do
-       call fe%assembly( elmat, assembler )
-       end if
-       call fe%next()
-    end do
-    call fe_space%free_fe_cell_iterator(fe)
-
-    call memfree(shape_values, __FILE__, __LINE__)
-    call memfree ( elmat, __FILE__, __LINE__ )
-  end subroutine integrate_tangent
-  
-  subroutine integrate_residual ( this, fe_space, assembler )
-    implicit none
-    class(mass_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)          , intent(inout) :: fe_space
-    class(assembler_t)                , intent(inout) :: assembler
-
-    ! FE space traversal-related data types
-    class(fe_cell_iterator_t), allocatable :: fe
-    
-    ! FE integration-related data types
-    type(quadrature_t)       , pointer :: quad
-    real(rp)            , allocatable  :: shape_values(:,:)
-
-    ! FE matrix i.e., r_K 
-    real(rp), allocatable              :: elvec(:)
-    
-    type(fe_cell_function_scalar_t)    :: u_h
-    real(rp), pointer                  :: u_h_values(:)
-
-    integer(ip)  :: istat
-    integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
-    real(rp)     :: factor
-
-    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
-    
-    call u_h%create(fe_space, field_id=1)
-    
-    call fe_space%create_fe_cell_iterator(fe)
-    do while ( .not. fe%has_finished() )
-       if ( fe%is_local() ) then
-       ! Update FE-integration related data structures
-       call fe%update_integration()
-       call u_h%update(fe, this%fe_function)
-       u_h_values => u_h%get_quadrature_points_values()   
-      
-       quad            => fe%get_quadrature()
-       num_quad_points =  quad%get_num_quadrature_points()
-       num_dofs        =  fe%get_num_dofs()
-       
-       ! Compute element vector
-       elvec = 0.0_rp
-       call fe%get_values(shape_values)
-       do qpoint = 1, num_quad_points
-          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-          do idof = 1, num_dofs
-             ! r_K(i) = (phi_i,u_h)
-             elvec(idof) = elvec(idof) + factor * shape_values(idof,qpoint) * u_h_values(qpoint)
-          end do 
-       end do
-       
-       call fe%assembly( elvec, assembler )
-       end if
-       call fe%next()
-    end do
-    call fe_space%free_fe_cell_iterator(fe)
-
-    call memfree(shape_values, __FILE__, __LINE__)
-    call memfree ( elvec, __FILE__, __LINE__ )
-    call u_h%free()
-  end subroutine integrate_residual
   
   subroutine create_fe_function ( this, fe_space ) 
      implicit none

@@ -195,8 +195,6 @@ contains
     end if
   end subroutine mold
 				 
-
-
   ! res <- op1 + op2
   function sum_vector(op1,op2) result (res)
     implicit none

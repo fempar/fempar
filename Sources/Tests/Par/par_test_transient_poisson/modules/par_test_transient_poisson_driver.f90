@@ -412,9 +412,6 @@ end subroutine free_timers
                                           discrete_integration              = this%poisson_integration )
     
     call this%time_operator%create( fe_op                   = this%fe_op, &
-                                    initial_time            = this%test_params%get_initial_time() , &
-                                    final_time              = this%test_params%get_final_time() , &
-                                    time_step               = this%test_params%get_time_step() , &
                                     time_integration_scheme = this%test_params%get_time_integration_scheme() )  
   
     call this%solution%create(this%fe_space) 
@@ -424,7 +421,7 @@ end subroutine free_timers
     call this%fe_space%interpolate(field_id=1, &
                                    function = this%poisson_analytical_functions%get_solution_function(), &
                                    fe_function=this%solution, &
-                                   time=this%time_operator%get_current_time())
+                                   time=this%test_params%get_initial_time())
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -496,8 +493,6 @@ end subroutine free_timers
     ! Set-up MLBDDC preconditioner
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%time_operator%get_fe_operator(), this%parameter_list)
-    call this%mlbddc%symbolic_setup()
-    call this%mlbddc%numerical_setup()
 #endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
@@ -512,7 +507,10 @@ end subroutine free_timers
                                fe_operator = this%time_operator%get_fe_operator())
    
    call this%time_solver%create( ts_op = this%time_operator, &
-                                 nl_solver = this%nl_solver )
+                                 nl_solver = this%nl_solver, &
+                                 initial_time = this%test_params%get_initial_time() , &
+                                 final_time = this%test_params%get_final_time() , &
+                                 time_step = this%test_params%get_time_step() )
 
 #ifdef ENABLE_MKL
     call this%iterative_linear_solver%set_operators(this%time_operator%get_matrix(), this%mlbddc) 
@@ -533,19 +531,14 @@ end subroutine free_timers
   subroutine assemble_system (this)
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
-    call this%time_operator%initial_assembly( this%solution%get_free_dof_values() )
   end subroutine assemble_system
   
   
   subroutine solve_system(this)
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
-    class(matrix_t)                         , pointer       :: matrix
-    class(vector_t)                         , pointer       :: rhs
-    class(vector_t)                         , pointer       :: dof_values
-
-    do while ( .not. this%time_operator%has_finished() )
-       call this%time_operator%print(6)
+    do while ( .not. this%time_solver%has_finished() )
+       call this%time_solver%print_log_line(6)
        call this%time_solver%advance_fe_function(this%solution)
        call this%check_time_step()
     end do
@@ -567,7 +560,7 @@ end subroutine free_timers
     
     if ( .not. this%test_params%get_is_test() .or. this%is_exact_solution() ) then
     
-      current_time = this%time_operator%get_current_time()
+      current_time = this%time_solver%get_current_time()
       call error_norm%create(this%fe_space,1)    
       mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm, time=current_time)   
       l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm, time=current_time)   
@@ -662,8 +655,8 @@ end subroutine free_timers
         dt_variation = 0.1_rp
         final_time   = 10_rp
         
-        l2 = this%get_error_norm(dt,final_time,time_integration_scheme)
-        l2 = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+        l2 = this%get_error_norm(dt,final_time)
+        l2 = this%get_error_norm(dt*dt_variation,final_time)
         if ( this%par_environment%am_i_l1_root() ) then
            write(*,'(a32,a25,a12)') 'Exact solution test for:     ', time_integration_scheme , '... pass' 
         end if
@@ -671,8 +664,8 @@ end subroutine free_timers
         !Local error convergence test
         dt           = 1.0e-04
         dt_variation = 1.0e-01
-        l2_prev      = this%get_error_norm(dt,dt,time_integration_scheme)
-        l2           = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
+        l2_prev      = this%get_error_norm(dt,dt)
+        l2           = this%get_error_norm(dt*dt_variation,dt*dt_variation)
         if ( this%par_environment%am_i_l1_root() ) then
         write(*,*) abs(l2/l2_prev - dt_variation**(convergence_order+1) )
           if ( abs(l2/l2_prev - dt_variation**(convergence_order+1)) < order_tol ) then
@@ -689,8 +682,8 @@ end subroutine free_timers
         dt           = 1.0e-04
         final_time   = 1.0e-03
         dt_variation = 0.5
-        l2_prev      = this%get_error_norm(dt,final_time,time_integration_scheme)
-        l2           = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+        l2_prev      = this%get_error_norm(dt,final_time)
+        l2           = this%get_error_norm(dt*dt_variation,final_time)
         if ( this%par_environment%am_i_l1_root() ) then
           if ( abs(l2/l2_prev - dt_variation**convergence_order) < order_tol ) then
             write(*,'(a32,a25,a12,a15,f6.3,a9,i2,a2)') 'Global convergence test for: ', time_integration_scheme ,'... pass' , &
@@ -707,27 +700,24 @@ end subroutine free_timers
   end subroutine check_convergence_order
   
   ! -----------------------------------------------------------------------------------------------
-  function get_error_norm ( this , dt , final_time, time_integration_scheme)
+  function get_error_norm ( this , dt , final_time )
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
     real(rp)                              , intent(in)    :: dt, final_time
-    character(len=:), allocatable         , intent(in)    :: time_integration_scheme
     real(rp)                                              :: get_error_norm, current_time
     type(error_norms_scalar_t) :: error_norm
     
     call error_norm%create(this%fe_space,1)
-    
-    call this%time_operator%set_initial_time( 0.0_rp )
-    call this%time_operator%set_final_time( final_time )
-    call this%time_operator%set_time_step_size( dt )
-    
+    call this%time_solver%set_initial_time( 0.0_rp )
+    call this%time_solver%set_final_time( final_time )
+    call this%time_solver%set_time_step_size( dt )    
     call this%fe_space%interpolate(field_id=1, &
                                    function = this%poisson_analytical_functions%get_solution_function(), &
                                    fe_function=this%solution, &
-                                   time=this%time_operator%get_current_time())
+                                   time=this%time_solver%get_current_time())
     call this%solve_system()
     call this%check_solution()
-    current_time = this%time_operator%get_current_time()
+    current_time = this%time_solver%get_current_time()
     get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) 
     call error_norm%free()                 
   end function get_error_norm
