@@ -88,8 +88,11 @@ subroutine dirk_solver_advance_fe_function( this, fe_function)
   
   call this%apply(this%free_dof_values_previous,free_dof_values_current)
   
+  ! Update Dirichlet BC at t^n+1 = t^n + dt,
+  !  recaluculation is needed as fe_function_t may not be evaluated at t^n+1 
+  !  within the DIRK solver loop, e.g., 'forward euler' scheme.
   call this%update_current_time() 
-  call di_fe_op%set_current_time( fe_space, this%get_current_time() ) 
+  call di_fe_op%set_current_time( fe_space, this%get_current_time() )
   call fixed_dof_values%copy( di_fe_op%get_boundary_data() )
 
 end subroutine
