@@ -280,7 +280,7 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
        mass_matrix   => mass_assembler%get_matrix()  
        
        call this%mass_op%compute_tangent()
-       if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
+       if ( this%ts_op%scheme%a(this%i,this%j) /= 0.0_rp ) then
           call this%fe_op%compute_tangent()
           call this_tangent%add(1.0_rp, mass_matrix, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j), fe_op_tangent)
        else 
