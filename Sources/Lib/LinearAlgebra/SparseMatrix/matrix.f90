@@ -83,7 +83,7 @@ module matrix_names
        class(matrix_t)       , intent(inout) :: this
        real(rp)              , intent(in)    :: alpha
      end subroutine scal_interface
-     ! Sum two matrices
+     ! Performs this = alpha*op1 + beta*op2
      subroutine add_interface(this, alpha, op1, beta, op2) 
        import :: matrix_t
        import :: rp
