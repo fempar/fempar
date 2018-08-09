@@ -67,7 +67,8 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   trial_fe_space => this%fe_op%get_trial_fe_space()
   
   call fe_op_domain%create_vector(this%aux)
-
+  call fe_op_domain%create_vector(this%fe_op_residual)
+  call fe_op_domain%create_vector(this%mass_residual)                              
  
   if ( associated(trial_fe_space) ) then
     call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
@@ -116,6 +117,14 @@ subroutine time_stepping_stage_fe_operator_free(this)
   if ( allocated(this%aux) ) then
     call this%aux%free()
     deallocate(this%aux, stat=istat); check(istat==0);
+  end if
+  if ( allocated(this%fe_op_residual) ) then
+    call this%fe_op_residual%free()
+    deallocate(this%fe_op_residual, stat=istat); check(istat==0);
+  end if
+  if ( allocated(this%mass_residual) ) then
+    call this%mass_residual%free()
+    deallocate(this%mass_residual, stat=istat); check(istat==0);
   end if
 end subroutine time_stepping_stage_fe_operator_free
 
@@ -194,7 +203,7 @@ end function time_stepping_stage_fe_operator_is_linear
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_residual(this,y)
   implicit none
-  class(time_stepping_stage_fe_operator_t), intent(in) :: this
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(vector_t) ,  intent(inout) :: y 
   class(environment_t),    pointer :: environment
   call this%compute_internal_residual()
@@ -204,15 +213,13 @@ end subroutine time_stepping_stage_fe_operator_compute_residual
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   implicit none
-  class(time_stepping_stage_fe_operator_t), intent(in) :: this  
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this  
   class(serial_fe_space_t)     , pointer :: fe_sp
   class(environment_t)         , pointer :: environment
   class(assembler_t)           , pointer :: this_assembler
   integer(ip)                  , pointer :: state
   class(vector_t)              , pointer :: this_residual
-  class(vector_t)          , allocatable :: fe_op_residual
-  class(vector_t)          , allocatable :: mass_residual  
-  
+
   state => this%get_state() 
   assert (associated(state))
 
@@ -224,19 +231,13 @@ subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
     if ( environment%am_i_l1_task() ) then
     
       this_residual  => this_assembler%get_array()
-      call this_residual%mold(fe_op_residual)
-      call this_residual%mold(mass_residual)
-      call fe_op_residual%clone(this_residual)
-      call mass_residual%clone(this_residual)
-      call mass_residual%init(0.0_rp)
-     
-      call this%fe_op%compute_residual(fe_op_residual)
-      if ( this%i == this%j )  call this%mass_op%compute_residual(mass_residual)
-      
-      this_residual = fe_op_residual + mass_residual
-      
-      call fe_op_residual%free()
-      call mass_residual%free()
+      call this%fe_op%compute_residual(this%fe_op_residual)
+      ! this_residual = this%fe_op_residual + this%mass_residual
+      call this_residual%copy(this%fe_op_residual)
+      if ( this%i == this%j )  then
+        call this%mass_op%compute_residual(this%mass_residual)
+        call this_residual%axpby(1.0_rp, this%mass_residual, 1.0_rp)
+      end if
     end if
 
     if (this%get_state() == tangent_computed) then

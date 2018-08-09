@@ -1,6 +1,6 @@
 subroutine fe_affine_operator_compute_residual (this,y)
   implicit none
-  class(fe_affine_operator_t), intent(in) :: this
+  class(fe_affine_operator_t), intent(inout) :: this
   class(vector_t) , intent(inout) :: y 
   class(matrix_t) , pointer       :: matrix
   class(array_t)  , pointer       :: array

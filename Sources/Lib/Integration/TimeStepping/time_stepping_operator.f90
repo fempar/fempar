@@ -108,15 +108,15 @@ module time_stepping_names
   ! M as alpha*A + beta*M
   type, extends(fe_operator_t) :: time_stepping_stage_fe_operator_t
      private
-     type(time_stepping_operator_t), pointer :: ts_op      => NULL()
+     type(time_stepping_operator_t), pointer :: ts_op   => NULL()
      class(fe_operator_t),           pointer :: fe_op   => NULL()
      type(fe_affine_operator_t)              :: mass_op 
      type(mass_discrete_integration_t)       :: mass_integration
+     class(vector_t)           , allocatable :: fe_op_residual
+     class(vector_t)           , allocatable :: mass_residual  
+     class(vector_t)           , allocatable :: aux
      integer(ip) :: i
-     integer(ip) :: j
-     ! Scratch data to support the efficient implementation of 
-     ! time_stepping_stage_fe_operator_set_evaluation_point
-     class(vector_t), allocatable    :: aux
+     integer(ip) :: j     
    contains
      procedure          :: create                    => time_stepping_stage_fe_operator_create
      procedure          :: create_from_operators     => time_stepping_stage_fe_operator_create_from_operators
