@@ -165,7 +165,7 @@ module time_stepping_names
      type(time_stepping_stage_fe_operator_t)            :: fe_op
      class(vector_t)                          , pointer :: initial_value => NULL()
      class(vector_t)                      , allocatable :: dofs_stages(:)
-     real(rp)                                           :: dt, current_initial_time, final_time
+     real(rp)                                           :: dt = 0.0_rp
      
      ! sbadia: For the moment, we are not interested in full RK implementations,
      ! even though it would be an easy paper about preconditioning these schemes
@@ -176,42 +176,37 @@ module time_stepping_names
      procedure :: create                          => time_stepping_operator_create
      procedure :: free                            => time_stepping_operator_free
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
-     procedure :: set_initial_time                => time_stepping_operator_set_initial_time 
-     procedure :: set_final_time                  => time_stepping_operator_set_final_time 
-     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size 
-     procedure :: update_current_time             => time_stepping_operator_update_current_time 
-     procedure :: get_time_step                   => time_stepping_operator_get_time_step_size
-     procedure :: get_current_time                => time_stepping_operator_get_current_time
-     procedure :: get_final_time                  => time_stepping_operator_get_final_time 
+     procedure, private :: set_time_step_size     => time_stepping_operator_set_time_step_size 
+     procedure, private :: get_time_step_size     => time_stepping_operator_get_time_step_size
      procedure :: get_matrix                      => time_stepping_operator_get_matrix
      procedure :: get_fe_operator                 => time_stepping_operator_get_fe_operator
      procedure :: get_order                       => time_stepping_operator_get_order 
-     procedure :: print                           => time_stepping_operator_print
-     procedure :: has_finished                    => time_stepping_operator_has_finished
-     procedure :: initial_assembly                => time_stepping_operator_initial_assembly
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
      procedure, private :: deallocate_dofs_stages => time_stepping_operator_deallocate_dofs_stages
-     procedure, private :: get_stage_operator     => time_stepping_operator_get_stage_operator
-     !!!procedure :: create             => time_stepping_operator_create
-     ! sbadia: It must be defined since it is an operator, but for the moment
-     !!! we do not want to use it. Dummy implementation...
-     !!!procedure :: apply              => time_stepping_operator_apply
-     !!! sbadia: to be implemented
-     !!! procedure :: free               => time_stepping_operator_free
-     !!!procedure, private :: apply_row                 => time_stepping_operator_apply_row
-     !!!procedure, private :: compute_tangent_block     => time_stepping_operator_compute_tangent_block
-     !!!procedure, private :: compute_mass_matrix       => time_stepping_operator_compute_mass_matrix
-     !!!procedure, private :: set_evaluation_point_row  => time_stepping_operator_set_evaluation_point_row	 
+     procedure, private :: get_stage_operator     => time_stepping_operator_get_stage_operator 
   end type time_stepping_operator_t
   
   type :: dirk_solver_t
     private
     type(time_stepping_operator_t), pointer :: ts_op     => NULL()
     type(nonlinear_solver_t)      , pointer :: nl_solver => NULL()
+    real(rp)                                :: dt                 = 0.0_rp
+    real(rp)                                :: stage_initial_time = 0.0_rp
+    real(rp)                                :: initial_time       = 0.0_rp
+    real(rp)                                :: final_time         = 0.0_rp
   contains
     procedure :: create              => dirk_solver_create
     procedure :: apply               => dirk_solver_apply
     procedure :: advance_fe_function => dirk_solver_advance_fe_function
+    procedure :: set_initial_time    => dirk_solver_set_initial_time 
+    procedure :: set_final_time      => dirk_solver_set_final_time 
+    procedure :: set_time_step_size  => dirk_solver_set_time_step_size 
+    procedure :: update_current_time => dirk_solver_update_current_time 
+    procedure :: get_time_step       => dirk_solver_get_time_step_size
+    procedure :: get_current_time    => dirk_solver_get_current_time
+    procedure :: get_final_time      => dirk_solver_get_final_time 
+    procedure :: has_finished        => dirk_solver_has_finished
+    procedure :: print_log_line      => dirk_solver_print_log_line 
     procedure :: free                => dirk_solver_free
   end type dirk_solver_t
   
