@@ -208,6 +208,8 @@ module time_stepping_names
     private
     type(time_stepping_operator_t), pointer :: ts_op     => NULL()
     type(nonlinear_solver_t)      , pointer :: nl_solver => NULL()
+    class(vector_t)           , allocatable :: free_dof_values_previous
+    class(vector_t)           , allocatable :: rhs
   contains
     procedure :: create              => dirk_solver_create
     procedure :: apply               => dirk_solver_apply
