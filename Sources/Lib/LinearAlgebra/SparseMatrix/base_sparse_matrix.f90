@@ -128,7 +128,6 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
      procedure(base_sparse_matrix_scal)             ,         public, deferred :: scal
      procedure(base_sparse_matrix_add)              ,         public, deferred :: add
-     procedure(base_sparse_matrix_copy)             ,         public, deferred :: copy
      procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
      procedure(base_sparse_matrix_update_bounded_values_body),              &
           public, deferred :: update_bounded_values_body
@@ -402,9 +401,7 @@ module base_sparse_matrix_names
         procedure, public :: allocate_values_body                    => coo_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => coo_sparse_matrix_initialize_values
         procedure, public :: scal                                    => coo_sparse_matrix_scal
-        procedure, public :: add                                     => coo_sparse_matrix_add_two
-        procedure         :: add_coo                                 => coo_sparse_matrix_add_coo
-        procedure, public :: copy                                    => coo_sparse_matrix_copy
+        procedure, public :: add                                     => coo_sparse_matrix_add
         procedure, public :: copy_to_coo_body                        => coo_sparse_matrix_copy_to_coo_body
         procedure, public :: copy_from_coo_body                      => coo_sparse_matrix_copy_from_coo_body
         procedure, public :: copy_to_fmt_body                        => coo_sparse_matrix_copy_to_fmt_body
@@ -567,13 +564,6 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),  intent(in)    :: op2
         end subroutine base_sparse_matrix_add
         
-        subroutine base_sparse_matrix_copy(this, op )
-            import base_sparse_matrix_t
-            import rp
-            class(base_sparse_matrix_t),  intent(inout) :: this
-            class(base_sparse_matrix_t),  intent(in)    :: op
-        end subroutine base_sparse_matrix_copy
-
         subroutine base_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
             import ip
@@ -2929,7 +2919,7 @@ contains
         if(allocated(this%val)) this%val(1:this%get_nnz()) = val*this%val(1:this%get_nnz())
     end subroutine coo_sparse_matrix_scal
  
-    subroutine coo_sparse_matrix_add_two(this, alpha, op1, beta, op2)
+    subroutine coo_sparse_matrix_add(this, alpha, op1, beta, op2)
     !-----------------------------------------------------------------
     !< Sum values this = alpha*op1 + beta*op2
     !-----------------------------------------------------------------
@@ -2939,7 +2929,7 @@ contains
         real(rp),                    intent(in)     :: beta
         class(base_sparse_matrix_t), intent(in)     :: op2
         
-        class(coo_sparse_matrix_t),  allocatable    :: tmp
+        type(coo_sparse_matrix_t) :: tmp1, tmp2
     !-----------------------------------------------------------------
         assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
         
@@ -2947,59 +2937,64 @@ contains
         class is (coo_sparse_matrix_t) 
            select type(op2)
            class is (coo_sparse_matrix_t) ! op1 and op2 are COO
-              call op1%copy_to_coo_body( this )
-              call this%add_coo( alpha, op1, beta, op2 )
-           class DEFAULT ! only op1 is COO 
-              call op2%copy_to_coo_body( this )
-              call this%add_coo( alpha, op1, beta, this )
+              call coo_sparse_matrix_add_coo( this, alpha, op1, beta, op2 )
+           class DEFAULT 
+              call op2%copy_to_coo_body( tmp2 )
+              call coo_sparse_matrix_add_coo( this, alpha, op1, beta, tmp2 )
+              call tmp2%free()
            end select
         class DEFAULT
-           select type(op2) ! only op2 is COO 
-           class is (coo_sparse_matrix_t) 
-              call op1%copy_to_coo_body( this )
-              call this%add_coo( alpha, this, beta, op2 )
-           class DEFAULT
-              allocate( tmp ) ! op1 nor op2 are COO
-              call op1%copy_to_coo_body( this )
-              call op2%copy_to_coo_body( tmp )
-              call this%add_coo( alpha, this, beta, tmp )
-              call tmp%free()
+           select type(op2)
+           class is (coo_sparse_matrix_t) ! op1 and op2 are COO
+              call op1%copy_to_coo_body( tmp1 )
+              call coo_sparse_matrix_add_coo( this, alpha, tmp1, beta, op2 )
+              call tmp1%free()
+           class DEFAULT 
+              call op1%copy_to_coo_body( tmp1 )
+              call op2%copy_to_coo_body( tmp2 )
+              call coo_sparse_matrix_add_coo( this, alpha, tmp1, beta, tmp2 )
+              call tmp1%free()
+              call tmp2%free()
            end select
         end select
-    end subroutine coo_sparse_matrix_add_two 
+    end subroutine coo_sparse_matrix_add 
     
     subroutine coo_sparse_matrix_add_coo(this, alpha, op1, beta, op2)
     !-----------------------------------------------------------------
     !< Sum COO values this = alpha*op1 + beta*op2
     !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t),  intent(inout)  :: this
-        real(rp),                    intent(in)     :: alpha
-        class(coo_sparse_matrix_t),  intent(in)     :: op1
-        real(rp),                    intent(in)     :: beta
-        class(coo_sparse_matrix_t),  intent(in)     :: op2
+        type(coo_sparse_matrix_t),  intent(inout)  :: this
+        real(rp),                    intent(in)    :: alpha
+        type(coo_sparse_matrix_t),   intent(in)    :: op1
+        real(rp),                    intent(in)    :: beta
+        type(coo_sparse_matrix_t) ,  intent(in)    :: op2
     !----------------------------------------------------------------- 
          assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
          
          massert( op1%get_nnz() == op2%get_nnz(), 'coo_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' ) 
          massert( all( op1%ia(1:op1%get_nnz()) ==  op2%ia(1:op2%get_nnz()) ), 'coo_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
          massert( all( op1%ja(1:op1%get_nnz()) ==  op2%ja(1:op2%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
+
+         if ( this%state_is_assembled() ) then
+           massert( op1%get_nnz() == this%get_nnz(), 'coo_sparse_matrix_add :: op1 and this must have the same sparsity pattern' ) 
+           massert( all( op1%ia(1:op1%get_nnz()) ==  this%ia(1:this%get_nnz()) ), 'coo_sparse_matrix_add :: op1 and this must have the same sparsity pattern' )
+           massert( all( op1%ja(1:op1%get_nnz()) ==  this%ja(1:this%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' )
+         else
+           call this%copy_from_coo(op1)
+         end if 
          
          assert( allocated(this%val) ) 
-         this%val(1:this%get_nnz()) =  alpha*op1%val(1:this%get_nnz()) + beta*op2%val(1:this%get_nnz())
-
+         if ( alpha == 0.0_rp .and. beta == 0.0_rp ) then
+           this%val(1:this%get_nnz()) =  0.0_rp
+         else if ( alpha == 0.0_rp ) then
+           this%val(1:this%get_nnz()) =  beta*op2%val(1:this%get_nnz())
+         else if ( beta  == 0.0_rp ) then
+           this%val(1:this%get_nnz()) =  alpha*this%val(1:this%get_nnz())
+         else
+           this%val(1:this%get_nnz()) =  alpha*this%val(1:this%get_nnz()) + beta*op2%val(1:this%get_nnz())
+         end if 
     end subroutine coo_sparse_matrix_add_coo
     
-    subroutine coo_sparse_matrix_copy(this, op)
-    !-----------------------------------------------------------------
-    !< Copy into COO values
-    !-----------------------------------------------------------------
-        class(coo_sparse_matrix_t),  intent(inout)  :: this
-        class(base_sparse_matrix_t), intent(in)     :: op
-    !-----------------------------------------------------------------
-        call op%copy_to_coo_body( this )
-
-    end subroutine coo_sparse_matrix_copy
-
     subroutine coo_sparse_matrix_append_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Append new entries and values to the COO sparse matrix

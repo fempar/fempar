@@ -70,8 +70,6 @@ private
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
         procedure, public :: scal                                    => csr_sparse_matrix_scal
         procedure, public :: add                                     => csr_sparse_matrix_add
-        procedure         :: add_coo                                 => csr_sparse_matrix_add_coo
-        procedure, public :: copy                                    => csr_sparse_matrix_copy
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
         procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
         procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
@@ -1003,72 +1001,65 @@ contains
         real(rp),                    intent(in)     :: beta
         class(base_sparse_matrix_t), intent(in)     :: op2
     !-----------------------------------------------------------------
+        type(csr_sparse_matrix_t) :: tmp1, tmp2
         select type(op1)
         class is (csr_sparse_matrix_t) 
            select type(op2)
            class is (csr_sparse_matrix_t) 
-              assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
-              massert( op1%get_nnz() == op2%get_nnz(), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' ) 
-              massert( all( op1%irp ==  op2%irp ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
-              massert( all( op1%ja(1:op1%get_nnz()) ==  op2%ja(1:op2%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
-              
-              massert( allocated(this%val), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than op1 and op2' )
-              massert( this%get_nnz() == op1%get_nnz(), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than op1 and op2' ) 
-              massert( all( this%irp ==  op1%irp ), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than op1 and op2' )
-              massert( all( this%ja(1:this%get_nnz()) ==  op1%ja(1:op1%get_nnz()) ), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than op1 and op2' )
-              
-              this%val(1:this%get_nnz()) = alpha*op1%val(1:op1%get_nnz()) + beta*op2%val(1:op2%get_nnz())
+              call csr_sparse_matrix_add_csr (this, alpha, op1, beta, op2 )
            class DEFAULT
-              call this%add_coo( alpha, op1, beta, op2 ) 
+              call op2%copy_to_fmt(tmp2)
+              call csr_sparse_matrix_add_csr (this, alpha, op1, beta, tmp2)
            end select
         class DEFAULT
-           call this%add_coo( alpha, op1, beta, op2 )
+           select type(op2)
+           class is (csr_sparse_matrix_t) 
+              call op1%copy_to_fmt( tmp1 )
+              call csr_sparse_matrix_add_csr ( this, alpha, tmp1, beta, op2 )
+              call tmp1%free()
+           class DEFAULT
+              call op1%copy_to_fmt( tmp1 )
+              call op2%copy_to_fmt( tmp2 )
+              call csr_sparse_matrix_add_csr ( this, alpha, tmp1, beta, tmp2 )
+              call tmp1%free()
+              call tmp2%free()
+           end select
         end select
     end subroutine csr_sparse_matrix_add
-
-    subroutine csr_sparse_matrix_add_coo(this, alpha, op1, beta, op2)
-    !-----------------------------------------------------------------
-    !< Sum mixted COO and CSR values this = alpha*op1 + beta*op2
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),  intent(inout)  :: this
-        real(rp),                    intent(in)     :: alpha
-        class(base_sparse_matrix_t), intent(in)     :: op1
-        real(rp),                    intent(in)     :: beta
-        class(base_sparse_matrix_t), intent(in)     :: op2
-        
-        class(coo_sparse_matrix_t),  allocatable    :: tmp
-    !-----------------------------------------------------------------
-        allocate( tmp) 
-        call this%copy_to_coo_body( tmp )
-        call tmp%add( alpha, op1, beta, op2 )
-        call this%move_from_coo_body( tmp )
-    end subroutine csr_sparse_matrix_add_coo
     
-    subroutine csr_sparse_matrix_copy(this, op )
-    !-----------------------------------------------------------------
-    !< Copy into CSR values
-    !-----------------------------------------------------------------
-        class(csr_sparse_matrix_t),  intent(inout)  :: this
-        class(base_sparse_matrix_t), intent(in)     :: op
-        
-        class(coo_sparse_matrix_t),  allocatable    :: tmp
-    !-----------------------------------------------------------------
-        select type(op)
-        class is (csr_sparse_matrix_t) 
-           assert( op%state_is_assembled() )
-           massert( allocated(this%val), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than `op` or in COO format' )
-           massert( this%get_nnz() == op%get_nnz(), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than `op` or in COO format' ) 
-           massert( all( this%irp ==  op%irp ), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than `op` or in COO format' )
-           massert( all( this%ja(1:this%get_nnz()) ==  op%ja(1:op%get_nnz()) ), 'csr_sparse_matrix_add :: `this` must be allocated with the same sparsity pattern than `op` or in COO format' )
-           this%val(1:this%get_nnz()) = op%val(1:op%get_nnz())
-        class DEFAULT
-           allocate( tmp) 
-           call this%copy_to_coo_body( tmp )
-           call tmp%copy( op )
-           call this%move_from_coo_body( tmp ) 
-        end select
-    end subroutine csr_sparse_matrix_copy
+    subroutine csr_sparse_matrix_add_csr(this, alpha, op1, beta, op2)
+      implicit none
+      type(csr_sparse_matrix_t),  intent(inout) :: this
+      real(rp),                    intent(in)   :: alpha
+      type(csr_sparse_matrix_t), intent(in)     :: op1
+      real(rp),                    intent(in)   :: beta
+      type(csr_sparse_matrix_t), intent(in)     :: op2
+     
+      ! Check preconditions
+      assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
+      massert( op1%get_nnz() == op2%get_nnz(), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' ) 
+      massert( all( op1%irp ==  op2%irp ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
+      massert( all( op1%ja(1:op1%get_nnz()) ==  op2%ja(1:op2%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
     
+      if ( this%state_is_assembled() ) then
+        massert( op1%get_nnz() == this%get_nnz(), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' ) 
+        massert( all( op1%irp ==  this%irp ), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' )
+        massert( all( op1%ja(1:op1%get_nnz()) ==  this%ja(1:this%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' )
+      else
+        call this%copy_from_fmt(op1)
+      end if   
+      
+      if ( alpha == 0.0_rp .and. beta == 0.0_rp ) then
+         this%val(1:this%get_nnz()) =  0.0_rp
+      else if ( alpha == 0.0_rp ) then
+         this%val(1:this%get_nnz()) =  beta*op2%val(1:this%get_nnz())
+      else if ( beta  == 0.0_rp ) then
+         this%val(1:this%get_nnz()) =  alpha*this%val(1:this%get_nnz())
+      else
+         this%val(1:this%get_nnz()) = alpha*op1%val(1:op1%get_nnz()) + beta*op2%val(1:op2%get_nnz())          
+      end if 
+    end subroutine csr_sparse_matrix_add_csr
+       
     subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
