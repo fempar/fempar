@@ -54,21 +54,16 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   type(time_stepping_operator_t),  target   , intent(in)    :: ts_op
   class(fe_operator_t),            target   , intent(in)    :: fe_op
   class(serial_fe_space_t),        pointer                  :: trial_fe_space
-  
-  type(vector_space_t), pointer :: fe_op_domain
- 
   call this%free()
   
   this%fe_op   => fe_op
   this%ts_op   => ts_op
   call this%create_mass_operator()   
-  
-  fe_op_domain   => fe_op%get_domain_vector_space()
+ 
   trial_fe_space => this%fe_op%get_trial_fe_space()
-  
-  call fe_op_domain%create_vector(this%aux)
-  call fe_op_domain%create_vector(this%fe_op_residual)
-  call fe_op_domain%create_vector(this%mass_residual)                              
+  call this%fe_op%create_domain_vector(this%aux)
+  call this%fe_op%create_domain_vector(this%fe_op_residual)
+  call this%fe_op%create_domain_vector(this%mass_residual)                              
  
   if ( associated(trial_fe_space) ) then
     call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
