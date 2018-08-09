@@ -716,7 +716,10 @@ end subroutine free_timers
     type(error_norms_scalar_t) :: error_norm
     
     call error_norm%create(this%fe_space,1)
-    call this%time_operator%update(0.0_rp,final_time,dt,time_integration_scheme)
+    
+    call this%time_operator%set_initial_time( 0.0_rp )
+    call this%time_operator%set_final_time( final_time )
+    call this%time_operator%set_time_step_size( dt )
     
     call this%fe_space%interpolate(field_id=1, &
                                    function = this%poisson_analytical_functions%get_solution_function(), &

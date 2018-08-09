@@ -175,7 +175,6 @@ module time_stepping_names
    contains
      procedure :: create                          => time_stepping_operator_create
      procedure :: free                            => time_stepping_operator_free
-     procedure :: update                          => time_stepping_operator_update
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
      procedure :: set_initial_time                => time_stepping_operator_set_initial_time 
      procedure :: set_final_time                  => time_stepping_operator_set_final_time 
