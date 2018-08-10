@@ -86,6 +86,9 @@ private
         procedure, non_overridable, public :: is_symmetric                     => sparse_matrix_is_symmetric
         procedure,                  public :: allocate                         => sparse_matrix_allocate
         procedure,                  public :: init                             => sparse_matrix_init
+        procedure,                  public :: scal                             => sparse_matrix_scal
+        procedure,                  public :: add                              => sparse_matrix_add
+        procedure,                  public :: copy                             => sparse_matrix_copy
         procedure,                  public :: free_in_stages                   => sparse_matrix_free_in_stages  
         generic,                    public :: create                           => sparse_matrix_create_square, &
                                                                                   sparse_matrix_create_rectangular
@@ -323,7 +326,7 @@ contains
 
     subroutine sparse_matrix_init(this, alpha)
     !-----------------------------------------------------------------
-    !< Initialize matrix values only if is in a assembled stage
+    !< Initialize matrix entries only if is in a assembled stage
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
         real(rp),               intent(in)    :: alpha
@@ -331,8 +334,59 @@ contains
         assert(allocated(this%State))
         call this%State%initialize_values(alpha)
     end subroutine sparse_matrix_init
-
-
+    
+    subroutine sparse_matrix_scal(this, alpha)
+    !-----------------------------------------------------------------
+    !< Scale matrix entries (even if still uncompressed) 
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        real(rp),               intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%scal(alpha)
+    end subroutine sparse_matrix_scal
+    
+    subroutine sparse_matrix_add(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Add two matrices
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        real(rp),               intent(in)    :: alpha
+        class(matrix_t),        intent(in)    :: op1
+        real(rp),               intent(in)    :: beta
+        class(matrix_t),        intent(in)    :: op2
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        select type(op1)
+        class is (sparse_matrix_t) 
+           select type(op2)
+           class is (sparse_matrix_t) 
+              assert(allocated(op1%State))
+              assert(allocated(op2%State))
+              call this%State%add(alpha,op1%State,beta,op2%State)
+           class DEFAULT
+           end select
+        class DEFAULT
+        end select        
+    end subroutine sparse_matrix_add
+    
+    subroutine sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Copy matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        class(matrix_t),        intent(in)    :: op
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        select type(op)
+        class is (sparse_matrix_t)       
+           assert(allocated(op%State))
+           call this%State%copy(op%State)
+        class DEFAULT
+           assert( .false. )
+        end select
+    end subroutine sparse_matrix_copy
+    
     subroutine sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------
     !< Create vector spaces

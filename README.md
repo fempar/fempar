@@ -26,6 +26,10 @@ We neither know whether this also happens for GNU compiler version different fro
 **NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
 compiler error raises when compiling FoX, a third party library of XH5For. 
 
+**NOTE**: we also detected a BUG with Intel Fortran compiler 18.0.0 related to missing initialization of member variables to default values in the case of 
+polymorphic allocatable variables. For example, `test_transient_poisson` do not pass with Intel Fortran compiler 18.0.0 for commit 5176d2976659c64f45e35022bfea5dcb1e72045e.
+due to a compiler BUG (see issue #250). Thus, avoid using this Intel Fortran compiler version. With Intel compiler 18.0.1 this issue disappears
+
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
 The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
