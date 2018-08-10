@@ -70,6 +70,7 @@ private
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
         procedure, public :: scal                                    => csr_sparse_matrix_scal
         procedure, public :: add                                     => csr_sparse_matrix_add
+        procedure, public :: copy                                    => csr_sparse_matrix_copy
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
         procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
         procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
@@ -1054,11 +1055,33 @@ contains
       else if ( alpha == 0.0_rp ) then
          this%val(1:this%get_nnz()) =  beta*op2%val(1:this%get_nnz())
       else if ( beta  == 0.0_rp ) then
-         this%val(1:this%get_nnz()) =  alpha*this%val(1:this%get_nnz())
+         this%val(1:this%get_nnz()) =  alpha*op1%val(1:this%get_nnz())
       else
          this%val(1:this%get_nnz()) = alpha*op1%val(1:op1%get_nnz()) + beta*op2%val(1:op2%get_nnz())          
       end if 
     end subroutine csr_sparse_matrix_add_csr
+    
+    subroutine csr_sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Copy CSR values this = op
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(inout)  :: this
+        class(base_sparse_matrix_t), intent(in)     :: op
+    !-----------------------------------------------------------------
+      select type(op)
+      class is (csr_sparse_matrix_t) 
+         if ( this%state_is_assembled() ) then
+           massert( op%get_nnz() == this%get_nnz(), 'csr_sparse_matrix_add :: op and this must have the same sparsity pattern' ) 
+           massert( all( op%irp ==  this%irp ), 'csr_sparse_matrix_add :: op and this must have the same sparsity pattern' )
+           massert( all( op%ja(1:op%get_nnz()) ==  this%ja(1:this%get_nnz()) ), 'csr_sparse_matrix_add :: op and this must have the same sparsity pattern' )
+           this%val(1:this%get_nnz()) = op%val(1:op%get_nnz())   
+         else
+           call this%copy_from_fmt(op)
+         end if
+      class DEFAULT
+         call this%copy_from_fmt(op)
+      end select
+    end subroutine csr_sparse_matrix_copy
        
     subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------

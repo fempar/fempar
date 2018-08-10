@@ -381,7 +381,7 @@ contains
         select type(op)
         class is (sparse_matrix_t)       
            assert(allocated(op%State))
-           call this%State%copy_from_fmt(op%State)
+           call this%State%copy(op%State)
         class DEFAULT
            assert( .false. )
         end select
