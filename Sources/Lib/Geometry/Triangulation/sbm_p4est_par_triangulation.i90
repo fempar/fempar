@@ -347,18 +347,24 @@ subroutine p4est_par_triangulation_redistribute ( this )
     call this%update_cell_import()
     call this%update_cell_ggids()
     call this%update_cell_myparts()
-    call this%comm_cell_ggids()
-    call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%fill_x_cell_vertex_coordinates()
     call this%update_migration_control_data(p4est_old)
     call this%set_up_lst_itfc_vefs()
+
     call this%migrate_cell_set_ids()
     call this%migrate_cell_weights()
     call this%migrate_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
+
+    call this%comm_cell_ggids()
+    call this%comm_cell_myparts()
+    call this%comm_cell_set_ids()
+    call this%comm_cell_wise_vef_set_ids(this%new_vef_set_ids)
+    call this%fill_ghost_cells_from_cell_wise_vef_set_ids(this%new_vef_set_ids)
+
     if ( this%get_num_dims() == 2 ) then
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
@@ -465,7 +471,6 @@ subroutine p4est_par_triangulation_migrate_cell_set_ids(this)
   call old_cell_set_ids%copy(this%cell_set_ids)
   call this%cell_set_ids%resize(0)
   call this%cell_set_ids%resize(this%get_num_local_cells()+this%get_num_ghost_cells(),-1)
-  
   p_old_cell_set_ids => old_cell_set_ids%get_pointer()
   p_cell_set_ids     => this%cell_set_ids%get_pointer()
   do i=1, this%get_num_local_cells()
@@ -476,18 +481,6 @@ subroutine p4est_par_triangulation_migrate_cell_set_ids(this)
   call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
                                            this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
                                            p_old_cell_set_ids, p_cell_set_ids )
- 
-  ! Retrieve set IDs from ghost cells
-  cell_import => this%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_cell_set_ids, p_cell_set_ids )  
   call old_cell_set_ids%free()
 #else
   call this%not_enabled_error()
@@ -521,18 +514,6 @@ subroutine p4est_par_triangulation_migrate_cell_weights(this)
   call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
                                            this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
                                            p_old_cell_weights, p_cell_weights )
- 
-  ! Retrieve set IDs from ghost cells
-  cell_import => this%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_cell_weights, p_cell_weights )  
   call old_cell_weights%free()
 #else
   call this%not_enabled_error()
@@ -602,33 +583,9 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
   call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
                                            this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
                                            p_old_vef_set_ids, p_new_vef_set_ids, num_vefs )
-  
-  ! Retrieve set IDs from ghost cells
-  cell_import => this%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_new_vef_set_ids, p_new_vef_set_ids, num_vefs )  
 
-  call cell%create(this)
-  call vef%create(this)
-  call cell%first()
-  do while ( .not. cell%has_finished() )
-    base_pos_new    = this%get_ptr_vefs_x_cell(cell%get_gid())-1
-    do vef_lid=1, num_vefs
-      call cell%get_vef(vef_lid,vef)
-      new_vef_set_id  = p_new_vef_set_ids(base_pos_new+vef_lid)
-      call vef%set_set_id(new_vef_set_id)
-    end do
-    call cell%next()
-  end do
-  call cell%free()
-  call vef%free()
+  call this%fill_local_cells_from_cell_wise_vef_set_ids(this%new_vef_set_ids)
+  
 #else
   call this%not_enabled_error()
 #endif
