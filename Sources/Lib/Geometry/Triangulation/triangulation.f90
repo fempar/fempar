@@ -639,8 +639,9 @@ module triangulation_names
      integer(ip)                           :: num_dims = 0
 
      ! Data structures to store cell related information
-     integer(ip)                           :: num_local_cells = 0
-     integer(ip)                           :: num_ghost_cells = 0
+     integer(igp)                          :: num_global_cells = 0 
+     integer(ip)                           :: num_local_cells  = 0
+     integer(ip)                           :: num_ghost_cells  = 0
      
      ! Data structures to store vef related information
      integer(ip)                           :: num_vefs = 0
@@ -696,6 +697,7 @@ module triangulation_names
      procedure, non_overridable :: get_num_cells            => triangulation_get_num_cells
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
      procedure, non_overridable :: get_num_ghost_cells      => triangulation_get_num_ghost_cells
+     procedure, non_overridable :: get_num_global_cells     => triangulation_get_num_global_cells
      procedure, non_overridable :: get_num_vefs             => triangulation_get_num_vefs
      
      procedure(get_num_proper_vefs_interface)   , deferred :: get_num_proper_vefs
@@ -705,6 +707,7 @@ module triangulation_names
      procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
      procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
      procedure, non_overridable :: set_num_ghost_cells      => triangulation_set_num_ghost_cells
+     procedure, non_overridable :: set_num_global_cells     => triangulation_set_num_global_cells
      procedure, non_overridable :: set_num_vefs             => triangulation_set_num_vefs
      
      

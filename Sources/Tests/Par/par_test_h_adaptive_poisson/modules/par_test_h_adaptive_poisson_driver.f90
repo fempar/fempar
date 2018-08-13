@@ -922,7 +922,6 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: num_sub_domains
-    real(rp) :: num_total_cells
     real(rp) :: num_dofs
     real(rp) :: num_interface_dofs 
     integer(ip) :: num_coarse_dofs
@@ -934,11 +933,8 @@ end subroutine free_timers
     environment => this%fe_space%get_environment()
 
     if (environment%am_i_l1_task()) then
-      num_total_cells      = real(this%triangulation%get_num_local_cells(),kind=rp)
       num_dofs             = real(this%fe_space%get_field_num_dofs(1),kind=rp)
       num_interface_dofs   = real(this%fe_space%get_total_num_interface_dofs(),kind=rp)
-
-      call environment%l1_sum(num_total_cells )
       call environment%l1_sum(num_dofs        )
       call environment%l1_sum(num_interface_dofs )
     end if
@@ -949,7 +945,7 @@ end subroutine free_timers
     if (environment%get_l1_rank() == 0) then
       num_sub_domains = environment%get_l1_size()
       write(*,'(a35,i22)') 'num_sub_domains:', num_sub_domains
-      write(*,'(a35,i22)') 'num_total_cells:', nint(num_total_cells     , kind=ip )
+      write(*,'(a35,i22)') 'num_total_cells:', this%triangulation%get_num_global_cells()
       write(*,'(a35,i22)') 'num_dofs (sub-assembled):', nint(num_dofs            , kind=ip )
       write(*,'(a35,i22)') 'num_interface_dofs (sub-assembled):', nint(num_interface_dofs  , kind=ip )
     end if
