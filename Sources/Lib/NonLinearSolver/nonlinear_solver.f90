@@ -308,7 +308,7 @@ function nonlinear_solver_has_finished(this)
  logical                                   :: nonlinear_solver_has_finished
  nonlinear_solver_has_finished = this%has_converged()
  nonlinear_solver_has_finished = nonlinear_solver_has_finished .or.  (this%current_iteration > this%max_number_iterations)
- nonlinear_solver_has_finished = nonlinear_solver_has_finished .or.  (this%current_residual%nrm2() > 1.0e15_rp)
+ nonlinear_solver_has_finished = nonlinear_solver_has_finished .or.  (this%current_residual%nrm2() > 1.0e10_rp)
  nonlinear_solver_has_finished = nonlinear_solver_has_finished .and. (this%current_iteration > 0)
  call this%environment%l1_lgt1_bcast(nonlinear_solver_has_finished)
 end function nonlinear_solver_has_finished

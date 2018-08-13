@@ -87,6 +87,7 @@ module par_test_hts_driver_names
      ! Output handler 
      type(resistivity_field_generator_t)    :: resistivity_field_generator 
      real(rp), allocatable                  :: set_id_cell_vector(:)
+     real(rp), allocatable                  :: rank_cell_vector(:) 
      type(output_handler_t)                 :: oh	
 
      ! Timers
@@ -307,57 +308,84 @@ contains
   subroutine set_pb_cells_set_id( this ) 
     implicit none 
     class(par_test_hts_fe_driver_t), intent(inout) :: this
-    class(cell_iterator_t), allocatable :: cell 
-    type(point_t), allocatable    :: cell_coordinates(:)
+    class(fe_cell_iterator_t), allocatable :: fe
+    type(point_t)      , pointer     :: quad_coords(:)
+    type(quadrature_t) , pointer     :: quad
+    integer(ip)                      :: qpoin, num_quad_points
     integer(ip) :: i, ndime
-    integer(ip) :: idime, inode 
     integer(ip) :: istat, dummy_val 
     real(rp)    :: contrast
-    real(rp)    :: resistivity
-    real(rp)    :: resistivity_max, resistivity_min 
+    ! Compute resistivity 
+    type(fe_cell_function_vector_t)        :: fe_cell_function
+    type(vector_field_t)                   :: H_value, H_curl
+    type(tensor_field_t)                   :: resistivity_tensor 
+    real(rp)                               :: resistivity
+    real(rp)                               :: resistivity_max, resistivity_min 
 
     if ( .not. this%environment%am_i_l1_task() ) return 
 
-    call this%triangulation%create_cell_iterator(cell)
-    massert( allocated( this%cells_set_ids ), 'Cells set ids must contain at least geometric material info at this point' )  
-    allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
-
+    ! Integrate structures needed 
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%create_fe_cell_iterator(fe)
+    call fe%update_integration()
+    call fe_cell_function%create(this%fe_space, 1)
+    quad             => fe%get_quadrature()
+    num_quad_points  = quad%get_num_quadrature_points()
+    quad_coords      => fe%get_quadrature_points_coordinates()
+    
     ! rPB-BDDC needs a first cell loop to determine the minimum value of the coefficient 
     resistivity_min = this%test_params%get_air_resistivity() 
-    do while ( .not. cell%has_finished() ) 
-       if ( cell%is_local() .and. cell%get_set_id() > 0) then 
-          call cell%get_nodes_coordinates(cell_coordinates)
-          do inode=1, cell%get_num_nodes()               
-             ! Compute resistivity from cell fe function  
-             resistivity = 1.0_rp 
-             resistivity_min  = min(resistivity_min,  resistivity) 
-          end do
-       end if
-       call cell%next()
-    end do
-    ! Init cell iterator 
-    call cell%first() 
+    do while ( .not. fe%has_finished() ) 
+       if ( fe%is_local() .and. fe%get_set_id() > 0) then 
 
-    do while ( .not. cell%has_finished() )
-       if ( cell%is_local() .and. cell%get_set_id() > 0) then 
-          ! Extract coordinates, evaluate resistivity/permeability
-          call cell%get_nodes_coordinates(cell_coordinates)
-          resistivity_max  = 0.0_rp 
-          do inode=1, cell%get_num_nodes() 
-             ! Compute resistivity 
-             resistivity = 1.0_rp 
-             resistivity_max  = max( resistivity_max, resistivity ) 
+       call fe%update_integration()
+          call fe_cell_function%update(fe, this%H_current) 
+          quad_coords => fe%get_quadrature_points_coordinates()
+
+          ! Integrate cell contribution to averages 
+          do qpoin=1, num_quad_points
+            ! Evaluate parameters on the cell 
+             call fe_cell_function%get_value(qpoin, H_value)
+             call fe_cell_function%compute_curl(qpoin, H_curl)
+             resistivity_tensor  = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
+             resistivity = max( resistivity_tensor%get(1,1), resistivity_tensor%get(2,2), resistivity_tensor%get(3,3) ) 
+             resistivity_min     = min(resistivity_min,  resistivity)
           end do
+
+       end if
+       call fe%next()
+    end do
+    
+    ! Init fe iterator 
+    call fe%first() 
+    do while ( .not. fe%has_finished() )
+       if ( fe%is_local() .and. fe%get_set_id() > 0) then 
+          ! Extract coordinates, evaluate resistivity/permeability
+          call fe%update_integration()
+          call fe_cell_function%update(fe, this%H_current) 
+          quad_coords => fe%get_quadrature_points_coordinates()
+
+          ! Integrate cell contribution to averages 
+          resistivity_max  = 0.0_rp 
+          do qpoin=1, num_quad_points
+            ! Evaluate parameters on the cell 
+             call fe_cell_function%get_value(qpoin, H_value)
+             call fe_cell_function%compute_curl(qpoin, H_curl)
+             resistivity_tensor = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() )
+             resistivity = max( resistivity_tensor%get(1,1), resistivity_tensor%get(2,2), resistivity_tensor%get(3,3) )
+             resistivity_max = max(resistivity_max,  resistivity)
+          end do
+
           contrast=(resistivity_max)/(resistivity_min)
           massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
-          this%cells_set_ids(cell%get_gid()) = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+          this%cells_set_ids(fe%get_gid()) = HTS + floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
        end if
-       call cell%next()
+       call fe%next()
     end do
-    call this%triangulation%free_cell_iterator(cell)
+    call this%fe_space%free_fe_cell_iterator(fe)
     call this%triangulation%fill_cells_set(this%cells_set_ids) 
   end subroutine set_pb_cells_set_id
-
+  
   subroutine setup_reference_fes(this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
@@ -903,7 +931,7 @@ contains
 
     if ( this%environment%am_i_l1_task() ) then
        if(this%test_params%get_write_solution()) then
-          call  build_set_id_cell_vector()
+          call  build_cell_vectors()
           call  initialize_field_generator() 
           call  this%oh%create(VTK) 
           call  this%oh%attach_fe_space(this%fe_space)
@@ -911,6 +939,7 @@ contains
           call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
           call  this%oh%add_field_generator('Resistivity', this%resistivity_field_generator)
           call  this%oh%add_cell_vector(this%set_id_cell_vector, 'set_id')
+          call  this%oh%add_cell_vector(this%rank_cell_vector, 'rank' ) 
           call  this%oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
        endif
     end if
@@ -923,8 +952,10 @@ contains
       call this%resistivity_field_generator%set_magnetic_field( this%H_current ) 
     end subroutine initialize_field_generator
 
-    subroutine build_set_id_cell_vector()
+    subroutine build_cell_vectors()
       call memalloc(this%triangulation%get_num_local_cells(), this%set_id_cell_vector, __FILE__, __LINE__)
+      call memalloc(this%triangulation%get_num_local_cells(), this%rank_cell_vector, __FILE__, __LINE__)
+      this%rank_cell_vector = this%environment%get_l1_rank() 
       call this%triangulation%create_cell_iterator(cell) 
       i=0
       do while ( .not. cell%has_finished() ) 
@@ -935,7 +966,7 @@ contains
          call cell%next() 
       enddo
       call this%triangulation%free_cell_iterator(cell) 
-    end subroutine build_set_id_cell_vector
+    end subroutine build_cell_vectors
 
   end subroutine initialize_output
 
@@ -965,6 +996,7 @@ contains
           call this%oh%close()
           call this%oh%free()
           call memfree( this%set_id_cell_vector, __FILE__, __LINE__ )
+          call memfree( this%rank_cell_vector, __FILE__, __LINE__ ) 
        endif
     end if
   end subroutine finalize_output
