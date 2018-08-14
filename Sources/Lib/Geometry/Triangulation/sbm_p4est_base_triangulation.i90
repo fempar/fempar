@@ -2290,6 +2290,12 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   type(hash_table_igp_ip_t) :: g2l_map
   integer(ip) :: part_id, neighbour_id
   logical :: local_or_ghost_found
+  integer(ip) :: num_itfc_half_faces
+  logical, allocatable :: local_cell_is_at_interface(:)
+  integer(ip), pointer :: snd_leids(:)
+  type(std_vector_integer_ip_t) :: itfc_half_faces
+  integer(ip) :: num_itfc_half_edges
+  type(std_vector_integer_ip_t) :: itfc_half_edges
  
   if ( this%get_num_dims() == 2 ) then
      num_corners_x_cell    =  NUM_CORNERS_2D
@@ -2311,39 +2317,28 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   quad_to_face_buffer   = -1_ip
   call memalloc ( num_corners_x_cell*this%get_num_cells(), quad_to_corner_buffer, __FILE__, __LINE__ )
   quad_to_corner_buffer = -1_igp
-  
-  if ( associated(this%quad_to_half) ) then
-    quad_to_half_size_1 = size(this%quad_to_half,1)
-    quad_to_half_size_2 = size(this%quad_to_half,2)
-  else
-    quad_to_half_size_1 = 0_ip
-    quad_to_half_size_2 = 0_ip
-  end if
-  
-  call memalloc ( quad_to_half_size_1*quad_to_half_size_2, quad_to_half_buffer, __FILE__, __LINE__ )
-  quad_to_half_buffer = -1_igp
-  
+    
   if ( this%get_num_dims() == 3 ) then
      call memalloc ( num_edges_x_cell*this%get_num_cells(), quad_to_quad_by_edge_buffer, __FILE__, __LINE__ )
      quad_to_quad_by_edge_buffer   = -1_igp
      call memalloc ( num_edges_x_cell*this%get_num_cells(), quad_to_edge_buffer, __FILE__, __LINE__ )
      quad_to_edge_buffer   = -1_ip
-     
-     if ( associated(this%quad_to_half_by_edge) ) then
-       quad_to_half_by_edge_size_1 = size(this%quad_to_half_by_edge,1)
-       quad_to_half_by_edge_size_2 = size(this%quad_to_half_by_edge,2)
-     else
-       quad_to_half_by_edge_size_1 = 0_ip
-       quad_to_half_by_edge_size_2 = 0_ip
-     end if
-     
-     call memalloc ( quad_to_half_by_edge_size_1*quad_to_half_by_edge_size_2, quad_to_half_by_edge_buffer, __FILE__, __LINE__ )
-     quad_to_half_by_edge_buffer = -1_igp
   end if
+  
+  call memalloc ( this%get_num_local_cells(), local_cell_is_at_interface, __FILE__, __LINE__ ) 
+  local_cell_is_at_interface = .false. 
+  
+  cell_import => this%get_cell_import()
+  snd_leids   => cell_import%get_snd_leids()
+  do j=1, size(snd_leids)
+    local_cell_is_at_interface(snd_leids(j)) = .true.
+  end do
   
   j=1
   k=1
   l=1
+  num_itfc_half_faces = 0
+  num_itfc_half_edges = 0
   do icell=1, this%get_num_local_cells()
      do iface=1, num_faces_x_cell
       jcell_iconn = this%quad_to_face(iface,icell)
@@ -2360,7 +2355,13 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
       else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
         quad_to_quad_buffer(j) = this%cell_ggids%get(this%quad_to_quad(iface,icell)+1)
       else
-        quad_to_quad_buffer(j) = this%quad_to_quad(iface,icell)+1
+        if ( local_cell_is_at_interface(icell) ) then
+          num_itfc_half_faces = num_itfc_half_faces+1
+          call itfc_half_faces%push_back(this%quad_to_quad(iface,icell)+1)
+          quad_to_quad_buffer(j) = num_itfc_half_faces
+        else
+          quad_to_quad_buffer(j) = this%quad_to_quad(iface,icell)+1
+        end if   
       end if 
       quad_to_face_buffer(j) = this%quad_to_face(iface,icell)
       j=j+1 
@@ -2378,7 +2379,13 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
            else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour 
              quad_to_quad_by_edge_buffer(l) = this%cell_ggids%get(this%quad_to_quad_by_edge(iedge,icell)+1)
            else
-             quad_to_quad_by_edge_buffer(l) = this%quad_to_quad_by_edge(iedge,icell)+1
+             if ( local_cell_is_at_interface(icell) ) then
+               num_itfc_half_edges = num_itfc_half_edges +1
+               call itfc_half_edges%push_back(this%quad_to_quad_by_edge(iedge,icell)+1)
+               quad_to_quad_by_edge_buffer(l) = num_itfc_half_edges
+             else
+               quad_to_quad_by_edge_buffer(l) = this%quad_to_quad_by_edge(iedge,icell)+1
+             end if
            end if 
            quad_to_edge_buffer(l) = this%quad_to_edge(iedge,icell) 
          end if 
@@ -2394,25 +2401,49 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
        end if
        k=k+1
      end do
-  end do
+  end do  
+  call memfree ( local_cell_is_at_interface, __FILE__, __LINE__ ) 
+
+  if ( associated(this%quad_to_half) ) then
+    quad_to_half_size_1 = size(this%quad_to_half,1)
+    quad_to_half_size_2 = num_itfc_half_faces
+  else
+    quad_to_half_size_1 = 0_ip
+    quad_to_half_size_2 = 0_ip
+  end if
+  
+  call memalloc ( quad_to_half_size_1*quad_to_half_size_2, quad_to_half_buffer, __FILE__, __LINE__ )
+  quad_to_half_buffer = -1_igp
   
   j=1
-  do i=1, quad_to_half_size_2
+  do i=1, num_itfc_half_faces
     do isubface=1, quad_to_half_size_1
-      quad_to_half_buffer(j) = this%cell_ggids%get(this%quad_to_half(isubface,i)+1) 
+      quad_to_half_buffer(j) = this%cell_ggids%get(this%quad_to_half(isubface,itfc_half_faces%get(i))+1) 
       j=j+1
     end do 
   end do
+  call itfc_half_faces%free()
   
   if ( this%get_num_dims() == 3 ) then
+    if ( associated(this%quad_to_half_by_edge) ) then
+     quad_to_half_by_edge_size_1 = size(this%quad_to_half_by_edge,1)
+     quad_to_half_by_edge_size_2 = num_itfc_half_edges
+    else
+     quad_to_half_by_edge_size_1 = 0_ip
+     quad_to_half_by_edge_size_2 = 0_ip
+    end if
+     
+    call memalloc ( quad_to_half_by_edge_size_1*quad_to_half_by_edge_size_2, quad_to_half_by_edge_buffer, __FILE__, __LINE__ )
+    quad_to_half_by_edge_buffer = -1_igp  
+  
     j=1
     do i=1, quad_to_half_by_edge_size_2
       do isubedge=1, quad_to_half_by_edge_size_1
-        quad_to_half_by_edge_buffer(j) = this%cell_ggids%get(this%quad_to_half_by_edge(isubedge,i)+1) 
+        quad_to_half_by_edge_buffer(j) = this%cell_ggids%get(this%quad_to_half_by_edge(isubedge,itfc_half_edges%get(i))+1) 
         j=j+1
       end do 
     end do
-  end if 
+  end if
   
   environment => this%get_environment()
   cell_import => this%get_cell_import()
