@@ -86,7 +86,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   type(c_ptr) :: p4est_old
   
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
-  type(std_vector_integer_ip_t) :: old_cell_wise_vef_set_ids
+  type(std_vector_integer_ip_t) :: cell_wise_vef_set_ids
   integer(ip), pointer :: user_pointer(:)
   class(environment_t), pointer :: p_environment
 
@@ -133,17 +133,16 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
 
     ! Update procedures 
     call this%update_cell_weights()
-    call this%update_vef_set_ids(old_lst_vefs_gids,old_cell_wise_vef_set_ids)
+    call this%update_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
     call this%update_cell_set_ids()
-
+    call this%extract_local_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
+    
     ! Comm procedures
-    call this%comm_cell_ggids()
     call this%comm_cell_set_ids()
-    call this%comm_cell_myparts()
-    call this%comm_cell_wise_vef_set_ids(old_cell_wise_vef_set_ids)
-    call this%fill_ghost_cells_from_cell_wise_vef_set_ids(old_cell_wise_vef_set_ids)
-    call old_cell_wise_vef_set_ids%free()
+    call this%comm_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
+    call this%fill_ghost_cells_from_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
+    call cell_wise_vef_set_ids%free()
    end if 
    ! Re-set up coarse_triangulation()
    if ( this%coarse_triangulation_is_set_up() ) then
@@ -1433,38 +1432,10 @@ subroutine p4est_bt_comm_cell_set_ids(this)
   
 end subroutine p4est_bt_comm_cell_set_ids
 
-subroutine p4est_bt_comm_cell_weights(this)
-  implicit none
-  class(p4est_base_triangulation_t), intent(inout) :: this
-  class(environment_t), pointer     :: environment
-  class(cell_import_t), pointer     :: cell_import
-  integer(ip)         , pointer     :: p_cell_weights(:)
-  
-#ifdef ENABLE_P4EST
-  environment    => this%get_environment()
-  if( environment%get_l1_size() > 1 ) then
-    cell_import    => this%get_cell_import()
-    p_cell_weights => this%cell_weights%get_pointer()
-    call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                              cell_import%get_neighbours_ids(), &
-                                              cell_import%get_rcv_ptrs(),       &
-                                              cell_import%get_rcv_leids(),      &
-                                              cell_import%get_num_neighbours(), &
-                                              cell_import%get_neighbours_ids(), &
-                                              cell_import%get_snd_ptrs(),       &
-                                              cell_import%get_snd_leids(),      &
-                                              p_cell_weights, p_cell_weights )
-  end if
-#else
-  call this%not_enabled_error()
-#endif
-end subroutine p4est_bt_comm_cell_weights
-
-subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids, old_cell_wise_vef_set_ids)
+subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this
   type(std_vector_integer_ip_t)      , intent(in)    :: old_lst_vefs_gids
-  type(std_vector_integer_ip_t)      , intent(inout) :: old_cell_wise_vef_set_ids
   
   integer(ip) :: old_num_cells
   integer(ip) :: old_cell_id, new_cell_id, old_cell_base_pos
@@ -1614,31 +1585,10 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids, old_cell_wise_ve
       assert(.false.)
     end if
   end do
-  
   call old_proper_vefs_set_ids%free()
   call old_improper_vefs_set_ids%free()
   call cell%free()
   call vef%free()
- 
-  if ( this%get_num_ghost_cells() > 0 ) then
-    num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
-    
-    ! Re-build cell-wise vef set IDs
-    call old_cell_wise_vef_set_ids%resize(0)
-    do i=1, this%get_num_local_cells()
-      base_pos_old = this%get_ptr_vefs_x_cell(i)-1
-      do vef_lid=1, num_vefs
-        old_vef_gid = this%lst_vefs_gids%get(base_pos_old+vef_lid)
-        if ( old_vef_gid > 0 ) then ! VEF is proper
-          old_vef_set_id = this%proper_vefs_set_ids%get(old_vef_gid)
-        else                        ! VEF is improper
-          old_vef_set_id = this%improper_vefs_set_ids%get(abs(old_vef_gid))
-        end if
-        call old_cell_wise_vef_set_ids%push_back(old_vef_set_id)
-      end do
-    end do
-    call old_cell_wise_vef_set_ids%resize(this%get_num_cells()*num_vefs)
-  end if 
 #else
   call this%not_enabled_error()
 #endif
@@ -1657,6 +1607,32 @@ contains
   end function get_vef_set_id
 end subroutine p4est_bt_update_vef_set_ids
 
+subroutine p4est_bt_extract_local_cell_wise_vef_set_ids( this, cell_wise_vef_set_ids )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)    , intent(inout) :: cell_wise_vef_set_ids
+  integer(ip) :: num_vefs
+  integer(ip) :: vef_gid
+  integer(ip) :: vef_set_id
+  integer(ip) :: base_pos
+  integer(ip) :: i, vef_lid
+  num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
+  call cell_wise_vef_set_ids%resize(0)
+  do i=1, this%get_num_local_cells()
+      base_pos = this%get_ptr_vefs_x_cell(i)-1
+      do vef_lid=1, num_vefs
+        vef_gid = this%lst_vefs_gids%get(base_pos+vef_lid)
+        if ( vef_gid > 0 ) then ! VEF is proper
+          vef_set_id = this%proper_vefs_set_ids%get(vef_gid)
+        else                    ! VEF is improper
+          vef_set_id = this%improper_vefs_set_ids%get(abs(vef_gid))
+        end if
+        call cell_wise_vef_set_ids%push_back(vef_set_id)
+      end do
+  end do
+  call cell_wise_vef_set_ids%resize(this%get_num_cells()*num_vefs)
+end subroutine p4est_bt_extract_local_cell_wise_vef_set_ids
+  
 subroutine p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids ( this, cell_wise_vef_set_ids ) 
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
@@ -3176,9 +3152,10 @@ subroutine p4est_bt_comm_cell_wise_vef_set_ids ( this, cell_wise_vef_set_ids )
   integer(ip) :: num_vefs 
 #ifdef ENABLE_P4EST  
   environment => this%get_environment()
+  num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
+  call cell_wise_vef_set_ids%resize(this%get_num_cells()*num_vefs)
   p_cell_wise_vef_set_ids => cell_wise_vef_set_ids%get_pointer()
   cell_import => this%get_cell_import()
-  num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
   call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                            cell_import%get_neighbours_ids(),&
                                            cell_import%get_rcv_ptrs(),&
