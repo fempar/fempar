@@ -289,7 +289,7 @@ contains
                                 linear_solver = this%iterative_linear_solver, &
                                 environment = this%fe_space%get_environment(),&
                                 fe_operator = this%time_operator%get_fe_operator(), &
-                                print_iteration_ouput = this%test_params%get_print_nonlinear_iteration() )
+                                print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
 #endif
     
         
