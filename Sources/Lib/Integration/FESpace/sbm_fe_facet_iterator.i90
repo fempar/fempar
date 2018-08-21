@@ -50,10 +50,11 @@ subroutine aux_create_facet(this,fe_space,vef)
    massert ( (triangulation%get_num_reference_fes() == 1), "FE_FACET_ITERATOR does NOT support mixed cells topology. All triangulation cells MUST have the same topology.")
    this%ref_fe_geo => triangulation%get_reference_fe(1)
    this%facet_integration_is_set_up = fe_space%get_facet_integration_is_set_up()
-   if ( this%facet_integration_is_set_up .and. fe_space%facet_quadratures%size() == 2 ) then
+   if ( this%facet_integration_is_set_up       .and. & 
+        fe_space%facet_quadratures%size() == 2 .and. & 
+        fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) then
      this%single_quad_facet_map_facet_integs = .true.
      assert ( fe_space%facet_maps%size() == 2 ) 
-     assert ( fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) 
    else
      this%single_quad_facet_map_facet_integs = .false.
    end if 
