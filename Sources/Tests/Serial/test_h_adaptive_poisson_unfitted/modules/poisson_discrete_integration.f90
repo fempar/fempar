@@ -374,7 +374,7 @@ contains
       do qpoint = 1, num_quad_points
 
         dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-        call fe_facet%get_normals(qpoint,normals)
+        call fe_facet%get_normal(qpoint,normals)
         call exact_sol%get_gradient(quad_coords(qpoint),exact_sol_gradient)
 
         do idof = 1, fe_facet%get_num_dofs_field(1,1)

@@ -741,12 +741,13 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   call this%free_fe_vef_iterator(vef)
 end subroutine serial_fe_space_interpolate_vector_function
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time, time_derivative_order)
   implicit none
   class(serial_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)               , intent(inout) :: fe_function
   character(*)            , optional, intent(in)    :: interpolator_type(:)
   real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: time_derivative_order
 
   class(reference_fe_t)    , pointer        :: reference_fe 
   class(fe_cell_iterator_t), allocatable    :: fe 
@@ -864,27 +865,28 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               end do
 
               ! Evaluate moments on the FE dirichlet boundary 
-                 call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
-                                                                                             fe,                         &
-                                                                                             function_scalar_components, &
-                                                                                             dof_values,                 &
-                                                                                             time = time )
+              call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
+                                                                                         fe,                         &
+                                                                                         function_scalar_components, &
+                                                                                         dof_values,                 &
+                                                                                         time = time,                &
+                                                                                         time_derivative_order = time_derivative_order)
 
-                 ! Insert nodal values on vefs at the dirichlet boundary
-                 do vef_lid = 1, fe%get_num_vefs() 
-                    if ( any(n_face_mask(:,vef_lid)) ) then 
-                       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
-                       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
-                          idof = own_dofs_on_vef_iterator%get_current()   
-                          if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
-                             fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
-                          end if
-                          call own_dofs_on_vef_iterator%next()  
-                       end do
-                    end if
-                 end do
-              end if
-           call fe%next()
+              ! Insert nodal values on vefs at the dirichlet boundary
+              do vef_lid = 1, fe%get_num_vefs() 
+                 if ( any(n_face_mask(:,vef_lid)) ) then 
+                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
+                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
+                       idof = own_dofs_on_vef_iterator%get_current()   
+                       if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
+                          fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                       end if
+                       call own_dofs_on_vef_iterator%next()  
+                    end do
+                 end if
+              end do
+           end if
+          call fe%next()
         end do
         if (allocated(dof_values)) call memfree( dof_values, __FILE__, __LINE__ )
      end if
@@ -1375,7 +1377,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
      elvec = 0.0_rp
      call fe_face%get_values(1,shape_values)
      do qpoint = 1, n_q_points
-     call fe_face%get_normals(qpoint, normals)
+     call fe_face%get_normal(qpoint, normals)
         factor = fe_face%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
         
         do ishape = 1, reference_fe%get_num_shape_functions() 
@@ -1817,29 +1819,42 @@ subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
   integer(ip)          :: max_order, max_order_reference_fe_id, reference_fe_id
   integer(ip)          :: max_order_fes_around_fe_face
   integer(ip)          :: field_id, icell_around
+  integer(ip)          :: i 
   
   call this%max_order_field_cell_to_ref_fes_face%resize(this%facet_gids%size())
   max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
   
-  call this%create_fe_facet_iterator(fe_face)
-  call this%create_fe_cell_iterator(fe)
-  do while ( .not. fe_face%has_finished())
-     max_order_fes_around_fe_face = -1
-     max_order_reference_fe_id    =  1 
-     do icell_around = 1, fe_face%get_num_cells_around()
-        call fe_face%get_cell_around(icell_around, fe)
-        do field_id=1, fe%get_num_fields()
-           if ( max_order_fes_around_fe_face <= fe%get_max_order_single_field(field_id) ) then
-              max_order_fes_around_fe_face = fe%get_max_order_single_field(field_id)
-              max_order_reference_fe_id = fe%get_reference_fe_id(field_id)
-           end if
-        end do
-     end do
-     max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
-     call fe_face%next()
-  end do
-  call this%free_fe_facet_iterator(fe_face)
-  call this%free_fe_cell_iterator(fe)
+  if ( this%same_reference_fes_on_all_cells ) then
+    max_order_reference_fe_id=1
+    max_order = -1
+    do i=1, size(this%reference_fes)
+      if ( this%reference_fes(i)%p%get_max_order() > max_order ) then
+        max_order = this%reference_fes(i)%p%get_max_order()
+        max_order_reference_fe_id = i 
+      end if
+    end do
+    max_order_field_cell_to_ref_fes_face = max_order_reference_fe_id
+  else
+    call this%create_fe_facet_iterator(fe_face)
+    call this%create_fe_cell_iterator(fe)
+    do while ( .not. fe_face%has_finished())
+       max_order_fes_around_fe_face = -1
+       max_order_reference_fe_id    =  1 
+       do icell_around = 1, fe_face%get_num_cells_around()
+          call fe_face%get_cell_around(icell_around, fe)
+          do field_id=1, fe%get_num_fields()
+             if ( max_order_fes_around_fe_face <= fe%get_max_order_single_field(field_id) ) then
+                max_order_fes_around_fe_face = fe%get_max_order_single_field(field_id)
+                max_order_reference_fe_id = fe%get_reference_fe_id(field_id)
+             end if
+          end do
+       end do
+       max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
+       call fe_face%next()
+    end do
+    call this%free_fe_facet_iterator(fe_face)
+    call this%free_fe_cell_iterator(fe)
+  end if 
 end subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face  
 
 subroutine serial_fe_space_fill_facet_gids ( this )
@@ -1874,21 +1889,25 @@ subroutine serial_fe_space_compute_facet_permutation_indices ( this )
   class(fe_cell_iterator_t)            , allocatable :: second_fe
   integer(ip) :: fe_facet_permutation_index
   
-  call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
-  call this%create_fe_cell_iterator(first_fe)
-  call this%create_fe_cell_iterator(second_fe)
-  call this%create_fe_facet_iterator(fe_face)
-  do while ( .not. fe_face%has_finished() )
-    if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
-      fe_facet_permutation_index = fe_face%compute_fe_facet_permutation_index(first_fe,second_fe)
-      call this%facet_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
-    end if
-    call fe_face%next()
-  end do
-  call this%free_fe_facet_iterator(fe_face)
-  call this%free_fe_cell_iterator(second_fe)
-  call this%free_fe_cell_iterator(first_fe)
-
+  if ( this%triangulation%is_single_octree_mesh() ) then
+    call this%facet_permutation_indices%resize(0)
+    call this%facet_permutation_indices%resize(this%facet_gids%size(),1)
+  else
+    call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
+    call this%create_fe_cell_iterator(first_fe)
+    call this%create_fe_cell_iterator(second_fe)
+    call this%create_fe_facet_iterator(fe_face)
+    do while ( .not. fe_face%has_finished() )
+      if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
+        fe_facet_permutation_index = fe_face%compute_fe_facet_permutation_index(first_fe,second_fe)
+        call this%facet_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
+      end if
+      call fe_face%next()
+    end do
+    call this%free_fe_facet_iterator(fe_face)
+    call this%free_fe_cell_iterator(second_fe)
+    call this%free_fe_cell_iterator(first_fe)
+  end if 
 end subroutine serial_fe_space_compute_facet_permutation_indices
 
 subroutine serial_fe_space_free_facet_permutation_indices ( this )
@@ -1900,9 +1919,7 @@ end subroutine serial_fe_space_free_facet_permutation_indices
 subroutine serial_fe_space_set_up_facet_integration ( this )
   implicit none
   class(serial_fe_space_t), target, intent(inout) :: this
-
   type(fe_facet_iterator_t) :: fe_face
-  type(fe_cell_iterator_t)  :: fe
 
   integer(ip) :: facet_quadrature_position
   integer(ip) :: facet_maps_position
@@ -1921,6 +1938,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   integer(ip) :: field_id, istat, icell_around
 
   class(reference_fe_t), pointer :: reference_fe
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip)          , pointer :: max_order_field_cell_to_ref_fes_face(:)
   type(quadrature_t), pointer    :: quadrature
 
@@ -1930,6 +1948,13 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   
   class(vef_iterator_t), allocatable :: vef
   class(triangulation_t), pointer :: triangulation
+  integer(ip) :: num_cells_around
+  
+  ! We need to set to .false. this member variable as the traversal over all
+  ! facets below would fail if the value of this variable is .true. This can
+  ! happen, e.g. if we call this%set_up_facet_integration(...) twice in a FE
+  ! program
+  this%facet_integration_is_set_up = .false.
   
   call this%compute_facet_permutation_indices()
   call this%compute_max_order_field_cell_to_ref_fes_face()
@@ -1943,8 +1968,6 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   facet_quadrature_position = 1
   facet_maps_position = 1
   facet_integrator_position = 1
-
-  call fe%create(this)
   
   ! Creating fe_facet_iterator_t
   triangulation => this%get_triangulation()
@@ -1954,10 +1977,10 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   do while ( .not. fe_face%has_finished() ) 
      reference_fes_geo_id(2) = 0
      nullify(reference_fes_geo(2)%p)
-     do icell_around = 1, fe_face%get_num_cells_around()
-        call fe_face%get_cell_around(icell_around, fe)
-        reference_fes_geo_id(icell_around) =  fe%get_reference_fe_geo_id()
-        reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
+     num_cells_around = fe_face%get_num_cells_around()
+     do icell_around = 1, num_cells_around
+       reference_fes_geo_id(icell_around) =  1                  ! fe%get_reference_fe_geo_id()
+       reference_fes_geo(icell_around)%p  => fe_face%ref_fe_geo ! fe%get_reference_fe_geo()
      end do
 
      facet_quadratures_position_key = &
@@ -1986,10 +2009,10 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      do field_id=1, this%get_num_fields()
         reference_fes_id(2) = 0  
         nullify(reference_fes(2)%p)
-        do icell_around = 1, fe_face%get_num_cells_around()
-           call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid())
-           reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
+        do icell_around = 1, num_cells_around
+           reference_fes_id(icell_around) = & 
+               this%field_cell_to_ref_fes(field_id)%get(fe_face%fes_around(icell_around)%p%get_gid())
+           reference_fes(icell_around)%p => fe_face%fes_around(icell_around)%p%get_reference_fe(field_id)
         end do
 
         facet_integrators_position_key = &
@@ -2012,10 +2035,25 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      end do
      call fe_face%next()
   end do
-  call fe%free()
   call fe_face%free()
-  
+  this%facet_integration_is_set_up = .true.
 end subroutine serial_fe_space_set_up_facet_integration
+
+
+function serial_fe_space_get_facet_integration_is_set_up(this)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  logical :: serial_fe_space_get_facet_integration_is_set_up
+  serial_fe_space_get_facet_integration_is_set_up = this%facet_integration_is_set_up
+end function serial_fe_space_get_facet_integration_is_set_up
+
+subroutine serial_fe_space_set_facet_integration_is_set_up (this, is_set_up)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  logical                 , intent(in)    :: is_set_up
+  this%facet_integration_is_set_up = is_set_up
+end subroutine serial_fe_space_set_facet_integration_is_set_up
+
 
 subroutine serial_fe_space_free_facet_integration ( this )
   implicit none
@@ -2910,6 +2948,13 @@ function serial_fe_space_get_max_num_facet_quadrature_points( this )
   end do
 end function serial_fe_space_get_max_num_facet_quadrature_points
 
+function serial_fe_space_get_num_facet_quadratures(this)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: serial_fe_space_get_num_facet_quadratures
+  serial_fe_space_get_num_facet_quadratures = this%facet_quadratures%size()
+end function serial_fe_space_get_num_facet_quadratures
+
 function serial_fe_space_get_max_order( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
@@ -3205,14 +3250,15 @@ function serial_fe_space_is_hanging_dof ( this, dof_lid )
   serial_fe_space_is_hanging_dof = dof_lid < -this%num_dirichlet_dofs
 end function serial_fe_space_is_hanging_dof
 
-subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
+subroutine serial_fe_space_create_fe_cell_iterator ( this, fe, fe_cell_predicate )
   implicit none
-  class(serial_fe_space_t)         , intent(in)  :: this
-  class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
+  class(serial_fe_space_t)              , intent(in)    :: this
+  class(fe_cell_iterator_t) ,allocatable, intent(inout) :: fe
+  class(fe_cell_predicate_t),   optional, intent(in)    :: fe_cell_predicate
   integer(ip) :: istat
   call this%free_fe_cell_iterator(fe)
   allocate(fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
-  call fe%create(this)
+  call fe%create(this,fe_cell_predicate)
 end subroutine serial_fe_space_create_fe_cell_iterator
 
 subroutine serial_fe_space_free_fe_cell_iterator ( this, fe )
@@ -3421,9 +3467,6 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
      num_subfaces_x_face  = 2
   end if
   num_cell_faces = reference_fe%get_num_facets()
-
-  allocate(fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
-  allocate(coarser_fe_fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
 
   ! Computation of constraints     
   do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()

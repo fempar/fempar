@@ -219,6 +219,14 @@ function bst_vef_iterator_is_at_interface (this)
   bst_vef_iterator_is_at_interface  = (this%base_static_triangulation%vefs_type(this%gid)/100==1)
 end function bst_vef_iterator_is_at_interface
 
+function bst_vef_iterator_is_cut (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_cut 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_cut  = .false.
+end function bst_vef_iterator_is_cut
+
 function bst_vef_iterator_is_ghost (this)
   implicit none
   class(bst_vef_iterator_t), intent(in) :: this

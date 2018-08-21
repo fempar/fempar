@@ -94,7 +94,11 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   if ( p_environment%am_i_l1_task () ) then
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
-      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else 
+        call F90_p4est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if 
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
       call F90_p4est_refine(this%p4est)
       call F90_p4est_coarsen(this%p4est)
@@ -103,7 +107,11 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
-      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p8est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
       call F90_p8est_refine(this%p4est)
       call F90_p8est_coarsen(this%p4est)
@@ -1816,6 +1824,11 @@ subroutine p4est_bt_update_cell_import( this )
   class(environment_t), pointer :: environment
 
 #ifdef ENABLE_P4EST  
+  neighbour_ids = c_null_ptr
+  rcv_ptrs  = c_null_ptr
+  rcv_leids = c_null_ptr
+  snd_ptrs  = c_null_ptr
+  snd_leids = c_null_ptr
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_allocate_and_fill_cell_import_raw_arrays(this%p4est, &
                                                             this%p4est_ghost, &
@@ -1878,6 +1891,57 @@ function p4est_bt_get_previous_num_ghost_cells ( this )
   integer(ip) :: p4est_bt_get_previous_num_ghost_cells
   p4est_bt_get_previous_num_ghost_cells = this%previous_num_ghost_cells
 end function p4est_bt_get_previous_num_ghost_cells
+
+subroutine p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data ( this) 
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(list_t), pointer :: dofs_n_face
+  type(list_iterator_t) :: dofs_n_face_iterator
+  integer(ip) :: num_n_faces
+  integer(ip) :: current
+  integer(ip) :: field_id, i 
+  integer(ip) :: istat, icell
+  
+  call this%free_reference_fe_geo_scratch_data()
+    
+  dofs_n_face => this%reference_fe_geo%get_dofs_n_face()
+  num_n_faces    = dofs_n_face%get_num_pointers()
+  
+  call memalloc ( num_n_faces+1, & 
+                  this%ptr_dofs_n_face, __FILE__, __LINE__ ) 
+   
+  this%ptr_dofs_n_face(1) = 1
+  do i=1, num_n_faces
+     this%ptr_dofs_n_face(i+1) = this%ptr_dofs_n_face(i) + &
+                                    dofs_n_face%get_sublist_size(i)
+  end do
+   
+  call memalloc ( this%ptr_dofs_n_face(num_n_faces+1)-1, & 
+                  this%lst_dofs_n_face, __FILE__, __LINE__ ) 
+   
+  current=1
+  do i=1, dofs_n_face%get_num_pointers()
+     dofs_n_face_iterator = this%reference_fe_geo%create_dofs_n_face_iterator(i)
+     do while( .not. dofs_n_face_iterator%is_upper_bound() )
+        this%lst_dofs_n_face(current) = dofs_n_face_iterator%get_current()
+        current = current + 1
+        call dofs_n_face_iterator%next()
+     end do
+  end do
+  
+end subroutine p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
+
+subroutine p4est_bt_free_reference_fe_geo_scratch_data(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  if ( allocated(this%ptr_dofs_n_face) ) then
+    call memfree(this%ptr_dofs_n_face, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%lst_dofs_n_face) ) then
+    call memfree(this%lst_dofs_n_face, __FILE__, __LINE__ )
+  end if  
+end subroutine p4est_bt_free_reference_fe_geo_scratch_data
 
 subroutine p4est_bt_fill_cells_set (this, cells_set)
   implicit none
@@ -2013,6 +2077,10 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call memalloc(2, local_num_quadrants+ghost_num_quadrants, this%quad_coords, __FILE__, __LINE__)
   call memalloc(local_num_quadrants+ghost_num_quadrants, this%quad_level, __FILE__, __LINE__ )
   
+  QQ = c_null_ptr
+  QF = c_null_ptr
+  QH = c_null_ptr
+  QC = c_null_ptr
   call F90_p4est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2023,15 +2091,11 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           this%quad_coords, &
                                           this%quad_level)
   
-  if (this%get_num_ghost_cells()>0) then
-    deallocate(this%quad_to_quad)
-    deallocate(this%quad_to_face)
-    if (associated(this%quad_to_half)) then
-      deallocate(this%quad_to_half)
-    end if   
-    deallocate(this%quad_to_corner)
-  end if 
-  
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_2D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_2D,local_num_quadrants])
   if(num_half_faces>0) then 
@@ -2060,6 +2124,10 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_quad_by_edge, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_edge, __FILE__, __LINE__ )
   
+  QQ  = c_null_ptr
+  QF  = c_null_ptr
+  QH  = c_null_ptr
+  QC  = c_null_ptr
   call F90_p8est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
                                           this%p4est_ghost, &
@@ -2073,17 +2141,12 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                           QC, &
                                           this%quad_coords, &
                                           this%quad_level)
-  if (this%get_num_ghost_cells()>0) then
-    deallocate(this%quad_to_quad)
-    deallocate(this%quad_to_face)
-    deallocate(this%quad_to_corner)
-    if (associated(this%quad_to_half)) then
-      deallocate(this%quad_to_half)
-    end if   
-    if (associated(this%quad_to_half_by_edge)) then
-      deallocate(this%quad_to_half_by_edge)
-    end if   
-  end if
+  
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+  if (associated(this%quad_to_half_by_edge)) deallocate(this%quad_to_half_by_edge) 
   
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_3D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
@@ -2357,66 +2420,57 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
 
   neighbours_ids => cell_import%get_neighbours_ids() 
   l1_context     => environment%get_l1_context()
-  select type ( l1_context )
-  class is (mpi_context_t)
-    do i=1, cell_import%get_num_neighbours()
-       call mpi_sendrecv( quad_to_half_size_2          , 1, MPI_INTEGER, neighbours_ids(i)-1, 0,                           & 
-                          num_half_faces_x_neighbour(i), 1, MPI_INTEGER, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), & 
-                          status, ierr)
-       check(ierr==MPI_SUCCESS)
-    end do 
-  class is (serial_context_t)
-  class default
-    check(.false.)
-  end select
-
+  call l1_context%neighbours_exchange(cell_import%get_num_neighbours(), &
+                                      neighbours_ids, &
+                                      quad_to_half_size_2, &
+                                      num_half_faces_x_neighbour)
+  
   allocate ( quad_to_half_buffers(cell_import%get_num_neighbours()), stat=istat); check(istat==0); 
   do i=1, cell_import%get_num_neighbours()
-   select type ( l1_context )
+    call quad_to_half_buffers(i)%create(num_subfacets_facet*num_half_faces_x_neighbour(i))
+  end do 
+  
+  select type ( l1_context )
    class is (mpi_context_t)
-      call quad_to_half_buffers(i)%create(num_subfacets_facet*num_half_faces_x_neighbour(i))
-      call mpi_sendrecv( quad_to_half_buffer         , size(quad_to_half_buffer)      , MPI_INTEGER8, neighbours_ids(i)-1, 0, &
-                         quad_to_half_buffers(i)%a   , size(quad_to_half_buffers(i)%a), MPI_INTEGER8, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), &
-                         status, ierr)
-      check(ierr==MPI_SUCCESS)
+     call l1_context%neighbours_exchange_multiple_igp ( cell_import%get_num_neighbours(), &
+       &                             neighbours_ids, &
+       &                             size(quad_to_half_buffer), &
+       &                             quad_to_half_buffer,&
+       &                             num_subfacets_facet*num_half_faces_x_neighbour,&
+       &                             quad_to_half_buffers)
    class is (serial_context_t)
    class default
     check(.false.)
-   end select
-  end do 
+  end select
   
   if ( this%get_num_dims() == 3 ) then
     call memalloc ( cell_import%get_num_neighbours(), num_half_edges_x_neighbour, __FILE__, __LINE__ ) 
 
     neighbours_ids => cell_import%get_neighbours_ids() 
     l1_context     => environment%get_l1_context()
+    
+    call l1_context%neighbours_exchange(cell_import%get_num_neighbours(), &
+                                        neighbours_ids, &
+                                        quad_to_half_by_edge_size_2, &
+                                        num_half_edges_x_neighbour)
+    
+    allocate ( quad_to_half_by_edge_buffers(cell_import%get_num_neighbours()), stat=istat); check(istat==0); 
+    do i=1, cell_import%get_num_neighbours() 
+      call quad_to_half_by_edge_buffers(i)%create(num_subedgets_edget*num_half_edges_x_neighbour(i))
+    end do
     select type ( l1_context )
-    class is (mpi_context_t)
-      do i=1, cell_import%get_num_neighbours()
-       call mpi_sendrecv( quad_to_half_by_edge_size_2  , 1, MPI_INTEGER, neighbours_ids(i)-1, 0,                           & 
-                          num_half_edges_x_neighbour(i), 1, MPI_INTEGER, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), & 
-                          status, ierr)
-       check(ierr==MPI_SUCCESS)
-      end do 
-    class is (serial_context_t)  
-    class default
+     class is (mpi_context_t)
+       call l1_context%neighbours_exchange_multiple_igp ( cell_import%get_num_neighbours(), &
+          &                             neighbours_ids, &
+          &                             size(quad_to_half_by_edge_buffer), &
+          &                             quad_to_half_by_edge_buffer,&
+          &                             num_subedgets_edget*num_half_edges_x_neighbour,&
+          &                             quad_to_half_by_edge_buffers)
+     class is (serial_context_t)
+     class default
       check(.false.)
     end select
-
-    allocate ( quad_to_half_by_edge_buffers(cell_import%get_num_neighbours()), stat=istat); check(istat==0); 
-    do i=1, cell_import%get_num_neighbours()
-      select type ( l1_context )
-     class is (mpi_context_t)
-        call quad_to_half_by_edge_buffers(i)%create(num_subedgets_edget*num_half_edges_x_neighbour(i))
-        call mpi_sendrecv( quad_to_half_by_edge_buffer         , size(quad_to_half_by_edge_buffer)      , MPI_INTEGER8, neighbours_ids(i)-1, 0, &
-                           quad_to_half_by_edge_buffers(i)%a   , size(quad_to_half_by_edge_buffers(i)%a), MPI_INTEGER8, neighbours_ids(i)-1, 0, l1_context%get_icontxt(), &
-                           status, ierr)
-        check(ierr==MPI_SUCCESS)
-     class is (serial_context_t)   
-     class default
-       check(.false.)
-     end select
-    end do
+    
   end if 
  
 
@@ -2650,6 +2704,9 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     end do
   end if
   
+  ! * IMPORTANT NOTE *: This set of 4x pointer re-associations does NOT cause
+  ! any memory leak. These pointers are associated with C data arrays that
+  ! in turn are to be deallocated by an internal p4est subroutine later on
   this%quad_to_quad   => quad_to_quad
   this%quad_to_face   => quad_to_face
   this%quad_to_half   => quad_to_half
@@ -2659,6 +2716,10 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     call memfree (this%quad_to_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_quad_by_edge, this%quad_to_quad_by_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_edge, this%quad_to_edge, __FILE__, __LINE__)
+    
+    ! * IMPORTANT NOTE *: This pointer re-associations will cause a memory leak if 
+    ! we do not deallocate (free) in advance the C data array it is associated to 
+    call F90_p4est_locidx_buffer_destroy(this%QHE)
     this%quad_to_half_by_edge   => quad_to_half_by_edge
     
     do i=1, cell_import%get_num_neighbours()
@@ -2912,15 +2973,17 @@ subroutine p4est_base_triangulation_update_cell_ggids ( this )
   end do
   global_ggids => this%cell_ggids%get_pointer()
   
-  if ( this%get_num_dims() == 2 ) then
-    call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
-                                    this%global_first_quadrant, &
-                                    global_ggids(this%get_num_local_cells()+1:))
-  else if ( this%get_num_dims() == 3 ) then
-    call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
-                                    this%global_first_quadrant, &
-                                    global_ggids(this%get_num_local_cells()+1:))
-  end if
+  if ( associated(global_ggids) ) then
+    if ( this%get_num_dims() == 2 ) then
+      call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
+                                      this%global_first_quadrant, &
+                                      global_ggids(this%get_num_local_cells()+1:))
+    else if ( this%get_num_dims() == 3 ) then
+      call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
+                                      this%global_first_quadrant, &
+                                      global_ggids(this%get_num_local_cells()+1:))
+    end if
+  end if   
 #else  
   call this%not_enabled_error()
 #endif  
@@ -2972,8 +3035,10 @@ subroutine p4est_base_triangulation_update_cell_myparts ( this )
                                       P)
     end if 
   else if ( this%get_num_dims() == 3 ) then
+    if (size(global_myparts)>this%get_num_local_cells()) then
       call F90_p8est_fill_ghost_procs(this%p4est_ghost,&
                                       P)    
+    end if
   end if
 #else  
   call this%not_enabled_error()

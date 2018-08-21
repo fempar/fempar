@@ -369,13 +369,14 @@ contains
     p => op1
     if(associated(p,op2)) return ! It's aliasing
     
-    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
        assert(op2%state == blocks_container_created)
-       call op1%free()
-       call op1%create(op2%nblocks)
+       if ( op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%nblocks)
+       end if 
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
@@ -436,20 +437,22 @@ contains
     integer(ip) :: iblk
     
     par_block_array_same_vector_space = .false.
-    assert ( this%state == blocks_container_created )
-    select type(vector)
-    class is (par_block_array_t)
-      assert ( vector%state == blocks_container_created )
-      par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-      if ( par_block_array_same_vector_space ) then
-        do iblk=1, this%nblocks
-           par_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-           if ( .not. par_block_array_same_vector_space ) then
-             exit
-           end if
-        end do
-      end if
-    end select
+    if ( this%state == blocks_container_created ) then
+      select type(vector)
+      class is (par_block_array_t)
+        if (vector%state == blocks_container_created ) then
+          par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+          if ( par_block_array_same_vector_space ) then
+            do iblk=1, this%nblocks
+             par_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+             if ( .not. par_block_array_same_vector_space ) then
+              exit
+             end if
+            end do
+          end if
+        end if 
+      end select
+    end if 
   end function par_block_array_same_vector_space
  
   !=============================================================================

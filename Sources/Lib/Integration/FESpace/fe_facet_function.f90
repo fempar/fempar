@@ -40,9 +40,9 @@ module fe_facet_function_names
 # include "debug.i90"
   private
  
-  
   type fe_facet_function_scalar_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    logical                           :: is_at_boundary
    type(i1p_t)                       :: quadrature_points_permutation(2)   
    type(fe_cell_function_scalar_t)   :: fe_cell_function(2)
@@ -51,6 +51,7 @@ module fe_facet_function_names
   contains
      procedure, non_overridable :: create                                => fe_facet_function_scalar_create
      procedure, non_overridable :: update                                => fe_facet_function_scalar_update
+     procedure, non_overridable :: set_duties                            => fe_facet_function_scalar_set_duties
      procedure, non_overridable :: get_field_id                          => fe_facet_function_scalar_get_field_id
      procedure, non_overridable :: get_nodal_values                      => fe_facet_function_scalar_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values          => fe_facet_function_scalar_get_quadrature_points_values

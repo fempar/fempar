@@ -1,0 +1,297 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_create (this, &
+                                                   sparse_matrix_storage_format, &
+                                                   diagonal_blocks_symmetric_storage,&
+                                                   diagonal_blocks_symmetric,&
+                                                   diagonal_blocks_sign,&
+                                                   fe_space, &
+                                                   discrete_integration, &
+                                                   trial_fe_space )
+  implicit none
+  class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
+  character(*)                              , intent(in)    :: sparse_matrix_storage_format
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)                               , intent(in)    :: diagonal_blocks_sign(:)
+  class(serial_fe_space_t)        , target  , intent(inout) :: fe_space
+  class(discrete_integration_t)   , target  , intent(in)    :: discrete_integration
+  class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
+  mcheck ( .false., "time_stepping_stage_fe_operator_t :: Illegal to call time_stepping_stage_fe_operator_t inherited from fe_operator_t")
+end subroutine time_stepping_stage_fe_operator_create
+
+
+subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_op )
+  implicit none
+  class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
+  type(time_stepping_operator_t),  target   , intent(in)    :: ts_op
+  class(fe_operator_t),            target   , intent(in)    :: fe_op
+  class(serial_fe_space_t),        pointer                  :: trial_fe_space
+  call this%free()
+  
+  this%fe_op   => fe_op
+  this%ts_op   => ts_op
+  call this%create_mass_operator()   
+ 
+  trial_fe_space => this%fe_op%get_trial_fe_space()
+  call this%fe_op%create_domain_vector(this%aux)
+  call this%fe_op%create_domain_vector(this%fe_op_residual)
+  call this%fe_op%create_domain_vector(this%mass_residual)                              
+ 
+  if ( associated(trial_fe_space) ) then
+    call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
+                                             this%fe_op%get_diagonal_blocks_symmetric_storage(),&
+                                             this%fe_op%get_diagonal_blocks_symmetric(),&
+                                             this%fe_op%get_diagonal_blocks_sign(),&
+                                             this%fe_op%get_fe_space(), &
+                                             this%fe_op%get_discrete_integration(), &
+                                             trial_fe_space)  
+  else
+    call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
+                                             this%fe_op%get_diagonal_blocks_symmetric_storage(),&
+                                             this%fe_op%get_diagonal_blocks_symmetric(),&
+                                             this%fe_op%get_diagonal_blocks_sign(),&
+                                             this%fe_op%get_fe_space(), &
+                                             this%fe_op%get_discrete_integration())
+  end if
+end subroutine time_stepping_stage_fe_operator_create_from_operators
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
+  implicit none
+  class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
+  
+  call this%mass_integration%create_fe_function(this%fe_op%get_fe_space())
+  
+  call this%mass_op%create ( sparse_matrix_storage_format      = this%fe_op%get_sparse_matrix_storage_format(), &
+                             diagonal_blocks_symmetric_storage = this%fe_op%get_diagonal_blocks_symmetric_storage(), &
+                             diagonal_blocks_symmetric         = this%fe_op%get_diagonal_blocks_symmetric(), &
+                             diagonal_blocks_sign              = this%fe_op%get_diagonal_blocks_sign(), &
+                             fe_space                          = this%fe_op%get_fe_space(), &
+                             discrete_integration              = this%mass_integration )
+  
+end subroutine time_stepping_stage_fe_operator_create_mass_operator
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_free(this)
+  implicit none
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%fe_operator_t%free()
+  nullify(this%ts_op)
+  nullify(this%fe_op)
+  call this%mass_op%free()
+  call this%mass_integration%free()
+  if ( allocated(this%aux) ) then
+    call this%aux%free()
+    deallocate(this%aux, stat=istat); check(istat==0);
+  end if
+  if ( allocated(this%fe_op_residual) ) then
+    call this%fe_op_residual%free()
+    deallocate(this%fe_op_residual, stat=istat); check(istat==0);
+  end if
+  if ( allocated(this%mass_residual) ) then
+    call this%mass_residual%free()
+    deallocate(this%mass_residual, stat=istat); check(istat==0);
+  end if
+end subroutine time_stepping_stage_fe_operator_free
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_set_row(this, i, j)
+ implicit none
+ class(time_stepping_stage_fe_operator_t), intent(inout) :: this
+ integer(ip)                             , intent(in)    :: i, j
+ this%i = i 
+ this%j = j
+end subroutine time_stepping_stage_fe_operator_set_row
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x) 
+  implicit none
+  class(time_stepping_stage_fe_operator_t),         intent(inout) :: this
+  class(vector_t)                         , target, intent(in)    :: x
+  
+  integer(ip) :: j
+  
+  assert(same_type_as(this%aux, x))
+  assert(same_type_as(this%ts_op%initial_value,x))
+  
+  call x%GuardTemp()
+
+  call this%aux%copy(this%ts_op%initial_value)
+  call this%ts_op%dofs_stages(this%i)%copy(x)
+   
+  do j = 1, this%ts_op%scheme%num_stages
+    if ( this%ts_op%scheme%a(this%i,j) /= 0.0_rp ) then
+      call this%aux%axpby(this%ts_op%dt*this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
+    end if
+  end do
+
+  call this%fe_op%set_evaluation_point(this%aux)
+  call this%mass_op%set_evaluation_point(x)
+  
+  call this%fe_operator_t%set_evaluation_point(this%aux) 
+    
+  call x%CleanTemp()
+end subroutine time_stepping_stage_fe_operator_set_evaluation_point
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) 
+  implicit none
+  class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
+  real(rp)                                           , intent(in) :: time
+  class(discrete_integration_t)           , pointer               :: di_fe_op
+  class(discrete_integration_t)           , pointer               :: di_fe_mass_op
+  class(serial_fe_space_t)                , pointer               :: fe_space
+ 
+  di_fe_op         => this%fe_op%get_discrete_integration()
+  di_fe_mass_op    => this%mass_op%get_discrete_integration()
+  fe_space         => this%fe_op%get_fe_space()
+
+  call di_fe_op%set_current_time(fe_space,time)
+  call di_fe_mass_op%set_current_time(fe_space,time)
+  
+  call this%mass_op%force_compute()
+  select type(fe_op => this%fe_op)
+  class is (fe_affine_operator_t)  
+     call fe_op%force_compute()
+  end select
+  
+end subroutine time_stepping_stage_fe_operator_set_evaluation_time
+  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function time_stepping_stage_fe_operator_is_linear(this)
+  implicit none
+  class(time_stepping_stage_fe_operator_t), intent(in) :: this
+  logical :: time_stepping_stage_fe_operator_is_linear
+  time_stepping_stage_fe_operator_is_linear = &
+     ( this%fe_op%is_linear() .and. this%mass_op%is_linear() )
+end function time_stepping_stage_fe_operator_is_linear
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_compute_residual(this,y)
+  implicit none
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
+  class(vector_t) ,  intent(inout) :: y 
+  class(environment_t),    pointer :: environment
+  call this%compute_internal_residual()
+  y = this%get_translation()
+end subroutine time_stepping_stage_fe_operator_compute_residual
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
+  implicit none
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this  
+  class(serial_fe_space_t)     , pointer :: fe_sp
+  class(environment_t)         , pointer :: environment
+  class(assembler_t)           , pointer :: this_assembler
+  integer(ip)                  , pointer :: state
+  class(vector_t)              , pointer :: this_residual
+
+  state => this%get_state() 
+  assert (associated(state))
+
+  fe_sp            => this%get_fe_space()
+  environment      => fe_sp%get_environment()
+  this_assembler   => this%get_assembler()
+
+  if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
+    if ( environment%am_i_l1_task() ) then
+    
+      this_residual  => this_assembler%get_array()
+      call this%fe_op%compute_residual(this%fe_op_residual)
+      ! this_residual = this%fe_op_residual + this%mass_residual
+      call this_residual%copy(this%fe_op_residual)
+      if ( this%i == this%j )  then
+        call this%mass_op%compute_residual(this%mass_residual)
+        call this_residual%axpby(1.0_rp, this%mass_residual, 1.0_rp)
+      end if
+    end if
+
+    if (this%get_state() == tangent_computed) then
+       call this%set_state(assembler_computed)
+    else ! created
+       assert ( this%get_state() == created )
+       call this%set_state(residual_computed)
+    end if
+  end if
+
+end subroutine time_stepping_stage_fe_operator_compute_internal_residual
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_compute_tangent(this)
+  implicit none
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
+  class(serial_fe_space_t)     , pointer :: fe_sp
+  class(environment_t)         , pointer :: environment
+  class(assembler_t)           , pointer :: this_assembler
+  class(assembler_t)           , pointer :: fe_op_assembler
+  class(assembler_t)           , pointer :: mass_assembler
+  integer(ip)                  , pointer :: state
+  class(matrix_t)              , pointer :: this_tangent
+  class(matrix_t)              , pointer :: fe_op_tangent
+  class(matrix_t)              , pointer :: mass_matrix
+    
+  state => this%get_state() 
+  assert (associated(state))
+
+  fe_sp       => this%get_fe_space()
+  environment => fe_sp%get_environment()
+
+  this_assembler  => this%get_assembler()
+  fe_op_assembler => this%fe_op%get_assembler()
+  mass_assembler  => this%mass_op%get_assembler()
+
+  if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
+    if ( environment%am_i_l1_task() ) then
+       this_tangent  => this_assembler%get_matrix()
+       fe_op_tangent => fe_op_assembler%get_matrix()
+       mass_matrix   => mass_assembler%get_matrix()  
+       
+       call this%mass_op%compute_tangent()
+       if ( this%ts_op%scheme%a(this%i,this%j) /= 0.0_rp ) then
+          call this%fe_op%compute_tangent()
+          call this_tangent%add(1.0_rp, mass_matrix, this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j), fe_op_tangent)
+       else 
+          call this_tangent%copy( mass_matrix ) 
+       end if
+    end if
+    
+    call this_assembler%compress_storage(this%get_sparse_matrix_storage_format())
+        
+    if (this%get_state() == residual_computed) then
+       call this%set_state(assembler_computed)
+    else ! created
+       assert ( this%get_state() == created )
+       call this%set_state(tangent_computed)
+    end if
+  end if
+end subroutine time_stepping_stage_fe_operator_compute_tangent
+

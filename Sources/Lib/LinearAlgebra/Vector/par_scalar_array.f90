@@ -480,8 +480,10 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-       call op1%free()
-       call op1%create(op2%p_env, op2%dof_import)
+       if ( .not. op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%p_env, op2%dof_import)
+       end if 
        if(.not. op2%p_env%am_i_l1_task()) return
        call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default

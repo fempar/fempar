@@ -355,7 +355,7 @@ contains
       do qpoint = 1, num_quad_points
 
         dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-        call fe_facet%get_normals(qpoint,normals)
+        call fe_facet%get_normal(qpoint,normals)
         call exact_sol_u%get_gradient(quad_coords(qpoint),exact_sol_gradient_u)
         call exact_sol_p%get_value(quad_coords(qpoint),exact_sol_value_p)
 

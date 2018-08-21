@@ -1,0 +1,230 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine butcher_tableau_create( this, time_integration_scheme )
+  implicit none
+  class(butcher_tableau_t), intent(inout) :: this
+  character(len=*)        , intent(in)    :: time_integration_scheme
+  real(rp)                                :: gamma, delta
+
+  call this%free()
+ 
+  this%time_integration_scheme = time_integration_scheme
+  select case ( this%time_integration_scheme )
+  case ( backward_euler )
+    this%order = 1
+    this%num_stages = 1
+    call this%allocate_arrays()
+    this%a(1,1) = 1.0_rp
+    this%b(1)   = 1.0_rp 
+    this%c(1)   = 1.0_rp
+  case ( forward_euler )
+    this%order = 1
+    this%num_stages = 1
+    call this%allocate_arrays()
+    this%a(1,1) = 0.0_rp
+    this%b(1)   = 1.0_rp 
+    this%c(1)   = 0.0_rp  
+  case ( trapezoidal_rule )
+    this%order = 2
+    this%num_stages = 2
+    call this%allocate_arrays()
+    this%a(1,1:2) = [ 0.0_rp,  0.0_rp ]
+    this%a(2,1:2) = [ 0.5_rp,  0.5_rp ] 
+    this%b(1:2)   = [ 0.5_rp,  0.5_rp ] 
+    ! this%bs = [ 1.0_rp 0.0_rp] for adaptive RK methods
+    this%c(1:2)   = [ 0.0_rp,  1.0_rp ]
+  case ( mid_point_implicit )
+    this%order = 2
+    this%num_stages = 1
+    call this%allocate_arrays()
+    this%a(1,1)   = 0.5_rp
+    this%b(1:1)   = 1.0_rp 
+    this%c(1:1)   = 0.5_rp 
+  case ( mid_point_explicit )
+    this%order = 2
+    this%num_stages = 2
+    call this%allocate_arrays()
+    this%a(1,1:2) = [ 0.0_rp,  0.0_rp ]
+    this%a(2,1:2) = [ 0.5_rp,  0.0_rp ] 
+    this%b(1:2)   = [ 0.0_rp,  1.0_rp ] 
+    this%c(1:2)   = [ 0.0_rp,  0.5_rp ]
+  case ( imex_rk_2_2_1_implicit )
+    this%order = 2
+    this%num_stages = 2
+    gamma = ( 2.0_rp + sqrt( 2.0_rp ) ) / 2_rp
+    call this%allocate_arrays()
+    this%a(1,1:2) = [ gamma         , 0.0_rp ]
+    this%a(2,1:2) = [ 1.0_rp - gamma, gamma  ] 
+    this%b(1:2)   = [ 1.0_rp - gamma, gamma  ]
+    this%c(1:2)   = [ gamma         , 1.0_rp ]
+  case ( imex_rk_2_2_1_explicit )
+    this%order = 2
+    this%num_stages = 3
+    gamma = (  2.0_rp + sqrt( 2.0_rp ) ) / 2_rp
+    delta = ( -2.0_rp * sqrt( 2.0_rp ) ) / 3_rp
+    call this%allocate_arrays()
+    this%a(1,1:3) = [ 0.0_rp,         0.0_rp, 0.0_rp ]                       
+    this%a(2,1:3) = [  gamma,         0.0_rp, 0.0_rp ]
+    this%a(3,1:3) = [  delta, 1.0_rp - delta, 0.0_rp ] 
+    this%b(1:3)   = [ 0.0_rp, 1.0_rp - gamma, gamma  ] 
+    this%c(1:3)   = [ 0.0_rp,          gamma, 1.0_rp ]
+  case ( imex_rk_2_2_2_implicit )
+    this%order = 2
+    this%num_stages = 2
+    gamma = ( 2.0_rp + sqrt( 2.0_rp ) ) / 2_rp
+    call this%allocate_arrays()
+    this%a(1,1:2) = [ gamma         , 0.0_rp ]
+    this%a(2,1:2) = [ 1.0_rp - gamma, gamma  ] 
+    this%b(1:2)   = [ 1.0_rp - gamma, gamma  ]
+    this%c(1:2)   = [ gamma         , 1.0_rp ]
+  case ( imex_rk_2_2_2_explicit )
+    this%order = 2
+    this%num_stages = 3
+    gamma = (  2.0_rp + sqrt( 2.0_rp ) ) / 2_rp
+    delta = 1.0_rp - 1.0_rp / (2.0_rp * gamma )
+    call this%allocate_arrays()
+    this%a(1,1:3) = [ 0.0_rp,         0.0_rp, 0.0_rp ]                       
+    this%a(2,1:3) = [  gamma,         0.0_rp, 0.0_rp ]
+    this%a(3,1:3) = [  delta, 1.0_rp - delta, 0.0_rp ] 
+    this%b(1:3)   = [ 0.0_rp, 1.0_rp - gamma, gamma  ] 
+    this%c(1:3)   = [ 0.0_rp,          gamma, 1.0_rp ]
+  case ( imex_rk_2_3_implicit )
+    this%order = 3
+    this%num_stages = 2
+    gamma = ( 3.0_rp + sqrt( 3.0_rp ) ) / 6_rp
+    call this%allocate_arrays()
+    this%a(1,1:2) = [ gamma                  , 0.0_rp ]
+    this%a(2,1:2) = [ 1.0_rp - 2.0_rp * gamma, gamma  ] 
+    this%b(1:2)   = [ 0.5_rp                 , 0.5_rp ] 
+    this%c(1:2)   = [ gamma          , 1.0_rp - gamma ]
+  case ( imex_rk_2_3_explicit )
+    this%order = 3
+    this%num_stages = 3
+    gamma = ( 3.0_rp + sqrt( 3.0_rp ) ) / 6_rp
+    call this%allocate_arrays()
+    this%a(1,1:3) = [ 0.0_rp        , 0.0_rp                     , 0.0_rp ]                       
+    this%a(2,1:3) = [ gamma         , 0.0_rp                     , 0.0_rp ]
+    this%a(3,1:3) = [ gamma - 1.0_rp, 2.0_rp * ( 1.0_rp - gamma ), 0.0_rp ] 
+    this%b(1:3)   = [ 0.0_rp        , 0.5_rp                     , 0.5_rp ] 
+    this%c(1:3)   = [ 0.0_rp        , gamma              , 1.0_rp - gamma ]
+  case ( runge_kutta_3 )
+    this%order = 3
+    this%num_stages = 3
+    call this%allocate_arrays()
+    this%a(1,1:3) = [ 0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(2,1:3) = [ 0.5_rp,  0.0_rp,  0.0_rp ]
+    this%a(3,1:3) = [-1.0_rp,  2.0_rp,  0.0_rp ]
+    this%b(1:3)   = [ 1.0_rp,  4.0_rp,  1.0_rp ]
+    this%b        = this%b / 6.0_rp
+    this%c(1:3)   = [ 0.0_rp,  0.5_rp,  1.0_rp ]
+  case ( runge_kutta_4 )
+    this%order = 4
+    this%num_stages = 4
+    call this%allocate_arrays()
+    this%a(1,1:4) = [ 0.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(2,1:4) = [ 0.5_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(3,1:4) = [ 0.0_rp,  0.5_rp,  0.0_rp,  0.0_rp ]
+    this%a(4,1:4) = [ 0.0_rp,  0.0_rp,  1.0_rp,  0.0_rp ]
+    this%b(1:4)   = [ 1.0_rp,  2.0_rp,  2.0_rp,  1.0_rp ]
+    this%b        = this%b / 6.0_rp
+    this%c(1:4)   = [ 0.0_rp,  0.5_rp,  0.5_rp,  1.0_rp ]
+  case ( runge_kutta_4_3_8 )
+    this%order = 4
+    this%num_stages = 4
+    call this%allocate_arrays()
+    this%a(1,1:4) = [ 0.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(2,1:4) = [ 1.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(3,1:4) = [-1.0_rp,  3.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(4,1:4) = [ 3.0_rp, -3.0_rp,  3.0_rp,  0.0_rp ]
+    this%a        = this%a / 3.0_rp
+    this%b(1:4)   = [ 1.0_rp,  3.0_rp,  3.0_rp,  1.0_rp ]
+    this%b        = this%b / 8.0_rp
+    this%c(1:4)   = [ 0.0_rp,  1.0_rp,  2.0_rp,  3.0_rp ]
+    this%c        = this%c / 3.0_rp
+ case ( imex_rk_4_3_implicit )
+    this%order = 3
+    this%num_stages = 4
+    call this%allocate_arrays()
+    this%a(1,1:4) = [ 1.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(2,1:4) = [ 1.0_rp,  3.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(3,1:4) = [-1.0_rp,  1.0_rp,  1.0_rp,  0.0_rp ]
+    this%a(4,1:4) = [ 3.0_rp, -3.0_rp,  1.0_rp,  1.0_rp ]
+    this%a(2,1:4) = this%a(2,1:4) / 3.0_rp
+    this%a        = this%a / 2.0_rp
+    this%b(1:4)   = [ 3.0_rp, -3.0_rp,  1.0_rp,  1.0_rp ]
+    this%b        = this%b / 2.0_rp
+    this%c(1:4)   = [ 3.0_rp,  4.0_rp,  3.0_rp,  6.0_rp ]
+    this%c        = this%c / 6.0_rp
+  case ( imex_rk_4_3_explicit )
+    this%order = 3
+    this%num_stages = 5
+    call this%allocate_arrays()
+    this%a(1,1:5) = [ 0.0_rp,  0.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(2,1:5) = [ 1.0_rp,  0.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(3,1:5) = [11.0_rp,  1.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(4,1:5) = [ 5.0_rp, -5.0_rp,  3.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(5,1:5) = [ 1.0_rp,  7.0_rp,  3.0_rp, -7.0_rp,  0.0_rp ]
+    this%a(2,1:5) = this%a(2,1:5) / 2.0_rp
+    this%a(3,1:5) = this%a(3,1:5) /18.0_rp
+    this%a(4,1:5) = this%a(4,1:5) / 6.0_rp
+    this%a(5,1:5) = this%a(5,1:5) / 4.0_rp
+    this%b(1:5)   = [ 1.0_rp,  7.0_rp,  3.0_rp, -7.0_rp,  0.0_rp ]
+    this%b        = this%b / 4.0_rp
+    this%c(1:5)   = [ 0.0_rp,  3.0_rp,  4.0_rp,  3.0_rp,  6.0_rp ]
+    this%c        = this%c / 6.0_rp
+ case default
+    check(.false.)
+ end select
+end subroutine butcher_tableau_create
+
+subroutine butcher_tableau_allocate_arrays ( this )
+ implicit none
+ class(butcher_tableau_t), intent(inout) :: this
+ call memalloc(this%num_stages, this%num_stages,this%a, __FILE__, __LINE__)
+ call memalloc(this%num_stages, this%b                , __FILE__, __LINE__)
+ call memalloc(this%num_stages, this%c                , __FILE__, __LINE__)
+end subroutine butcher_tableau_allocate_arrays
+
+subroutine butcher_tableau_free ( this )
+ implicit none
+ class(butcher_tableau_t), intent(inout) :: this
+ this%order = 0
+ this%num_stages = 0
+ if (allocated(this%time_integration_scheme)) deallocate(this%time_integration_scheme)
+ if (allocated(this%a)) call memfree(this%a,__FILE__,__LINE__)
+ if (allocated(this%b)) call memfree(this%b,__FILE__,__LINE__)
+ if (allocated(this%c)) call memfree(this%c,__FILE__,__LINE__)
+end subroutine butcher_tableau_free
+
+
+
+
+
+
+
+

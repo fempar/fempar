@@ -190,7 +190,7 @@ contains
         call fe_facet%get_gradients(ineigh,shape_gradients)
         
         do qpoint = 1, num_quad_points
-          call fe_facet%get_normals(qpoint,normals)
+          call fe_facet%get_normal(qpoint,normals)
           factor = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           call boundary_function%get_gradient(quad_coords(qpoint),boundary_gradient)

@@ -250,18 +250,7 @@ end subroutine free_timers
         call this%triangulation%free_cell_iterator(cell)
     end if
 
-    ! Setup Dirichlet BCs on the boundary of the conforming mesh.
-    
-    ! NOTE: The loop below is not enough for non-conforming meshes. 
-    ! On *full* non-conforming meshes, only proper VEFs can be on 
-    ! the boundary, i.e., there cannot be Dirichlet DoFs assigned to 
-    ! improper VEFs. However, with void FEs there can be improper 
-    ! VEFs with Dirichlet DoFs, in the same way as there can be 
-    ! improper VEFs with free DoFs. Possible solution: Loop on the 
-    ! boundary facets touching a non-void FE and set Dirichlet IDs 
-    ! to the improper VEFs of the facet, whose coarser cells around 
-    ! are all void.
-    
+    ! Setup Dirichlet BCs on the boundary of the initial conforming uniform mesh
     environment => this%triangulation%get_environment()
     if (environment%am_i_l1_task()) then
       call this%triangulation%create_vef_iterator(vef)

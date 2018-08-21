@@ -1147,15 +1147,15 @@ contains
     !< The **pach** contains a local view of the coordinates, connectivities 
     !< and field data per cell.
     !-----------------------------------------------------------------
-        class(base_output_handler_t),  intent(inout) :: this
-        type(output_handler_patch_t),  intent(inout) :: patch
+        class(base_output_handler_t),              intent(inout) :: this
+        type(output_handler_patch_t),              intent(inout) :: patch
         integer(ip)                                              :: reference_fe_id
         integer(ip)                                              :: idx
         integer(ip)                                              :: field_id
         integer(ip)                                              :: max_order_within_fe
         class(serial_fe_space_t),          pointer               :: fe_space
         type(fe_function_t),               pointer               :: fe_function
-        class(reference_fe_t),  pointer               :: reference_fe_geo
+        class(reference_fe_t),             pointer               :: reference_fe_geo
         class(environment_t),              pointer               :: environment
         type(point_t),                     pointer               :: coordinates(:)
         type(cell_map_t),                  pointer               :: cell_map
@@ -1169,6 +1169,7 @@ contains
         integer(ip), allocatable                                 :: patch_subcells_connectivity_a(:,:)
         class(output_handler_field_generator_t), pointer         :: field_generator
         class(fe_cell_iterator_t)   ,  pointer                   :: fe_cell_iterator
+        integer(ip)                                              :: fe_get_lev
     !-----------------------------------------------------------------
         fe_cell_iterator => this%ohcff%get_fe()
         fe_space => fe_cell_iterator%get_fe_space()
@@ -1179,13 +1180,13 @@ contains
             cell_map              => this%ohcff%get_cell_map()
             coordinates         => cell_map%get_coordinates()
             call fe_cell_iterator%get_nodes_coordinates(coordinates)
-
+            fe_get_lev = fe_cell_iterator%get_level()
             quadrature => this%ohcff%get_quadrature()
-            call cell_map%update(quadrature,no_ressemblance)
+            call cell_map%update(fe_get_lev,quadrature,no_ressemblance)
             
             do field_id=1, fe_cell_iterator%get_num_fields()
               cell_integrator => this%ohcff%get_cell_integrator(field_id)
-              call cell_integrator%update(no_ressemblance,cell_map)
+              call cell_integrator%update(fe_get_lev,no_ressemblance,cell_map)
             end do 
 
             ! Set subcell information into patch
