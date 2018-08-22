@@ -199,7 +199,11 @@ subroutine serial_fe_space_print ( this )
      call fe%get_fe_dofs(fe_dofs)
      do field_id = 1, fe%get_num_fields()
         write(*,'(a,i10,a)') '********* FIELD: ',field_id,'********'
-        write(*,'(10i10)') fe_dofs(field_id)%p
+        if ( associated(fe_dofs(field_id)%p) ) then
+          write(*,'(10i10)') fe_dofs(field_id)%p
+        else
+          write(*,'(a)') '(not associated)'
+        end if
      end do
      call fe%next()
   end do
@@ -767,7 +771,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   logical                  , allocatable :: is_void_field(:) 
   logical                  , allocatable :: n_face_mask(:,:) 
   logical                                :: reallocate 
-  logical                                :: local_found
   integer(ip)                            :: ielem
   class(triangulation_t), pointer        :: triangulation 
   
@@ -845,29 +848,18 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                  call fe%get_vef(vef_lid, vef)
                  if ( .not. vef%is_ghost() ) then
                     if ( vef%get_set_id() /= 0 .and. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
-                       local_found = .false.
-                       do ielem=1, vef%get_num_cells_around()
-                          call vef%get_cell_around(ielem, aux_fe)
-                          if (aux_fe%is_local()) then
-                             local_found = .true.
-                             exit
+                       ! Get scalar boundary functions 
+                       call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                       component_id = offset_component(field_id) + 1
+                       do icomp=1, reference_fe%get_num_field_components()
+                          if ( components_code(component_id+icomp-1) ) then
+                             n_face_mask(icomp, vef_lid) = .true. 
+                             ! Retreive the scalar functions corresponding to the components of the function to be projected
+                             call this%conditions%get_function(vef%get_set_id(),                 &
+                                                               component_id+icomp-1,             &
+                                                               function_scalar_components(icomp, vef_lid)%p)
                           end if
                        end do
-
-                       if (  fe%is_local() .or. .not. local_found ) then
-                          ! Get scalar boundary functions 
-                          call this%conditions%get_components_code( vef%get_set_id(), components_code )
-                          component_id = offset_component(field_id) + 1
-                          do icomp=1, reference_fe%get_num_field_components()
-                             if ( components_code(component_id+icomp-1) ) then
-                                n_face_mask(icomp, vef_lid) = .true. 
-                                ! Retreive the scalar functions corresponding to the components of the function to be projected
-                                call this%conditions%get_function(vef%get_set_id(),                 &
-                                                                  component_id+icomp-1,             &
-                                                                  function_scalar_components(icomp, vef_lid)%p)
-                             end if
-                          end do
-                       end if
                     end if
                  end if
               end do
@@ -1051,11 +1043,13 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
               
                  ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                  subset_fe_dofs = 0
-                 do idof = 1, size(fe_dofs(field_id)%p)
-                    if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
-                        subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
-                    end if
-                 end do
+                 if ( associated(fe_dofs(field_id)%p) ) then
+                   do idof = 1, size(fe_dofs(field_id)%p)
+                      if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                          subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
+                      end if
+                   end do
+                 end if
                  
                  reference_fe => fe%get_reference_fe(field_id)
                  call matrix%insert(num_rows = reference_fe%get_num_shape_functions(),& 
@@ -1221,14 +1215,16 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
            field_id = fields_to_project(ifield) 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then 
               call fe%get_fe_dofs(fe_dofs)
-              do idof = 1,size(fe_dofs(field_id)%p)
-                 if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
-                    if (global2subset(-fe_dofs(field_id)%p(idof))==0) then 
-                       num_subset_strong_dirichlet_dofs = num_subset_strong_dirichlet_dofs + 1
-                       global2subset(-fe_dofs(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
-                    end if
-                 end if
-              end do
+              if ( associated(fe_dofs(field_id)%p) ) then
+                do idof = 1,size(fe_dofs(field_id)%p)
+                   if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                      if (global2subset(-fe_dofs(field_id)%p(idof))==0) then 
+                         num_subset_strong_dirichlet_dofs = num_subset_strong_dirichlet_dofs + 1
+                         global2subset(-fe_dofs(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
+                      end if
+                   end if
+                end do
+              end if
            end if
         end do
      end if
@@ -3406,7 +3402,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   class(serial_fe_space_t), intent(inout) :: this 
   class(fe_cell_iterator_t), allocatable :: fe
   class(fe_cell_iterator_t), allocatable :: coarser_fe
-  type(fe_vef_iterator_t) :: fe_vef, fe_vef_bis, coarser_vef
+  type(fe_vef_iterator_t) :: fe_vef, fe_facet_touching_coarser_fe, coarser_vef
   type(list_iterator_t) :: fe_own_dofs_on_vef_iterator
   type(list_iterator_t) :: fe_dofs_on_vef_iterator 
   type(list_iterator_t) :: coarser_fe_dofs_on_vef_iterator
@@ -3417,6 +3413,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   integer(ip) :: istat, i, icell, min_cell_gid
   integer(ip) :: improper_dof_lid, hanging_dof_lid
   integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
+  integer(ip) :: coarser_fe_ivef_fe_facet, coarse_fe_subvef_fe_facet
   integer(ip), pointer :: field_blocks(:)
   integer(ip) :: qpoint, ishape_fe, ishape_coarser_fe, subcell_id 
   type(interpolation_t), pointer :: h_refinement_interpolation
@@ -3457,7 +3454,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_vef_iterator(fe_vef)
-  call this%create_fe_vef_iterator(fe_vef_bis)
+  call this%create_fe_vef_iterator(fe_facet_touching_coarser_fe)
   call this%create_fe_vef_iterator(coarser_vef)
 
   reference_fe => fe%get_reference_fe(1)
@@ -3627,25 +3624,21 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
                       coarse_fe_subvef, &
                       fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
               else if ( fe_vef%get_dim()  == 1 .and. this%triangulation%get_num_dims() == 3 .and. coarse_fe_subvef < 0 ) then
-                 ! Go over cells around fe_vef(), and find the one with the minimum global identifier
-                 call fe_vef%get_cell_around(1,fe)
-                 min_cell_gid=fe%get_gid()
-                 if ( fe_vef%get_num_cells_around() == 2 ) then
-                   call fe_vef%get_cell_around(2,fe)
-                   min_cell_gid=min(fe%get_gid(),min_cell_gid)
-                 end if
-                 call fe%set_gid(min_cell_gid)
-
+                 do icell = 1,fe_vef%get_num_cells_around()
+                   call fe_vef%get_cell_around(icell,fe)
+                   if ( .not. fe%is_void(field_id) ) exit
+                 end do
+                 
                  call fe%get_field_fe_dofs(field_id,fe_dofs)
 
                  reference_fe  => fe%get_reference_fe(field_id)    
                  facets_n_face => reference_fe%get_facets_n_face()      
 
-                 ! Go over faces around fe_vef in cell with minimum global identifier
+                 ! Go over faces around fe_vef in cell and find facet touching the coarser FE
                  facet_loop: do facet_lid = reference_fe%get_first_facet_id(), &
                       reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
-                    call fe_vef_bis%set_gid(fe%get_vef_gid(facet_lid))
-                    if (.not. fe_vef_bis%is_proper()) then
+                    call fe_facet_touching_coarser_fe%set_gid(fe%get_vef_gid(facet_lid))
+                    if (.not. fe_facet_touching_coarser_fe%is_proper()) then
                        facets_n_face_iterator = facets_n_face%create_iterator(facet_lid)
                        do while (.not. facets_n_face_iterator%is_upper_bound())
                           if (fe%get_vef_gid(facets_n_face_iterator%get_current()) == fe_vef%get_gid() ) then
@@ -3669,9 +3662,13 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
                     facet_dof = facet_dof+1
                  end do
                  assert (.not. dofs_n_facet_iterator%is_upper_bound())
-
-                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,&
-                      abs(coarse_fe_subvef),&
+                 
+                 coarser_fe_ivef_fe_facet = fe_facet_touching_coarser_fe%get_improper_cell_around_ivef(ife_around=1) 
+                 coarse_fe_subvef_fe_facet = fe_facet_touching_coarser_fe%get_improper_cell_around_subvef(ife_around=1) 
+                 ! fe_vef_bis is a facet, it only has one improper cell around
+                 
+                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef_fe_facet-num_cell_vertices-num_cell_edges,&
+                      coarse_fe_subvef_fe_facet,&
                       facet_dof)              
               else if (fe_vef%get_dim() == this%triangulation%get_num_dims()-1) then ! vef is a face (2D/3D)
                  qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
@@ -3732,7 +3729,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(fe_vef)
-  call this%free_fe_vef_iterator(fe_vef_bis)
+  call this%free_fe_vef_iterator(fe_facet_touching_coarser_fe)
   call this%free_fe_vef_iterator(coarser_vef)
 end subroutine serial_fe_space_setup_hanging_node_constraints
 

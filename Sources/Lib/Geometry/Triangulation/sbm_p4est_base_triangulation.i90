@@ -949,7 +949,7 @@ contains
                  else if (this%quad_to_quad_by_edge(iedge,icell) == -1) then 
                     improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
                     if ( min_cell_int_edge == jcell ) then
-                      improper_cell_around_subvef  = -isubface
+                      improper_cell_around_subvef  = -1
                     end if  
                  end if 
                  is_proper = .false.
