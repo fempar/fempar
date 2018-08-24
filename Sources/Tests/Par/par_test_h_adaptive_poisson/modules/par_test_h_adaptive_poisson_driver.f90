@@ -171,7 +171,7 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
 
-    class(cell_iterator_t), allocatable :: cell
+    class(cell_iterator_t), allocatable :: cell, coarser_cell
     type(point_t), allocatable :: cell_coords(:)
     integer(ip) :: istat
     integer(ip) :: set_id
@@ -193,8 +193,9 @@ end subroutine free_timers
     real(rp)                      :: domain(6)
     character(len=:), allocatable :: subparts_coupling_criteria
     integer(ip) :: num_refs
+    integer(ip) :: vef_set_id
 
-    ! Create a structured mesh with a custom domain 
+    ! Create a p4est mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
@@ -211,7 +212,6 @@ end subroutine free_timers
         call this%triangulation%redistribute()
         call this%triangulation%clear_refinement_and_coarsening_flags()
       end do
-    
     
       if ( this%par_environment%am_i_l1_task() ) then
         call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
@@ -250,6 +250,7 @@ end subroutine free_timers
         call this%triangulation%free_cell_iterator(cell)
     end if
 
+    ! Setup Dirichlet BCs on the boundary of the initial conforming uniform mesh
     environment => this%triangulation%get_environment()
     if (environment%am_i_l1_task()) then
       call this%triangulation%create_vef_iterator(vef)
@@ -264,70 +265,82 @@ end subroutine free_timers
        call this%triangulation%free_vef_iterator(vef)
     end if  
 
+    ! For the popcorn example, set all the vefs on the interface between 
+    ! full/void if there are void fes on the Dirichlet boundary. 
+    ! NOTE: This algorithm is only valid for conforming meshes.
+    
     if (environment%am_i_l1_task()) then
-    ! Set all the vefs on the interface between full/void if there are void fes
-    if (this%test_params%get_use_void_fes()) then
-      call this%triangulation%create_vef_iterator(vef)
-      call this%triangulation%create_vef_iterator(vef_of_vef)
-      call this%triangulation%create_cell_iterator(cell)
-      do while ( .not. vef%has_finished() )
+    
+      if ( this%test_params%get_use_void_fes() .and. &
+           trim(this%test_params%get_use_void_fes_case()) == 'popcorn' ) then
+        call this%triangulation%create_vef_iterator(vef)
+        call this%triangulation%create_vef_iterator(vef_of_vef)
+        call this%triangulation%create_cell_iterator(cell)
+        call this%triangulation%create_cell_iterator(coarser_cell)
+        do while ( .not. vef%has_finished() )
 
-         ! If it is an INTERIOR face
-         if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
- 
-           ! Compute number of void neighbors
-           num_void_neigs = 0
-           do icell_arround = 1,vef%get_num_cells_around()
-             call vef%get_cell_around(icell_arround,cell)
-             if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
-           end do
+           ! If it is an INTERIOR face
+           if( vef%get_dim() == this%triangulation%get_num_dims()-1 & 
+               .and. .not. vef%is_at_boundary() ) then
+   
+             ! Compute number of void neighbors
+             num_void_neigs = 0
+             do icell_arround = 1,vef%get_num_cells_around()
+               call vef%get_cell_around(icell_arround,cell)
+               if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+             end do
+             
+             do icell_arround = 1,vef%get_num_improper_cells_around()
+               call vef%get_improper_cell_around(icell_arround,cell)
+               if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+             end do
 
-           if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+             if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+                 
+                 ! Set this vef and vefs of this vef at the Dirichlet boundary
+                 if ( vef%is_proper() .or. all_coarser_cells_around_vef_are_void() ) call vef%set_set_id(1)
+                 
+                 ! Do a loop on all edges in 3D (vertex in 2D) of the face
+                 call vef%get_cell_around(1,cell) ! There is always one cell around
+                 reference_fe_geo => cell%get_reference_fe()
+                 ivef_pos_in_cell = cell%get_vef_lid_from_gid(vef%get_gid())
+                 vefs_of_vef => reference_fe_geo%get_facets_n_face()
+                 vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
+                 do while( .not. vefs_of_vef_iterator%is_upper_bound() )
 
-               ! Set this face as Dirichlet boundary
-               call vef%set_set_id(1)
+                    ! Set edge (resp. vertex) as Dirichlet
+                    vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+                    call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+                    if ( vef%is_proper() .or. all_coarser_cells_around_vef_are_void() ) call vef_of_vef%set_set_id(1)
 
-               ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_gid()
-               call vef%get_cell_around(1,cell) ! There is always one cell around
-               reference_fe_geo => cell%get_reference_fe()
-               ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
-               vefs_of_vef => reference_fe_geo%get_facets_n_face()
-               vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
-               do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+                    ! If 3D, traverse vertices of current line
+                    if ( this%triangulation%get_num_dims() == 3 ) then
+                      vertices_of_line          => reference_fe_geo%get_vertices_n_face()
+                      vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
+                      do while( .not. vertices_of_line_iterator%is_upper_bound() )
 
-                  ! Set edge (resp. vertex) as Dirichlet
-                  vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
-                  call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
-                  call vef_of_vef%set_set_id(1)
+                        ! Set vertex as Dirichlet
+                        vertex_pos_in_cell = vertices_of_line_iterator%get_current()
+                        call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
+                        if ( vef%is_proper() .or. all_coarser_cells_around_vef_are_void() ) call vef_of_vef%set_set_id(1)
 
-                  ! If 3D, traverse vertices of current line
-                  if ( this%triangulation%get_num_dims() == 3 ) then
-                    vertices_of_line          => reference_fe_geo%get_vertices_n_face()
-                    vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
-                    do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                        call vertices_of_line_iterator%next()
+                      end do ! Loop in vertices in 3D only
+                    end if
 
-                      ! Set vertex as Dirichlet
-                      vertex_pos_in_cell = vertices_of_line_iterator%get_current()
-                      call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
-                      call vef_of_vef%set_set_id(1)
+                    call vefs_of_vef_iterator%next()
+                 end do ! Loop in edges (resp. vertices)
 
-                      call vertices_of_line_iterator%next()
-                    end do ! Loop in vertices in 3D only
-                  end if
+             end if ! If face on void/full boundary
+           end if ! If vef is an interior face
 
-                  call vefs_of_vef_iterator%next()
-               end do ! Loop in edges (resp. vertices)
-
-           end if ! If face on void/full boundary
-         end if ! If vef is an interior face
-
-         call vef%next()
-      end do ! Loop in vefs
-      call this%triangulation%free_cell_iterator(cell)
-      call this%triangulation%free_vef_iterator(vef)
-      call this%triangulation%free_vef_iterator(vef_of_vef)
-    end if
+           call vef%next()
+        end do ! Loop in vefs
+        call this%triangulation%free_cell_iterator(cell)
+        call this%triangulation%free_cell_iterator(coarser_cell)
+        call this%triangulation%free_vef_iterator(vef)
+        call this%triangulation%free_vef_iterator(vef_of_vef)
+      end if
     end if
     
     num_refs = this%test_params%get_num_refinements() 
@@ -344,7 +357,21 @@ end subroutine free_timers
     end do
 #ifdef ENABLE_MKL    
     call this%triangulation%setup_coarse_triangulation()
-#endif    
+#endif
+   
+   contains
+     
+     function all_coarser_cells_around_vef_are_void()
+       implicit none
+       logical :: all_coarser_cells_around_vef_are_void
+       all_coarser_cells_around_vef_are_void = .true.
+       do icell_arround = 1,vef%get_num_improper_cells_around()
+         call vef%get_improper_cell_around(icell_arround,coarser_cell)
+         if (coarser_cell%get_set_id() == PAR_TEST_POISSON_FULL) all_coarser_cells_around_vef_are_void = .false.
+         exit
+       end do
+     end function all_coarser_cells_around_vef_are_void
+     
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -417,6 +444,7 @@ end subroutine free_timers
     end if
     
     call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration() 
 #ifdef ENABLE_MKL    
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
 #endif    

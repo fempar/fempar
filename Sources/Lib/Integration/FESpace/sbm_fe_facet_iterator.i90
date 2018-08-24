@@ -50,10 +50,11 @@ subroutine aux_create_facet(this,fe_space,vef)
    massert ( (triangulation%get_num_reference_fes() == 1), "FE_FACET_ITERATOR does NOT support mixed cells topology. All triangulation cells MUST have the same topology.")
    this%ref_fe_geo => triangulation%get_reference_fe(1)
    this%facet_integration_is_set_up = fe_space%get_facet_integration_is_set_up()
-   if ( this%facet_integration_is_set_up .and. fe_space%facet_quadratures%size() == 2 ) then
+   if ( this%facet_integration_is_set_up       .and. & 
+        fe_space%facet_quadratures%size() == 2 .and. & 
+        fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) then
      this%single_quad_facet_map_facet_integs = .true.
      assert ( fe_space%facet_maps%size() == 2 ) 
-     assert ( fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) 
    else
      this%single_quad_facet_map_facet_integs = .false.
    end if 
@@ -397,40 +398,87 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
 end subroutine fe_facet_iterator_assembly_matrix
 
 subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
-                                                    facemat, &
-                                                    facevec, &
-                                                    assembler )
+                                                     facemat, &
+                                                     facevec, &
+                                                     assembler )
   implicit none
-  class(fe_facet_iterator_t)      , intent(inout) :: this
-  real(rp)                       , intent(in)    :: facemat(:,:,:,:)
-  real(rp)                       , intent(in)    :: facevec(:,:)
-  class(assembler_t), intent(inout) :: assembler
+  class(fe_facet_iterator_t), intent(inout) :: this
+  real(rp)                  , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                  , intent(in)    :: facevec(:,:)
+  class(assembler_t)        , intent(inout) :: assembler
   
   integer(ip) :: ineigh, jneigh
- 
+  
+  logical     :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  integer(ip) :: i, j
+  
   do ineigh = 1, this%get_num_cells_around()
     call this%fes_around(ineigh)%p%update_assembly_scratch_data()
   end do
   call this%clear_fe_dofs_ghost_full_local_void()
   
-  
-  do ineigh = 1, this%get_num_cells_around()
-    do jneigh = 1, this%get_num_cells_around()
-      call assembler%assembly_matrix( this%fe_space%num_fields,                   &
-                                                   this%fe_space%get_field_blocks(),              &
-                                                   this%fe_space%get_field_coupling(),            &
-                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
-                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
-                                                   this%fes_around(ineigh)%p%fe_dofs,              &
-                                                   this%fes_around(jneigh)%p%fe_dofs,              &
-                                                   facemat(:,:,ineigh,jneigh) )
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+    do ineigh = 1, this%get_num_cells_around()
+      if ( this%fes_around(ineigh)%p%has_hanging_dofs(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+      end if
     end do
-    call assembler%assembly_array( this%fe_space%num_fields,                    &
-                                                  this%fe_space%get_field_blocks(),               &
-                                                  this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
-                                                  this%fes_around(ineigh)%p%fe_dofs,               &
-                                                  facevec(:,ineigh) )
   end do
+  
+  if ( no_hanging_node_constraints ) then
+    
+    do ineigh = 1, this%get_num_cells_around()
+      do jneigh = 1, this%get_num_cells_around()
+        call assembler%assembly_matrix( this%fe_space%num_fields,                        &
+                                        this%fe_space%get_field_blocks(),                &
+                                        this%fe_space%get_field_coupling(),              &
+                                        this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                        this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                        this%fes_around(ineigh)%p%fe_dofs,               &
+                                        this%fes_around(jneigh)%p%fe_dofs,               &
+                                        facemat(:,:,ineigh,jneigh) )
+      end do
+      call assembler%assembly_array( this%fe_space%num_fields,                        &
+                                     this%fe_space%get_field_blocks(),                &
+                                     this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                     this%fes_around(ineigh)%p%fe_dofs,               &
+                                     facevec(:,ineigh) )
+    end do
+    
+  else
+    
+    do ineigh = 1, this%get_num_cells_around()
+      ! RMK: Not applying constraints on the crossed terms
+      call this%fes_around(ineigh)%p%apply_constraints( facemat(:,:,ineigh,ineigh), & 
+                                                        facevec(:,ineigh) )
+    end do
+    
+    do ineigh = 1, this%get_num_cells_around()
+      do jneigh = 1, this%get_num_cells_around()
+        ! RMK: Not assembling crossed terms
+        if ( ineigh == jneigh ) then
+          call assembler%assembly_matrix( this%fe_space%num_fields,                        &
+                                          this%fe_space%get_field_blocks(),                &
+                                          this%fe_space%get_field_coupling(),              &
+                                          this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                          this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                          this%fes_around(ineigh)%p%fe_dofs,               &
+                                          this%fes_around(jneigh)%p%fe_dofs,               &
+                                          this%fes_around(ineigh)%p%extended_elmat%a )
+        end if
+      end do
+      call assembler%assembly_array( this%fe_space%num_fields,                        &
+                                     this%fe_space%get_field_blocks(),                &
+                                     this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                     this%fes_around(ineigh)%p%fe_dofs,               &
+                                     this%fes_around(ineigh)%p%extended_elvec%a  )
+    
+    end do
+    
+  end if
   
 end subroutine fe_facet_iterator_assembly_matrix_array
 

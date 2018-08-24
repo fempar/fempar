@@ -66,7 +66,8 @@ contains
     class(assembler_t)      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_cell_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t) , allocatable :: fe
+    class(fe_facet_iterator_t), allocatable :: fe_facet
 
     ! FE integration-related data types
     type(quadrature_t)       , pointer :: quad
@@ -80,7 +81,10 @@ contains
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable :: elmat(:,:), elvec(:)
     
-
+    ! FACE matrix and vector, i.e., A_F + f_F
+    real(rp), allocatable :: facemat(:,:,:,:)
+    real(rp), allocatable :: facevec(:,:)
+    
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points, max_num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
@@ -88,8 +92,11 @@ contains
     real(rp)     :: factor
     real(rp)     :: source_term_value
     
-    class(scalar_function_t), pointer :: source_term
-    class(triangulation_t), pointer :: triangulation
+    type(vector_field_t) :: normals(2), boundary_gradient
+    integer(ip)          :: ineigh
+    
+    class(scalar_function_t), pointer :: source_term, boundary_function
+    class(triangulation_t)  , pointer :: triangulation
     
     
     assert (associated(this%analytical_functions)) 
@@ -156,7 +163,55 @@ contains
        end if
        call fe%next()
     end do
+    
+    call memalloc ( max_num_dofs, max_num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    facemat = 0.0_rp
+    call memalloc ( max_num_dofs, 2, facevec, __FILE__, __LINE__ )
+    
+    call fe_space%create_fe_facet_iterator(fe_facet)
+    
+    boundary_function => this%analytical_functions%get_boundary_function()
+    
+    do while ( .not. fe_facet%has_finished() ) 
+      
+      ! Very important: this has to be inside the loop, as different FEs can be present!
+      quad            => fe_facet%get_quadrature()
+      num_quad_points =  quad%get_num_quadrature_points()
+      
+      ! If I am a facet on the Neumann boundary
+      if ( fe_facet%is_at_field_boundary(field_id=1) .and. fe_facet%get_set_id() == 0 ) then
+        
+        call fe_facet%update_integration()
+        ineigh  = fe_facet%get_active_cell_id(1)
+        
+        facevec = 0.0_rp
+        quad_coords => fe_facet%get_quadrature_points_coordinates()
+        call fe_facet%get_values(ineigh,shape_values)
+        call fe_facet%get_gradients(ineigh,shape_gradients)
+        
+        do qpoint = 1, num_quad_points
+          call fe_facet%get_normal(qpoint,normals)
+          factor = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          
+          call boundary_function%get_gradient(quad_coords(qpoint),boundary_gradient)
+
+          do idof = 1, num_dofs
+            facevec(idof,ineigh) = facevec(idof,ineigh) + & 
+              factor * ( boundary_gradient * normals(ineigh) ) * shape_values(idof,qpoint) 
+          end do   
+        end do
+        
+        ! TO-DO: Change when fe_facet_assembly_array covers nonconforming meshes
+        call fe_facet%assembly( facemat, facevec, assembler )
+        
+      end if
+      
+      call fe_facet%next()
+      
+    end do
+    
     call fe_space%free_fe_cell_iterator(fe)
+    call fe_space%free_fe_facet_iterator(fe_facet)
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( source_term_values, __FILE__, __LINE__ )
@@ -164,6 +219,8 @@ contains
     call memfree ( weights, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+    call memfree ( facemat, __FILE__, __LINE__ )
+    call memfree ( facevec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
 end module poisson_discrete_integration_names
