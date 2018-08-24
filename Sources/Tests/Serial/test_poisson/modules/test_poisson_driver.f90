@@ -114,12 +114,13 @@ contains
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
     ierr=this%parameter_list%set(key=execution_context_key,value=serial_context)
-    call this%serial_environment%create(this%parameter_list)
+    call this%serial_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
   
   subroutine setup_triangulation(this)
@@ -148,7 +149,7 @@ contains
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%parameter_list, this%serial_environment)
     !call this%triangulation%print()
     
     ! Set the cell ids to use void fes
@@ -668,8 +669,6 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this    
     call this%free()
-    call this%parse_command_line_parameters()
-    call this%setup_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

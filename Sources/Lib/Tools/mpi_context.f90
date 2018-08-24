@@ -153,7 +153,7 @@ contains
        call this%set_current_task(current_task)
        call this%set_num_tasks(num_tasks)
     class default
-       check(.false.)
+       mcheck(.false.,'Only a mpi_context_t can be assigned using this function')
     end select
   end subroutine mpi_context_assign
   

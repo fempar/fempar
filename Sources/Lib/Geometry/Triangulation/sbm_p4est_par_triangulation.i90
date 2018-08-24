@@ -30,7 +30,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   implicit none
   class(p4est_par_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                   , intent(inout) :: parameters
-  type(environment_t),    optional, target, intent(in)    :: environment
+  type(environment_t)             , target, intent(in)    :: environment
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t)      , pointer :: p_environment
@@ -47,17 +47,19 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   call this%free()
   
   call this%set_single_octree_mesh(.true.)
-  
-  if(present(environment)) then
-     call this%set_environment(environment)
-     p_environment => this%get_environment()
-  else
-     istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-     istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
-     call this%allocate_environment()
-     p_environment => this%get_environment()
-     call p_environment%create(parameters)
-  end if
+
+  call this%set_environment(environment)
+  p_environment => this%get_environment()
+  ! if(present(environment)) then
+  !    call this%set_environment(environment)
+  !    p_environment => this%get_environment()
+  ! else
+  !    istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+  !    istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
+  !    call this%allocate_environment()
+  !    p_environment => this%get_environment()
+  !    call p_environment%create(parameters)
+  ! end if
 
   if( parameters%isPresent(subparts_coupling_criteria_key) ) then
      massert(parameters%isAssignable(subparts_coupling_criteria_key, dummy_string), 'Subparts coupling criteria not found or un-usable')

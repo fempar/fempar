@@ -32,7 +32,12 @@ program test_transient_poisson
   use test_transient_poisson_driver_names  
   implicit none
   type(test_transient_poisson_driver_t) :: test_driver
+  type(serial_context_t)      :: world_context
   call fempar_init() 
+  call test_driver%parse_command_line_parameters()
+  call world_context%create()
+  call test_driver%setup_environment(world_context)
   call test_driver%run_simulation()
+  call world_context%free(finalize=.true.)
   call fempar_finalize()
 end program test_transient_poisson

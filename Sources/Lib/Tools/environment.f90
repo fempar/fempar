@@ -47,6 +47,7 @@ module environment_names
   integer(ip) , parameter :: created     = 1            ! when contexts have been created from lower levels
   integer(ip) , parameter :: created_from_scratch = 2   ! when contexts have been created from scratch
 
+  ! The following lines can be eliminated....
   integer(ip)     , parameter :: mpi_context    = 0
   integer(ip)     , parameter :: serial_context = 1
   integer(ip)     , parameter :: mpi_omp_context = 2
@@ -275,11 +276,12 @@ contains
   end subroutine environment_write_file
 
   !=============================================================================
-  subroutine environment_create ( this, parameters)
+  subroutine environment_create ( this, world_context, parameters)
     !$ use omp_lib
     implicit none 
-    class(environment_t), intent(inout) :: this
-    type(ParameterList_t)   , intent(in)    :: parameters
+    class(environment_t)      , intent(inout) :: this
+    class(execution_context_t), intent(in)    :: world_context
+    type(ParameterList_t)     , intent(in)    :: parameters
 
     ! Some refactoring is needed here separating num_parts_x_level (and dir)
     ! from the rest of the mesh information.
@@ -315,14 +317,15 @@ contains
        environment_type = unstructured
     end if
 
-    if(execution_context==serial_context) then
-       allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
-    else if(execution_context==mpi_context) then
-       allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
-    else if(execution_context==mpi_omp_context) then
-       allocate(mpi_omp_context_t :: this%world_context,stat=istat); check(istat==0)
-    end if
-    call this%world_context%create()
+    this%world_context = world_context
+    ! if(execution_context==serial_context) then
+    !    allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
+    ! else if(execution_context==mpi_context) then
+    !    allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
+    ! else if(execution_context==mpi_omp_context) then
+    !    allocate(mpi_omp_context_t :: this%world_context,stat=istat); check(istat==0)
+    ! end if
+    ! call this%world_context%create()
 
     if(environment_type==unstructured) then
 
@@ -495,8 +498,9 @@ contains
        call this%l1_context%free(finalize=.false.)
        call this%lgt1_context%free(finalize=.false.)
        call this%l1_to_l2_context%free(finalize=.false.)
-       call this%world_context%free(finalize=(this%state == created_from_scratch))
-       deallocate ( this%world_context, stat = istat ); assert ( istat == 0 )
+       call this%world_context%free(finalize=.false.)
+       ! call this%world_context%free(finalize=(this%state == created_from_scratch))
+       ! deallocate ( this%world_context, stat = istat ); assert ( istat == 0 )
        this%state = not_created
     end if
     if(this%num_levels > 0) then

@@ -37,6 +37,8 @@ module fempar_names
   use environment_names 
   use execution_context_names
   use mpi_context_names
+  use mpi_omp_context_names
+  use serial_context_names
   use flap, only : command_line_interface
   use FPL
   use timer_names

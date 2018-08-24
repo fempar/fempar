@@ -26,13 +26,14 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine p4est_serial_triangulation_create (this, parameters)
+subroutine p4est_serial_triangulation_create (this, parameters, environment)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                      , intent(inout) :: parameters
+  type(environment_t)                , target, intent(in)    :: environment
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
-  class(environment_t), pointer :: environment
+  !class(environment_t), pointer ::environment
   integer(ip) :: num_dims, idime 
   integer(ip), allocatable :: array_size(:)
   real(rp)   , allocatable :: bounding_box_limits(:)
@@ -43,10 +44,11 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   
   call this%set_single_octree_mesh(.true.)
   
-  istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
-  call this%allocate_environment()
-  environment => this%get_environment()
-  call environment%create(parameters)
+  call this%set_environment(environment)
+  ! istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
+  ! call this%allocate_environment()
+  ! environment => this%get_environment()
+  ! call environment%create(parameters)
   
   ! Get num_dims from FPL
   massert(parameters%isAssignable(num_dims_key, num_dims ),'num_dims not found or un-usable.')
@@ -208,7 +210,7 @@ subroutine p4est_serial_triangulation_free ( this)
 
   call this%reference_fe_geo%free()
   call this%free_reference_fe_geo_scratch_data()
-  call this%free_environment()
+  !call this%free_environment()
   
   call triangulation_free(this)
 #else

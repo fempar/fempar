@@ -46,7 +46,8 @@ module test_transient_poisson_driver_names
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_transient_poisson_params_t)   :: test_params
      type(ParameterList_t)                   :: parameter_list
-     
+     type(environment_t)                     :: serial_environment
+ 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
      integer(ip), allocatable                  :: cell_set_ids(:)
@@ -77,7 +78,8 @@ module test_transient_poisson_driver_names
      type(output_handler_t)                    :: oh
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -111,6 +113,16 @@ contains
   end subroutine parse_command_line_parameters
   
   ! -----------------------------------------------------------------------------------------------
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_transient_poisson_driver_t), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    ierr=this%parameter_list%set(key=execution_context_key,value=serial_context)
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+
+  ! -----------------------------------------------------------------------------------------------
   subroutine setup_triangulation(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -137,7 +149,7 @@ contains
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%parameter_list, this%serial_environment)
     !call this%triangulation%print()
 
     
@@ -516,7 +528,6 @@ contains
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this    
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
