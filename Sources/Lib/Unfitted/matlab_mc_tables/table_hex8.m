@@ -2,7 +2,7 @@ clear
 close all
 clc
 
-addpath('~/Workspace/code/matlab/bddc/libFEM/')
+% addpath('~/Workspace/code/matlab/bddc/libFEM/')
 
 Xe = [...
     -1.0  -1.0  -1.0
