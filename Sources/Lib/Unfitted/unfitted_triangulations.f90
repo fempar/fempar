@@ -58,6 +58,8 @@ module unfitted_triangulations_names
   ! Include the look-up tables 
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
+# include "mc_tables_tri3.i90"
+# include "mc_tables_tet4.i90"
   
   type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
