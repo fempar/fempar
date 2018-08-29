@@ -4,8 +4,8 @@ clc
 
 % addpath('~/Workspace/code/matlab/bddc/libFEM/')
 
-Xe     = [-1 -1; 1 -1; -1 1]; % fempar numbering
-Eedges = [1 2; 2 3; 3 1]; % fempar numbering
+Xe     = [0 0; 1 0; 0 1]; % fempar numbering
+Eedges = [1 2; 1 3; 2 3]; % fempar numbering
 Pe  = [0 0 0 ]';
 Efaces = [1 2; 2 3; 3 1]; % Matlab numbering
 
