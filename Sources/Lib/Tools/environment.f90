@@ -321,23 +321,28 @@ contains
 
     allocate(this%world_context,mold=world_context,stat=istat); check(istat==0)
     this%world_context = world_context
-    ! if(execution_context==serial_context) then
-    !    allocate(serial_context_t :: this%world_context,stat=istat); check(istat==0)
-    ! else if(execution_context==mpi_context) then
-    !    allocate(mpi_context_t :: this%world_context,stat=istat); check(istat==0)
-    ! else if(execution_context==mpi_omp_context) then
-    !    allocate(mpi_omp_context_t :: this%world_context,stat=istat); check(istat==0)
-    ! end if
-    ! call this%world_context%create()
-
-    if(environment_type==unstructured) then
-
-       if(this%world_context%get_num_tasks()>1) then
+    
+    ! If there is a single MPI task, then trivially create
+    ! all execution_context_t member variables it is composed of
+    if(this%world_context%get_num_tasks()==1) then
+      allocate(this%l1_context,mold=this%world_context,stat=istat);check(istat==0)
+      this%l1_context = this%world_context
+      allocate(this%lgt1_context,mold=this%world_context,stat=istat);check(istat==0)
+      call this%lgt1_context%nullify()
+      allocate(this%l1_to_l2_context,mold=this%world_context,stat=istat);check(istat==0)
+      call this%l1_to_l2_context%nullify()
+      this%num_levels = 1
+      call memalloc( this%num_levels, this%num_parts_x_level, __FILE__, __LINE__ )
+      this%num_parts_x_level = 1 
+      call memalloc( this%num_levels, this%parts_mapping, __FILE__, __LINE__ )
+      this%parts_mapping = 1
+    else
+       if(environment_type==unstructured) then
           ! Mandatory parameters
           assert(parameters%isAssignable(dir_path_key, 'string'))
           istat = parameters%GetAsString(key = dir_path_key, String = dir_path)
           assert(istat==0)
-          
+
           assert(parameters%isAssignable(prefix_key, 'string'))
           istat = parameters%GetAsString(key = prefix_key  , String = prefix) 
           assert(istat==0)
@@ -355,70 +360,60 @@ contains
           ! Recursively create multilevel environment
           call this%fill_contexts()
 
-       else
-          allocate(this%l1_context,mold=this%world_context,stat=istat);check(istat==0)
-          this%l1_context = this%world_context
-          allocate(this%lgt1_context,mold=this%world_context,stat=istat);check(istat==0)
-          call this%lgt1_context%nullify()
-          allocate(this%l1_to_l2_context,mold=this%world_context,stat=istat);check(istat==0)
-          call this%l1_to_l2_context%nullify()
-       end if
+       else if(environment_type==structured) then
 
-    else if(environment_type==structured) then
 
-       call uniform_hex_mesh%get_data_from_parameter_list(parameters)
 
-       ! Generate parts, assign them to tasks and verify that the multilevel environment 
-       ! can be executed in current context (long-lasting Alberto's concern). 
-       call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
-            &                                          num_levels, &
-            &                                          num_parts_x_level, &
-            &                                          parts_mapping)
-       call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
-       call memfree(num_parts_x_level,__FILE__,__LINE__)
-       call memfree(parts_mapping,__FILE__,__LINE__)
-       check(this%get_num_tasks() <= this%world_context%get_num_tasks())
-
-       ! Recursively create multilevel environment
-       call this%fill_contexts()
-       call uniform_hex_mesh%free()
-    else if(environment_type==p4est) then
-        ! Optional
-        if( parameters%isPresent(num_levels_key) ) then
-          assert(parameters%isAssignable(num_levels_key, num_levels))
-          istat = parameters%get(key = num_levels_key , value = num_levels)
-          assert(istat==0)
-        else
-          num_levels = 1
-        end if
-        
-        ! This part is absolutely temporary. To re-think for num_levels > 2
-        massert ( num_levels == 1 .or. num_levels == 2, "p4est triangulation CANNOT be used with num_levels > 2")
-    
-        call memalloc( num_levels, num_parts_x_level, __FILE__, __LINE__ )
-        num_parts_x_level(1) = this%world_context%get_num_tasks()-1
-        if ( num_levels == 1 ) then
-          num_parts_x_level(1) = this%world_context%get_num_tasks()
-        else if ( num_levels == 2 ) then
+          ! Generate parts, assign them to tasks and verify that the multilevel environment 
+          ! can be executed in current context (long-lasting Alberto's concern). 
+          call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
+               &                                          num_levels, &
+               &                                          num_parts_x_level, &
+               &                                          parts_mapping)
+          call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+          call memfree(num_parts_x_level,__FILE__,__LINE__)
+          call memfree(parts_mapping,__FILE__,__LINE__)
+          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
+          
+          ! Recursively create multilevel environment
+          call this%fill_contexts()
+          call uniform_hex_mesh%free()
+       else if(environment_type==p4est) then
+          ! Optional
+          if( parameters%isPresent(num_levels_key) ) then
+             assert(parameters%isAssignable(num_levels_key, num_levels))
+             istat = parameters%get(key = num_levels_key , value = num_levels)
+             assert(istat==0)
+          else
+             num_levels = 1
+          end if
+          
+          ! This part is absolutely temporary. To re-think for num_levels > 2
+          massert ( num_levels == 1 .or. num_levels == 2, "p4est triangulation CANNOT be used with num_levels > 2")
+          
+          call memalloc( num_levels, num_parts_x_level, __FILE__, __LINE__ )
           num_parts_x_level(1) = this%world_context%get_num_tasks()-1
-          num_parts_x_level(2) = 1
-        end if   
-        
-        call memalloc( num_levels, parts_mapping, __FILE__, __LINE__ )
-        parts_mapping(1) = this%world_context%get_current_task()+1
-        if ( num_levels == 2 ) then
-          parts_mapping(2) = 1
-        end if   
-        call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
-        call this%fill_contexts()
-        
-        call memfree(num_parts_x_level,__FILE__,__LINE__)
-        call memfree(parts_mapping,__FILE__,__LINE__)
-        check(this%get_num_tasks() <= this%world_context%get_num_tasks())
+          if ( num_levels == 1 ) then
+             num_parts_x_level(1) = this%world_context%get_num_tasks()
+          else if ( num_levels == 2 ) then
+             num_parts_x_level(1) = this%world_context%get_num_tasks()-1
+             num_parts_x_level(2) = 1
+          end if
+          
+          call memalloc( num_levels, parts_mapping, __FILE__, __LINE__ )
+          parts_mapping(1) = this%world_context%get_current_task()+1
+          if ( num_levels == 2 ) then
+             parts_mapping(2) = 1
+          end if
+          call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+          call this%fill_contexts()
+          
+          call memfree(num_parts_x_level,__FILE__,__LINE__)
+          call memfree(parts_mapping,__FILE__,__LINE__)
+          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
+       end if
     end if
-    
     this%state = created_from_scratch
-
   end subroutine environment_create
 
   !=============================================================================
