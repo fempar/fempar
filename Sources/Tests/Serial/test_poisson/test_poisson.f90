@@ -33,11 +33,11 @@ program test_poisson
   implicit none
   type(test_poisson_driver_t) :: test_driver
   type(serial_context_t)      :: world_context
+  call world_context%create()
   call fempar_init() 
   call test_driver%parse_command_line_parameters()
-  call world_context%create()
   call test_driver%setup_environment(world_context)
   call test_driver%run_simulation()
-  call world_context%free(finalize=.true.)
   call fempar_finalize()
+  call world_context%free(finalize=.true.)
 end program test_poisson

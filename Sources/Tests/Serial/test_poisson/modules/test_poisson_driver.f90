@@ -84,8 +84,8 @@ module test_poisson_driver_names
      type(fe_function_t)                       :: solution
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
-     procedure        , private :: setup_environment
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
