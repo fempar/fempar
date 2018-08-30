@@ -71,6 +71,7 @@ module stokes_driver_names
      type(stokes_conditions_t)                    :: conditions
      type(stokes_analytical_functions_t)          :: analytical_functions
      type(fe_affine_operator_t)                   :: fe_affine_operator
+     type(environment_t)                          :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                        :: direct_solver
      type(iterative_linear_solver_t)              :: iterative_linear_solver
@@ -81,7 +82,9 @@ module stokes_driver_names
 
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
      procedure        , private :: fill_cells_set
@@ -108,6 +111,20 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(stokes_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(stokes_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
 
   subroutine setup_levelset(this)
     implicit none
@@ -182,7 +199,7 @@ contains
     logical :: active_found, innactive_found
 
     ! Create the triangulation, with the levelset function
-    call this%triangulation%create(this%parameter_list,this%level_set_function)
+    call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )
