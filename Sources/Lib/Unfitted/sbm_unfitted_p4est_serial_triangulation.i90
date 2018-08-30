@@ -34,7 +34,7 @@ subroutine upst_create(this, parameters, level_set_function, environment)
   class(level_set_function_t),            target, intent(in)    :: level_set_function
   type(environment_t)                   , target, intent(in)    :: environment
   call this%free()
-  call this%p4est_serial_triangulation_t%create(parameters, environment)
+  call this%p4est_serial_triangulation_t%create(environment,parameters)
   call this%marching_cubes%create(this, level_set_function)
 end subroutine upst_create
 

@@ -86,6 +86,7 @@ module test_poisson_driver_names
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
      procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -123,6 +124,12 @@ contains
     call this%serial_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
   
+  subroutine free_environment(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
+  
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
@@ -149,7 +156,7 @@ contains
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list, this%serial_environment)
+    call this%triangulation%create(this%serial_environment, this%parameter_list)
     !call this%triangulation%print()
     
     ! Set the cell ids to use void fes

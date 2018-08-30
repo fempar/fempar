@@ -26,11 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine serial_triangulation_create ( this, parameters, environment)
+subroutine serial_triangulation_create ( this, environment, parameters)
   implicit none
   class(serial_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t)        , intent(inout)         :: parameters
   type(environment_t)          ,  target, intent(in)   :: environment
+  type(ParameterList_t)        , intent(inout)         :: parameters
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 

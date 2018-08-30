@@ -35,7 +35,7 @@ subroutine put_create(this, parameters, level_set_function, par_environment)
   class(level_set_function_t),         target, intent(in)    :: level_set_function
   type(environment_t) ,                target, intent(in)    :: par_environment
   call this%free()
-  call this%par_triangulation_t%create(parameters,par_environment)
+  call this%par_triangulation_t%create(par_environment,parameters)
   call this%marching_cubes%create(this, level_set_function)
 end subroutine put_create
 
@@ -48,11 +48,11 @@ subroutine put_free(this)
 end subroutine put_free
 
 !========================================================================================
-subroutine put_par_triangulation_create( this, parameters, environment)
+subroutine put_par_triangulation_create( this, environment, parameters)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t),                       intent(inout) :: parameters
   type(environment_t),                 target, intent(in)    :: environment
+  type(ParameterList_t),                       intent(inout) :: parameters
   check(.false.)
 end subroutine put_par_triangulation_create
 
