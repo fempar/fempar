@@ -43,7 +43,8 @@ module test_fe_cell_predicate_driver_names
    contains
 
      procedure                     :: run_simulation
-     procedure, private            :: setup_environment
+     procedure                     :: setup_environment
+     procedure                     :: free_environment
      procedure, private            :: setup_triangulation
      procedure, private            :: setup_reference_fe
      procedure, private            :: setup_fe_cell_predicate
@@ -68,16 +69,25 @@ contains
     call this%free()
   end subroutine run_simulation
 
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(test_fe_cell_predicate_driver_t), intent(inout) :: this
-    type(ParameterList_t)                          :: parameter_list
-    integer(ip)                                    :: ierr
+    class(execution_context_t)            , intent(in)    :: world_context
+    type(ParameterList_t)  :: parameter_list
+    integer(ip) :: istat
     call parameter_list%init()
-    ierr=parameter_list%set(key=execution_context_key,value=serial_context)
-    call this%serial_environment%create(parameter_list)
+    istat = 0
+    istat = istat + parameter_list%set(key = environment_type_key, value = structured)
+    check(istat==0)
+    call this%serial_environment%create(world_context, parameter_list)
     call parameter_list%free()
-  end subroutine setup_environment  
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_fe_cell_predicate_driver_t), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
   
   subroutine setup_triangulation(this)
     implicit none
@@ -92,7 +102,7 @@ contains
     istat = istat + parameter_list%set(key = is_dir_periodic_key, value = [0,0,0])
     istat = istat + parameter_list%set(key = triangulation_generate_key, value = triangulation_generate_structured)
     check(istat==0)
-    call this%triangulation%create(parameter_list)
+    call this%triangulation%create(this%serial_environment, parameter_list)
     call parameter_list%free()
     call this%triangulation%create_cell_iterator(cell)
     do while ( .not. cell%has_finished() )

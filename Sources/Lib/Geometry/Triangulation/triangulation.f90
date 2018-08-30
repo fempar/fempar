@@ -719,8 +719,8 @@ module triangulation_names
      procedure, non_overridable :: coarse_triangulation_is_set_up => triangulation_coarse_triangulation_is_set_up
      
      procedure, non_overridable :: set_environment          => triangulation_set_environment
-     procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
-     procedure, non_overridable :: free_environment         => triangulation_free_environment
+     !procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
+     !procedure, non_overridable :: free_environment         => triangulation_free_environment
      
      procedure                  :: free                     => triangulation_free
      

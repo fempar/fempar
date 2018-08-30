@@ -177,7 +177,7 @@ contains
     integer(ip) :: ilevel,idime,ipart,num_parts,num_tasks,first,last
     integer(ip) :: part_ijk(0:SPACE_DIM-1)
 
-    check(this%state==described)
+    assert(this%state==described)
 
     num_levels = this%num_levels
     call memalloc(num_levels, num_parts_x_level, __FILE__,__LINE__)

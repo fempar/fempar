@@ -155,17 +155,18 @@ subroutine free_timers(this)
     call this%timer_solver_setup%free()
     call this%timer_solver_run%free()
 end subroutine free_timers
-
-!========================================================================================
-  subroutine setup_environment(this)
+  
+  !========================================================================================
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
     istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
     istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create (this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
-   
+  
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
@@ -197,7 +198,7 @@ end subroutine free_timers
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria() 
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0) 
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create(this%par_environment, this%parameter_list)
 
        environment => this%triangulation%get_environment()
        if (environment%am_i_l1_task()) then

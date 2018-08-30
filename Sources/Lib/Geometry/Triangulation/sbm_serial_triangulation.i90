@@ -26,10 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine serial_triangulation_create ( this, parameters)
+subroutine serial_triangulation_create ( this, environment, parameters)
   implicit none
   class(serial_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t)        , intent(inout)    :: parameters
+  type(environment_t)          ,  target, intent(in)   :: environment
+  type(ParameterList_t)        , intent(inout)         :: parameters
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -44,7 +45,7 @@ subroutine serial_triangulation_create ( this, parameters)
   type(p_reference_fe_t)       :: reference_fe_geo_list(1)
   integer(ip)                  :: ivef 
   integer(ip), allocatable     :: cells_set(:)
-  type(environment_t), pointer :: environment
+  !type(environment_t), pointer :: environment
   integer(ip)                  :: max_vefs_x_cell, num_edges, num_faces
 
   ! Optional parameters
@@ -66,19 +67,21 @@ subroutine serial_triangulation_create ( this, parameters)
 
   call this%free()
 
-  ! Verify (and eventually set) execution type and create serial environment
-  if( parameters%isPresent(execution_context_key) ) then
-     assert(parameters%isAssignable(execution_context_key, execution_context))
-     istat = parameters%get(key = execution_context_key, value = execution_context)
-     assert(istat==0)
-     check(execution_context==serial_context)
-  else
-     istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
-  end if
+  call this%set_environment(environment)
+
+  ! ! Verify (and eventually set) execution type and create serial environment
+  ! if( parameters%isPresent(execution_context_key) ) then
+  !    assert(parameters%isAssignable(execution_context_key, execution_context))
+  !    istat = parameters%get(key = execution_context_key, value = execution_context)
+  !    assert(istat==0)
+  !    check(execution_context==serial_context)
+  ! else
+  !    istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
+  ! end if
   
-  call this%allocate_environment()
-  environment => this%get_environment()
-  call environment%create(parameters)
+  ! call this%allocate_environment()
+  ! environment => this%get_environment()
+  ! call environment%create(parameters)
   
   if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
