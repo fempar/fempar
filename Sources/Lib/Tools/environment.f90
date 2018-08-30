@@ -362,7 +362,7 @@ contains
 
        else if(environment_type==structured) then
 
-
+          call uniform_hex_mesh%get_data_from_parameter_list(parameters)
 
           ! Generate parts, assign them to tasks and verify that the multilevel environment 
           ! can be executed in current context (long-lasting Alberto's concern). 
