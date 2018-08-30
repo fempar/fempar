@@ -47,16 +47,6 @@ module environment_names
   integer(ip) , parameter :: created     = 1            ! when contexts have been created from lower levels
   integer(ip) , parameter :: created_from_scratch = 2   ! when contexts have been created from scratch
 
-  ! The following lines can be eliminated....
-  integer(ip)     , parameter :: mpi_context    = 0
-  integer(ip)     , parameter :: serial_context = 1
-  integer(ip)     , parameter :: mpi_omp_context = 2
-  character(len=*), parameter :: execution_context_key  = 'execution_context'
-  public :: mpi_context
-  public :: serial_context
-  public :: mpi_omp_context
-  public :: execution_context_key
-
   integer(ip)     , parameter :: structured   = 0
   integer(ip)     , parameter :: unstructured = 1
   integer(ip)     , parameter :: p4est        = 2 
@@ -303,14 +293,6 @@ contains
 
     call this%free()
 
-    ! Optional parameters
-    if(parameters%isPresent(execution_context_key)) then
-       assert(parameters%isAssignable(execution_context_key, execution_context))
-       istat = parameters%get(key = execution_context_key, value = execution_context)
-       assert(istat==0)
-    else
-       execution_context = serial_context
-    end if
     if( parameters%isPresent(environment_type_key)) then
        assert(parameters%isAssignable(environment_type_key, environment_type))
        istat = parameters%get(key = environment_type_key, value = environment_type)

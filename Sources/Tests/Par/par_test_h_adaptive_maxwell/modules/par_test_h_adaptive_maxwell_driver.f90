@@ -163,7 +163,6 @@ end subroutine free_timers
     class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
     istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
