@@ -195,14 +195,14 @@ subroutine unfitted_vef_iterator_get_ref_coords_of_subvef( this, subvef, points 
   massert(this%is_facet(),'This procedure is only implemeted for facets')
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
-#ifdef DEBUG
-  reference_fe => this%unfitted_cell%get_reference_fe()
-  select type(reference_fe)
-    class is (hex_lagrangian_reference_fe_t)
-    class default
-      massert(.false.,'Only for hex geometrical reference FEs')
-  end select
-#endif  
+!#ifdef DEBUG
+!  reference_fe => this%unfitted_cell%get_reference_fe()
+!  select type(reference_fe)
+!    class is (hex_lagrangian_reference_fe_t)
+!    class default
+!      massert(.false.,'Only for hex geometrical reference FEs')
+!  end select
+!#endif  
 
   assert(this%marching_cubes%mc_runtime_init)
   num_nodes_subfacet = this%unfitted_cell%get_num_subfacet_nodes()
