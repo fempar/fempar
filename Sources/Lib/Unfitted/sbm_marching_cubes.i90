@@ -415,7 +415,7 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
   character(:),                 allocatable :: topology
   integer(ip)                               :: num_dim, num_dim_tmp, p_order
 
-  ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
+  ! Hypothesis: All cells in the mesh are either bi-linear tri/qua or tri-linear tet/hex
   fulfills = .true.
   call this%triangulation%create_cell_iterator(cell)
   num_dim  = this%triangulation%get_num_dims()
@@ -428,7 +428,6 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
       p_order  = reference_fe_geo%get_order()
       if (p_order .ne. 1_ip) fulfills = .false.
       topology = reference_fe_geo%get_topology()
-      if (topology .ne. topology_hex) fulfills = .false.
       if (.not. fulfills) exit
     end if
     call cell%next()
@@ -843,9 +842,9 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   call this%triangulation%free_cell_iterator(cell)
 
   ! Check that the length of the edge is ok
-  DX = Xe_ref(1) - Xe_ref(2)
-  if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
-  massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
+  !DX = Xe_ref(1) - Xe_ref(2)
+  !if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
+  !massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
 
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
 
