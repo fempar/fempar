@@ -65,6 +65,13 @@ function triangulation_get_num_ghost_cells(this)
   triangulation_get_num_ghost_cells = this%num_ghost_cells
 end function triangulation_get_num_ghost_cells
 
+function triangulation_get_num_global_cells(this)
+  implicit none
+  class(triangulation_t), intent(in) :: this
+  integer(igp) :: triangulation_get_num_global_cells
+  triangulation_get_num_global_cells = this%num_global_cells
+end function triangulation_get_num_global_cells
+
 function triangulation_get_num_vefs(this)
   implicit none
   class(triangulation_t), intent(in) :: this
@@ -106,6 +113,13 @@ subroutine triangulation_set_num_ghost_cells(this, num_ghost_cells)
   integer(ip), intent(in) :: num_ghost_cells
   this%num_ghost_cells = num_ghost_cells
 end subroutine triangulation_set_num_ghost_cells
+
+subroutine triangulation_set_num_global_cells(this, num_global_cells)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(igp)          , intent(in)    :: num_global_cells
+  this%num_global_cells = num_global_cells
+end subroutine triangulation_set_num_global_cells
 
 function triangulation_get_environment ( this )
   implicit none
@@ -2249,8 +2263,9 @@ recursive subroutine triangulation_free ( this )
      if ( this%environment%am_i_l1_task() ) then
         this%num_dims = -1         
         call this%cell_import%free()
-        this%num_local_cells = -1
-        this%num_ghost_cells = -1
+        this%num_local_cells = 0
+        this%num_ghost_cells = 0
+        this%num_global_cells = 0
         call this%free_lst_itfc_vefs()
         call this%free_coarse_triangulation_l1_data()
      else ! I am lgt1_task

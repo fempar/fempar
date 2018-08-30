@@ -73,6 +73,7 @@ subroutine par_triangulation_create ( this, parameters, environment)
   type(environment_t), pointer    :: env
   integer(ip) :: max_vefs_x_cell
   integer(ip) :: num_edges, num_faces
+  integer(igp) :: num_global_cells
 
     ! Mandatory parameters
     assert(parameters%isAssignable(dir_path_key, 'string'))
@@ -154,6 +155,8 @@ subroutine par_triangulation_create ( this, parameters, environment)
 
         ! Extract data from mesh
         call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
+        this%num_global_cells = this%num_local_cells
+        call this%environment%l1_sum(this%num_global_cells)
         this%num_vefs=this%num_vertices
         call mesh%move_cells(ptr_vefs_x_cell,lst_vefs_lids, cells_set)
         call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
@@ -271,7 +274,9 @@ subroutine par_triangulation_create ( this, parameters, environment)
              &                                        lst_ext_neighs_gids,          &
              &                                        lst_ext_neighs_part_ids,      &
              &                                        this%environment%get_l1_rank()+1)
-
+        this%num_global_cells = this%num_local_cells
+        call this%environment%l1_sum(this%num_global_cells)
+        
         ! Allocate and fill to default values cells_set==0 local variable
         call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
         cells_set = 0

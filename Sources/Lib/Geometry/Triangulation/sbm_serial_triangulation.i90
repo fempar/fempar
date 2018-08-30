@@ -93,6 +93,7 @@ subroutine serial_triangulation_create ( this, parameters, environment)
 
      ! Extract data from mesh
      call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
+     this%num_global_cells=this%num_local_cells
      this%num_vefs=this%num_vertices
      this%num_ghost_cells=0
      call mesh%move_cells(this%ptr_vefs_x_cell,this%lst_vefs_gids, cells_set)
@@ -130,7 +131,7 @@ subroutine serial_triangulation_create ( this, parameters, environment)
           &                                        this%lst_vefs_gids,     &
           &                                        this%vefs_set,          &
           &                                        coordinates)
-
+     this%num_global_cells=this%num_local_cells
      ! Allocate and fill to default values cells_set==1 local variable
      call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
      cells_set = 0
