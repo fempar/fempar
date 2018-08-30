@@ -213,19 +213,19 @@ end subroutine free_timers
     end select
 
   end subroutine setup_levelset
-
-!========================================================================================
-  subroutine setup_environment(this)
+  
+  !========================================================================================
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)     , intent(in)    :: world_context
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create (this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
     call this%test_params%print(this%par_environment)
   end subroutine setup_environment
    

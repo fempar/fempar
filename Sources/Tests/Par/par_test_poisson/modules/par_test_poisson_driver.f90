@@ -168,7 +168,6 @@ end subroutine free_timers
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    !istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
    
@@ -195,7 +194,7 @@ end subroutine free_timers
     integer(ip) :: inode, num
 
 
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create(this%par_environment, this%parameter_list)
 
     ! Set the cell ids to use void fes
     if (this%test_params%get_use_void_fes()) then

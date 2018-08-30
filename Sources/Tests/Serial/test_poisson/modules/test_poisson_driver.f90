@@ -119,8 +119,6 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
-    integer(ip) :: ierr
-    ierr=this%parameter_list%set(key=execution_context_key,value=serial_context)
     call this%serial_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
   
