@@ -8,7 +8,7 @@ git submodule update --init --recursive
 # USE SERVERCOMFUS DASHBOARD
 ##################################
 
-ln -sf CMake/CTestConfig_Servercomfus.cmake CTestConfig.cmake
+ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
 ##################################
 # BUILD TYPE (DEBUG /RELEASE)
@@ -27,7 +27,7 @@ MACROS=""
 # CMake find GNU compilers by default
 ##################################
 
-source /opt/intel/bin/compilervars.sh intel64
+source /opt/intel/compilers_and_libraries_2018.1.163/linux/bin/compilervars.sh intel64
 #export HDF5_ROOT=/opt/hdf5/1.10.0/GNU/6.2.0/openmpi/1.8.4
 FORTRAN_COMPILER=
 FORTRAN_COMPILER_MPI=
@@ -51,6 +51,9 @@ cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $
 cmake --build . -- -j8
 cd ..
 
+export PETSC_DIR="/home/gitlab_ci_runner/petsc-3.9.2-build-gnu-debug"
+export PETSC_ARCH="x86_64"
+
 ###############################################################
 # CONFIGURE, COMPILE AND TEST FEMPAR (versus sequential P4EST)
 ###############################################################
@@ -58,7 +61,7 @@ cd ..
 cd FEMPAR
 export PATH=/usr/local/p4est_gnu_debug/include/:$PATH
 export LD_LIBRARY_PATH=/usr/local/p4est_gnu_debug/lib:$LD_LIBRARY_PATH
-cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
+cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
 
 set +e
 ctest -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -77,7 +80,7 @@ rm -Rf *
 ############################################################
 export PATH=/usr/local/p4est_gnu_debug_mpi/include/:$PATH
 export LD_LIBRARY_PATH=/usr/local/p4est_gnu_debug_mpi/lib:$LD_LIBRARY_PATH
-cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
+cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
 
 set +e
 ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -97,4 +100,3 @@ echo $par_test_passed
 
 test $serial_test_passed -eq 0
 test $par_test_passed -eq 0
-
