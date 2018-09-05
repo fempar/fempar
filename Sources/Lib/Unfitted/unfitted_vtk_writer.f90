@@ -96,14 +96,30 @@ contains
 
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(triangulation_t), intent(in)    :: triangulation
+    class(triangulation_t),         intent(in)    :: triangulation
 
-    integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
-    integer(ip) :: istat, icell, inode, ino, isubcell
-    class(cell_iterator_t), allocatable  :: cell
-    type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
-    integer(ip) :: the_cell_type, the_subcell_type
-    integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
+
+    class(cell_iterator_t), allocatable           :: cell
+    class(reference_fe_t), pointer                :: geo_reference_fe_cell
+    type(point_t),      allocatable, dimension(:) :: cell_coords
+    type(point_t),      allocatable, dimension(:) :: subcell_coords
+    integer(ip),        allocatable               :: nodes_vtk2fempar(:)
+    integer(ip),        allocatable               :: nodesids(:)
+    
+    integer(ip) :: num_cells
+    integer(ip) :: num_cell_nodes
+    integer(ip) :: num_subcells
+    integer(ip) :: num_subcell_nodes
+    integer(ip) :: num_dime
+    
+    integer(ip) :: istat
+    integer(ip) :: icell
+    integer(ip) :: inode
+    integer(ip) :: ino
+    integer(ip) :: isubcell
+    integer(ip) :: the_cell_type
+    integer(ip) :: the_subcell_type
+    
     integer(ip) :: my_part_id
     
     call this%free()
@@ -146,18 +162,36 @@ contains
     allocate ( subcell_coords(1:num_subcell_nodes), stat = istat ); check(istat == 0)
     call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
     call memalloc ( num_cell_nodes, nodesids        , __FILE__, __LINE__ )
-
-    select case (num_dime)
-      case(3)
-        the_cell_type = 12_I1P
-        the_subcell_type = 10_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
-      case(2)
-        the_cell_type = 9_I1P
-        the_subcell_type = 5_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
-      case default
-      check(.false.)
+    
+    geo_reference_fe_cell => triangulation%get_reference_fe(ref_fe_geo_id = 1_ip)
+    
+    select case (geo_reference_fe_cell%get_topology())
+    case ( topology_tet )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 10_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3 , 4 ]
+        case(2)
+          the_cell_type = 5_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3]
+        case default
+        check(.false.)
+      end select
+    case ( topology_hex )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 12_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
+        case(2)
+          the_cell_type = 9_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+        case default
+        check(.false.)
+      end select
     end select
 
     ! Fill date to be passed to vtkio
@@ -761,17 +795,33 @@ contains
 
     call subcell_nodal_quad%create(num_dime,num_cell_eval_points)
 
-    select case (num_dime)
-      case(3)
-        the_cell_type = 12_I1P
-        the_subcell_type = 10_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
-      case(2)
-        the_cell_type = 9_I1P
-        the_subcell_type = 5_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
-      case default
-      check(.false.)
+    select case (geo_reference_fe_cell%get_topology())
+    case ( topology_tet )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 10_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3 , 4 ]
+        case(2)
+          the_cell_type = 5_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3]
+        case default
+        check(.false.)
+      end select
+    case ( topology_hex )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 12_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
+        case(2)
+          the_cell_type = 9_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+        case default
+        check(.false.)
+      end select
     end select
 
     ! Loops to fill data
