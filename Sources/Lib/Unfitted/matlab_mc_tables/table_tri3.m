@@ -7,7 +7,7 @@ clc
 Xe     = [0 0; 1 0; 0 1]; % fempar numbering
 Eedges = [1 2; 1 3; 2 3]; % fempar numbering
 Pe  = [0 0 0 ]';
-Efaces = [1 2; 2 3; 3 1]; % Matlab numbering
+Efaces = [2 1; 1 3; 3 2]; % Matlab numbering
 
 mc_ncases = 2^3;
 mc_max_sub_cells = 0;
