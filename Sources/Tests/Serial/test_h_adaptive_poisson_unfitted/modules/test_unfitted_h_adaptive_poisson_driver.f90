@@ -84,6 +84,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      type(fe_affine_operator_t)                   :: fe_affine_operator
      
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                       :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
 #else     
@@ -94,7 +95,9 @@ module test_unfitted_h_adaptive_poisson_driver_names
      type(fe_function_t)                       :: solution
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
      procedure        , private :: set_cells_for_refinement
@@ -125,6 +128,20 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
 
   subroutine setup_levelset(this)
     implicit none
@@ -187,7 +204,7 @@ contains
     end if
 
     ! Create the triangulation, with the levelset function
-    call this%triangulation%create(this%parameter_list,this%level_set_function)
+    call this%triangulation%create(this%parameter_list,this%level_set_function, this%serial_environment)
 
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then

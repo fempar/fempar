@@ -213,19 +213,19 @@ end subroutine free_timers
     end select
 
   end subroutine setup_levelset
-
-!========================================================================================
-  subroutine setup_environment(this)
+  
+  !========================================================================================
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)     , intent(in)    :: world_context
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create (this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
     call this%test_params%print(this%par_environment)
   end subroutine setup_environment
    
@@ -576,7 +576,6 @@ end subroutine free_timers
     class(par_test_poisson_unfitted_fe_driver_t), target, intent(in) :: this
 
     integer(ip) :: num_sub_domains
-    real(rp) :: num_total_cells
     real(rp) :: num_active_cells
     real(rp) :: num_dofs
     integer(ip) :: num_coarse_dofs
@@ -587,12 +586,8 @@ end subroutine free_timers
     environment => this%fe_space%get_environment()
 
     if (environment%am_i_l1_task()) then
-
-      num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
       num_active_cells = real(count( this%cell_set_ids(:) == PAR_POISSON_UNFITTED_SET_ID_FULL ),kind=rp)
       num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
-
-      call environment%l1_sum(num_total_cells )
       call environment%l1_sum(num_active_cells)
       call environment%l1_sum(num_dofs        )
 
@@ -601,7 +596,7 @@ end subroutine free_timers
     if (environment%get_l1_rank() == 0) then
       num_sub_domains = environment%get_l1_size()
       write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
-      write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
+      write(*,'(a,i22)') 'num_total_cells:          ', this%triangulation%get_num_global_cells()
       write(*,'(a,i22)') 'num_active_cells:         ', nint(num_active_cells, kind=ip )
       write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
     end if

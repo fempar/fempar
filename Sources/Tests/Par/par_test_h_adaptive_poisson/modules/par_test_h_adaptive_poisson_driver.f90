@@ -158,13 +158,13 @@ subroutine free_timers(this)
 end subroutine free_timers
 
 !========================================================================================
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)                    , intent(in)    :: world_context
     integer(ip) :: istat
     istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create (this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
    
   subroutine setup_triangulation(this)
@@ -200,7 +200,7 @@ end subroutine free_timers
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create(this%par_environment,this%parameter_list)
     
     ! Generate initial uniform mesh and set the cell ids to use void fes
     if (this%test_params%get_use_void_fes()) then
@@ -950,7 +950,6 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: num_sub_domains
-    real(rp) :: num_total_cells
     real(rp) :: num_dofs
     real(rp) :: num_interface_dofs 
     integer(ip) :: num_coarse_dofs
@@ -962,11 +961,8 @@ end subroutine free_timers
     environment => this%fe_space%get_environment()
 
     if (environment%am_i_l1_task()) then
-      num_total_cells      = real(this%triangulation%get_num_local_cells(),kind=rp)
       num_dofs             = real(this%fe_space%get_field_num_dofs(1),kind=rp)
       num_interface_dofs   = real(this%fe_space%get_total_num_interface_dofs(),kind=rp)
-
-      call environment%l1_sum(num_total_cells )
       call environment%l1_sum(num_dofs        )
       call environment%l1_sum(num_interface_dofs )
     end if
@@ -977,7 +973,7 @@ end subroutine free_timers
     if (environment%get_l1_rank() == 0) then
       num_sub_domains = environment%get_l1_size()
       write(*,'(a35,i22)') 'num_sub_domains:', num_sub_domains
-      write(*,'(a35,i22)') 'num_total_cells:', nint(num_total_cells     , kind=ip )
+      write(*,'(a35,i22)') 'num_total_cells:', this%triangulation%get_num_global_cells()
       write(*,'(a35,i22)') 'num_dofs (sub-assembled):', nint(num_dofs            , kind=ip )
       write(*,'(a35,i22)') 'num_interface_dofs (sub-assembled):', nint(num_interface_dofs  , kind=ip )
     end if

@@ -1038,7 +1038,6 @@ contains
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%environment%create (this%parameter_list)
   end subroutine setup_environment
 

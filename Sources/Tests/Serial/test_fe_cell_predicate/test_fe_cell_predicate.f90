@@ -32,7 +32,12 @@ program test_fe_cell_iterator_predicate
   use test_fe_cell_predicate_driver_names  
   implicit none
   type(test_fe_cell_predicate_driver_t) :: test_driver
+  type(serial_context_t)      :: world_context
+  call world_context%create()
   call fempar_init() 
+  call test_driver%setup_environment(world_context)
   call test_driver%run_simulation()
+  call test_driver%free_environment()
   call fempar_finalize()
+  call world_context%free(finalize=.true.)
 end program test_fe_cell_iterator_predicate
