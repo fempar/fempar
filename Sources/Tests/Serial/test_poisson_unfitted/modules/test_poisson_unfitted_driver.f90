@@ -866,7 +866,7 @@ subroutine compute_fitted_boundary_surface( this )
     write(*,*) "Computing fitted boundary surface... OK"
     write(*,*) "Fitted boundary surface = ", surface
     if (this%triangulation%get_num_dims()==2) then
-      !check(abs(surface-1.8_rp)<1.0e-10)
+      check(abs(surface-1.8_rp)<1.0e-10)
     end if
 
     call this%fe_space%free_fe_facet_iterator(fe_facet)
