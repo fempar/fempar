@@ -7,7 +7,7 @@ clc
 Xe     = [0 0; 1 0; 0 1]; % fempar numbering
 Eedges = [1 2; 1 3; 2 3]; % fempar numbering
 Pe  = [0 0 0 ]';
-Efaces = [2 1; 1 3; 3 2]; % Matlab numbering
+Efaces = [1 2; 2 3; 3 1]; % Matlab numbering
 
 mc_ncases = 2^3;
 mc_max_sub_cells = 0;
@@ -164,14 +164,14 @@ for n1 = 1:2
                 
                 
                 
-                
-                %                 figure(1)
-                %                 clf
-                %                 FEM_plot_element_wise_constant_field_2d(Ptris,Xtris,Ttris,'EdgeColor','k')
-                %                 FEM_plot_Neumann_faces_2d(Xtris,Ttris_faces)
-                %                 axis equal off
-                %                 colorbar
-                %                 pause(1)
+%                 
+%                                 figure(1)
+%                                 clf
+%                                 FEM_plot_element_wise_constant_field_2d(Ptris,Xtris,Ttris,'EdgeColor','k')
+%                                 FEM_plot_Neumann_faces_2d(Xtris,Ttris_faces)
+%                                 axis equal off
+%                                 colorbar
+%                                 pause(1)
                 
                 % ---------------------------------------------------(end)
                 
@@ -190,6 +190,8 @@ for n1 = 1:2
                 else
                     mc_num_cut_edges_per_case(icase) = size(Xtris,1)-size(Xe,1);
                 end
+                
+                
         end
     end
 end
