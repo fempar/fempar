@@ -508,24 +508,23 @@ subroutine p_reference_fe_free( this )
 end subroutine p_reference_fe_free
 
 !==================================================================================================
-function reference_fe_get_normal_orientation_factor( this, facet_lid, cell_map )          &
-  result(orientation_factor)
+function reference_fe_get_normal_orientation_factor( this, facet_lid, cell_map_det_jacobian_is_positive ) result(orientation_factor)
   implicit none
   class(reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: facet_lid
-  type(cell_map_t)       , optional , intent(in)    :: cell_map
+  integer(ip)          , intent(in)    :: facet_lid
+  logical   , optional , intent(in)    :: cell_map_det_jacobian_is_positive
   real(rp)    :: orientation_factor
   real(rp)    :: jacobian_reorientation_factor
   integer(ip) :: num_cell_dims, orientation_face, local_vef_id
   jacobian_reorientation_factor = 1.0_rp
-  if (present(cell_map)) then
-     if (.not. cell_map%is_det_jacobian_positive()) jacobian_reorientation_factor = -1.0_rp
+  if (present(cell_map_det_jacobian_is_positive)) then
+     if (.not. cell_map_det_jacobian_is_positive) jacobian_reorientation_factor = -1.0_rp
   end if
   num_cell_dims = this%num_dims
   if (num_cell_dims.ne.1) then
      local_vef_id = this%ptr_n_faces_x_dim(num_cell_dims) + facet_lid - 1
      orientation_face  = this%orientation%a(local_vef_id)
-     orientation_factor = (-1)**orientation_face*jacobian_reorientation_factor
+     orientation_factor = ((-1)**orientation_face)*jacobian_reorientation_factor
   else ! 1D special case
      orientation_factor = -1.0_rp**(real(facet_lid))
   end if
