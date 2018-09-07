@@ -239,7 +239,6 @@ end function unfitted_fe_cell_iterator_get_boundary_cell_integrator
 
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_update_integration( this )
-
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
 
@@ -255,27 +254,29 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   if ( .not. this%is_cut() ) then
     call this%fe_cell_iterator_t%update_integration()
   else 
-    call this%update_sub_triangulation()
-    call this%update_cell_map()
-    call this%update_cell_integrators()
+    if ( .not. this%is_integration_updated() ) then
+      call this%update_sub_triangulation()
+      call this%update_cell_map()
+      call this%update_cell_integrators()
 
-    call this%update_cut_quadratures()
-    call this%update_cut_cell_maps()
-    call this%update_cut_cell_integrators()
+      call this%update_cut_quadratures()
+      call this%update_cut_cell_maps()
+      call this%update_cut_cell_integrators()
     
-    this_get_lev = this%get_level()
+      this_get_lev = this%get_level()
     
-    cell_map => this%get_cell_map()
-    coordinates => cell_map%get_coordinates()
-    call this%get_nodes_coordinates(coordinates)
+      cell_map => this%get_cell_map()
+      coordinates => cell_map%get_coordinates()
+      call this%get_nodes_coordinates(coordinates)
 
-    quadrature => this%get_quadrature()
-    call cell_map%update(this_get_lev,quadrature,no_ressemblance)
-    do field_id = 1, this%get_num_fields()
-       cell_integrator => this%get_cell_integrator(field_id)
-       call cell_integrator%update(this_get_lev,no_ressemblance,cell_map)
-    end do
-    call this%set_integration_updated(.true.)
+      quadrature => this%get_quadrature()
+      call cell_map%update(this_get_lev,quadrature,no_ressemblance)
+      do field_id = 1, this%get_num_fields()
+        cell_integrator => this%get_cell_integrator(field_id)
+        call cell_integrator%update(this_get_lev,no_ressemblance,cell_map)
+      end do
+      call this%set_integration_updated(.true.)
+    end if   
   end if
 end subroutine unfitted_fe_cell_iterator_update_integration
 
@@ -283,7 +284,20 @@ end subroutine unfitted_fe_cell_iterator_update_integration
 subroutine unfitted_fe_cell_iterator_update_boundary_integration( this )
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+  
   assert(this%is_local())
+  
+  
+  ! update boundary integration requires the cell_map to be updated
+  ! in order to adjust the sign of the normal of the boundary faces
+  ! within the current cut cell. In order to update the map, we call
+  ! the following function. Note that, %update_integration() is written
+  ! s.t. if update_integration() was previously called on this cell,
+  ! then it does NOT re-compute all the cell-related integration data
+  ! structures
+  call this%update_integration()
+  
+  
   call this%update_sub_triangulation()
   call this%update_cut_boundary_quadratures()
   call this%update_cut_boundary_cell_maps()
@@ -292,7 +306,6 @@ end subroutine unfitted_fe_cell_iterator_update_boundary_integration
 
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
-
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
 
@@ -378,7 +391,6 @@ end subroutine unfitted_fe_cell_iterator_update_cut_quadratures
 
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_update_cut_cell_maps( this )
-
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
 
@@ -414,7 +426,6 @@ end subroutine unfitted_fe_cell_iterator_update_cut_cell_integrators
 
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_update_cut_boundary_quadratures( this )
-
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
 
@@ -475,7 +486,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_maps( this )
   end do
 
   ! Update the piecewise fe map
-  call pw_cell_map%update_facet_map(this%unfitted_integration_manager%quadrature_subfacet)
+  call pw_cell_map%update_facet_map(this%unfitted_integration_manager%quadrature_subfacet, this%cut_cell_map%is_det_jacobian_positive() )
 
   ! At this point the piecewise fe map contains the det_jacobian, coordinates of quad points on phys space and the normals
 

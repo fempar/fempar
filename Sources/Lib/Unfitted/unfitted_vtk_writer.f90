@@ -1028,10 +1028,12 @@ contains
 
     total_num_quad_points = 0
     do while ( .not. fe%has_finished() )
-       call fe%update_boundary_integration()
-       quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_num_quadrature_points()
-       total_num_quad_points = total_num_quad_points + num_quad_points
+       if ( fe%is_cut() ) then
+          call fe%update_boundary_integration()
+          quadrature => fe%get_boundary_quadrature()
+          num_quad_points = quadrature%get_num_quadrature_points()
+          total_num_quad_points = total_num_quad_points + num_quad_points
+       end if
        call fe%next()
     end do
   
@@ -1053,7 +1055,7 @@ contains
     do while ( .not. fe%has_finished() )
   
        ! Skip ghost elems
-       if (fe%is_ghost()) then
+       if (fe%is_ghost() .or. .not. fe%is_cut()) then
          call fe%next(); cycle
        end if
   

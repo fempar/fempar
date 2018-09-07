@@ -737,24 +737,24 @@ subroutine compute_domain_surface( this )
 
     surface = 0.0_rp
     do while ( .not. fe%has_finished() )
+       if ( fe%is_cut() ) then
+          ! Update FE-integration related data structures
+          call fe%update_boundary_integration()
 
-       ! Update FE-integration related data structures
-       call fe%update_boundary_integration()
+          ! As the quadrature changes elem by elem, this has to be inside the loop
+          quadrature => fe%get_boundary_quadrature()
+          num_quad_points = quadrature%get_num_quadrature_points()
+          cell_map => fe%get_boundary_piecewise_cell_map()
 
-       ! As the quadrature changes elem by elem, this has to be inside the loop
-       quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_num_quadrature_points()
-       cell_map => fe%get_boundary_piecewise_cell_map()
+          ! Physical coordinates of the quadrature points
+          quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 
-       ! Physical coordinates of the quadrature points
-       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
-
-       ! Integrate!
-       do qpoint = 1, num_quad_points
-         dS = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-         surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
-       end do
-
+          ! Integrate!
+          do qpoint = 1, num_quad_points
+            dS = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+            surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
+          end do
+       end if
        call fe%next()
     end do
 
