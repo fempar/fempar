@@ -35,8 +35,15 @@ module test_interpolators_driver_names
   implicit none
   private
 
+  ! Vector function
   integer(ip), parameter :: MAGNETIC_FIELD_ID = 1
+  ! Scalar function
   integer(ip), parameter :: PRESSURE_FIELD_ID = 2
+  ! Tensor function
+  integer(ip), parameter :: STRESS_FIELD_ID   = 1
+  
+  integer(ip), parameter :: TEST_SCALAR_VECTOR_INTERPOLATORS = 1 
+  integer(ip), parameter :: TEST_TENSOR_INTERPOLATORS = 2
 
   type par_test_interpolators_driver_t 
      private 
@@ -72,11 +79,13 @@ module test_interpolators_driver_names
 
    contains
      procedure                  :: run_simulation
+     procedure                  :: run_simulation_for_tensor_functions
      procedure                  :: setup_environment
      procedure                  :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
-     procedure        , private :: setup_coarse_fe_handlers 
+     procedure        , private :: setup_coarse_fe_handlers
+     procedure        , private :: free_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: interpolate_analytical_functions 
      procedure        , private :: check_solution
@@ -123,34 +132,53 @@ contains
 
   end subroutine setup_triangulation
 
-  subroutine setup_reference_fes(this)
+  subroutine setup_reference_fes(this, test_case)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: test_case
     integer(ip) :: istat
     class(vef_iterator_t), allocatable  :: vef
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
 
-       allocate(this%reference_fes(2), stat=istat); check(istat==0)
+       if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS) then
+         allocate(this%reference_fes(2), stat=istat); check(istat==0)
 
-       if ( this%par_environment%am_i_l1_task() ) then
-          call this%triangulation%create_cell_iterator(cell)
-          reference_fe_geo => cell%get_reference_fe()
+         if ( this%par_environment%am_i_l1_task() ) then
+            call this%triangulation%create_cell_iterator(cell)
+            reference_fe_geo => cell%get_reference_fe()
 
-          this%reference_fes(MAGNETIC_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
-                                                                       fe_type    = fe_type_nedelec,                           &
+            this%reference_fes(MAGNETIC_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+                                                                         fe_type    = fe_type_nedelec,                           &
+                                                                         num_dims   = this%triangulation%get_num_dims(),         &
+                                                                         order      = this%test_params%get_reference_fe_order(), &
+                                                                         field_type = field_type_vector,                         &
+                                                                         conformity = .true. )
+
+            this%reference_fes(PRESSURE_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+                                                                         fe_type    = fe_type_lagrangian,                        &
+                                                                         num_dims   = this%triangulation%get_num_dims(),         &
+                                                                         order      = this%test_params%get_reference_fe_order(), &
+                                                                         field_type = field_type_scalar,                         &
+                                                                         conformity = .true. )
+            call this%triangulation%free_cell_iterator(cell)
+         end if
+
+       elseif (test_case == TEST_TENSOR_INTERPOLATORS) then
+         allocate(this%reference_fes(1), stat=istat); check(istat==0)
+
+         if ( this%par_environment%am_i_l1_task() ) then
+            call this%triangulation%create_cell_iterator(cell)
+            reference_fe_geo => cell%get_reference_fe()
+
+            this%reference_fes(STRESS_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+                                                                       fe_type    = fe_type_lagrangian,                           &
                                                                        num_dims   = this%triangulation%get_num_dims(),         &
                                                                        order      = this%test_params%get_reference_fe_order(), &
-                                                                       field_type = field_type_vector,                         &
+                                                                       field_type = field_type_tensor,                         &
                                                                        conformity = .true. ) 
-
-          this%reference_fes(PRESSURE_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
-                                                                       fe_type    = fe_type_lagrangian,                        &
-                                                                       num_dims   = this%triangulation%get_num_dims(),         &
-                                                                       order      = this%test_params%get_reference_fe_order(), &
-                                                                       field_type = field_type_scalar,                         &
-                                                                       conformity = .true. ) 
-          call this%triangulation%free_cell_iterator(cell)
+            call this%triangulation%free_cell_iterator(cell)
+         end if
        end if
 
     ! if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
@@ -168,28 +196,51 @@ contains
 
   end subroutine setup_reference_fes
 
-  subroutine setup_coarse_fe_handlers(this)
+  subroutine setup_coarse_fe_handlers(this, test_case)
     implicit none
     class(par_test_interpolators_driver_t), target, intent(inout) :: this
+    integer(ip)                                   , intent(in)    :: test_case
     integer(ip) :: istat, i 
-
-    allocate(this%coarse_fe_handlers(2), stat=istat); check(istat==0)
-    do i=1,2
-       this%coarse_fe_handlers(i)%p => this%coarse_fe_handler
-    end do
+    call this%free_coarse_fe_handlers()
+    if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS) then
+      allocate(this%coarse_fe_handlers(2), stat=istat); check(istat==0)
+      do i=1,2
+         this%coarse_fe_handlers(i)%p => this%coarse_fe_handler
+      end do
+    elseif  (test_case == TEST_TENSOR_INTERPOLATORS) then
+      allocate(this%coarse_fe_handlers(1), stat=istat); check(istat==0)
+      this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
+    end if
 
   end subroutine setup_coarse_fe_handlers
-
-  subroutine setup_fe_space(this)
+  
+  subroutine free_coarse_fe_handlers(this)
     implicit none
-    class(par_test_interpolators_driver_t), intent(inout) :: this 
+    class(par_test_interpolators_driver_t), intent(inout) :: this
+    integer(ip) :: istat, i 
+    if ( allocated(this%coarse_fe_handlers) ) then 
+      deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0)
+    end if
+  end subroutine free_coarse_fe_handlers
+  
 
-    call this%interpolators_conditions%set_num_dims(this%triangulation%get_num_dims() + 1)
+  subroutine setup_fe_space(this,test_case)
+    implicit none
+    class(par_test_interpolators_driver_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: test_case
 
-       call this%fe_space%create( triangulation       = this%triangulation,      &
-                                  reference_fes       = this%reference_fes,      &
-                                  coarse_fe_handlers  = this%coarse_fe_handlers, &
-                                  conditions          = this%interpolators_conditions )
+    call this%interpolators_conditions%set_num_components(this%triangulation%get_num_dims() + 1)
+
+    if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS ) then 
+      call this%fe_space%create( triangulation       = this%triangulation,      &
+                                 reference_fes       = this%reference_fes,      &
+                                 coarse_fe_handlers  = this%coarse_fe_handlers, &
+                                 conditions          = this%interpolators_conditions )
+    else if ( test_case == TEST_TENSOR_INTERPOLATORS ) then 
+      call this%fe_space%create( triangulation       = this%triangulation,      &
+                                 reference_fes       = this%reference_fes,      &
+                                 coarse_fe_handlers  = this%coarse_fe_handlers )
+    end if   
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
 
@@ -198,41 +249,59 @@ contains
     !call this%fe_space%generate_global_dof_numbering()        
   end subroutine setup_fe_space
 
-  subroutine interpolate_analytical_functions (this)
+  subroutine interpolate_analytical_functions (this, test_case)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this 
+    integer(ip)                           , intent(in)    :: test_case
     class(vector_t) , pointer :: dof_values
     real(rp) :: time_ 
 
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
 
-    ! Set boundary conditions 
-    call this%interpolators_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-    call this%interpolators_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-    if ( this%triangulation%get_num_dims() == 3) then 
-       call this%interpolators_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
-    end if
-    call this%interpolators_conditions%set_boundary_function_pressure(this%problem_functions%get_boundary_function_pressure()) 
-
     ! Project functions 
     call this%solution%create(this%fe_space)
-    call this%fe_space%interpolate( MAGNETIC_FIELD_ID, this%problem_functions%get_magnetic_field_solution(), this%solution ) 
-    call this%fe_space%interpolate( PRESSURE_FIELD_ID, this%problem_functions%get_pressure_solution(), this%solution )
-    call this%fe_space%interpolate_dirichlet_values( this%solution )
 
-    ! Project transient functions 
+    ! Time solution
     call random_number( this%time ) 
     call this%time_solution%create(this%fe_space)
-    call this%fe_space%interpolate(  field_id    = MAGNETIC_FIELD_ID,                                    & 
-                                     function     = this%problem_functions%get_magnetic_field_solution(), &
-                                     fe_function  = this%time_solution ,                                  & 
-                                     time         = this%time ) 
-    call this%fe_space%interpolate( field_id     = PRESSURE_FIELD_ID,                                    &
-                                    function     = this%problem_functions%get_pressure_solution(),       & 
-                                    fe_function  = this%time_solution ,                                  &  
-                                    time         = this%time)
-    call this%fe_space%interpolate_dirichlet_values( fe_function = this%time_solution, & 
-                                                     time        = this%time )
+
+    if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS) then
+
+      ! Set boundary conditions
+      call this%interpolators_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+      call this%interpolators_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+      if ( this%triangulation%get_num_dims() == 3) then
+         call this%interpolators_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+      end if
+      call this%interpolators_conditions%set_boundary_function_pressure(this%problem_functions%get_boundary_function_pressure())
+
+      ! Project functions
+      call this%fe_space%interpolate( MAGNETIC_FIELD_ID, this%problem_functions%get_magnetic_field_solution(), this%solution )
+      call this%fe_space%interpolate( PRESSURE_FIELD_ID, this%problem_functions%get_pressure_solution(), this%solution )
+      call this%fe_space%interpolate_dirichlet_values( this%solution )
+
+      ! Project transient functions
+      call this%fe_space%interpolate(  field_id    = MAGNETIC_FIELD_ID,                                    &
+                                       function     = this%problem_functions%get_magnetic_field_solution(), &
+                                       fe_function  = this%time_solution ,                                  &
+                                       time         = this%time )
+      call this%fe_space%interpolate( field_id     = PRESSURE_FIELD_ID,                                    &
+                                      function     = this%problem_functions%get_pressure_solution(),       &
+                                      fe_function  = this%time_solution ,                                  &
+                                      time         = this%time)
+      call this%fe_space%interpolate_dirichlet_values( fe_function = this%time_solution, &
+                                                       time        = this%time )
+    elseif (test_case == TEST_TENSOR_INTERPOLATORS) then
+
+      ! Project functions
+      call this%fe_space%interpolate( STRESS_FIELD_ID, this%problem_functions%get_stress_field_solution(), this%solution )
+
+      ! Project transient functions
+      call this%fe_space%interpolate(  field_id    = STRESS_FIELD_ID,                                    &
+                                       function     = this%problem_functions%get_stress_field_solution(), &
+                                       fe_function  = this%time_solution ,                                  &
+                                       time         = this%time )
+    end if
   end subroutine interpolate_analytical_functions
 
   subroutine check_solution(this)
@@ -398,14 +467,30 @@ contains
     class(par_test_interpolators_driver_t), intent(inout) :: this
     call this%free()
     call this%setup_triangulation()
-    call this%setup_reference_fes()
-    call this%setup_coarse_fe_handlers()
-    call this%setup_fe_space()
-    call this%interpolate_analytical_functions()
+    call this%setup_reference_fes(TEST_SCALAR_VECTOR_INTERPOLATORS)
+    call this%setup_coarse_fe_handlers(TEST_SCALAR_VECTOR_INTERPOLATORS)
+    call this%setup_fe_space(TEST_SCALAR_VECTOR_INTERPOLATORS)
+    call this%interpolate_analytical_functions(TEST_SCALAR_VECTOR_INTERPOLATORS)
     call this%check_solution()
     call this%check_time_solution() 
     call this%free()
+
   end subroutine run_simulation
+
+  subroutine run_simulation_for_tensor_functions(this)
+    implicit none
+    class(par_test_interpolators_driver_t), intent(inout) :: this
+    call this%free()
+    call this%setup_triangulation()
+    call this%setup_reference_fes(TEST_TENSOR_INTERPOLATORS)
+    call this%setup_coarse_fe_handlers(TEST_TENSOR_INTERPOLATORS)
+    call this%setup_fe_space(TEST_TENSOR_INTERPOLATORS)
+    call this%interpolate_analytical_functions(TEST_TENSOR_INTERPOLATORS)
+    !call this%check_solution()
+    !call this%check_time_solution()
+    call this%free()
+
+  end subroutine run_simulation_for_tensor_functions
 
   subroutine free_command_line_parameters(this)
     implicit none
@@ -428,7 +513,8 @@ contains
     call this%solution%free() 
     call this%time_solution%free() 
     call this%fe_space%free()
-
+    call this%free_coarse_fe_handlers()
+    
     if ( this%par_environment%am_i_l1_task() ) then 
        if (allocated(this%coarse_fe_handlers))  then 
           deallocate(this%coarse_fe_handlers, stat=istat);  check(istat==0) 
