@@ -31,6 +31,12 @@ module interpolators_analytical_functions_names
 # include "debug.i90"
   private
 
+  type, extends(tensor_function_t) :: base_tensor_function_t
+     integer(ip) :: num_dims = -1  
+   contains
+     procedure :: set_num_dims    => base_tensor_function_set_num_dims
+  end type base_tensor_function_t
+  
   type, extends(vector_function_t) :: base_vector_function_t
      integer(ip) :: num_dims = -1  
    contains
@@ -48,6 +54,12 @@ module interpolators_analytical_functions_names
      procedure :: get_value_space      => source_term_get_value_space
      procedure :: get_value_space_time => source_term_get_value_space_time
   end type source_term_t
+
+  type, extends(base_tensor_function_t) :: stress_field_solution_t
+   contains
+     procedure :: get_value_space         => stress_field_solution_get_value_space
+     procedure :: get_value_space_time    => stress_field_solution_get_value_space_time
+  end type stress_field_solution_t
 
   type, extends(base_vector_function_t) :: magnetic_field_solution_t
    contains
@@ -98,6 +110,7 @@ module interpolators_analytical_functions_names
      private
      type(source_term_t)                     :: source_term
      type(magnetic_field_solution_t)         :: magnetic_field_solution
+     type(stress_field_solution_t)           :: stress_field_solution
      type(pressure_solution_t)               :: pressure_solution
      type(boundary_function_Hx_t)            :: boundary_function_Hx
      type(boundary_function_Hy_t)            :: boundary_function_Hy
@@ -106,6 +119,7 @@ module interpolators_analytical_functions_names
    contains
      procedure :: set_num_dims                     => mn_set_num_dims
      procedure :: get_source_term                  => mn_get_source_term
+     procedure :: get_stress_field_solution        => mn_get_stress_field_solution     
      procedure :: get_magnetic_field_solution      => mn_get_magnetic_field_solution
      procedure :: get_pressure_solution            => mn_get_pressure_solution
      procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
@@ -117,6 +131,14 @@ module interpolators_analytical_functions_names
   public :: interpolators_analytical_functions_t
 
 contains  
+
+  !===============================================================================================
+  subroutine base_tensor_function_set_num_dims ( this, num_dims )
+    implicit none
+    class(base_tensor_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_tensor_function_set_num_dims
 
   !===============================================================================================
   subroutine base_vector_function_set_num_dims ( this, num_dims )
@@ -166,6 +188,50 @@ contains
     end if
 
   end subroutine source_term_get_value_space_time
+
+  !===============================================================================================
+  subroutine stress_field_solution_get_value_space ( this, point, result )
+    implicit none
+    class(stress_field_solution_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    type(tensor_field_t)    , intent(inout) :: result
+    
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+
+    call result%set(1, 1, point%get(1))
+    call result%set(2, 2, point%get(2))  
+    call result%set(1, 2, point%get(1)*point%get(2))  
+    call result%set(2, 1, point%get(2)*point%get(1))  
+    if ( this%num_dims == 3 ) then
+      call result%set(3, 1, point%get(3)*point%get(1))  
+      call result%set(3, 2, point%get(3)*point%get(2))  
+      call result%set(1, 3, point%get(1)*point%get(3))  
+      call result%set(2, 3, point%get(2)*point%get(3))  
+    end if
+
+  end subroutine stress_field_solution_get_value_space
+
+  !===============================================================================================
+  subroutine stress_field_solution_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(stress_field_solution_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    real(rp)                , intent(in)    :: time 
+    type(tensor_field_t)    , intent(inout) :: result
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+
+    call result%set(1, 1, point%get(1) * time)
+    call result%set(2, 2, point%get(2) * time)  
+    call result%set(1, 2, point%get(1)*point%get(2) * time)  
+    call result%set(2, 1, point%get(2)*point%get(1) * time)  
+    if ( this%num_dims == 3 ) then
+      call result%set(3, 1, point%get(3)*point%get(1) * time)  
+      call result%set(3, 2, point%get(3)*point%get(2) * time)  
+      call result%set(1, 3, point%get(1)*point%get(3) * time)  
+      call result%set(2, 3, point%get(2)*point%get(3) * time)  
+    end if
+
+  end subroutine stress_field_solution_get_value_space_time
 
   !===============================================================================================
   subroutine magnetic_field_solution_get_value_space ( this, point, result )
@@ -347,7 +413,16 @@ contains
     call this%source_term%set_num_dims(num_dims)
     call this%magnetic_field_solution%set_num_dims(num_dims)
     call this%pressure_solution%set_num_dims(num_dims)
+    call this%stress_field_solution%set_num_dims(num_dims)
   end subroutine mn_set_num_dims
+
+  !===============================================================================================
+  function mn_get_stress_field_solution ( this )
+    implicit none
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
+    class(tensor_function_t), pointer :: mn_get_stress_field_solution
+    mn_get_stress_field_solution => this%stress_field_solution
+  end function mn_get_stress_field_solution
 
   !===============================================================================================
   function mn_get_magnetic_field_solution ( this )
