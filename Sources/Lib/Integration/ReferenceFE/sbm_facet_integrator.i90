@@ -237,7 +237,9 @@ subroutine facet_maps_update(this, &
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
-  reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(facet_lid(1),this%cell_maps(1)%cell_map(facet_lid(1)))
+  reorientation_factor = left_reference_fe_geo%get_normal_orientation_factor(&
+                           facet_lid(1),this%cell_maps(1)%cell_map(facet_lid(1))%is_det_jacobian_positive())
+   
   ! Update facet_map
   call this%facet_map%update(reorientation_factor,facet_quadrature)
 end subroutine facet_maps_update
