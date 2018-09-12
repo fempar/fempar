@@ -97,28 +97,29 @@ contains
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
-
+ 
   !========================================================================================
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
+    class(execution_context_t)                    , intent(in)    :: world_context
     integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+   if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create(this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
-
+  
+ 
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
     class(cell_iterator_t)            , allocatable :: cell
     integer(ip)                                     :: set_id 
 
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create( this%par_environment, this%parameter_list)
 
   end subroutine setup_triangulation
 

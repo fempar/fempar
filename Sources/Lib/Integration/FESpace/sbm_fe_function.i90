@@ -50,7 +50,7 @@
   subroutine fe_function_gather_nodal_values_through_iterator ( this, fe_cell_iterator, field_id, nodal_values )
     implicit none
     class(fe_function_t)       , intent(in)    :: this 
-    class(fe_cell_iterator_t)       , intent(in)    :: fe_cell_iterator
+    class(fe_cell_iterator_t)  , intent(in)    :: fe_cell_iterator
     integer(ip)                , intent(in)    :: field_id
     real(rp)                   , intent(inout) :: nodal_values(:)
     
@@ -59,42 +59,45 @@
     integer(ip) :: block_id
     
     call fe_cell_iterator%get_field_fe_dofs(field_id,fe_dofs)
+    
+    ! fe_dofs is not associated when subdomain is empty  
+    ! a non associated pointer cannot be used (e.g. cannot
+    ! pass as an actual argument, cannot query size...)
     if ( associated(fe_dofs) ) then
-      num_nodes_field = size(fe_dofs)
-    else
-      num_nodes_field = 0
-    end if 
+      num_nodes_field = size(fe_dofs) 
     
-    if ( fe_cell_iterator%has_fixed_dofs(field_id) ) then
-      ! Extract nodal values associated to dirichlet bcs
-      call this%fixed_dof_values%extract_subvector( 1,               &
+      if ( fe_cell_iterator%has_fixed_dofs(field_id) ) then
+        ! Extract nodal values associated to dirichlet bcs
+        call this%fixed_dof_values%extract_subvector( 1,               &
+                                                      num_nodes_field, &
+                                                      -fe_dofs,        &
+                                                      nodal_values )
+      end if
+      
+      block_id = this%field_blocks(field_id)
+      
+      ! Extract nodal values associated to dofs
+      call this%free_dof_values%extract_subvector ( block_id, &
                                                     num_nodes_field, &
-                                                    -fe_dofs,        &
+                                                    fe_dofs, &
                                                     nodal_values )
-    end if
+      
+      if ( fe_cell_iterator%is_ghost() ) then
+        call this%free_ghost_dof_values%extract_subvector ( 1,                            &
+                                                            num_nodes_field,              &
+                                                            fe_dofs - this%num_total_free_dofs, &
+                                                            nodal_values )
+      end if
     
-    block_id = this%field_blocks(field_id)
-    
-    ! Extract nodal values associated to dofs
-    call this%free_dof_values%extract_subvector ( block_id, &
-                                                  num_nodes_field, &
-                                                  fe_dofs, &
-                                                  nodal_values )
-    
-    if ( fe_cell_iterator%is_ghost() ) then
-      call this%free_ghost_dof_values%extract_subvector ( 1,                            &
-                                                          num_nodes_field,              &
-                                                          fe_dofs - this%num_total_free_dofs, &
-                                                          nodal_values )
     end if
     
   end subroutine fe_function_gather_nodal_values_through_iterator
   
-  subroutine fe_function_gather_nodal_values_from_raw_data ( this,               &
-                                                             field_id,           &
-                                                             fe_dofs,           &
+  subroutine fe_function_gather_nodal_values_from_raw_data ( this,            &
+                                                             field_id,        &
+                                                             fe_dofs,         &
                                                              num_nodes_field, & 
-                                                             field_blocks,       &
+                                                             field_blocks,    &
                                                              nodal_values )
     implicit none
     class(fe_function_t)       , intent(in)    :: this
@@ -122,10 +125,10 @@
                                              fe_dofs,           &
                                              nodal_values )
     
-    call this%free_ghost_dof_values%extract_subvector ( 1,                            &
-                                                   num_nodes_field,              &
-                                                   fe_dofs - this%num_total_free_dofs, &
-                                                   nodal_values )
+    call this%free_ghost_dof_values%extract_subvector ( 1,                                  &
+                                                        num_nodes_field,                    &
+                                                        fe_dofs - this%num_total_free_dofs, &
+                                                        nodal_values )
     
   end subroutine fe_function_gather_nodal_values_from_raw_data
   
@@ -140,35 +143,41 @@
     integer(ip)                , pointer :: fe_dofs(:)
     integer(ip) :: inode, num_nodes_field
     integer(ip) :: block_id
-    integer(ip), pointer :: field_blocks(:)
     
     call fe%get_field_fe_dofs(field_id,fe_dofs)
-    reference_fe => fe%get_reference_fe(field_id)
-    num_nodes_field = reference_fe%get_num_shape_functions()
-    assert(num_nodes_field<=size(nodal_values))
+    
+    ! fe_dofs is not associated when subdomain is empty  
+    ! a non associated pointer cannot be used (e.g. cannot
+    ! pass as an actual argument, cannot query size...)
+    if ( associated(fe_dofs) ) then
+    
+      reference_fe => fe%get_reference_fe(field_id)
+      num_nodes_field = reference_fe%get_num_shape_functions()
+      assert(num_nodes_field<=size(nodal_values))
 
-    if ( fe%has_fixed_dofs(field_id) ) then
-      ! Insert nodal values associated to dirichlet bcs
-      call this%fixed_dof_values%insert_subvector( 1,               &
-                                                   num_nodes_field, &
-                                                   -fe_dofs,        &
-                                                   nodal_values )
-    end if
+      if ( fe%has_fixed_dofs(field_id) ) then
+        ! Insert nodal values associated to dirichlet bcs
+        call this%fixed_dof_values%insert_subvector( 1,               &
+                                                     num_nodes_field, &
+                                                     -fe_dofs,        &
+                                                     nodal_values )
+      end if
+      
+      block_id = this%field_blocks(field_id)
+      
+      ! Extract nodal values associated to dofs
+      call this%free_dof_values%insert_subvector ( block_id, &
+                                               num_nodes_field, &
+                                               fe_dofs, &
+                                               nodal_values )
+      
+      if ( fe%is_ghost() ) then
+        call this%free_ghost_dof_values%insert_subvector ( 1,                            &
+                                                      num_nodes_field,              &
+                                                      fe_dofs - this%num_total_free_dofs, &
+                                                      nodal_values )
+      end if
     
-    field_blocks => fe%get_field_blocks()
-    block_id = field_blocks(field_id)
-    
-    ! Extract nodal values associated to dofs
-    call this%free_dof_values%insert_subvector ( block_id, &
-                                             num_nodes_field, &
-                                             fe_dofs, &
-                                             nodal_values )
-    
-    if ( fe%is_ghost() ) then
-      call this%free_ghost_dof_values%insert_subvector ( 1,                            &
-                                                    num_nodes_field,              &
-                                                    fe_dofs - this%num_total_free_dofs, &
-                                                    nodal_values )
     end if
     
   end subroutine fe_function_insert_nodal_values

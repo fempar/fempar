@@ -59,6 +59,7 @@ module test_maxwell_nedelec_driver_names
      type(fe_affine_operator_t)                  :: fe_affine_operator
 
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                       :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
 #else     
@@ -70,7 +71,9 @@ module test_maxwell_nedelec_driver_names
 
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -94,11 +97,24 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
 
   subroutine setup_triangulation(this)
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%parameter_list)
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)

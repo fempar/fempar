@@ -46,7 +46,7 @@ module test_transient_poisson_driver_names
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_transient_poisson_params_t)   :: test_params
      type(ParameterList_t)                   :: parameter_list
-     
+ 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
      integer(ip), allocatable                  :: cell_set_ids(:)
@@ -65,6 +65,7 @@ module test_transient_poisson_driver_names
      type(dirk_solver_t)                          :: time_solver
      
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                       :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
 #else     
@@ -77,7 +78,9 @@ module test_transient_poisson_driver_names
      type(output_handler_t)                    :: oh
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -109,7 +112,21 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+    
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_transient_poisson_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
   
+  subroutine free_environment(this)
+    implicit none
+    class(test_transient_poisson_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
+
   ! -----------------------------------------------------------------------------------------------
   subroutine setup_triangulation(this)
     implicit none
@@ -137,7 +154,7 @@ contains
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%serial_environment,this%parameter_list)
     !call this%triangulation%print()
 
     
@@ -289,7 +306,7 @@ contains
                                 linear_solver = this%iterative_linear_solver, &
                                 environment = this%fe_space%get_environment(),&
                                 fe_operator = this%time_operator%get_fe_operator(), &
-                                print_iteration_ouput = this%test_params%get_print_nonlinear_iteration() )
+                                print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
 #endif
     
         
@@ -516,7 +533,6 @@ contains
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this    
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

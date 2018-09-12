@@ -32,8 +32,13 @@ program test_mixed_laplacian_rt
   use test_mixed_laplacian_rt_driver_names  
   implicit none
   type(test_mixed_laplacian_rt_driver_t) :: test_driver
-  call fempar_init()
+  type(serial_context_t)      :: world_context
+  call world_context%create()
+  call fempar_init() 
+  call test_driver%parse_command_line_parameters()
+  call test_driver%setup_environment(world_context)
   call test_driver%run_simulation()
+  call test_driver%free_environment()
   call fempar_finalize()
-contains
+  call world_context%free(finalize=.true.)
 end program test_mixed_laplacian_rt

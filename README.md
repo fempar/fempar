@@ -12,7 +12,7 @@ Finite Element Multiphysics PARallel solvers
 - [Source code documentation](http://fempar.org/documentation/)
 - [Issue tracker](https://gitlab.com/fempar/fempar/issues)
 - [Continuous integration dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://ci.servercomfus/projects/2)
-- [Testing dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://servercomfus:8080/index.php?project=fempar)
+- [Testing dashboard](https://cdash.cimne.upc.edu/user.php)
 
 ## Compilation
 
@@ -92,6 +92,14 @@ To see the different options and default values we can do
 $ ./driver_name --help
 ```
 
+## Testing dashboard (CDash)
 
-
+This project offers to its users/developers a testing dashboard service. This service is powered by [CDash](https://www.cdash.org/) on a 
+server hosted by CIMNE. Click [here](https://cdash.cimne.upc.edu/user.php) in order to access to the web interface of the service. 
+The CDash server gathers and displays rich information regarding the execution of tests which are performed each
+time you push into a branch of the fempar repository, and thus, lets you know, e.g., which tests failed,
+with which compiler, amount of code, and code covered by the tests, memory defects (e.g., leaks), etc.
+If you want to access to this (highly recommended) service, then you have to follow the instructions available
+[here](https://cdash.cimne.upc.edu/user.php). Once you are provided with a new user account, then [e-mail us](mailto:amartin@cimne.upc.edu),
+so that we can add you to the fempar project at the CDash server. 
 

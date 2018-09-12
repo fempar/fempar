@@ -956,7 +956,7 @@ contains
                  else if (this%quad_to_quad_by_edge(iedge,icell) == -1) then 
                     improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
                     if ( min_cell_int_edge == jcell ) then
-                      improper_cell_around_subvef  = -isubface
+                      improper_cell_around_subvef  = -1
                     end if  
                  end if 
                  is_proper = .false.
@@ -2206,6 +2206,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   this%previous_num_ghost_cells = this%get_num_ghost_cells()
  
   ! Update the num of triangulation cells
+  call this%set_num_global_cells(int(global_num_quadrants,igp))
   call this%set_num_local_cells(local_num_quadrants)
   call this%set_num_ghost_cells(ghost_num_quadrants)
 #else
