@@ -135,39 +135,41 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
     end do
   end do
 
-  !Fix non-valid sub-cells and inverted sub-cells and sub-faces (only in 3D)
-  if (this%marching_cubes%triangulation%get_num_dims()==3) then
+  !Fix non-valid sub-cells and inverted sub-cells and sub-faces (only in 3D HEXAHEDRA)
+  if (this%marching_cubes%triangulation%get_num_dims()== 3 )  then
+       ! Check valid sub-triangulation 
+       is_valid_submesh = this%is_valid_submesh()
 
-    ! Check valid sub-triangulation (i.e. the volume is 8.0)
-    is_valid_submesh = this%is_valid_submesh()
+       ! If not valid: redo Delaunay triangulation
+       if ( .not. is_valid_submesh ) then
+         massert( reference_fe_geo%get_topology() /= topology_tet , 'unfitted_cell_iterator::update_sub_triangulation: Non-valid tetrahedra mesh' )
+         
+         call this%generate_subcells()
+         call this%generate_subcells_status()
+       end if
+       
+       if ( reference_fe_geo%get_topology() == topology_hex ) then 
+       ! Search for inverted sub-cells and reorient them
+       this%marching_cubes%sub_cell_has_been_reoriented(:)=.false.
+       has_inverted_subcells = .false.
+       do subcell=1,this%marching_cubes%num_subcells
+         if (this%is_inverted_subcell(subcell)) then
+           has_inverted_subcells = .true.
+           this%marching_cubes%sub_cell_has_been_reoriented(subcell)=.true.
+           subcell_nodes(:) = this%marching_cubes%sub_cells_node_ids(:,subcell)
+           this%marching_cubes%sub_cells_node_ids(:,subcell) = subcell_nodes([1,3,2,4])
+           assert(.not. this%is_inverted_subcell(subcell))
+         end if
+       end do
 
-    ! If not valid: redo Delaunay triangulation
-    if ( .not. is_valid_submesh ) then
-      call this%generate_subcells()
-      call this%generate_subcells_status()
+       assert(this%is_valid_submesh())
+
+       ! If any inverted sub-cell found or the sub-triangulation was invalid:
+       ! find again the boundary faces
+       if (has_inverted_subcells .or. (.not. is_valid_submesh)) then 
+         call this%generate_boundary_subfacets()
+       end if
     end if
-
-    ! Search for inverted sub-cells and reorient them
-    this%marching_cubes%sub_cell_has_been_reoriented(:)=.false.
-    has_inverted_subcells = .false.
-    do subcell=1,this%marching_cubes%num_subcells
-      if (this%is_inverted_subcell(subcell)) then
-        has_inverted_subcells = .true.
-        this%marching_cubes%sub_cell_has_been_reoriented(subcell)=.true.
-        subcell_nodes(:) = this%marching_cubes%sub_cells_node_ids(:,subcell)
-        this%marching_cubes%sub_cells_node_ids(:,subcell) = subcell_nodes([1,3,2,4])
-        assert(.not. this%is_inverted_subcell(subcell))
-      end if
-    end do
-
-    assert(this%is_valid_submesh())
-
-    ! If any inverted sub-cell found or the sub-triangulation was invalid:
-    ! find again the boundary faces
-    if (has_inverted_subcells .or. (.not. is_valid_submesh)) then
-      call this%generate_boundary_subfacets()
-    end if
-
   end if
 
   ! Update the quadrature
@@ -512,37 +514,41 @@ function unfitted_cell_iterator_is_valid_submesh(this)
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
   logical :: unfitted_cell_iterator_is_valid_submesh
-
+  
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: subcell
   type(point_t) :: Xe(4)
   type(vector_field_t) :: u,v,w
   integer(ip), pointer :: Te(:)
   real(rp) :: vol
-
+  real(rp), parameter :: volume_reference_fe_hex = 8.0_rp
+  real(rp), parameter :: volume_reference_fe_tet = 1.0_rp/6.0_rp
+  real(rp) :: tol_volume =  1.0e-13_rp
+  reference_fe_geo => this%get_reference_fe()
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
   assert(this%get_num_subcell_nodes()==4)
   assert(this%marching_cubes%triangulation%get_num_dims() == 3)
 
   vol = 0.0
+  
   do subcell=1,this%marching_cubes%num_subcells
 
     ! Get connectivities and coordinates
     ! We assume that update_triangulation was called for this cell
     Te => this%marching_cubes%sub_cells_node_ids(:,subcell)
     Xe(:) = this%marching_cubes%subnodes_ref_coords(Te)
-
     ! Compute volume
     u = Xe(1) - Xe(4)
     v = Xe(2) - Xe(4)
     w = Xe(3) - Xe(4)
-    vol = vol + (1.0/6.0)*abs(u*cross_product(v,w))
-
+    vol = vol + volume_reference_fe_tet*abs(u*cross_product(v,w))
   end do
-
-  unfitted_cell_iterator_is_valid_submesh = (abs(vol-8.0) < 1.0e-12)
-  !massert(unfitted_cell_iterator_is_valid_submesh,'No invaled meshes are allowed by the moment')
-
+  if ( reference_fe_geo%get_topology() == topology_hex ) then
+    unfitted_cell_iterator_is_valid_submesh = (abs(vol-volume_reference_fe_hex) < tol_volume )
+  else if ( reference_fe_geo%get_topology() == topology_tet ) then
+    unfitted_cell_iterator_is_valid_submesh = (abs(vol-volume_reference_fe_tet) < tol_volume )
+  end if
 end function unfitted_cell_iterator_is_valid_submesh
 
 !========================================================================================
