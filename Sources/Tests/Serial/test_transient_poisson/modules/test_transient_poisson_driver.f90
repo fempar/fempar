@@ -31,9 +31,6 @@ module test_transient_poisson_driver_names
   use poisson_cG_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
-  use time_stepping_names
-  use nonlinear_solver_names
- 
   
 # include "debug.i90"
 
