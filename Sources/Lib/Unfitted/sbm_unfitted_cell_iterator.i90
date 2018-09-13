@@ -142,7 +142,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
 
        ! If not valid: redo Delaunay triangulation
        if ( .not. is_valid_submesh ) then
-         massert( reference_fe_geo%get_topology() /= topology_tet , 'unfitted_cell_iterator::update_sub_triangulation: Non-valid tetrahedra mesh' )
+         massert( reference_fe_geo%get_topology() /= topology_tet , 'unfitted_cell_iterator::update_sub_triangulation: Non-valid tetrahedra sub-triangulation' )
          
          call this%generate_subcells()
          call this%generate_subcells_status()

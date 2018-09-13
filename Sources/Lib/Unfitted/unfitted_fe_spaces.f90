@@ -97,6 +97,10 @@ module unfitted_fe_spaces_names
     procedure, non_overridable, private :: update_cut_boundary_cell_maps     => unfitted_fe_cell_iterator_update_cut_boundary_cell_maps
     procedure, non_overridable, private :: update_cut_boundary_cell_integrators  => &
     unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators
+    
+    procedure, private :: is_det_jacobian_positive => unfitted_fe_cell_iterator_is_det_jacobian_positive
+    procedure, private :: is_cell_volume_positive  => unfitted_fe_cell_iterator_is_cell_volume_positive
+    procedure, private :: get_cell_volume          => unfitted_fe_cell_iterator_get_cell_volume
 
   end type unfitted_fe_cell_iterator_t
 

@@ -486,7 +486,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_maps( this )
   end do
 
   ! Update the piecewise fe map
-  call pw_cell_map%update_facet_map(this%unfitted_integration_manager%quadrature_subfacet, this%cut_cell_map%is_det_jacobian_positive() )
+  call pw_cell_map%update_facet_map(this%unfitted_integration_manager%quadrature_subfacet, this%is_det_jacobian_positive() )
 
   ! At this point the piecewise fe map contains the det_jacobian, coordinates of quad points on phys space and the normals
 
@@ -536,5 +536,74 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   ! At this point we can extract info about shape function from the cell integrator
 
 end subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators
+!=============================================================================================
+function unfitted_fe_cell_iterator_is_det_jacobian_positive( this )
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(in) :: this
+  logical :: unfitted_fe_cell_iterator_is_det_jacobian_positive
+  
+  class( reference_fe_t) , pointer :: reference_fe
+  type(point_t)          , pointer :: coordinates(:)
 
+  if (  this%is_integration_updated() ) then
+    unfitted_fe_cell_iterator_is_det_jacobian_positive = this%cut_cell_map%is_det_jacobian_positive()
+  else
+    reference_fe => this%get_reference_fe(1)
+    call this%get_nodes_coordinates( coordinates )
+    unfitted_fe_cell_iterator_is_det_jacobian_positive = &
+          this%is_cell_volume_positive( coordinates, reference_fe%get_topology() )
+  end if
+ end function unfitted_fe_cell_iterator_is_det_jacobian_positive
+ !=============================================================================================
+ ! This function should be elsewhere, e.g., cell_iterator_t, reference_fe_t
+ function unfitted_fe_cell_iterator_is_cell_volume_positive( this, coordinates, topology ) !from coordinates
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(in) :: this
+  type(point_t)                     , intent(in) :: coordinates(:)
+  character(:)            , pointer , intent(in) :: topology
+  logical :: unfitted_fe_cell_iterator_is_cell_volume_positive
+  
+  if ( topology == topology_tet ) then
+    unfitted_fe_cell_iterator_is_cell_volume_positive = this%get_cell_volume( coordinates, topology ) > 0.0_rp
+  else if ( topology == topology_hex ) then
+    unfitted_fe_cell_iterator_is_cell_volume_positive = .true.
+  else
+    assert( .false. )
+  end if
+ end function unfitted_fe_cell_iterator_is_cell_volume_positive
 
+ !=============================================================================================
+ ! This function should be elsewhere, e.g.,  cell_iterator_t, reference_fe_t
+ function unfitted_fe_cell_iterator_get_cell_volume( this , coordinates, topology )
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(in) :: this
+  type(point_t)                     , intent(in) :: coordinates(:)
+  character(:)            , pointer , intent(in) :: topology
+  real(rp) :: unfitted_fe_cell_iterator_get_cell_volume
+  
+  class(triangulation_t), pointer :: triangulation
+  type(vector_field_t) :: vector(SPACE_DIM)
+  type(vector_field_t) :: aux
+  real(rp),  parameter :: volume_tet_factor_2D = 0.5_rp 
+  real(rp),  parameter :: volume_tet_factor_3D = 1.0_rp/6.0_rp
+  
+  assert( topology == topology_tet )
+  triangulation => this%get_triangulation()
+  
+  vector(1) = coordinates(2) - coordinates(1)
+  vector(2) = coordinates(3) - coordinates(1)
+  
+  select case ( triangulation%get_num_dims() ) 
+  case ( 2 )
+    aux = cross_product( vector(2), vector(3) )
+    unfitted_fe_cell_iterator_get_cell_volume = aux%nrm2() * volume_tet_factor_2D
+  case ( 3 )
+    vector(3) = coordinates(4) - coordinates(1) 
+    unfitted_fe_cell_iterator_get_cell_volume = vector(1) * cross_product( vector(2), vector(3) ) * &
+                                                volume_tet_factor_3D
+  case DEFAULT
+    assert( .false. )
+  end select
+  
+ end function unfitted_fe_cell_iterator_get_cell_volume
+ 
