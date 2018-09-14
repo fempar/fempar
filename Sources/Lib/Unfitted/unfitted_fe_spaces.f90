@@ -76,10 +76,10 @@ module unfitted_fe_spaces_names
     procedure          :: get_cell_integrator   => unfitted_fe_cell_iterator_get_cell_integrator
     
     ! Getters that extend
-    procedure          :: get_boundary_quadrature          => unfitted_fe_cell_iterator_get_boundary_quadrature
+    procedure          :: get_boundary_quadrature            => unfitted_fe_cell_iterator_get_boundary_quadrature
     procedure          :: get_boundary_piecewise_cell_map    => unfitted_fe_cell_iterator_get_boundary_piecewise_cell_map
     procedure          :: get_boundary_cell_map              => unfitted_fe_cell_iterator_get_boundary_cell_map
-    procedure          :: get_boundary_cell_integrator     => unfitted_fe_cell_iterator_get_boundary_cell_integrator
+    procedure          :: get_boundary_cell_integrator       => unfitted_fe_cell_iterator_get_boundary_cell_integrator
 
     ! Updater that overrides
     procedure :: update_integration      => unfitted_fe_cell_iterator_update_integration
@@ -90,17 +90,17 @@ module unfitted_fe_spaces_names
     procedure :: update_boundary_integration  => unfitted_fe_cell_iterator_update_boundary_integration
 
     ! Private TBPs
-    procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_cell_iterator_update_cut_quadratures
-    procedure, non_overridable, private :: update_cut_cell_maps     => unfitted_fe_cell_iterator_update_cut_cell_maps
-    procedure, non_overridable, private :: update_cut_cell_integrators  => unfitted_fe_cell_iterator_update_cut_cell_integrators
-    procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_cell_iterator_update_cut_boundary_quadratures
-    procedure, non_overridable, private :: update_cut_boundary_cell_maps     => unfitted_fe_cell_iterator_update_cut_boundary_cell_maps
+    procedure, non_overridable, private :: update_cut_quadratures                => unfitted_fe_cell_iterator_update_cut_quadratures
+    procedure, non_overridable, private :: update_cut_cell_maps                  => unfitted_fe_cell_iterator_update_cut_cell_maps
+    procedure, non_overridable, private :: update_cut_cell_integrators           => unfitted_fe_cell_iterator_update_cut_cell_integrators
+    procedure, non_overridable, private :: update_cut_boundary_quadratures       => unfitted_fe_cell_iterator_update_cut_boundary_quadratures
+    procedure, non_overridable, private :: update_cut_boundary_cell_maps         => unfitted_fe_cell_iterator_update_cut_boundary_cell_maps
     procedure, non_overridable, private :: update_cut_boundary_cell_integrators  => &
     unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators
     
-    procedure, private :: is_det_jacobian_positive => unfitted_fe_cell_iterator_is_det_jacobian_positive
-    procedure, private :: is_cell_volume_positive  => unfitted_fe_cell_iterator_is_cell_volume_positive
-    procedure, private :: get_cell_volume          => unfitted_fe_cell_iterator_get_cell_volume
+    procedure, private :: is_det_jacobian_mapping_positive => unfitted_fe_cell_iterator_is_det_jacobian_mapping_positive
+    procedure, private :: is_cell_volume_positive          => unfitted_fe_cell_iterator_is_cell_volume_positive
+    procedure, private :: compute_cell_volume              => unfitted_fe_cell_iterator_compute_cell_volume
 
   end type unfitted_fe_cell_iterator_t
 
@@ -116,7 +116,7 @@ module unfitted_fe_spaces_names
     procedure :: update_integration                   => unfitted_fe_facet_iterator_update_integration
     procedure, private :: update_quadrature           => unfitted_fe_facet_iterator_update_quadrature
     procedure :: get_quadrature                       => unfitted_fe_facet_iterator_get_quadrature
-    procedure, non_overridable :: update_facet_maps_interpolation  => unfitted_fe_facet_iterator_update_facet_maps_interpolation
+    procedure, non_overridable :: update_facet_maps_interpolation        => unfitted_fe_facet_iterator_update_facet_maps_interpolation
     procedure, non_overridable :: update_facet_integrators_interpolation => uffi_update_facet_integrators_interpolation
     procedure :: get_quadrature_points_coordinates    => unfitted_fe_facet_iterator_get_quadrature_points_coordinates
     procedure :: get_normal                           => unfitted_fe_facet_iterator_get_normal
@@ -139,36 +139,36 @@ module unfitted_fe_spaces_names
     ! All the machinery for integrating in subcells
     type(quadrature_t)                     :: quadrature_subelem
     type(tet_lagrangian_reference_fe_t)    :: geo_reference_subelem
-    type(cell_map_t)                         :: cell_map_subelem
+    type(cell_map_t)                       :: cell_map_subelem
     type(quadrature_t),        allocatable :: cut_quadratures(:)
-    type(cell_map_t),            allocatable :: cut_cell_maps(:)
+    type(cell_map_t),          allocatable :: cut_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
     type(hash_table_ip_ip_t) :: num_sub_cells_to_pos
 
     ! All the machinery for integrating in subfacets
-    type(quadrature_t)                     :: quadrature_subfacet
-    type(quadrature_t),        allocatable :: cut_boundary_quadratures_cell_dim(:)
-    type(piecewise_cell_map_t),  allocatable :: cut_boundary_piecewise_cell_maps(:)
-    type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
-    type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
+    type(quadrature_t)                      :: quadrature_subfacet
+    type(quadrature_t),         allocatable :: cut_boundary_quadratures_cell_dim(:)
+    type(piecewise_cell_map_t), allocatable :: cut_boundary_piecewise_cell_maps(:)
+    type(cell_map_t),           allocatable :: cut_boundary_cell_maps(:)
+    type(cell_integrator_t),    allocatable :: cut_boundary_cell_integrators(:,:)    
     type(hash_table_ip_ip_t) :: num_unfitted_sub_facets_to_pos
 
     ! All the machinery to integrate in fitted subfacets
     type(tet_lagrangian_reference_fe_t)   :: geo_reference_subfacet
-    type(quadrature_t)                     :: quadrature_fitted_subfacet
-    type(cell_map_t)                     :: cell_map_subfacet
+    type(quadrature_t)                    :: quadrature_fitted_subfacet
+    type(cell_map_t)                      :: cell_map_subfacet
     type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:)
     type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
     type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:,:)
     type(hash_table_ip_ip_t) :: num_fitted_sub_facets_to_pos
 
     ! Auxiliary dummy empty quadratures
-    type(quadrature_t)             :: empty_quadrature
-    type(cell_map_t)                 :: empty_cell_map
-    type(piecewise_cell_map_t)       :: empty_piecewise_cell_map
+    type(quadrature_t)                    :: empty_quadrature
+    type(cell_map_t)                      :: empty_cell_map
+    type(piecewise_cell_map_t)            :: empty_piecewise_cell_map
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
-    type(quadrature_t)             :: empty_facet_quadrature
-    type(facet_maps_t)             :: empty_facet_maps(pos_map_max_id)
+    type(quadrature_t)                    :: empty_facet_quadrature
+    type(facet_maps_t)                    :: empty_facet_maps(pos_map_max_id)
     type(facet_integrator_t), allocatable :: empty_facet_integrators(:,:)
     
     contains
