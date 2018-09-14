@@ -228,6 +228,8 @@ contains
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
     integer(ip)                           , intent(in)    :: test_case
+    integer(ip)                               :: istat
+    type(interpolation_duties_t), allocatable :: interpolation_duties(:)
 
     call this%interpolators_conditions%set_num_components(this%triangulation%get_num_dims() + 1)
 
@@ -236,13 +238,13 @@ contains
                                  reference_fes       = this%reference_fes,      &
                                  coarse_fe_handlers  = this%coarse_fe_handlers, &
                                  conditions          = this%interpolators_conditions )
+      call this%fe_space%set_up_facet_integration()
     else if ( test_case == TEST_TENSOR_INTERPOLATORS ) then 
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
                                  coarse_fe_handlers  = this%coarse_fe_handlers )
-    end if   
+    end if
     call this%fe_space%set_up_cell_integration()
-    call this%fe_space%set_up_facet_integration()
 
     ! Operators related data needed for fe_function 
     !call this%block_layout%create( this%fe_space%get_num_fields() )
@@ -304,162 +306,214 @@ contains
     end if
   end subroutine interpolate_analytical_functions
 
-  subroutine check_solution(this)
+  subroutine check_solution(this, test_case)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: test_case
+    class(tensor_function_t), pointer :: S_exact_function
     class(vector_function_t), pointer :: H_exact_function
     class(scalar_function_t), pointer :: p_exact_function
+    type(error_norms_tensor_t) :: S_error_norm
     type(error_norms_vector_t) :: H_error_norm
     type(error_norms_scalar_t) :: p_error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, hcurl, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
-
-    H_exact_function => this%problem_functions%get_magnetic_field_solution()
-    p_exact_function => this%problem_functions%get_pressure_solution() 
-
+    
     error_tolerance = 1.0e-06 
 
-    call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
-    mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
-    l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
-    l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm)   
-    lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
-    linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
-    h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
-    h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
-    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm) 
-    w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
-    w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
-    w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
-    w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
+    if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS) then
 
-    if ( this%par_environment%am_i_l1_root() ) then 
-    write(*,*) 'PROJECTED MAGNETIC FIELD FUNCTION ERROR NORMS *************'
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    end if 
-    call H_error_norm%free()
+      H_exact_function => this%problem_functions%get_magnetic_field_solution()
+      p_exact_function => this%problem_functions%get_pressure_solution() 
+
+      call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
+      mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
+      l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
+      l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm)   
+      lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm)   
+      linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm)   
+      h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm) 
+      h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm) 
+      hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm) 
+      w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm)   
+      w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
+      w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
+      w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
+
+      if ( this%par_environment%am_i_l1_root() ) then 
+        write(*,*) 'PROJECTED MAGNETIC FIELD FUNCTION ERROR NORMS *************'
+        write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+        write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+        write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+        write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+      end if 
+      call H_error_norm%free()
 
 
-    call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
-    mean = p_error_norm%compute(p_exact_function, this%solution, mean_norm)   
-    l1 = p_error_norm%compute(p_exact_function, this%solution, l1_norm)   
-    l2 = p_error_norm%compute(p_exact_function, this%solution, l2_norm)   
-    lp = p_error_norm%compute(p_exact_function, this%solution, lp_norm)   
-    linfty = p_error_norm%compute(p_exact_function, this%solution, linfty_norm)   
-    h1_s = p_error_norm%compute(p_exact_function, this%solution, h1_seminorm) 
-    h1 = p_error_norm%compute(p_exact_function, this%solution, h1_norm) 
-    w1p_s = p_error_norm%compute(p_exact_function, this%solution, w1p_seminorm)   
-    w1p = p_error_norm%compute(p_exact_function, this%solution, w1p_norm)   
-    w1infty_s = p_error_norm%compute(p_exact_function, this%solution, w1infty_seminorm) 
-    w1infty = p_error_norm%compute(p_exact_function, this%solution, w1infty_norm)
+        call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
+        mean = p_error_norm%compute(p_exact_function, this%solution, mean_norm)   
+        l1 = p_error_norm%compute(p_exact_function, this%solution, l1_norm)   
+        l2 = p_error_norm%compute(p_exact_function, this%solution, l2_norm)   
+        lp = p_error_norm%compute(p_exact_function, this%solution, lp_norm)   
+        linfty = p_error_norm%compute(p_exact_function, this%solution, linfty_norm)   
+        h1_s = p_error_norm%compute(p_exact_function, this%solution, h1_seminorm) 
+        h1 = p_error_norm%compute(p_exact_function, this%solution, h1_norm) 
+        w1p_s = p_error_norm%compute(p_exact_function, this%solution, w1p_seminorm)   
+        w1p = p_error_norm%compute(p_exact_function, this%solution, w1p_norm)   
+        w1infty_s = p_error_norm%compute(p_exact_function, this%solution, w1infty_seminorm) 
+        w1infty = p_error_norm%compute(p_exact_function, this%solution, w1infty_norm)
 
-    if (this%par_environment%am_i_l1_root()) then 
-    write(*,*) 'PROJECTED SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    end if 
-    call p_error_norm%free() 
+      if (this%par_environment%am_i_l1_root()) then 
+        write(*,*) 'PROJECTED SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
+        write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+        write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+        write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+        write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+      end if 
+      call p_error_norm%free() 
+      
+    elseif (test_case == TEST_TENSOR_INTERPOLATORS) then
+    
+        S_exact_function => this%problem_functions%get_stress_field_solution()
+     
+        call S_error_norm%create(this%fe_space, STRESS_FIELD_ID )
+        mean   = S_error_norm%compute(S_exact_function, this%solution, mean_norm)   
+        l1     = S_error_norm%compute(S_exact_function, this%solution, l1_norm)   
+        l2     = S_error_norm%compute(S_exact_function, this%solution, l2_norm)   
+        linfty = S_error_norm%compute(S_exact_function, this%solution, linfty_norm)   
+
+        if ( this%par_environment%am_i_l1_root() ) then 
+          write(*,*) 'PROJECTED STRESS FIELD FUNCTION ERROR NORMS *************'
+          write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+          write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+          write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+          write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+        end if 
+      call S_error_norm%free()
+        
+    end if
 
   end subroutine check_solution
 
-  subroutine check_time_solution(this)
+  subroutine check_time_solution(this, test_case)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: test_case
+    class(tensor_function_t), pointer :: S_exact_function
     class(vector_function_t), pointer :: H_exact_function
     class(scalar_function_t), pointer :: p_exact_function
+    type(error_norms_tensor_t) :: S_error_norm
     type(error_norms_vector_t) :: H_error_norm
     type(error_norms_scalar_t) :: p_error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, hcurl, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance, time_
 
-    H_exact_function => this%problem_functions%get_magnetic_field_solution()
-    p_exact_function => this%problem_functions%get_pressure_solution() 
-
     error_tolerance = 1.0e-06 
 
-    call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
-
+    if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS) then
     
-    mean = H_error_norm%compute(H_exact_function, this%time_solution, mean_norm, time=this%time)   
-    l1 = H_error_norm%compute(H_exact_function, this%time_solution, l1_norm, time=this%time)   
-    l2 = H_error_norm%compute(H_exact_function, this%time_solution, l2_norm, time=this%time)   
-    lp = H_error_norm%compute(H_exact_function, this%time_solution, lp_norm, time=this%time)   
-    linfty = H_error_norm%compute(H_exact_function, this%time_solution, linfty_norm, time=this%time)   
-    h1_s = H_error_norm%compute(H_exact_function, this%time_solution, h1_seminorm, time=this%time) 
-    h1 = H_error_norm%compute(H_exact_function, this%time_solution, h1_norm, time=this%time) 
-    hcurl = H_error_norm%compute(H_exact_function, this%time_solution, hcurl_seminorm, time=this%time) 
-    w1p_s = H_error_norm%compute(H_exact_function, this%time_solution, w1p_seminorm, time=this%time)   
-    w1p = H_error_norm%compute(H_exact_function, this%time_solution, w1p_norm, time=this%time)   
-    w1infty_s = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
-    w1infty = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_norm, time=this%time)
+      H_exact_function => this%problem_functions%get_magnetic_field_solution()
+      p_exact_function => this%problem_functions%get_pressure_solution() 
 
-    if (this%par_environment%am_i_l1_root()) then
-    write(*,*) 'PROJECTED TRANSIENT MAGNETIC FIELD FUNCTION ERROR NORMS *************'
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    end if 
-    call H_error_norm%free()
+      call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
+    
+      mean = H_error_norm%compute(H_exact_function, this%time_solution, mean_norm, time=this%time)   
+      l1 = H_error_norm%compute(H_exact_function, this%time_solution, l1_norm, time=this%time)   
+      l2 = H_error_norm%compute(H_exact_function, this%time_solution, l2_norm, time=this%time)   
+      lp = H_error_norm%compute(H_exact_function, this%time_solution, lp_norm, time=this%time)   
+      linfty = H_error_norm%compute(H_exact_function, this%time_solution, linfty_norm, time=this%time)   
+      h1_s = H_error_norm%compute(H_exact_function, this%time_solution, h1_seminorm, time=this%time) 
+      h1 = H_error_norm%compute(H_exact_function, this%time_solution, h1_norm, time=this%time) 
+      hcurl = H_error_norm%compute(H_exact_function, this%time_solution, hcurl_seminorm, time=this%time) 
+      w1p_s = H_error_norm%compute(H_exact_function, this%time_solution, w1p_seminorm, time=this%time)   
+      w1p = H_error_norm%compute(H_exact_function, this%time_solution, w1p_norm, time=this%time)   
+      w1infty_s = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
+      w1infty = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_norm, time=this%time)
+
+      if (this%par_environment%am_i_l1_root()) then
+        write(*,*) 'PROJECTED TRANSIENT MAGNETIC FIELD FUNCTION ERROR NORMS *************'
+        write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+        write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+        write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+        write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+      end if 
+      call H_error_norm%free()
 
 
-    call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
-    mean = p_error_norm%compute(p_exact_function, this%time_solution, mean_norm, time=this%time)   
-    l1 = p_error_norm%compute(p_exact_function, this%time_solution, l1_norm, time=this%time)   
-    l2 = p_error_norm%compute(p_exact_function, this%time_solution, l2_norm, time=this%time)   
-    lp = p_error_norm%compute(p_exact_function, this%time_solution, lp_norm, time=this%time)   
-    linfty = p_error_norm%compute(p_exact_function, this%time_solution, linfty_norm, time=this%time)   
-    h1_s = p_error_norm%compute(p_exact_function, this%time_solution, h1_seminorm, time=this%time) 
-    h1 = p_error_norm%compute(p_exact_function, this%time_solution, h1_norm, time=this%time) 
-    w1p_s = p_error_norm%compute(p_exact_function, this%time_solution, w1p_seminorm, time=this%time)   
-    w1p = p_error_norm%compute(p_exact_function, this%time_solution, w1p_norm, time=this%time)   
-    w1infty_s = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
-    w1infty = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_norm, time=this%time)
+      call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
+      mean = p_error_norm%compute(p_exact_function, this%time_solution, mean_norm, time=this%time)   
+      l1 = p_error_norm%compute(p_exact_function, this%time_solution, l1_norm, time=this%time)   
+      l2 = p_error_norm%compute(p_exact_function, this%time_solution, l2_norm, time=this%time)   
+      lp = p_error_norm%compute(p_exact_function, this%time_solution, lp_norm, time=this%time)   
+      linfty = p_error_norm%compute(p_exact_function, this%time_solution, linfty_norm, time=this%time)   
+      h1_s = p_error_norm%compute(p_exact_function, this%time_solution, h1_seminorm, time=this%time) 
+      h1 = p_error_norm%compute(p_exact_function, this%time_solution, h1_norm, time=this%time) 
+      w1p_s = p_error_norm%compute(p_exact_function, this%time_solution, w1p_seminorm, time=this%time)   
+      w1p = p_error_norm%compute(p_exact_function, this%time_solution, w1p_norm, time=this%time)   
+      w1infty_s = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
+      w1infty = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_norm, time=this%time)
 
-    if (this%par_environment%am_i_l1_root()) then
-    write(*,*) 'PROJECTED TRANSIENT SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    end if 
-    call p_error_norm%free() 
+      if (this%par_environment%am_i_l1_root()) then
+        write(*,*) 'PROJECTED TRANSIENT SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
+        write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+        write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+        write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+        write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+        write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+      end if 
+      call p_error_norm%free() 
+    
+    elseif (test_case == TEST_TENSOR_INTERPOLATORS) then
+    
+      S_exact_function => this%problem_functions%get_stress_field_solution()
 
+      call S_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
+    
+      mean = S_error_norm%compute(S_exact_function, this%time_solution, mean_norm, time=this%time)   
+      l1 = S_error_norm%compute(S_exact_function, this%time_solution, l1_norm, time=this%time)   
+      l2 = S_error_norm%compute(S_exact_function, this%time_solution, l2_norm, time=this%time)   
+      linfty = S_error_norm%compute(S_exact_function, this%time_solution, linfty_norm, time=this%time)   
+
+      if (this%par_environment%am_i_l1_root()) then
+        write(*,*) 'PROJECTED TRANSIENT STRESS FIELD FUNCTION ERROR NORMS *************'
+        write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+        write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+        write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+        write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+      end if 
+      call S_error_norm%free()
+      
+    end if
+        
   end subroutine check_time_solution
 
   subroutine run_simulation(this) 
@@ -471,8 +525,8 @@ contains
     call this%setup_coarse_fe_handlers(TEST_SCALAR_VECTOR_INTERPOLATORS)
     call this%setup_fe_space(TEST_SCALAR_VECTOR_INTERPOLATORS)
     call this%interpolate_analytical_functions(TEST_SCALAR_VECTOR_INTERPOLATORS)
-    call this%check_solution()
-    call this%check_time_solution() 
+    call this%check_solution(TEST_SCALAR_VECTOR_INTERPOLATORS)
+    call this%check_time_solution(TEST_SCALAR_VECTOR_INTERPOLATORS) 
     call this%free()
 
   end subroutine run_simulation
@@ -486,8 +540,8 @@ contains
     call this%setup_coarse_fe_handlers(TEST_TENSOR_INTERPOLATORS)
     call this%setup_fe_space(TEST_TENSOR_INTERPOLATORS)
     call this%interpolate_analytical_functions(TEST_TENSOR_INTERPOLATORS)
-    !call this%check_solution()
-    !call this%check_time_solution()
+    call this%check_solution(TEST_TENSOR_INTERPOLATORS)
+    call this%check_time_solution(TEST_TENSOR_INTERPOLATORS)
     call this%free()
 
   end subroutine run_simulation_for_tensor_functions
