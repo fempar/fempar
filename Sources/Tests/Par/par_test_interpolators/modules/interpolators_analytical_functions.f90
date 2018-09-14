@@ -200,13 +200,13 @@ contains
 
     call result%set(1, 1, point%get(1))
     call result%set(2, 2, point%get(2))  
-    call result%set(1, 2, point%get(1)*point%get(2))  
-    call result%set(2, 1, point%get(2)*point%get(1))  
+    call result%set(1, 2, 2.0_rp*(point%get(1)+point%get(2)))  
+    call result%set(2, 1, 2.0_rp*(point%get(2)+point%get(1)))  
     if ( this%num_dims == 3 ) then
-      call result%set(3, 1, point%get(3)*point%get(1))  
-      call result%set(3, 2, point%get(3)*point%get(2))  
-      call result%set(1, 3, point%get(1)*point%get(3))  
-      call result%set(2, 3, point%get(2)*point%get(3))  
+      call result%set(3, 1, 2.0_rp*(point%get(3)+point%get(1)))  
+      call result%set(3, 2, 2.0_rp*(point%get(3)+point%get(2)))  
+      call result%set(1, 3, 2.0_rp*(point%get(1)+point%get(3)))  
+      call result%set(2, 3, 2.0_rp*(point%get(2)+point%get(3)))  
     end if
 
   end subroutine stress_field_solution_get_value_space
@@ -222,13 +222,13 @@ contains
 
     call result%set(1, 1, point%get(1) * time)
     call result%set(2, 2, point%get(2) * time)  
-    call result%set(1, 2, point%get(1)*point%get(2) * time)  
-    call result%set(2, 1, point%get(2)*point%get(1) * time)  
+    call result%set(1, 2, 2.0_rp*(point%get(1)+point%get(2)) * time)  
+    call result%set(2, 1, 2.0_rp*(point%get(2)+point%get(1)) * time)  
     if ( this%num_dims == 3 ) then
-      call result%set(3, 1, point%get(3)*point%get(1) * time)  
-      call result%set(3, 2, point%get(3)*point%get(2) * time)  
-      call result%set(1, 3, point%get(1)*point%get(3) * time)  
-      call result%set(2, 3, point%get(2)*point%get(3) * time)  
+      call result%set(3, 1, 2.0_rp*(point%get(3)+point%get(1)) * time)  
+      call result%set(3, 2, 2.0_rp*(point%get(3)+point%get(2)) * time)  
+      call result%set(1, 3, 2.0_rp*(point%get(1)+point%get(3)) * time)  
+      call result%set(2, 3, 2.0_rp*(point%get(2)+point%get(3)) * time)  
     end if
 
   end subroutine stress_field_solution_get_value_space_time
