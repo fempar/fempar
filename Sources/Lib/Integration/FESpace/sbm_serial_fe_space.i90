@@ -741,6 +741,94 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   call this%free_fe_vef_iterator(vef)
 end subroutine serial_fe_space_interpolate_vector_function
 
+subroutine serial_fe_space_interpolate_tensor_function (this, field_id, function, fe_function, interpolator_type, time)
+  implicit none
+  class(serial_fe_space_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: field_id
+  class(tensor_function_t)         , intent(in)    :: function 
+  type(fe_function_t)              , intent(inout) :: fe_function
+  character(*)           , optional, intent(in)    :: interpolator_type
+  real(rp)               , optional, intent(in)    :: time
+
+  class(reference_fe_t)    , pointer     :: reference_fe 
+  class(fe_cell_iterator_t), allocatable :: fe 
+  class(fe_cell_iterator_t), allocatable :: aux_fe
+  type(fe_vef_iterator_t)                :: vef
+  real(rp)                 , allocatable :: dof_values(:)
+  class(interpolator_t)    , allocatable :: interpolator
+  character(:)             , allocatable :: interpolator_type_
+  logical                  , allocatable :: is_void_field  
+  class(triangulation_t)   , pointer     :: triangulation 
+  integer(ip)                            :: vef_lid
+  integer(ip)                            :: ielem  
+  logical                                :: local_found 
+
+  triangulation => this%get_triangulation() 
+  if ( triangulation%get_num_cells() == 0) return 
+
+  ! Extract reference_fe_t instance associated to field_id for the first non-void element 
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(aux_fe)
+  call this%create_fe_vef_iterator(vef)
+
+  is_void_field = .true. 
+  do while (  (.not. fe%has_finished() )) 
+     if ( .not. fe%is_void(field_id) ) then 
+        is_void_field = .false.; exit 
+     end if
+     call fe%next() 
+  end do
+
+  ! I am already located at the first non-void FE, if it exists 
+  if ( .not. is_void_field ) then    
+     reference_fe => fe%get_reference_fe(field_id)
+     call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
+
+     ! Process optional arguments
+     if ( present(interpolator_type) ) then
+        interpolator_type_ = interpolator_type
+     else
+        interpolator_type_  = select_default_interpolator_type(reference_fe)
+     end if
+
+     call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
+     call interpolator%create(this, field_id)
+     do while (.not. fe%has_finished() )  
+        local_found=.true. 
+        if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
+           vef_loop: do vef_lid = 1, fe%get_num_vefs() 
+              call fe%get_vef(vef_lid, vef)
+              if ( .not. vef%is_ghost() .and. vef%is_proper() ) then
+                 local_found = .false.
+                 do ielem=1, vef%get_num_cells_around()
+                    call vef%get_cell_around(ielem, aux_fe)
+                    if (aux_fe%is_local()) then
+                       local_found = .true.
+                       exit 
+                    end if
+                 end do
+                 if (.not. local_found) exit vef_loop
+              end if
+           end do vef_loop
+        end if
+
+        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. local_found ) then
+           call interpolator%evaluate_tensor_function_moments( fe, function, dof_values, time=time )
+           call fe_function%insert_nodal_values(fe, field_id, dof_values)
+        end if
+
+        call fe%next()
+     end do
+     call memfree( dof_values, __FILE__, __LINE__ ) 
+     call interpolator%free() 
+  end if
+
+  call this%update_hanging_dof_values(fe_function)
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_cell_iterator(aux_fe)
+  call this%free_fe_vef_iterator(vef)
+end subroutine serial_fe_space_interpolate_tensor_function
+
 subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time, time_derivative_order)
   implicit none
   class(serial_fe_space_t)          , intent(in)    :: this

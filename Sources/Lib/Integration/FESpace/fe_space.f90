@@ -703,7 +703,9 @@ module fe_space_names
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
      procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
      procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
-     generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function     
+     procedure                           :: interpolate_tensor_function                  => serial_fe_space_interpolate_tensor_function
+     generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function, &
+                                                                                            interpolate_tensor_function
      procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
@@ -1415,15 +1417,19 @@ module fe_space_names
   contains    
     procedure, private  :: get_function_values_from_scalar_components => interpolator_t_get_function_values_from_scalar_components
     procedure, private  :: get_vector_function_values                 => interpolator_t_get_vector_function_values 
-    generic             :: get_function_values                        => get_vector_function_values 
+    procedure, private  :: get_tensor_function_values                 => interpolator_t_get_tensor_function_values 
+    generic             :: get_function_values                        => get_vector_function_values, get_tensor_function_values
+    procedure, private  :: reallocate_tensor_function_values          => interpolator_t_reallocate_tensor_function_values 
     procedure, private  :: reallocate_vector_function_values          => interpolator_t_reallocate_vector_function_values 
     procedure, private  :: reallocate_scalar_function_values          => interpolator_t_reallocate_scalar_function_values
     procedure, private  :: reallocate_array                           => interpolator_t_reallocate_array 
-    generic             :: reallocate_if_needed => reallocate_vector_function_values, reallocate_scalar_function_values, reallocate_array 
+    generic             :: reallocate_if_needed => reallocate_tensor_function_values, reallocate_vector_function_values, &
+                                                   reallocate_scalar_function_values, reallocate_array 
     ! Deferred TBPs 
     procedure(interpolator_create_interface)                               , deferred :: create
     procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
     procedure(interpolator_evaluate_vector_function_moments_interface)     , deferred :: evaluate_vector_function_moments 
+    procedure(interpolator_evaluate_tensor_function_moments_interface)     , deferred :: evaluate_tensor_function_moments 
     procedure(interpolator_evaluate_function_components_moments_interface) , deferred :: evaluate_function_scalar_components_moments
     procedure(interpolator_free_interface)                                 , deferred :: free    
  end type interpolator_t
@@ -1463,6 +1469,16 @@ module fe_space_names
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_vector_function_moments_interface
 
+    subroutine interpolator_evaluate_tensor_function_moments_interface( this, fe, tensor_function, dof_values, time )
+      import :: interpolator_t, tensor_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(tensor_function_t)        , intent(in)    :: tensor_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_tensor_function_moments_interface
+
     subroutine interpolator_evaluate_function_components_moments_interface( this, &
                                                                             n_face_mask, &
                                                                             fe, &
@@ -1495,10 +1511,12 @@ module fe_space_names
  ! Boundary values array 
  real(rp), allocatable             :: scalar_function_values(:,:)
  type(vector_field_t), allocatable :: function_values(:,:)
+ type(tensor_field_t), allocatable :: tensor_function_values(:,:)
 contains 
  procedure :: create                                             => nodal_interpolator_create
  procedure :: evaluate_scalar_function_moments                   => nodal_interpolator_evaluate_scalar_function_moments 
  procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments  
+ procedure :: evaluate_tensor_function_moments                   => nodal_interpolator_evaluate_tensor_function_moments  
  procedure :: evaluate_function_scalar_components_moments        => nodal_interpolator_evaluate_function_scalar_components_moments
  procedure :: free                                               => nodal_interpolator_free
 end type nodal_interpolator_t
@@ -1540,6 +1558,7 @@ type(interpolation_t)                     , allocatable   :: real_cell_interpola
 contains 
 procedure :: create                                             => hex_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments  
+procedure :: evaluate_tensor_function_moments                   => hex_Hcurl_interpolator_evaluate_tensor_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: free                                               => hex_Hcurl_interpolator_free
 end type hex_Hcurl_interpolator_t
@@ -1552,6 +1571,7 @@ type(tet_lagrangian_reference_fe_t )   , allocatable      :: fes_lagrangian(:)
 contains 
 procedure :: create                                             => tet_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments  
+procedure :: evaluate_tensor_function_moments                   => tet_Hcurl_interpolator_evaluate_tensor_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
