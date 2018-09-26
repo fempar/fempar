@@ -26,8 +26,14 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module time_stepping_mass_discrete_integration_names
-  use fempar_names
-  
+  use types_names
+  use memor_names
+  use reference_fe_names
+  use discrete_integration_names
+  use fe_space_names
+  use assembler_names
+  use vector_names
+ 
   implicit none
 # include "debug.i90"
   private

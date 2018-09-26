@@ -1150,10 +1150,6 @@ contains
 
     call this%free()
 
-    write(*,*) 'parse_command_line_parameters ...'; flush(stdout)
-    call this%parse_command_line_parameters()
-    write(*,*) 'parse_command_line_parameters ... OK'; flush(stdout)
-
     write(*,*) 'setup_levelset ...'; flush(stdout)
     call this%setup_levelset()
     write(*,*) 'setup_levelset ... OK'; flush(stdout)

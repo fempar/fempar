@@ -393,7 +393,6 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

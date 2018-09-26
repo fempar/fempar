@@ -86,6 +86,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   type(c_ptr) :: p4est_old
   
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
+  type(std_vector_integer_ip_t) :: cell_wise_vef_set_ids
   integer(ip), pointer :: user_pointer(:)
   class(environment_t), pointer :: p_environment
 
@@ -124,18 +125,24 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_cell_import()
     call this%update_cell_ggids()
     call this%update_cell_myparts()
-    call this%comm_cell_ggids()
-    call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%fill_x_cell_vertex_coordinates()
-    call this%update_cell_set_ids()
-    call this%comm_cell_set_ids()
-    call this%update_cell_weights()
     call this%set_up_lst_itfc_vefs() 
+
+    ! Update procedures 
+    call this%update_cell_weights()
     call this%update_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
+    call this%update_cell_set_ids()
+    call this%extract_local_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
+    
+    ! Comm procedures
+    call this%comm_cell_set_ids()
+    call this%comm_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
+    call this%fill_ghost_cells_from_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
+    call cell_wise_vef_set_ids%free()
    end if 
    ! Re-set up coarse_triangulation()
    if ( this%coarse_triangulation_is_set_up() ) then
@@ -1427,7 +1434,7 @@ end subroutine p4est_bt_comm_cell_set_ids
 
 subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   implicit none
-  class(p4est_base_triangulation_t), intent(inout) :: this
+  class(p4est_base_triangulation_t), intent(inout)   :: this
   type(std_vector_integer_ip_t)      , intent(in)    :: old_lst_vefs_gids
   
   integer(ip) :: old_num_cells
@@ -1438,7 +1445,6 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   integer(ip) :: old_vef_gid, old_vef_set_id
   type(p4est_cell_iterator_t) :: cell
   type(p4est_vef_iterator_t) :: vef
-  !type(std_vector_integer_ip_t) :: old_vef_set_ids
   
   type(list_t), pointer :: vertices_n_face
   type(list_iterator_t) :: vertices_x_n_face_iterator
@@ -1452,7 +1458,6 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   type(cell_import_t) , pointer :: cell_import
   class(environment_t), pointer :: environment
   integer(ip), pointer :: p_old_vef_set_ids(:)
-  type(std_vector_integer_ip_t) :: old_vef_set_ids
 
 #ifdef ENABLE_P4EST    
   if (this%get_num_dims() == 2) then
@@ -1580,59 +1585,10 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
       assert(.false.)
     end if
   end do
-  
   call old_proper_vefs_set_ids%free()
   call old_improper_vefs_set_ids%free()
- 
-  if ( this%get_num_ghost_cells() > 0 ) then
-    num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
-    
-    ! Re-build cell-wise vef set IDs
-    call old_vef_set_ids%resize(0)
-    do i=1, this%get_num_local_cells()
-      base_pos_old = this%get_ptr_vefs_x_cell(i)-1
-      do vef_lid=1, num_vefs
-        old_vef_gid = this%lst_vefs_gids%get(base_pos_old+vef_lid)
-        if ( old_vef_gid > 0 ) then ! VEF is proper
-          old_vef_set_id = this%proper_vefs_set_ids%get(old_vef_gid)
-        else                        ! VEF is improper
-          old_vef_set_id = this%improper_vefs_set_ids%get(abs(old_vef_gid))
-        end if
-        call old_vef_set_ids%push_back(old_vef_set_id)
-      end do
-    end do
-    call old_vef_set_ids%resize(this%get_num_cells()*num_vefs)
-    p_old_vef_set_ids => old_vef_set_ids%get_pointer()
-
-    ! Retrieve set IDs from ghost cells
-    cell_import => this%get_cell_import()
-    environment => this%get_environment()
-    call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                              cell_import%get_neighbours_ids(),&
-                                              cell_import%get_rcv_ptrs(),&
-                                              cell_import%get_rcv_leids(),&
-                                              cell_import%get_num_neighbours(), &
-                                              cell_import%get_neighbours_ids(),&
-                                              cell_import%get_snd_ptrs(),&
-                                              cell_import%get_snd_leids(),&
-                                              p_old_vef_set_ids, p_old_vef_set_ids, num_vefs )
-    call cell%first()
-    do while ( .not. cell%has_finished() )
-      if ( cell%is_ghost() ) then
-        base_pos_old = this%get_ptr_vefs_x_cell(cell%get_gid())-1
-        do vef_lid=1, num_vefs
-          call cell%get_vef(vef_lid,vef)
-          old_vef_set_id  = p_old_vef_set_ids(base_pos_old+vef_lid)
-          call vef%set_set_id(old_vef_set_id)
-        end do
-      end if
-      call cell%next()
-    end do
-  end if 
-
   call cell%free()
   call vef%free()
-  call old_vef_set_ids%free()
 #else
   call this%not_enabled_error()
 #endif
@@ -1650,6 +1606,89 @@ contains
     end if
   end function get_vef_set_id
 end subroutine p4est_bt_update_vef_set_ids
+
+subroutine p4est_bt_extract_local_cell_wise_vef_set_ids( this, cell_wise_vef_set_ids )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)    , intent(inout) :: cell_wise_vef_set_ids
+  integer(ip) :: num_vefs
+  integer(ip) :: vef_gid
+  integer(ip) :: vef_set_id
+  integer(ip) :: base_pos
+  integer(ip) :: i, vef_lid
+  num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
+  call cell_wise_vef_set_ids%resize(0)
+  do i=1, this%get_num_local_cells()
+      base_pos = this%get_ptr_vefs_x_cell(i)-1
+      do vef_lid=1, num_vefs
+        vef_gid = this%lst_vefs_gids%get(base_pos+vef_lid)
+        if ( vef_gid > 0 ) then ! VEF is proper
+          vef_set_id = this%proper_vefs_set_ids%get(vef_gid)
+        else                    ! VEF is improper
+          vef_set_id = this%improper_vefs_set_ids%get(abs(vef_gid))
+        end if
+        call cell_wise_vef_set_ids%push_back(vef_set_id)
+      end do
+  end do
+  call cell_wise_vef_set_ids%resize(this%get_num_cells()*num_vefs)
+end subroutine p4est_bt_extract_local_cell_wise_vef_set_ids
+  
+subroutine p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids ( this, cell_wise_vef_set_ids ) 
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)    , intent(in)    :: cell_wise_vef_set_ids
+  integer(ip) :: num_vefs, vef_lid
+  integer(ip) :: base_pos, vef_set_id
+  integer(ip), pointer :: p_cell_wise_vef_set_ids(:)
+  type(p4est_cell_iterator_t) :: cell
+  type(p4est_vef_iterator_t)  :: vef
+  if ( this%get_num_ghost_cells() > 0 ) then
+    p_cell_wise_vef_set_ids => cell_wise_vef_set_ids%get_pointer()
+    call cell%create(this)
+    call vef%create(this)
+    num_vefs = cell%get_num_vefs()
+    call cell%set_gid(this%get_num_local_cells()+1)
+    do while ( .not. cell%has_finished() )
+      base_pos = this%get_ptr_vefs_x_cell(cell%get_gid())-1
+      do vef_lid=1, num_vefs
+        call cell%get_vef(vef_lid,vef)
+        vef_set_id  = p_cell_wise_vef_set_ids(base_pos+vef_lid)
+        call vef%set_set_id(vef_set_id)
+      end do
+      call cell%next()
+    end do
+    call cell%free()
+    call vef%free()
+  end if
+end subroutine p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids
+
+subroutine p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids ( this, cell_wise_vef_set_ids ) 
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)    , intent(in)    :: cell_wise_vef_set_ids
+  integer(ip) :: num_vefs, vef_lid
+  integer(ip) :: base_pos, vef_set_id
+  integer(ip), pointer :: p_cell_wise_vef_set_ids(:)
+  type(p4est_cell_iterator_t) :: cell
+  type(p4est_vef_iterator_t)  :: vef
+  if ( this%get_num_local_cells() > 0 ) then
+    p_cell_wise_vef_set_ids => cell_wise_vef_set_ids%get_pointer()
+    call cell%create(this)
+    call vef%create(this)
+    num_vefs = cell%get_num_vefs()
+    do while ( .not. cell%has_finished() )
+      base_pos = this%get_ptr_vefs_x_cell(cell%get_gid())-1
+      do vef_lid=1, num_vefs
+        call cell%get_vef(vef_lid,vef)
+        vef_set_id  = p_cell_wise_vef_set_ids(base_pos+vef_lid)
+        call vef%set_set_id(vef_set_id)
+      end do
+      call cell%next()
+    end do
+    call cell%free()
+    call vef%free()
+  end if
+end subroutine p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids
 
 subroutine p4est_bt_std_vector_transform_length_to_header(this,std_vector_integer_ip)
   implicit none
@@ -2228,6 +2267,12 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   type(hash_table_igp_ip_t) :: g2l_map
   integer(ip) :: part_id, neighbour_id
   logical :: local_or_ghost_found
+  integer(ip) :: num_itfc_half_faces
+  logical, allocatable :: local_cell_is_at_interface(:)
+  integer(ip), pointer :: snd_leids(:)
+  type(std_vector_integer_ip_t) :: itfc_half_faces
+  integer(ip) :: num_itfc_half_edges
+  type(std_vector_integer_ip_t) :: itfc_half_edges
  
   if ( this%get_num_dims() == 2 ) then
      num_corners_x_cell    =  NUM_CORNERS_2D
@@ -2249,39 +2294,28 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   quad_to_face_buffer   = -1_ip
   call memalloc ( num_corners_x_cell*this%get_num_cells(), quad_to_corner_buffer, __FILE__, __LINE__ )
   quad_to_corner_buffer = -1_igp
-  
-  if ( associated(this%quad_to_half) ) then
-    quad_to_half_size_1 = size(this%quad_to_half,1)
-    quad_to_half_size_2 = size(this%quad_to_half,2)
-  else
-    quad_to_half_size_1 = 0_ip
-    quad_to_half_size_2 = 0_ip
-  end if
-  
-  call memalloc ( quad_to_half_size_1*quad_to_half_size_2, quad_to_half_buffer, __FILE__, __LINE__ )
-  quad_to_half_buffer = -1_igp
-  
+    
   if ( this%get_num_dims() == 3 ) then
      call memalloc ( num_edges_x_cell*this%get_num_cells(), quad_to_quad_by_edge_buffer, __FILE__, __LINE__ )
      quad_to_quad_by_edge_buffer   = -1_igp
      call memalloc ( num_edges_x_cell*this%get_num_cells(), quad_to_edge_buffer, __FILE__, __LINE__ )
      quad_to_edge_buffer   = -1_ip
-     
-     if ( associated(this%quad_to_half_by_edge) ) then
-       quad_to_half_by_edge_size_1 = size(this%quad_to_half_by_edge,1)
-       quad_to_half_by_edge_size_2 = size(this%quad_to_half_by_edge,2)
-     else
-       quad_to_half_by_edge_size_1 = 0_ip
-       quad_to_half_by_edge_size_2 = 0_ip
-     end if
-     
-     call memalloc ( quad_to_half_by_edge_size_1*quad_to_half_by_edge_size_2, quad_to_half_by_edge_buffer, __FILE__, __LINE__ )
-     quad_to_half_by_edge_buffer = -1_igp
   end if
+  
+  call memalloc ( this%get_num_local_cells(), local_cell_is_at_interface, __FILE__, __LINE__ ) 
+  local_cell_is_at_interface = .false. 
+  
+  cell_import => this%get_cell_import()
+  snd_leids   => cell_import%get_snd_leids()
+  do j=1, size(snd_leids)
+    local_cell_is_at_interface(snd_leids(j)) = .true.
+  end do
   
   j=1
   k=1
   l=1
+  num_itfc_half_faces = 0
+  num_itfc_half_edges = 0
   do icell=1, this%get_num_local_cells()
      do iface=1, num_faces_x_cell
       jcell_iconn = this%quad_to_face(iface,icell)
@@ -2298,7 +2332,13 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
       else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
         quad_to_quad_buffer(j) = this%cell_ggids%get(this%quad_to_quad(iface,icell)+1)
       else
-        quad_to_quad_buffer(j) = this%quad_to_quad(iface,icell)+1
+        if ( local_cell_is_at_interface(icell) ) then
+          num_itfc_half_faces = num_itfc_half_faces+1
+          call itfc_half_faces%push_back(this%quad_to_quad(iface,icell)+1)
+          quad_to_quad_buffer(j) = num_itfc_half_faces
+        else
+          quad_to_quad_buffer(j) = this%quad_to_quad(iface,icell)+1
+        end if   
       end if 
       quad_to_face_buffer(j) = this%quad_to_face(iface,icell)
       j=j+1 
@@ -2316,7 +2356,13 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
            else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour 
              quad_to_quad_by_edge_buffer(l) = this%cell_ggids%get(this%quad_to_quad_by_edge(iedge,icell)+1)
            else
-             quad_to_quad_by_edge_buffer(l) = this%quad_to_quad_by_edge(iedge,icell)+1
+             if ( local_cell_is_at_interface(icell) ) then
+               num_itfc_half_edges = num_itfc_half_edges +1
+               call itfc_half_edges%push_back(this%quad_to_quad_by_edge(iedge,icell)+1)
+               quad_to_quad_by_edge_buffer(l) = num_itfc_half_edges
+             else
+               quad_to_quad_by_edge_buffer(l) = this%quad_to_quad_by_edge(iedge,icell)+1
+             end if
            end if 
            quad_to_edge_buffer(l) = this%quad_to_edge(iedge,icell) 
          end if 
@@ -2332,25 +2378,49 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
        end if
        k=k+1
      end do
-  end do
+  end do  
+  call memfree ( local_cell_is_at_interface, __FILE__, __LINE__ ) 
+
+  if ( associated(this%quad_to_half) ) then
+    quad_to_half_size_1 = size(this%quad_to_half,1)
+    quad_to_half_size_2 = num_itfc_half_faces
+  else
+    quad_to_half_size_1 = 0_ip
+    quad_to_half_size_2 = 0_ip
+  end if
+  
+  call memalloc ( quad_to_half_size_1*quad_to_half_size_2, quad_to_half_buffer, __FILE__, __LINE__ )
+  quad_to_half_buffer = -1_igp
   
   j=1
-  do i=1, quad_to_half_size_2
+  do i=1, num_itfc_half_faces
     do isubface=1, quad_to_half_size_1
-      quad_to_half_buffer(j) = this%cell_ggids%get(this%quad_to_half(isubface,i)+1) 
+      quad_to_half_buffer(j) = this%cell_ggids%get(this%quad_to_half(isubface,itfc_half_faces%get(i))+1) 
       j=j+1
     end do 
   end do
+  call itfc_half_faces%free()
   
   if ( this%get_num_dims() == 3 ) then
+    if ( associated(this%quad_to_half_by_edge) ) then
+     quad_to_half_by_edge_size_1 = size(this%quad_to_half_by_edge,1)
+     quad_to_half_by_edge_size_2 = num_itfc_half_edges
+    else
+     quad_to_half_by_edge_size_1 = 0_ip
+     quad_to_half_by_edge_size_2 = 0_ip
+    end if
+     
+    call memalloc ( quad_to_half_by_edge_size_1*quad_to_half_by_edge_size_2, quad_to_half_by_edge_buffer, __FILE__, __LINE__ )
+    quad_to_half_by_edge_buffer = -1_igp  
+  
     j=1
     do i=1, quad_to_half_by_edge_size_2
       do isubedge=1, quad_to_half_by_edge_size_1
-        quad_to_half_by_edge_buffer(j) = this%cell_ggids%get(this%quad_to_half_by_edge(isubedge,i)+1) 
+        quad_to_half_by_edge_buffer(j) = this%cell_ggids%get(this%quad_to_half_by_edge(isubedge,itfc_half_edges%get(i))+1) 
         j=j+1
       end do 
     end do
-  end if 
+  end if
   
   environment => this%get_environment()
   cell_import => this%get_cell_import()
@@ -3072,6 +3142,34 @@ subroutine p4est_base_triangulation_comm_cell_myparts ( this )
 #endif  
  
 end subroutine p4est_base_triangulation_comm_cell_myparts
+
+subroutine p4est_bt_comm_cell_wise_vef_set_ids ( this, cell_wise_vef_set_ids )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)    , intent(inout) :: cell_wise_vef_set_ids
+  class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import 
+  integer(ip), pointer :: p_cell_wise_vef_set_ids(:)
+  integer(ip) :: num_vefs 
+#ifdef ENABLE_P4EST  
+  environment => this%get_environment()
+  num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
+  call cell_wise_vef_set_ids%resize(this%get_num_cells()*num_vefs)
+  p_cell_wise_vef_set_ids => cell_wise_vef_set_ids%get_pointer()
+  cell_import => this%get_cell_import()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                           cell_import%get_neighbours_ids(),&
+                                           cell_import%get_rcv_ptrs(),&
+                                           cell_import%get_rcv_leids(),&
+                                           cell_import%get_num_neighbours(), &
+                                           cell_import%get_neighbours_ids(),&
+                                           cell_import%get_snd_ptrs(),&
+                                           cell_import%get_snd_leids(),&
+                                           p_cell_wise_vef_set_ids, p_cell_wise_vef_set_ids, num_vefs )
+#else  
+  call this%not_enabled_error()
+#endif  
+end subroutine p4est_bt_comm_cell_wise_vef_set_ids
 
 subroutine p4est_create_cell_iterator ( this, cell )
   implicit none

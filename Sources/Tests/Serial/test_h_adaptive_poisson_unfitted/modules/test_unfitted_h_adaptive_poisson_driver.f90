@@ -1187,7 +1187,6 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
     call this%fill_cells_set()
