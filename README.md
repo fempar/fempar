@@ -30,6 +30,11 @@ compiler error raises when compiling FoX, a third party library of XH5For.
 polymorphic allocatable variables. For example, `test_transient_poisson` do not pass with Intel Fortran compiler 18.0.0 for commit 5176d2976659c64f45e35022bfea5dcb1e72045e.
 due to a compiler BUG (see issue #250). Thus, avoid using this Intel Fortran compiler version. With Intel compiler 18.0.1 this issue disappears
 
+**NOTE**: if you plan to use `Intel Parallel Studio XE 2019` in order to compile FEMPAR with the Intel compilers in your machine (this is indeed the only version currently supported 
+by `Ubuntu 18.04`), please note the following. The most annoying issue is related to the compilation of `SISL`. If you use the `icc` compiler, the `icpc` C++ compiler must be used as well.
+This is already achieved by fempar's `configure` script in `Tools` whenever you specify `-c Intel`, but it won't be if you call `cmake` directly.
+In the latter case, you must specify `-DCMAKE_CXX_COMPILER=icpc` explicitly when invoking cmake. 
+
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
 The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
