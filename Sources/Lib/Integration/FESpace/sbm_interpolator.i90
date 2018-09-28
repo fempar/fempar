@@ -51,6 +51,26 @@ subroutine make_interpolator( interpolator_type, topology, interpolator )
 end subroutine make_interpolator
 
 ! ================================================================================
+subroutine interpolator_t_reallocate_tensor_function_values( this, requested_size, function_values ) 
+  implicit none 
+  class(interpolator_t )            , intent(inout) :: this 
+  integer(ip)                       , intent(in)    :: requested_size 
+  type(tensor_field_t), allocatable , intent(inout) :: function_values(:,:) 
+  logical     :: reallocate 
+  integer(ip) :: istat 
+
+  reallocate = .false.
+  if (allocated(function_values)) reallocate = ( size(function_values,1) < requested_size )                                      
+  if ( (.not. allocated(function_values)) .or. reallocate) then
+     if (allocated(function_values)) then 
+        deallocate(function_values, stat=istat); check(istat==0) 
+     end if
+     allocate( function_values(requested_size,1), stat=istat ); check(istat==0) 
+  end if
+
+end subroutine interpolator_t_reallocate_tensor_function_values
+
+! ================================================================================
 subroutine interpolator_t_reallocate_vector_function_values( this, requested_size, function_values ) 
   implicit none 
   class(interpolator_t )            , intent(inout) :: this 
@@ -105,6 +125,29 @@ subroutine interpolator_t_reallocate_array( this, requested_size, array )
   end if
 
 end subroutine interpolator_t_reallocate_array
+
+! ================================================================================
+subroutine interpolator_t_get_tensor_function_values( this, tensor_function, quad_points_coordinates, function_values, time)
+  implicit none 
+  class(interpolator_t)          , intent(inout) :: this 
+  class(tensor_function_t)       , intent(in)    :: tensor_function 
+  type(point_t)                  , intent(in)    :: quad_points_coordinates(:)
+  type(tensor_field_t)           , intent(inout) :: function_values(:,:)
+  real(rp)             , optional, intent(in)    :: time
+
+  real(rp)    :: time_(1) 
+  integer(ip) :: num_quad_points 
+
+  num_quad_points = size(quad_points_coordinates) 
+
+  if (present(time) ) then 
+     time_(1) = time 
+     call tensor_function%get_values_set(quad_points_coordinates, time_, function_values(1:num_quad_points,1:1))
+  else
+     call tensor_function%get_values_set(quad_points_coordinates, function_values(1:num_quad_points,1))
+  end if
+
+end subroutine interpolator_t_get_tensor_function_values
 
 ! ================================================================================
 subroutine interpolator_t_get_vector_function_values( this, vector_function, quad_points_coordinates, function_values, time)
