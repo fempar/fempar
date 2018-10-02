@@ -1,0 +1,50 @@
+#!/bin/bash
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+final_exit_code=0
+
+lst_integration_schemes="forward_euler#backward_euler#trapezoidal_rule#mid_point_implicit#mid_point_explicit#imex_rk_2_2_1_implicit#imex_rk_2_2_1_explicit#imex_rk_2_2_2_implicit#imex_rk_2_2_2_explicit#imex_rk_2_3_implicit#imex_rk_2_3_explicit#runge_kutta_3#runge_kutta_4#runge_kutta_4_3_8#imex_rk_4_3_implicit#imex_rk_4_3_explicit"
+
+num_integration_schemes=16
+
+if [ -f "$TEST_BINARY_PATH" ]
+then
+# if [ -d "$TEST_INPUT_DATA_PATH" ] 
+#   then
+      ###############################################################################################################################
+      # Convergence order tests of transient poisson
+      ###############################################################################################################################
+
+      id_scheme=1
+      while [ $id_scheme -le $num_integration_schemes ]
+      do 
+          integration_scheme=$(echo $lst_integration_schemes|cut -f$id_scheme -d#)
+          echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -test .true. "
+          $TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -test .true.
+          if [ $? -ne 0 ]
+          then
+            final_exit_code=1
+          fi
+          
+          if [ "$(echo $integration_scheme | grep -E 'backward|implicit')" != "" ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -dt 1 -tf 10 "
+            $TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -dt 1 -tf 10
+            if [ $? -ne 0 ]
+            then
+              final_exit_code=1
+            fi
+          fi
+      let id_scheme=id_scheme+1
+      done
+# Add more size and shape variations for non-fast test
+#   else
+#      echo "$0: input data directory not found!"
+#      final_exit_code=1
+#   fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code

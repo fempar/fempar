@@ -31,6 +31,7 @@ module vector_names
   implicit none
 
   private
+# include "debug.i90"
   
   type, abstract, extends(memory_guard_t) :: vector_t
    contains
@@ -48,6 +49,7 @@ module vector_names
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
      procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
      
+     procedure :: mold 
      procedure :: sum_vector
      procedure :: sub_vector
      procedure :: minus_vector
@@ -175,6 +177,24 @@ module vector_names
   public :: vector_t
 
 contains  
+
+  subroutine mold(this,vector) 
+    implicit none
+    class(vector_t)             , intent(in)    :: this
+    class(vector_t), allocatable, intent(inout) :: vector
+    integer(ip) :: istat
+    
+    if ( allocated(vector) ) then
+      if ( .not. same_type_as(this,vector) ) then
+         call vector%free()
+         deallocate(vector, stat=istat); check(istat==0);
+         allocate(vector, mold=this, stat=istat); check(istat==0);
+      end if
+    else
+      allocate(vector, mold=this, stat=istat); check(istat==0);
+    end if
+  end subroutine mold
+				 
   ! res <- op1 + op2
   function sum_vector(op1,op2) result (res)
     implicit none

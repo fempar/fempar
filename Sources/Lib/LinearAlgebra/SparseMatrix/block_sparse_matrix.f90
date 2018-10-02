@@ -70,6 +70,9 @@ module block_sparse_matrix_names
      procedure :: compress_storage              => block_sparse_matrix_compress_storage
      procedure :: allocate                      => block_sparse_matrix_allocate
      procedure :: init                          => block_sparse_matrix_init
+     procedure :: scal                          => block_sparse_matrix_scal
+     procedure :: add                           => block_sparse_matrix_add
+     procedure :: copy                          => block_sparse_matrix_copy
      procedure :: free_in_stages                => block_sparse_matrix_free_in_stages
      procedure :: get_block                     => block_sparse_matrix_get_block
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
@@ -179,6 +182,41 @@ contains
     end do
   end subroutine block_sparse_matrix_init
   
+  !=============================================================================
+  subroutine block_sparse_matrix_scal(this, alpha)
+    implicit none
+    class(block_sparse_matrix_t), intent(inout) :: this
+    real(rp),                     intent(in)    :: alpha
+    integer(ip) :: ib,jb
+    do ib=1, this%nblocks
+       do jb=1, this%nblocks
+          if ( associated( this%blocks(ib,jb)%sparse_matrix ) ) then
+            call this%blocks(ib,jb)%sparse_matrix%scal(alpha)
+          end if
+       end do
+    end do
+  end subroutine block_sparse_matrix_scal
+  
+  !=============================================================================
+  subroutine block_sparse_matrix_add(this, alpha, op1, beta, op2)
+    implicit none
+    class(block_sparse_matrix_t), intent(inout) :: this
+    real(rp),                     intent(in)    :: alpha
+    class(matrix_t),              intent(in)    :: op1
+    real(rp),                     intent(in)    :: beta
+    class(matrix_t),              intent(in)    :: op2
+    mcheck(.false., "Implementation pending")
+  end subroutine block_sparse_matrix_add
+  
+  !=============================================================================
+  subroutine block_sparse_matrix_copy(this, op)
+    implicit none
+    class(block_sparse_matrix_t), intent(inout) :: this
+    class(matrix_t),              intent(in)    :: op
+    mcheck(.false., "Implementation pending")
+  end subroutine block_sparse_matrix_copy
+  
+  !=============================================================================
   subroutine block_sparse_matrix_create_vector_spaces(this)
     implicit none
     class(block_sparse_matrix_t), intent(inout) :: this

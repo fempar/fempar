@@ -174,6 +174,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   integer(ip)                         :: reference_fe_id 
   real(rp)                            :: time_(1) 
   integer(ip)                         :: c, d
+  integer(ip)                         :: fe_get_lev
 
   if (present(time)) time_(1) = time
   reference_fe     => fe%get_reference_fe(this%field_id)
@@ -181,6 +182,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   reference_fe_geo => fe%get_reference_fe_geo()
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
   call fe%get_nodes_coordinates( cell_coordinates ) 
+  fe_get_lev = fe%get_level()
 
   d = 0
   call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
@@ -257,7 +259,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   if ( num_interior_moments > 0 ) then 
 
      ! Update cell map 
-     call this%cell_maps(reference_fe_id)%update(this%cell_quadratures(reference_fe_id),no_ressemblance)
+     call this%cell_maps(reference_fe_id)%update(fe_get_lev,this%cell_quadratures(reference_fe_id),no_ressemblance)
 
      ! Extract quadrature points coordinates 
      num_quad_points = this%cell_quadratures(reference_fe_id)%num_quadrature_points
@@ -282,14 +284,28 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 
 end subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments
 
+! ================================================================================
+subroutine tet_Hcurl_interpolator_evaluate_tensor_function_moments( this, fe, tensor_function, dof_values, time ) 
+  implicit none
+  class(tet_Hcurl_interpolator_t) , intent(inout) :: this
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  class(tensor_function_t)        , intent(in)    :: tensor_function
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+  real(rp) , optional             , intent(in)    :: time 
+  ! Does not apply for tensor FEs
+  massert(.false., 'Evaluation of tensor function moments does not make sense for this interpolator type') 
+end subroutine tet_Hcurl_interpolator_evaluate_tensor_function_moments
+
 !==================================================================================================
-subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
+subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time, time_derivative_order)
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
   logical                         , intent(in)    :: n_face_mask(:,:)  
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
   real(rp) , optional             , intent(in)    :: time 
+  integer(ip) , optional          , intent(in)    :: time_derivative_order 
+  
 
   ! Edge moments evaluation 
   type(vector_field_t)                :: tangent
@@ -313,7 +329,12 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   type(list_iterator_t)               :: own_dofs
   integer(ip)                         :: reference_fe_id
 
-  if ( present(time) ) time_(1) = time  
+  if ( present(time_derivative_order) ) then
+    mcheck (.false., "tet_Hcurl_interpolator_evaluate_function_components_moments :: Implement time derivative order if you want to use it") 
+  end if
+  
+  if ( present(time) ) time_(1) = time
+
   reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
   reference_fe     => fe%get_reference_fe( this%field_id ) 
   reference_fe_geo => fe%get_reference_fe_geo() 
@@ -445,12 +466,14 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
   integer(ip)                         :: qpoint, num_quad_points 
   type(list_iterator_t)               :: own_dofs
   integer(ip)                         :: reference_fe_id
+  integer(ip)                         :: fe_get_lev
 
   reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
   reference_fe     => fe%get_reference_fe( this%field_id ) 
   reference_fe_geo => fe%get_reference_fe_geo() 
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
   call fe%get_nodes_coordinates( cell_coordinates ) 
+  fe_get_lev = fe%get_level()
 
   elmat = 0.0_rp 
   do vef_lid = 1, fe%get_num_vefs() 
@@ -508,7 +531,7 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
      if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then
 
         ! To apply mapping to test functions 
-        call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id), no_ressemblance )
+        call this%cell_maps(reference_fe_id)%update( fe_get_lev, this%cell_quadratures(reference_fe_id), no_ressemblance )
         
         do facet_id = reference_fe%get_first_facet_id(), & 
              reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
@@ -529,7 +552,8 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
             ! Cell map facet restriction 
             aux_coordinates => this%cell_maps_facet_restriction(reference_fe_id)%get_coordinates(facet_lid, 0)
             call fe%get_nodes_coordinates(aux_coordinates)
-            call this%cell_maps_facet_restriction(reference_fe_id)%update( facet_lid, 0, this%facet_quadratures(reference_fe_id) )
+            call this%cell_maps_facet_restriction(reference_fe_id)%update( fe_get_lev, facet_lid, 0, & 
+                                                                           this%facet_quadratures(reference_fe_id), no_ressemblance, 1.0_rp )
             cell_map_restricted_to_facet => this%cell_maps_facet_restriction(reference_fe_id)%get_current_cell_map()
            
               call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 

@@ -1,6 +1,6 @@
 subroutine fe_affine_operator_compute_residual (this,y)
   implicit none
-  class(fe_affine_operator_t), intent(in) :: this
+  class(fe_affine_operator_t), intent(inout) :: this
   class(vector_t) , intent(inout) :: y 
   class(matrix_t) , pointer       :: matrix
   class(array_t)  , pointer       :: array
@@ -11,14 +11,6 @@ subroutine fe_affine_operator_compute_residual (this,y)
   array => this%assembler%get_array()
   call y%axpby( -1.0_rp, array, 1.0_rp )
 end subroutine fe_affine_operator_compute_residual
-
-
-subroutine fe_affine_operator_compute_tangent (this)
-  implicit none
-  class(fe_affine_operator_t), intent(in) :: this
-  assert ( associated(this%current_evaluation_point) )
-  call this%compute()  
-end subroutine fe_affine_operator_compute_tangent
 
 subroutine fe_affine_operator_compute (this)
   implicit none

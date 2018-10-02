@@ -32,6 +32,7 @@ module mpi_context_names
 
   ! Parallel modules
   use execution_context_names
+  use allocatable_array_names
 #ifdef MPI_MOD
   use mpi
 #endif
@@ -83,6 +84,8 @@ module mpi_context_names
      procedure :: max_vector_rp      => mpi_context_max_vector_rp
      procedure :: min_scalar_rp      => mpi_context_min_scalar_rp
      procedure :: max_scalar_ip      => mpi_context_max_scalar_ip
+     procedure :: sum_scalar_igp     => mpi_context_sum_scalar_igp
+     procedure :: sum_vector_igp     => mpi_context_sum_vector_igp
      procedure :: scatter_ip         => mpi_context_scatter_scalar_ip
      procedure :: gather_ip          => mpi_context_gather_scalar_ip
      procedure :: bcast_ip           => mpi_context_bcast_scalar_ip
@@ -95,7 +98,8 @@ module mpi_context_names
      procedure :: neighbours_exchange_wo_alpha_beta_rp_v   => mpi_context_neighbours_exchange_wo_alpha_beta_rp_v
      procedure :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
      procedure :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
-     procedure :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
+     procedure :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip
+     procedure :: neighbours_exchange_multiple_igp         => mpi_context_neighbours_exchange_multiple_igp
      procedure :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure :: neighbours_exchange_wo_unpack_ip         => mpi_context_neighbours_exchange_wo_unpack_ip
      procedure :: neighbours_exchange_variable_igp         => mpi_context_neighbours_exchange_variable_igp
@@ -151,7 +155,7 @@ contains
        call this%set_current_task(current_task)
        call this%set_num_tasks(num_tasks)
     class default
-       check(.false.)
+       mcheck(.false.,'Only a mpi_context_t can be assigned using this function')
     end select
   end subroutine mpi_context_assign
   
@@ -358,9 +362,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
     integer  :: istat
-    real(rp) :: dat
-    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
-    alpha = dat
+    call mpi_allreduce(MPI_IN_PLACE,alpha,1,mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_sum_scalar_rp
 
   !=============================================================================
@@ -369,11 +371,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
     integer  :: istat
-    real(rp), allocatable :: dat(:)
-    call memalloc(size(alpha),dat,__FILE__,__LINE__)
-    dat = alpha
-    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
-    call memfree(dat,__FILE__,__LINE__)
+    call mpi_allreduce(MPI_IN_PLACE,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_sum_vector_rp
 
   !=============================================================================
@@ -382,9 +380,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
     integer  :: istat
-    real(rp) :: dat
-    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
-    alpha = dat
+    call mpi_allreduce(MPI_IN_PLACE,alpha,1,mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_scalar_rp
 
   !=============================================================================
@@ -393,11 +389,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
     integer  :: istat
-    real(rp), allocatable :: dat(:)
-    call memalloc(size(alpha),dat,__FILE__,__LINE__)
-    dat = alpha
-    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
-    call memfree(dat,__FILE__,__LINE__)
+    call mpi_allreduce(MPI_IN_PLACE,alpha,size(alpha),mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_vector_rp
 
   !=============================================================================
@@ -405,10 +397,8 @@ contains
     implicit none
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
-    integer  :: istat
-    real(rp) :: dat
-    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_min,this%icontxt,istat); check ( istat == mpi_success )
-    alpha = dat
+    integer  :: istat 
+    call mpi_allreduce(MPI_IN_PLACE,alpha,1,mpi_context_rp,mpi_min,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_min_scalar_rp
   
   !=============================================================================
@@ -417,10 +407,26 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     integer(ip)          , intent(inout) :: n
     integer  :: istat
-    integer(ip) :: dat
-    call mpi_allreduce(n,dat,1,mpi_context_ip,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
-    n = dat
+    call mpi_allreduce(MPI_IN_PLACE,n,1,mpi_context_ip,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_scalar_ip
+  
+  !=============================================================================
+  subroutine mpi_context_sum_scalar_igp (this,n)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n
+    integer  :: istat
+    call mpi_allreduce(MPI_IN_PLACE,n,1,mpi_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+  end subroutine mpi_context_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine mpi_context_sum_vector_igp (this,n)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    integer  :: istat
+    call mpi_allreduce(MPI_IN_PLACE,n,size(n),mpi_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+  end subroutine mpi_context_sum_vector_igp
 
   !=============================================================================
   subroutine mpi_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
@@ -573,9 +579,11 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, y )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -697,9 +705,10 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_rp_wo_beta (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_rp_wo_beta (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
+    end if
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -823,9 +832,11 @@ contains
        end if
     end do
     
-    ! Unpack recv buffers
-    call unpack_variable_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size_rcv, unpack_idx, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_variable_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size_rcv, unpack_idx, rcvbuf, y )
+    end if 
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -886,8 +897,10 @@ contains
     call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1))*chunk_size_, rcvbuf, __FILE__,__LINE__)
 
     ! Pack send buffers
-    call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
-
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+    end if 
+    
     ! First post all the non blocking receives   
     do i=1, num_rcv
        proc_to_comm = list_rcv(i) - 1 
@@ -952,9 +965,11 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -1008,9 +1023,11 @@ contains
     call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1))*chunk_size_, sndbuf, __FILE__,__LINE__)
     call memalloc ((rcv_ptrs(num_rcv+1)-rcv_ptrs(1))*chunk_size_, rcvbuf, __FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
-
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+    end if 
+      
     ! First post all the non blocking receives   
     do i=1, num_rcv
        proc_to_comm = list_rcv(i) - 1
@@ -1075,9 +1092,11 @@ contains
        end if
     end do
 
-    ! Unpack recv buffers
-    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y, mask )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then
+      ! Unpack recv buffers
+      call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y, mask )
+    end if 
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -1099,7 +1118,7 @@ contains
     integer(ip)             , intent(in)    :: input_data
     integer(ip)             , intent(inout) :: output_data(num_neighbours)
 
-    integer(ip), allocatable :: ptrs(:)        ! How much data does the part send/recv to/from each neighbour?
+    integer(ip), allocatable :: ptrs_snd(:)        ! How much data does the part send/recv to/from each neighbour?
     integer(ip), allocatable :: unpack_idx(:)  ! Where the data received from each neighbour is copied/added 
     ! on the local vectors of the part ?
     integer(ip), allocatable :: pack_idx(:)    ! Where is located the data to be sent to 
@@ -1108,17 +1127,17 @@ contains
     integer(ip), allocatable :: buffer(:)  
     integer(ip)              :: i 
 
-    call memalloc ( num_neighbours+1, ptrs, __FILE__, __LINE__ )
-    ptrs(1)=1
+    call memalloc ( num_neighbours+1, ptrs_snd, __FILE__, __LINE__ )
+    ptrs_snd(1)=1
     do i=2, num_neighbours+1
-       ptrs(i)=ptrs(i-1)+1
+       ptrs_snd(i)=ptrs_snd(i-1)+1
     end do
 
-    call memalloc ( ptrs(num_neighbours+1)-1, pack_idx, __FILE__, __LINE__ )
+    call memalloc ( ptrs_snd(num_neighbours+1)-1, pack_idx, __FILE__, __LINE__ )
     pack_idx = 1 
 
-    call memalloc ( ptrs(num_neighbours+1)-1, unpack_idx, __FILE__, __LINE__ )
-    do i=1, ptrs(num_neighbours+1)-1
+    call memalloc ( ptrs_snd(num_neighbours+1)-1, unpack_idx, __FILE__, __LINE__ )
+    do i=1, ptrs_snd(num_neighbours+1)-1
        unpack_idx(i) = i + 1
     end do
 
@@ -1127,11 +1146,11 @@ contains
 
     call this%neighbours_exchange ( num_neighbours,    &
          list_neighbours,   &
-         ptrs,              &
+         ptrs_snd,              &
          unpack_idx,        &  
          num_neighbours,    &
          list_neighbours,   &
-         ptrs,              &
+         ptrs_snd,              &
          pack_idx,          &
          buffer,            &
          buffer )
@@ -1141,9 +1160,80 @@ contains
     call memfree (buffer    , __FILE__, __LINE__ )
     call memfree (pack_idx  , __FILE__, __LINE__ )
     call memfree (unpack_idx, __FILE__, __LINE__ )
-    call memfree (ptrs      , __FILE__, __LINE__ )
+    call memfree (ptrs_snd      , __FILE__, __LINE__ )
   end subroutine mpi_context_neighbours_exchange_single_ip
+  
+  
+  !=============================================================================
+  subroutine mpi_context_neighbours_exchange_multiple_igp ( this, & 
+       &                                                    num_neighbours, &
+       &                                                    list_neighbours, &
+       &                                                    size_input_data, &
+       &                                                    input_data,&
+       &                                                    size_output_data,&
+       &                                                    output_data)
+    implicit none
+    class(mpi_context_t), intent(in) :: this
 
+    integer                              , intent(in)    :: num_neighbours
+    integer(ip)                          , intent(in)    :: list_neighbours (num_neighbours)
+    integer(ip)                          , intent(in)    :: size_input_data
+    integer(igp)                         , intent(in)    :: input_data(size_input_data)
+    integer(ip)                          , intent(in)    :: size_output_data(num_neighbours)
+    type(allocatable_array_igp1_t)       , intent(inout) :: output_data(num_neighbours)
+
+    integer(ip), allocatable :: ptrs_snd(:)        ! How much data does the part send to each neighbour?
+    integer(ip), allocatable :: unpack_idx(:)  ! Where the data received from each neighbour is copied/added 
+    ! on the local vectors of the part ?
+    integer(ip), allocatable :: pack_idx(:)    ! Where is located the data to be sent to 
+    ! each neighbour on the local vectors of the part ?
+    
+    integer(ip) , allocatable :: ptrs_rcv(:)        ! How much data does the part recv from each neighbour?
+    integer(igp), allocatable :: buffer(:)  
+    integer(ip)              :: i,j 
+
+    call memalloc ( num_neighbours+1, ptrs_snd, __FILE__, __LINE__ )
+    call memalloc ( num_neighbours+1, ptrs_rcv, __FILE__, __LINE__ )
+    ptrs_snd(1)=1
+    ptrs_rcv(1)=1
+    do i=2, num_neighbours+1
+       ptrs_snd(i)=ptrs_snd(i-1)+size_input_data
+       ptrs_rcv(i)=ptrs_rcv(i-1)+size_output_data(i-1)
+    end do
+
+    call memalloc ( ptrs_snd(num_neighbours+1)-1, pack_idx, __FILE__, __LINE__ )
+    do i=1, num_neighbours
+       pack_idx(ptrs_snd(i):ptrs_snd(i+1)-1) = (/(j, j=1,size_input_data)/)
+    end do
+
+    call memalloc ( ptrs_rcv(num_neighbours+1)-1, unpack_idx, __FILE__, __LINE__ )
+    do i=1, ptrs_rcv(num_neighbours+1)-1
+       unpack_idx(i) = i
+    end do
+
+    call memalloc ( ptrs_rcv(num_neighbours+1)-1, buffer, __FILE__, __LINE__ )
+    call this%neighbours_exchange ( num_neighbours,    &
+         list_neighbours,   &
+         ptrs_rcv,              &
+         unpack_idx,        &  
+         num_neighbours,    &
+         list_neighbours,   &
+         ptrs_snd,              &
+         pack_idx,          &
+         input_data,        &
+         buffer )
+    
+    do i=1, num_neighbours
+       output_data(i)%a(:) = buffer(ptrs_rcv(i):ptrs_rcv(i+1)-1)
+    end do
+   
+    call memfree (buffer    , __FILE__, __LINE__ )
+    call memfree (pack_idx  , __FILE__, __LINE__ )
+    call memfree (unpack_idx, __FILE__, __LINE__ )
+    call memfree (ptrs_snd      , __FILE__, __LINE__ )
+    call memfree (ptrs_rcv      , __FILE__, __LINE__ )
+  end subroutine mpi_context_neighbours_exchange_multiple_igp
+ 
   !=============================================================================
   subroutine mpi_context_neighbours_exchange_wo_pack_unpack_ieep ( this, &
        &                                                              num_neighbours, &
@@ -1286,9 +1376,11 @@ contains
 
     call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1))*chunk_size_, sndbuf, __FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
-
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+    end if 
+    
     ! First post all the non blocking receives   
     do i=1, num_rcv
        proc_to_comm = list_rcv(i) - 1 
@@ -1408,8 +1500,10 @@ contains
     call memalloc (ptr_chunk_size_snd(num_snd+1)-ptr_chunk_size_snd(1),sndbuf,__FILE__,__LINE__)
     call memalloc (ptr_chunk_size_rcv(num_rcv+1)-ptr_chunk_size_rcv(1),rcvbuf,__FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_variable_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_variable_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    end if 
     
     ! First post all the non blocking receives   
     do i=1, num_rcv
@@ -1475,9 +1569,11 @@ contains
        end if
     end do
     
-    ! Unpack recv buffers
-    call unpack_variable_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_variable_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 
@@ -1538,8 +1634,10 @@ contains
     call memalloc (ptr_chunk_size_snd(num_snd+1)-ptr_chunk_size_snd(1),sndbuf,__FILE__,__LINE__)
     call memalloc (ptr_chunk_size_rcv(num_rcv+1)-ptr_chunk_size_rcv(1),rcvbuf,__FILE__,__LINE__)
 
-    ! Pack send buffers
-    call pack_variable_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    if ( snd_ptrs(num_snd+1)-snd_ptrs(1) > 0 ) then
+      ! Pack send buffers
+      call pack_variable_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    end if 
     
     ! First post all the non blocking receives   
     do i=1, num_rcv
@@ -1605,9 +1703,11 @@ contains
        end if
     end do
     
-    ! Unpack recv buffers
-    call unpack_variable_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
-
+    if ( rcv_ptrs(num_rcv+1)-rcv_ptrs(1) > 0 ) then 
+      ! Unpack recv buffers
+      call unpack_variable_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
+    end if
+    
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
 

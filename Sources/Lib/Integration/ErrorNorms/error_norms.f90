@@ -115,12 +115,42 @@ module error_norms_names
   end type error_norms_vector_t
   
 
+  ! Data type which implements the norm of the difference of an tensor-valued (user-defined) 
+  ! exact function (i.e., class(tensor_function_t)) and one of the tensor fields of a multi-field 
+  ! type(fe_function_t). The norm to be evaluated should be chosen from the suite of norms declared above. 
+  ! If a new norm is to be implemented,  then the module is not designed  with extensibility in mind, i.e., 
+  ! the implementation of this data type's TBPs should be modified in order to accommodate for a new norm 
+  ! (if it fits in the implementation pattern followed within the module).
+  type error_norms_tensor_t
+     private
+     ! FE space over which the norm of the difference is to be computed
+     class(serial_fe_space_t), pointer    :: fe_space
+     
+     ! Field identifier of the field for which this object is to compute
+     ! the norm of the difference
+     integer(ip)                           :: field_id
+     
+     ! Work arrays to store type(fe_function_t) values and gradients 
+     ! restricted to field_id + current cell
+     type(fe_cell_function_tensor_t)       :: fe_cell_function
+     
+     ! Work arrays to store exact function (and difference of fe - exact functions) 
+     ! values with Size = (max_num_quadrature_points, 1). A 2-rank array 
+     ! is required provided the current interface of tensor-valued function_t data types
+     type(tensor_field_t)    , allocatable :: work_array_values(:,:)
+   contains
+     procedure, non_overridable          :: create                    => error_norms_tensor_create
+     procedure, non_overridable          :: free                      => error_norms_tensor_free
+     procedure, non_overridable          :: compute                   => error_norms_tensor_compute
+     procedure, non_overridable, private :: compute_cell_contribution => error_norms_tensor_compute_cell_contribution
+  end type error_norms_tensor_t  
+  
   ! Parameters
   public :: mean_norm, l1_norm, l2_norm, lp_norm, linfty_norm, h1_seminorm
   public :: hdiv_seminorm, hcurl_seminorm, h1_norm, w1p_seminorm, w1p_norm, w1infty_seminorm, w1infty_norm
 
   ! Data types
-  public :: error_norms_scalar_t, error_norms_vector_t !, error_norms_tensor_t
+  public :: error_norms_scalar_t, error_norms_vector_t, error_norms_tensor_t
 
 contains
 
@@ -206,6 +236,16 @@ contains
                      (trim(norm_type) == w1infty_seminorm) )
   end function error_norm_is_supported
   
+  function error_tensor_norm_is_supported(norm_type) result(is_supported)
+    implicit none
+    character(*), intent(in) :: norm_type
+    logical :: is_supported
+    is_supported =  ((trim(norm_type) == mean_norm) .or. &
+                     (trim(norm_type) == l1_norm) .or. &
+                     (trim(norm_type) == l2_norm) .or. &
+                     (trim(norm_type) == linfty_norm) )
+  end function error_tensor_norm_is_supported
+  
   ! Private helper function
   function error_norm_requires_values(norm_type) result(requires)
     implicit none
@@ -221,6 +261,18 @@ contains
                  (trim(norm_type) == w1p_norm) .or. &
                  (trim(norm_type) == w1infty_norm) )
   end function error_norm_requires_values
+  
+  ! Private helper function
+  function error_tensor_norm_requires_values(norm_type) result(requires)
+    implicit none
+    character(*), intent(in) :: norm_type
+    logical :: requires 
+    assert ( error_tensor_norm_is_supported(norm_type) )
+    requires = ( (trim(norm_type) == mean_norm) .or. &
+                 (trim(norm_type) == l1_norm) .or. &
+                 (trim(norm_type) == l2_norm) .or. &
+                 (trim(norm_type) == linfty_norm) )
+  end function error_tensor_norm_requires_values
   
   ! Private helper function
   function error_norm_requires_gradients(norm_type) result(requires)
@@ -274,5 +326,6 @@ contains
   
 #include "sbm_error_norms_scalar.i90"
 #include "sbm_error_norms_vector.i90"
+#include "sbm_error_norms_tensor.i90"
   
 end module error_norms_names

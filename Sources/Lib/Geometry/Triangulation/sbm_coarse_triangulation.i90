@@ -61,7 +61,9 @@
     
     call this%free()
     
-    call this%set_environment(environment)
+    !call this%set_environment(environment)
+    this%environment => environment
+
     if(this%environment%am_i_l1_task()) then
       ! We need to fill the element_import data structure first
       ! in order to determine the number of ghost elements. This

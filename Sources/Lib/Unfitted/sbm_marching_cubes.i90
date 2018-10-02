@@ -1077,9 +1077,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   integer(ip) :: istat, icase
   class(cell_iterator_t), allocatable  :: cell
   class(reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet
-  integer(ip), parameter :: safety_offset = 5
-  integer(ip), parameter :: num_facets_tet = 4
+  integer(ip) :: n_subfacets, n_subnodes,  n_nodes_subfacet
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
@@ -1104,26 +1102,64 @@ subroutine marching_cubes_subnodes_data_create( this )
   end do
 
   !Allocate place holders for the sub-mesh
-  n_subcells      = this%mc_table_max_num_sub_cells + safety_offset
-  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets + safety_offset
+  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets
   n_subnodes      = this%get_max_num_subnodes_in_cell()
-  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
   n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
-  call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
+  call this%allocate_nsubcells_arrays()
   call memalloc(n_subnodes,this%level_set_all_nodes,__FILE__,__LINE__)
-  call memalloc(n_subcells,this%subcells_status,__FILE__,__LINE__)
-  if (this%triangulation%get_num_dims()==3) then
-    call memalloc(num_facets_tet,n_subcells,this%subcell_facet_neigs,__FILE__,__LINE__)
-  end if
   call memalloc(n_nodes_subfacet,n_subfacets,this%unfitted_sub_facets_node_ids,__FILE__,__LINE__)
   call memalloc(n_nodes_subfacet,this%mc_table_max_num_fitted_sub_facets_in_facet,this%mc_table_num_facets,this%fitted_sub_facets_node_ids_x_facet,__FILE__,__LINE__)
-  call memalloc(n_subcells,this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
   call this%fe_space%create_fe_cell_iterator(this%fe)
 
   call this%triangulation%free_cell_iterator(cell)
   this%mc_cell_info_init = .true.
 end subroutine marching_cubes_subnodes_data_create
+
+
+!========================================================================================
+subroutine marching_cubes_allocate_nsubcells_arrays( this )
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip)                            :: n_subcells
+  integer(ip)                            :: n_nodes_subcell
+  integer(ip),                parameter  :: num_facets_tet = 4
+  n_subcells      = this%mc_table_max_num_sub_cells
+  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
+  call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
+  call memalloc(n_subcells,this%subcells_status,__FILE__,__LINE__)
+  if (this%triangulation%get_num_dims()==3) then
+    call memalloc(num_facets_tet,n_subcells,this%subcell_facet_neigs,__FILE__,__LINE__)
+  end if
+  call memalloc(n_subcells,this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
+end subroutine marching_cubes_allocate_nsubcells_arrays
+
+
+!========================================================================================
+subroutine marching_cubes_reallocate_nsubcells_arrays( this )
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip)                            :: n_subcells
+  integer(ip)                            :: n_nodes_subcell
+  integer(ip),                parameter  :: num_facets_tet = 4  
+   
+  n_subcells      = this%num_subcells 
+  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
+  call memrealloc_if_more_space_needed(n_nodes_subcell,&
+                                       n_subcells,this%sub_cells_node_ids,&
+                                       __FILE__,__LINE__)
+  call memrealloc_if_more_space_needed(n_subcells,&
+                                       this%subcells_status,& 
+                                       __FILE__,__LINE__)
+  if (this%triangulation%get_num_dims()==3) then
+    call memrealloc_if_more_space_needed(num_facets_tet,&
+                                         n_subcells,&
+                                         this%subcell_facet_neigs,__FILE__,__LINE__)
+  end if
+  call memrealloc_if_more_space_needed(n_subcells,&
+                                       this%sub_cell_has_been_reoriented,&
+                                       __FILE__,__LINE__)
+end subroutine marching_cubes_reallocate_nsubcells_arrays
 
 !========================================================================================
 subroutine marching_cubes_subnodes_data_free( this )

@@ -37,6 +37,8 @@ module fempar_names
   use environment_names 
   use execution_context_names
   use mpi_context_names
+  use mpi_omp_context_names
+  use serial_context_names
   use flap, only : command_line_interface
   use FPL
   use timer_names
@@ -100,6 +102,7 @@ module fempar_names
   use polynomial_names
   use fe_space_names
   use fe_cell_function_names
+  use fe_cell_predicate_library_names
   use fe_facet_function_names
   use conditions_names
   use discrete_integration_names
@@ -109,6 +112,7 @@ module fempar_names
   use function_library_names
   use error_norms_names
   use block_layout_names
+  use time_stepping_names
   
 contains
 

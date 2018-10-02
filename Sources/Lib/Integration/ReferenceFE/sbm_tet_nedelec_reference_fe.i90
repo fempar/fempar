@@ -745,7 +745,9 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      do vertex_within_cell_id=1,d_fe_geo%get_num_vertices()
         call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
      end do
-     call cell_map%update(cell_quadrature,no_ressemblance)
+     call cell_map%update(cell_lev          = 0, &
+                          quadrature        = cell_quadrature, &
+                          cell_ressemblance = no_ressemblance)
 
      quad_points_coordinates => cell_map%get_quadrature_points_coordinates() 
      

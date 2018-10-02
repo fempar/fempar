@@ -69,6 +69,12 @@ module function_names
      procedure                  :: get_gradients_set_space      => scalar_function_get_gradients_set_space
      procedure                  :: get_gradients_set_space_time => scalar_function_get_gradients_set_space_time
      generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
+     
+  
+     procedure                  :: get_value_temporal_derivative      => scalar_function_get_value_temporal_derivative
+     procedure                  :: get_values_set_temporal_derivative => scalar_function_get_values_set_temporal_derivative
+     
+     
   end type scalar_function_t
   
   type :: p_scalar_function_t

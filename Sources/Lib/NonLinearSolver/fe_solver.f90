@@ -29,10 +29,10 @@
 ! the following problem: given $b_h \in V_h'$, compute the solution
 ! $u_h \in V_h$ of the problem $A_h(u_h) = b_h$ (if it does exists).
 module fe_solver_names
-  use fempar_names
   use solver_names
   use operator_names
-
+  use vector_names
+  use fe_operator_names
 
 # include "debug.i90"
   implicit none

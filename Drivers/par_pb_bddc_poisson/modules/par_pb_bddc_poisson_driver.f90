@@ -169,7 +169,9 @@ contains
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
-                  this%test_params%get_nparts())
+                  this%test_params%get_nparts(), &
+                  this%test_params%get_num_cells_x_dir(), &
+                  this%test_params%get_size_sub_object())
           end if
           call cell%next()
        end do
@@ -187,7 +189,7 @@ contains
     
   contains
     
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts,num_cells_x_dir,size_sub_object)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
@@ -196,19 +198,23 @@ contains
       integer(ip)  , intent(in)  :: nchannel_x_direction(3)
       integer(ip)  , intent(in)  :: nparts_with_channels(3)
       integer(ip)  , intent(in)  :: nparts(3)
+      integer(ip)  , intent(in)  :: num_cells_x_dir(3)
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
       integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
+      integer(ip) :: i_x, i_y, i_z
+      integer(ip) :: size_sub_object 
       real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
-      real(rp)    :: box_width, half_channel_width, center, eps
+      real(rp)    :: box_width, half_channel_width, center, mesh_size
+      real(rp)    :: eps=1e-15_rp 
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
       real(rp) :: p1_c(256), p2_c(256)
 
 
       cell_set_id = 1
-      assert(nparts_with_channels(1)<=nparts(1))
-      assert(nparts_with_channels(2)<=nparts(2))
-      assert(nparts_with_channels(3)<=nparts(3))
+      do i=1,num_dims
+        assert(nparts_with_channels(i)<=nparts(i))
+      enddo
 
       ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
       if ( inclusion == 1 ) then
@@ -445,7 +451,90 @@ contains
          else 
             cell_set_id=1
          end if  
+      else if ( inclusion == 9 ) then
+         ! This case is designed to test BDDC with subobjects. 
+         ! The size of subobjects as a multiple of mesh size is given via -sso L
+         ! The number of channels is given as -nc n1 n2 n3
 
+         if (.not.(allocated(px1))) then
+            call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
+            box_width = 1.0_rp/nchannel_x_direction(1)
+            mesh_size = 1.0_rp/num_cells_x_dir(1)
+            half_channel_width = size_sub_object*mesh_size/2.0_rp
+            !center = int(box_width/(2*mesh_size))*mesh_size
+            center = half_channel_width
+            do j=1, nchannel_x_direction(1)
+               px1(j)=center - half_channel_width-eps 
+               px2(j)=center + half_channel_width+eps  
+               center = center + box_width
+            enddo
+            call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
+            !center = int(box_width/(2*mesh_size))*mesh_size
+            center = half_channel_width
+            do j=1, nchannel_x_direction(2)
+               py1(j)=center - half_channel_width - eps 
+               py2(j)=center + half_channel_width + eps  
+               center = center + box_width
+            enddo
+            call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
+            !center = int(box_width/(2*mesh_size))*mesh_size
+            center = half_channel_width
+            do j=1, nchannel_x_direction(3)
+               pz1(j)=center - half_channel_width - eps
+               pz2(j)=center + half_channel_width + eps 
+               center = center + box_width
+            enddo
+         end if
+
+         ! x faces
+         nchannel = 0
+         i_x = 0
+         do j = 1, nchannel_x_direction(2)
+            do k = 1,nchannel_x_direction(3)
+               call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) i_x = nchannel
+               nchannel = nchannel + 1
+            end do
+         end do
+         ! y faces
+         nchannel = 0
+         i_y = 0
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(3)
+               call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) i_y= nchannel
+               nchannel = nchannel + 1
+            end do
+         end do
+         ! z faces
+         nchannel = 0
+         i_z = 0
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(2)
+               call origin%set(3,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(2,py1(k));
+               call opposite%set(3,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(2,py2(k));
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) i_z = nchannel
+               nchannel = nchannel + 1
+            end do
+         end do
+         nchannel = (i_x * nchannel_x_direction(2)*nchannel_x_direction(3))+(i_y * nchannel_x_direction(2))+i_x+2
+         cell_set_id = nchannel
+         !if ( cell_set_id /= 1 ) cell_set_id = 2
+      else if ( inclusion == 10 ) then
+         !here we assume the unit cube (square) domain
+         mesh_size = 1.0_rp/num_cells_x_dir(1)
+         i_x = int(coord%get(1)/(size_sub_object*mesh_size))
+         i_y = int(coord%get(2)/(size_sub_object*mesh_size))
+         i_z = int(coord%get(3)/(size_sub_object*mesh_size))
+         cell_set_id = (i_z*(num_cells_x_dir(1)/size_sub_object)+ i_y)*(num_cells_x_dir(2)/size_sub_object)+i_x+1 
+         if (mod(cell_set_id,4)==3) then
+            cell_set_id = 1
+         end if 
       end if
 
     end function cell_set_id
@@ -949,7 +1038,6 @@ contains
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%environment%create (this%parameter_list)
   end subroutine setup_environment
 

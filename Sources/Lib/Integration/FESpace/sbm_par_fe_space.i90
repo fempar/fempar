@@ -109,6 +109,10 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      ! requires that num_fixed_dofs is initialize
      this%num_fixed_dofs = 0
      
+     ! This is a little bit DIRTY, force initialization of variable.
+     this%num_total_free_dofs  = 0
+     this%num_total_free_ghost_dofs = 0
+     
      ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
      ! require that this%block_layout is created on all processes
      call this%block_layout%create(this%get_num_fields(), field_blocks, field_coupling)
@@ -170,6 +174,10 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
      ! This is a little bit DIRTY. fe_function%create(fe_space)
      ! requires that num_fixed_dofs is initialize
      this%num_fixed_dofs = 0
+     
+     ! This is a little bit DIRTY, force initialization of variable.
+     this%num_total_free_dofs  = 0
+     this%num_total_free_ghost_dofs = 0
      
      ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
      ! require that this%block_layout is created on all processes
@@ -388,8 +396,6 @@ subroutine par_fe_space_allocate_and_fill_coarse_fe_handlers ( this, coarse_fe_h
   type(p_l1_coarse_fe_handler_t),  intent(in)   :: coarse_fe_handlers(:)
   integer(ip) :: i, istat
   
-  call this%free_coarse_fe_handlers()
-
   call this%free_coarse_fe_handlers()
   
   assert(size(coarse_fe_handlers) == this%num_fields)
@@ -3499,17 +3505,21 @@ subroutine pfs_fetch_lst_parts_dofs_cell_wise(this,field_id)
        call fe%set_gid(k)
        reference_fe => fe%get_reference_fe(field_id)
        call fe%get_field_fe_dofs( field_id, fe_dofs )
-       do idof=1, size(fe_dofs)
-         dof_gid = fe_dofs(idof)
-         if ( this%is_free_dof(dof_gid) ) then
-          if ( this%dof_gid_to_itfc_dof_gid(dof_gid) /= -1  ) then
-            do k=2,this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))+1
-              p_lst_parts_dofs_cell_wise(current) = this%lst_parts_around_itfc_dofs(k,this%dof_gid_to_itfc_dof_gid(dof_gid))
-              current = current + 1
-            end do 
-          end if  
-         end if
-       end do 
+       ! fe_dofs is not associated when subdomain is empty  
+       ! INTEL 18 does not allow to use it, unless associated
+       if ( associated(fe_dofs) ) then
+         do idof=1, size(fe_dofs)
+           dof_gid = fe_dofs(idof)
+           if ( this%is_free_dof(dof_gid) ) then
+            if ( this%dof_gid_to_itfc_dof_gid(dof_gid) /= -1  ) then
+              do k=2,this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))+1
+                p_lst_parts_dofs_cell_wise(current) = this%lst_parts_around_itfc_dofs(k,this%dof_gid_to_itfc_dof_gid(dof_gid))
+                current = current + 1
+              end do 
+            end if  
+           end if
+         end do 
+       end if
     end do  
   end do   
   call this%free_fe_cell_iterator(fe)
@@ -3669,16 +3679,18 @@ subroutine par_fe_space_interpolate_vector_function(this, field_id, function, fe
   end if
 end subroutine par_fe_space_interpolate_vector_function
 
-subroutine par_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time)
+subroutine par_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time, time_derivative_order)
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)            , intent(inout) :: fe_function
   character(*)         , optional, intent(in)    :: interpolator_type(:)
   real(rp)             , optional, intent(in)    :: time
+  integer(ip)          , optional, intent(in)    :: time_derivative_order
+
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
-    call this%serial_fe_space_t%interpolate_dirichlet_values(fe_function, interpolator_type, time)
+    call this%serial_fe_space_t%interpolate_dirichlet_values(fe_function, interpolator_type, time, time_derivative_order)
   end if
 end subroutine par_fe_space_interpolate_dirichlet_values
 
@@ -3831,11 +3843,13 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
               
                     ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                     subset_fe_dofs = 0
-                    do idof = 1, size(fe_dofs(field_id)%p)
-                       if ( this%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
-                          subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
-                       end if
-                    end do
+                    if ( associated(fe_dofs(field_id)%p) ) then
+                      do idof = 1, size(fe_dofs(field_id)%p)
+                         if ( this%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                            subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
+                         end if
+                      end do
+                    end if
                  
                     reference_fe => fe%get_reference_fe(field_id)
 

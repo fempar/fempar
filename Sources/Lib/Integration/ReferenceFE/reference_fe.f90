@@ -201,6 +201,8 @@ module reference_fe_names
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t
      private
+     integer(ip)              :: last_visited_cell_lev = -1
+     
      type(cell_map_duties_t)  :: my_duties
      ! Map's Jacobian inverse (SPACE_DIM,SPACE_DIM,num_quadrature_points)
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
@@ -223,6 +225,7 @@ module reference_fe_names
      procedure, non_overridable :: update_interpolation_restricted_to_facet => cell_map_update_interpolation_restricted_to_facet
      procedure, non_overridable :: print                             => cell_map_print
      procedure, non_overridable :: compute_h                         => cell_map_compute_h
+     procedure, non_overridable :: compute_hs                        => cell_map_compute_hs
      procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
      procedure, non_overridable :: compute_h_max                     => cell_map_compute_h_max
      procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
@@ -230,6 +233,7 @@ module reference_fe_names
      procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
      procedure, non_overridable :: apply_transposed_inv_jacobian     => cell_map_apply_transposed_inv_jacobian
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
+     procedure, non_overridable :: get_last_visited_cell_lev         => cell_map_get_last_visited_cell_lev
   end type cell_map_t
   
   interface assignment(=)
@@ -247,6 +251,7 @@ module reference_fe_names
      procedure                  :: update_interpolation => facet_map_update_interpolation
      procedure                  :: free              => facet_map_free
      procedure, non_overridable :: get_normal        => facet_map_get_normal
+     procedure, non_overridable :: get_normals       => facet_map_get_normals
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
      procedure, non_overridable :: update_coordinates => facet_map_update_coordinates 
   end type facet_map_t
@@ -299,19 +304,20 @@ module reference_fe_names
   
   type cell_map_facet_restriction_t
      private
-     integer(ip)                 :: num_facets = 0
-     integer(ip)                 :: num_subfacets = 0
-     integer(ip)                 :: current_facet_lid
-     integer(ip)                 :: current_subfacet_lid
+     integer(ip)                   :: num_facets = 0
+     integer(ip)                   :: num_subfacets = 0
+     integer(ip)                   :: current_facet_lid
+     integer(ip)                   :: current_subfacet_lid
      type(cell_map_t), allocatable :: cell_map(:)
    contains
-     procedure, non_overridable :: create               => cell_map_facet_restriction_create
-     procedure, non_overridable :: update               => cell_map_facet_restriction_update
-     procedure, non_overridable :: update_interpolation => cell_map_facet_restriction_update_interpolation
-     procedure, non_overridable :: free                 => cell_map_facet_restriction_free
-     procedure, non_overridable :: copy                 => cell_map_facet_restriction_copy
-     procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
-     procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
+     procedure, non_overridable :: create                    => cell_map_facet_restriction_create
+     procedure, non_overridable :: update                    => cell_map_facet_restriction_update
+     procedure, non_overridable :: update_interpolation      => cell_map_facet_restriction_update_interpolation
+     procedure, non_overridable :: free                      => cell_map_facet_restriction_free
+     procedure, non_overridable :: copy                      => cell_map_facet_restriction_copy
+     procedure, non_overridable :: get_coordinates           => cell_map_facet_restriction_get_coordinates
+     procedure, non_overridable :: get_current_cell_map      => cell_map_facet_restriction_get_current_cell_map
+     procedure, non_overridable :: get_last_visited_cell_lev => cell_map_facet_restriction_get_last_visited_cell_lev
   end type cell_map_facet_restriction_t
   
   public :: cell_map_facet_restriction_t
@@ -1811,6 +1817,7 @@ public :: void_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type cell_integrator_t 
 private
+integer(ip)                    :: last_visited_cell_lev = -1
 integer(ip)                    :: num_shape_functions
 integer(ip)                    :: num_quadrature_points
 class(reference_fe_t), pointer :: reference_fe
@@ -1909,7 +1916,8 @@ procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_fun
 procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_vector
 generic :: evaluate_laplacian_fe_function => cell_integrator_evaluate_laplacian_fe_function_scalar, &
 & cell_integrator_evaluate_laplacian_fe_function_vector
-
+procedure, non_overridable :: get_last_visited_cell_lev  => cell_integrator_get_last_visited_cell_lev
+     
 end type cell_integrator_t
 
 interface assignment(=)
@@ -1937,6 +1945,7 @@ public :: cell_integrator_t, p_cell_integrator_t
      procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
      procedure, non_overridable :: copy                        => cell_integrator_facet_restriction_copy
      procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
+     procedure, non_overridable :: get_last_visited_cell_lev   => cell_integrator_facet_restriction_get_last_visited_cell_lev
   end type cell_integrator_facet_restriction_t
 
   public :: cell_integrator_facet_restriction_t
@@ -1944,26 +1953,35 @@ public :: cell_integrator_t, p_cell_integrator_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type facet_maps_t
   private
-  logical                         :: is_at_boundary
-  type(facet_map_t)                :: facet_map
+  logical                            :: is_at_boundary
+  type(facet_map_t)                  :: facet_map
   type(cell_map_facet_restriction_t) :: cell_maps(2)
-  integer(ip)                     :: num_dims
+  integer(ip)                        :: num_dims
+  real(rp), pointer                  :: aux_characteristic_lengths(:) => null()
 contains
   procedure, non_overridable :: create               => facet_maps_create
   procedure, non_overridable :: free                 => facet_maps_free
   procedure, non_overridable :: update               => facet_maps_update
   procedure, non_overridable :: compute_characteristic_length                                      &
   &                                             => facet_maps_compute_characteristic_length
-  procedure, non_overridable :: get_quadrature_points_coordinates                                         &
+  procedure, non_overridable :: compute_characteristic_lengths                                     &
+  &                                             => facet_maps_compute_characteristic_lengths
+  procedure, non_overridable :: get_quadrature_points_coordinates                                  &
   &                                             => facet_maps_get_quadrature_points_coordinates
   procedure, non_overridable :: get_facet_coordinates => facet_maps_get_facet_coordinates
   procedure, non_overridable :: get_coordinates_neighbour                                          &
   &                                             => facet_maps_get_coordinates_neighbour
   procedure, non_overridable :: get_neighbour_cell_map => facet_maps_get_neighbour_cell_map
-  procedure, non_overridable :: get_normals          => facet_maps_get_normals
+  procedure, non_overridable :: get_normal          => facet_maps_get_normal
+  procedure, non_overridable :: get_normals         => facet_maps_get_normals
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
+  procedure, non_overridable :: get_det_jacobians    => facet_maps_get_det_jacobians
   procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map
-  procedure, non_overridable :: get_cell_maps        => facet_maps_get_cell_maps
+  procedure, non_overridable :: get_cell_maps         => facet_maps_get_cell_maps
+  procedure, non_overridable :: get_is_at_boundary    => facet_maps_get_is_at_boundary
+  procedure, non_overridable :: get_current_facet_lid => facet_maps_get_current_facet_lid
+  procedure, non_overridable :: get_current_subfacet_lid => facet_maps_get_current_subfacet_lid
+  procedure, non_overridable :: get_last_visited_cell_lev => facet_maps_get_last_visited_cell_lev
 end type facet_maps_t
 
 public :: facet_maps_t
@@ -2007,6 +2025,8 @@ contains
   procedure, non_overridable :: get_curl           => facet_integrator_get_curl_vector 
   procedure, non_overridable :: get_curls          => facet_integrator_get_curls_vector 
   procedure, non_overridable :: get_current_qpoints_perm => facet_integrator_get_current_qpoints_perm
+  procedure, non_overridable :: get_last_visited_cell_lev => facet_integrator_get_last_visited_cell_lev
+
 
   procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_scalar
   procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_vector

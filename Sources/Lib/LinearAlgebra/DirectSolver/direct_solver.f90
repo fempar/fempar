@@ -279,27 +279,28 @@ contains
       real(rp),             parameter :: tol = 1.0e-10
 #endif
 
-      assert(associated(op%base_direct_solver))
-      assert(op%base_direct_solver%matrix_is_set())
-      if(.not. op%vector_spaces_are_created()) &
-           call op%create_vector_spaces()
-      matrix => op%base_direct_solver%get_matrix()
-      if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
-      select type (x)
-      type is (serial_scalar_array_t)
-         select type (y)
-         type is (serial_scalar_array_t)
-            call op%base_direct_solver%solve(x,y)
+        call x%GuardTemp()
+        assert(associated(op%base_direct_solver))
+        assert(op%base_direct_solver%matrix_is_set())
+        if(.not. op%vector_spaces_are_created()) &
+            call op%create_vector_spaces()
+        matrix => op%base_direct_solver%get_matrix()
+        if(matrix%get_num_rows()==0 .or. matrix%get_num_cols()==0) return
+        select type (x)
+            type is (serial_scalar_array_t)
+                select type (y)
+                    type is (serial_scalar_array_t)
+                        call op%base_direct_solver%solve(x,y)
 #ifdef DEBUG
             call op%base_direct_solver%check_solution(x,y)
 #endif
-            class DEFAULT
-            check(.false.)
-         end select
+                class DEFAULT 
+                    check(.false.) 
+               end select
          class DEFAULT
-         check(.false.)
-      end select
-
+            check(.false.)
+        end select
+        call x%CleanTemp()
 
     end subroutine direct_solver_solve_single_rhs
 

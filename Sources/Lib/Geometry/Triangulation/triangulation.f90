@@ -223,6 +223,7 @@ module triangulation_names
      procedure          :: is_ghost               => itfc_vef_iterator_is_ghost
      procedure          :: is_local               => itfc_vef_iterator_is_local
      procedure          :: is_at_interface        => itfc_vef_iterator_is_at_interface
+     procedure          :: is_cut                 => itfc_vef_iterator_is_cut
      
      ! h-adaptive FEM
      procedure          :: is_proper                        => itfc_vef_iterator_is_proper
@@ -638,8 +639,9 @@ module triangulation_names
      integer(ip)                           :: num_dims = 0
 
      ! Data structures to store cell related information
-     integer(ip)                           :: num_local_cells = 0
-     integer(ip)                           :: num_ghost_cells = 0
+     integer(igp)                          :: num_global_cells = 0 
+     integer(ip)                           :: num_local_cells  = 0
+     integer(ip)                           :: num_ghost_cells  = 0
      
      ! Data structures to store vef related information
      integer(ip)                           :: num_vefs = 0
@@ -695,6 +697,7 @@ module triangulation_names
      procedure, non_overridable :: get_num_cells            => triangulation_get_num_cells
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
      procedure, non_overridable :: get_num_ghost_cells      => triangulation_get_num_ghost_cells
+     procedure, non_overridable :: get_num_global_cells     => triangulation_get_num_global_cells
      procedure, non_overridable :: get_num_vefs             => triangulation_get_num_vefs
      
      procedure(get_num_proper_vefs_interface)   , deferred :: get_num_proper_vefs
@@ -704,6 +707,7 @@ module triangulation_names
      procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
      procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
      procedure, non_overridable :: set_num_ghost_cells      => triangulation_set_num_ghost_cells
+     procedure, non_overridable :: set_num_global_cells     => triangulation_set_num_global_cells
      procedure, non_overridable :: set_num_vefs             => triangulation_set_num_vefs
      
      
@@ -715,8 +719,8 @@ module triangulation_names
      procedure, non_overridable :: coarse_triangulation_is_set_up => triangulation_coarse_triangulation_is_set_up
      
      procedure, non_overridable :: set_environment          => triangulation_set_environment
-     procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
-     procedure, non_overridable :: free_environment         => triangulation_free_environment
+     !procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
+     !procedure, non_overridable :: free_environment         => triangulation_free_environment
      
      procedure                  :: free                     => triangulation_free
      
@@ -1003,6 +1007,7 @@ module triangulation_names
      procedure                           :: is_local                  => bst_vef_iterator_is_local
      procedure                           :: is_ghost                  => bst_vef_iterator_is_ghost
      procedure                           :: is_at_interface           => bst_vef_iterator_is_at_interface
+     procedure                           :: is_cut                    => bst_vef_iterator_is_cut
      
      procedure                           :: get_num_cells_around      => bst_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around           => bst_vef_iterator_get_cell_around
