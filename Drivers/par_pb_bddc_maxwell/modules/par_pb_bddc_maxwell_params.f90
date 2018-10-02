@@ -80,7 +80,6 @@ contains
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
-    error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                    ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
@@ -108,7 +107,6 @@ contains
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )   ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
-    error = switches%set(key = execution_context_key         , value = '--execution_context'    )    ; check(error==0)
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
@@ -135,7 +133,6 @@ contains
     error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
-    error = switches_ab%set(key = execution_context_key      , value = '-exe')       ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
@@ -169,11 +166,6 @@ contains
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
     error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
-    
-    msg = 'serial (*) or mpi (*) context?'
-    write(msg(9:9),'(i1)') serial_context
-    write(msg(20:20),'(i1)') mpi_context
-    error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
 	
    	msg = 'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges' 
     error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
@@ -201,7 +193,6 @@ contains
     error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
     error = required%set(key = triangulation_generate_key    , value = .false.) ; check(error==0)
-    error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
