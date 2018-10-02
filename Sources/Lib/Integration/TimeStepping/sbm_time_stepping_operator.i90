@@ -117,6 +117,9 @@ subroutine time_stepping_operator_allocate_dofs_stages( this )
   integer(ip) :: i, istat
   if ( .not. allocated(this%dofs_stages) ) then
     allocate ( this%dofs_stages(this%scheme%num_stages), mold = this%initial_value, stat = istat ); check(istat==0)
+    do i = 1, this%scheme%num_stages
+      call this%dofs_stages(i)%default_initialization()
+    end do
   end if
   assert ( size(this%dofs_stages) == this%scheme%num_stages )
   do i = 1, this%scheme%num_stages
