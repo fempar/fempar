@@ -18,8 +18,9 @@ Finite Element Multiphysics PARallel solvers
 
 **FEMPAR** compiles with GNU Fortran compiler 5.3.0 (and newer versions) and Intel Fortran compiler 16.0.0 (and newer versions).
 
-**NOTE**: we have detected that some tests (e.g., `test_poisson_unffited`) do **NOT** pass with GNU Fortran compiler 5.5.0 & 6.3.0 for `experimental` 
-commit 2b44a887b4bd78fe847ea844a90d29d9f141123e due to what it seems to be a compiler BUG. Please also note that we do not actually know since 
+**NOTE**: we have detected that some tests (e.g., `test_poisson_unffited`) do **NOT** pass with GNU Fortran compiler 5.5.0, 6.3.0, & 7.3.0 for `experimental` 
+commit f7b4199e  due to what it seems to be a compiler BUG. See issue #259 for more details.
+Please also note that we do not actually know since 
 which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using these GNU Fortran compiler versions.
 We neither know whether this also happens for GNU compiler version different from the ones above. It does NOT happen with 5.4.0.
 
