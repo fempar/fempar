@@ -2099,6 +2099,8 @@ contains
 
 #include "sbm_cell_integrator.i90"
 
+#include "sbm_edget_integrator.i90" 
+
 #include "sbm_facet_integrator.i90"
 
 #include "sbm_reference_fe_factory.i90"

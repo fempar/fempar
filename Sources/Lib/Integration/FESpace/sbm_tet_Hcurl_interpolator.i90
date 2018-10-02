@@ -497,7 +497,8 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
            ! Map of the cell Lagrangian shape functions evaluated on the edge quadrature  
             aux_coordinates => this%cell_maps_edget_restriction(reference_fe_id)%get_coordinates(edge_lid)
             call fe%get_nodes_coordinates(aux_coordinates)
-            call this%cell_maps_edget_restriction(reference_fe_id)%update( edge_lid, this%edge_quadratures(reference_fe_id) )
+            call this%cell_maps_edget_restriction(reference_fe_id)%update( fe_get_lev, edge_lid, this%edge_quadratures(reference_fe_id), & 
+                                                                            no_ressemblance, 1.0_rp )
             cell_map_restricted_to_edge => this%cell_maps_edget_restriction(reference_fe_id)%get_current_cell_map()
            
            call lagrangian_interpolation_phy%copy(lagrangian_interpolation_ref)
