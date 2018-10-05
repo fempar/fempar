@@ -23,12 +23,13 @@ commit f7b4199e  due to what it seems to be a compiler BUG. See issue #259 for m
 Please also note that we do not actually know since 
 which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using these GNU Fortran compiler versions.
 We neither know whether this also happens for GNU compiler version different from the ones above. It does NOT happen with 5.4.0.
-**UPDATE**: As pointed out by @principe, the issue disappears with `gfortran` v8.1.0. This version can be easily be installed in Ubuntu as:
+**UPDATE**: As pointed out by @principe, the issue disappears with `gfortran` v8.1.0. This version can easily be installed in Ubuntu as:
 ```
 $ sudo apt-get install gfortran-8
 $ sudo apt-get install g++-8
 ```
-If you do not currently use or do not plan to install the modules environment (see https://gitlab.com/fempar/fempar/wikis/how%20to%20setup%20modules%20environment for details), then one can use this compiler version when configuring FEMPAR as:
+If you do not currently use or do not plan to install the modules environment (see https://gitlab.com/fempar/fempar/wikis/how%20to%20setup%20modules%20environment for details), 
+then one can use this compiler version when configuring FEMPAR as:
 
 ```
 cmake -DCMAKE_Fortran_COMPILER=gfortran-8 -DCMAKE_C_COMPILER=gcc-8 \
@@ -40,7 +41,8 @@ cmake -DCMAKE_Fortran_COMPILER=gfortran-8 -DCMAKE_C_COMPILER=gcc-8 \
 ```
 
 **NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
-compiler error raises when compiling FoX, a third party library of XH5For. 
+compiler error raises when compiling FoX, a third party library of XH5For.  **UPDATE**: This issue has been already by-passed in FEMPAR's experimental
+branch from commit 47b947f2. See https://gitlab.com/fempar/XH5For/issues/7 for more details
 
 **NOTE**: we also detected a BUG with Intel Fortran compiler 18.0.0 related to missing initialization of member variables to default values in the case of 
 polymorphic allocatable variables. For example, `test_transient_poisson` do not pass with Intel Fortran compiler 18.0.0 for commit 5176d2976659c64f45e35022bfea5dcb1e72045e.
