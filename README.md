@@ -23,6 +23,21 @@ commit f7b4199e  due to what it seems to be a compiler BUG. See issue #259 for m
 Please also note that we do not actually know since 
 which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using these GNU Fortran compiler versions.
 We neither know whether this also happens for GNU compiler version different from the ones above. It does NOT happen with 5.4.0.
+**UPDATE**: As pointed out by @principe, the issue disappears with `gfortran` v8.1.0. This version can be easily be installed in Ubuntu as:
+```
+$ sudo apt-get install gfortran-8
+$ sudo apt-get install g++-8
+```
+If you do not currently use or do not plan to install the modules environment (see https://gitlab.com/fempar/fempar/wikis/how%20to%20setup%20modules%20environment for details), then one can use this compiler version when configuring FEMPAR as:
+
+```
+cmake -DCMAKE_Fortran_COMPILER=gfortran-8 -DCMAKE_C_COMPILER=gcc-8 \
+-DCMAKE_CXX_COMPILER=g++-8 -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_ENABLE_OPENMP=OFF \
+-DFORTRAN_EXTRA_FLAGS= -DC_EXTRA_FLAGS= -DCMAKE_BUILD_TYPE=Debug -DMPIEXEC_PREFLAGS= \
+-DFEMPAR_ENABLE_BLAS=ON -DFEMPAR_ENABLE_LAPACK=ON -DFEMPAR_ENABLE_MKL=ON \
+-DFEMPAR_ENABLE_P4EST=ON -DFEMPAR_ENABLE_UMFPACK=ON -DFEMPAR_ENABLE_METIS=ON \
+-DFEMPAR_ENABLE_GIDPOST=OFF ../fempar/SuperBuild/
+```
 
 **NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
 compiler error raises when compiling FoX, a third party library of XH5For. 
