@@ -115,7 +115,7 @@ subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,face
   type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   ! Allocate the arrays of the interpolation
-  call facet_interpolation%create(this%num_dims,this%node_array%num_nodes, &
+  call facet_interpolation%create(this%num_dims,this%num_shape_functions, &
        & local_quadrature%num_quadrature_points )
 
   ! Fill the values of the shape functions
