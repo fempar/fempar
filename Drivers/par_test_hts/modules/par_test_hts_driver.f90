@@ -183,19 +183,19 @@ contains
     call this%timer_run_simulation%free()
   end subroutine free_timers
 
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)     , intent(in)    :: world_context
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%environment%create(this%parameter_list)
+    call this%environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
-
+  
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
@@ -208,7 +208,7 @@ contains
     ! Create a structured mesh with a custom domain 
     domain   = this%test_params%get_domain_limits()
     istat    = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
-    call this%triangulation%create(this%parameter_list, this%environment)
+    call this%triangulation%create(this%environment, this%parameter_list)
 
     call this%triangulation%create_vef_iterator(vef)
     do while ( .not. vef%has_finished() )
@@ -222,6 +222,7 @@ contains
     call this%triangulation%free_vef_iterator(vef)
 
     call this%set_material_cells_set_id() 
+    call this%set_pb_cells_set_id() 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
 
