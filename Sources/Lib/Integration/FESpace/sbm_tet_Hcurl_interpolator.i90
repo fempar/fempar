@@ -598,9 +598,10 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
 end subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient
 
 ! ================================================================================
-subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments( this, fe, dof_values ) 
+subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments( this, mask, fe, dof_values ) 
   implicit none
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
+  logical                         , intent(in)    :: mask(:) 
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
 
@@ -629,6 +630,7 @@ subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments( this, fe, 
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
        reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
+     if ( mask(edge_id) ) then
      call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
 
      call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
@@ -645,7 +647,7 @@ subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments( this, fe, 
            dof_values(d+ishape) = dof_values(d+ishape) + tangent * tangent * shape_test * factor
         end do
      end do
-
+     end if 
      d = d + this%fes_1D(reference_fe_id)%get_num_shape_functions()
   end do
 

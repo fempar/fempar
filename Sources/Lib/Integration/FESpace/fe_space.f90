@@ -1668,10 +1668,11 @@ abstract interface
     real(rp) , allocatable          , intent(inout) :: elmat(:,:)
   end subroutine interpolator_evaluate_discrete_gradient_interface
   
-  subroutine interpolator_evaluate_edge_unit_tangent_moments_interface( this, fe, dof_values )
+  subroutine interpolator_evaluate_edge_unit_tangent_moments_interface( this, mask, fe, dof_values )
     import :: Hcurl_interpolator_t, fe_cell_iterator_t, rp
     implicit none 
     class(Hcurl_interpolator_t)     , intent(inout) :: this
+    logical                         , intent(in)    :: mask(:) 
     class(fe_cell_iterator_t)       , intent(in)    :: fe
     real(rp) , allocatable          , intent(inout) :: dof_values(:)
   end subroutine interpolator_evaluate_edge_unit_tangent_moments_interface

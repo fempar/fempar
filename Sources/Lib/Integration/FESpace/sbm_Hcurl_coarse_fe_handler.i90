@@ -1159,6 +1159,7 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
   type(list_iterator_t)                    :: own_dofs 
   class(Hcurl_interpolator_t), allocatable :: interpolator
   real(rp)                   , allocatable :: elvec(:) 
+  logical                    , allocatable :: mask(:) 
   integer(ip) :: direction 
   integer(ip) :: istat 
 
@@ -1175,15 +1176,17 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
   end select
   call interpolator%create(par_fe_space, this%field_id)
 
+  call memalloc( fe%get_num_vefs(), mask, __FILE__, __LINE__ )
   coarse_subedge_iterator = this%subedges_x_coarse_edge%create_iterator() 
   do while ( .not. coarse_subedge_iterator%is_upper_bound() )
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
      dof_new_basis = this%edge_average_dof_id(coarse_subedge_iterator%get_current())
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
+        mask = .false. 
         call edge%set_gid( fine_edge_iterator%get_current() )
         call edge%get_cell_around(1, fe)
-
-        call interpolator%evaluate_edge_unit_tangent_moments( fe, elvec )
+        mask(fe%get_vef_lid_from_gid(edge%get_gid())) = .true. 
+        call interpolator%evaluate_edge_unit_tangent_moments( mask, fe, elvec )
         call this%fine_edge_direction%get( key=edge%get_gid(), val=direction, stat=istat); check(istat==key_found) 
         if ( direction == opposite_to_coarse_edge ) then 
            elvec = -elvec 
@@ -1205,6 +1208,7 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
   call par_fe_space%free_fe_vef_iterator(edge)
   call par_fe_space%free_fe_cell_iterator(fe)
   call memfree(elvec, __FILE__, __LINE__ )
+  call memfree(mask, __FILE__, __LINE__ )
   call interpolator%free()
 end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
 
@@ -1605,14 +1609,15 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
         num_fine_edges_found           = 0
         num_subedges_in_coarse_edge    = 0
         offcomponent_fine_edges        = 0
-        do while ( any(num_nodes_each_type.ne.0) ) 
-           num_subedges_in_coarse_edge =  num_subedges_in_coarse_edge + 1
+        do while ( any(num_nodes_each_type /= 0) ) 
+           num_subedges_in_coarse_edge = num_subedges_in_coarse_edge + 1
            total_num_subedges          = total_num_subedges + 1
 
-           call identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type, start_node_gid )
+           start_node_gid = identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type )
 
-           call choose_path_direction( par_fe_space, start_node_gid, offcomponent_fine_edges, num_fine_edges_x_coarse_edge(iedge_coarse), &
-                                       vertices_in_edge, node_list, nodes_counter, first_fine_edge )   
+           first_fine_edge = identify_following_starting_fine_edge( par_fe_space, start_node_gid, offcomponent_fine_edges, & 
+                                                                    num_fine_edges_x_coarse_edge(iedge_coarse), &
+                                                                    vertices_in_edge, node_list, nodes_counter )   
 
            call build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, num_fine_edges_x_coarse_edge(iedge_coarse), fine_edges_list,    &
                                                                           vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,       &
@@ -1698,7 +1703,7 @@ subroutine Hcurl_l1_fill_edges_lists( this, num_fine_edges_x_coarse_edge, num_fi
   call subedges_iterator%free() 
   call fine_edges_in_subedges_iterator%free() 
 
-  call this%sorted_fine_edges_in_coarse_subedge%print(6) 
+  ! call this%sorted_fine_edges_in_coarse_subedge%print(6) 
 end subroutine Hcurl_l1_fill_edges_lists
 
 !===============================================================================================
@@ -1731,14 +1736,14 @@ subroutine assign_and_count_node_types(edge_interior_vertices, num_nodes, node_l
 end subroutine assign_and_count_node_types
 
 !===============================================================================================
-subroutine identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type, start_node_gid )
+function identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type) result(start_node_gid )
   implicit none 
   type(par_fe_space_t)      , intent(in)    :: par_fe_space 
   integer(ip)               , intent(in)    :: num_nodes 
   integer(ip) , allocatable , intent(in)    :: num_nodes_each_type(:)
   integer(ip) , allocatable , intent(in)    :: node_list(:) 
   type(hash_table_ip_ip_t)  , intent(in)    :: nodes_type 
-  integer(ip)               , intent(inout) :: start_node_gid 
+  integer(ip)  :: start_node_gid 
 
   integer(ip)                    :: inode, node_type 
   integer(ip)                    :: found_nodes, istat 
@@ -1776,10 +1781,11 @@ subroutine identify_following_starting_node( par_fe_space, num_nodes, num_nodes_
 
   call memfree( potential_startend_nodes, __FILE__, __LINE__ )
 
-end subroutine identify_following_starting_node
+end function identify_following_starting_node
 
 !===============================================================================================
-subroutine choose_path_direction( par_fe_space, start_node_gid, num_already_sorted_fine_edges, num_fine_edges, vertices_in_edge, node_list, nodes_counter, first_fine_edge)
+function identify_following_starting_fine_edge( par_fe_space, start_node_gid, num_already_sorted_fine_edges, num_fine_edges, & 
+                                                vertices_in_edge, node_list, nodes_counter) result(first_fine_edge) 
   implicit none 
   type(par_fe_space_t)     , intent(in)    :: par_fe_space 
   integer(ip)              , intent(in)    :: start_node_gid
@@ -1788,7 +1794,7 @@ subroutine choose_path_direction( par_fe_space, start_node_gid, num_already_sort
   integer(ip), allocatable , intent(in)    :: vertices_in_edge(:,:)
   integer(ip), allocatable , intent(in)    :: node_list(:)
   type(hash_table_ip_ip_t) , intent(in)    :: nodes_counter
-  integer(ip)              , intent(inout) :: first_fine_edge
+  integer(ip)  :: first_fine_edge
   ! Locals 
   integer(ip) :: i, node_type 
   integer(ip) :: perm(2) 
@@ -1802,7 +1808,7 @@ subroutine choose_path_direction( par_fe_space, start_node_gid, num_already_sort
   call nodes_counter%get( key=start_node_gid, val=counter, stat=istat ); check(istat==key_found) 
   
  if ( counter==1 ) then
-     ! Unique direction defined by edge containing the node. Forward loop to avoid already sorted edges
+     ! Unique direction defined by edge containing the node
      do iedge = 1+num_already_sorted_fine_edges, num_fine_edges
         if ( (vertices_in_edge(iedge,1)==start_node_gid) .or. (vertices_in_edge(iedge,2)==start_node_gid) ) then 
            first_fine_edge = iedge; exit 
@@ -1835,7 +1841,7 @@ subroutine choose_path_direction( par_fe_space, start_node_gid, num_already_sort
      call memfree( potential_following_edges, __FILE__, __LINE__ ) 
   end if
 
-end subroutine choose_path_direction
+end function identify_following_starting_fine_edge
 
 !===============================================================================================
 subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, num_fine_edges_in_coarse_edge, fine_edges_list, vertices_in_edge,  &
