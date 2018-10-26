@@ -222,11 +222,16 @@ contains
     integer(ip) :: idime, inode 
     integer(ip) :: ijk(3), aux 
     integer(ip) :: istat, dummy_val 
-    real(rp)    :: contrast
+    real(rp)    :: contrast, radius 
     real(rp)    :: resistivity, permeability 
     real(rp)    :: resistivity_max, resistivity_min 
     real(rp)    :: permeability_max, permeability_min 
     logical     :: min_values_initialized
+    real(rp)    :: R
+    integer(ip) :: N, alpha
+    integer(ip) :: resistivity_set_id 
+    integer(ip) :: permeability_set_id 
+    integer(ip) :: num_resistivity_set_ids 
 
     if ( .not. this%par_environment%am_i_l1_task() ) return 
 
@@ -262,10 +267,16 @@ contains
                 if ( .not. min_values_initialized ) then 
                 resistivity_min  = resistivity 
                 permeability_min = permeability
+                
+                resistivity_max = resistivity
+                permeability_max = permeability 
                 min_values_initialized = .true. 
                 else 
                 resistivity_min  = min(resistivity_min,  resistivity) 
-                permeability_min = min(permeability_min, permeability) 
+                permeability_min = min(permeability_min, permeability)
+                
+                resistivity_max  = max(resistivity_max,  resistivity) 
+                permeability_max = max(permeability_max, permeability) 
                 end if 
              end do
           end if
@@ -274,6 +285,10 @@ contains
           ! Init cell iterator 
           call cell%first() 
          
+          ! Number of subsets that will arise 
+          contrast = resistivity_max / resistivity_min 
+          num_resistivity_set_ids = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) ) + 1
+          
     end if
 
     this%cells_set_id = 0
@@ -325,9 +340,44 @@ contains
                 resistivity_max  = max( resistivity_max, resistivity ) 
              end do
              
-             contrast=(resistivity_max)/(resistivity_min)
              massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
-             this%cells_set_id(cell%get_gid()) = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+             contrast=(resistivity_max)/(resistivity_min)
+             resistivity_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+             
+             contrast= permeability_max / permeability_min 
+             permeability_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+                
+             ! PB - partition 
+             ! this%cells_set_id(cell%get_gid()) = this%par_environment%get_l1_rank() + ( resistivity_set_id + permeability_set_id * num_resistivity_set_ids)* & 
+             ! (this%par_environment%get_l1_size() )
+             
+              this%cells_set_id(cell%get_gid()) =  resistivity_set_id + permeability_set_id * num_resistivity_set_ids
+            
+          case ( radial ) 
+           call cell%get_nodes_coordinates(cell_coordinates)
+             grav_center = 0
+             do inode=1, cell%get_num_nodes() 
+                do idime = 1, this%triangulation%get_num_dims()
+                   grav_center(idime) = grav_center(idime) + cell_coordinates(inode)%get(idime)/cell%get_num_nodes() 
+                end do
+             end do
+
+             radius = 0.0_rp 
+             do idime=1, this%triangulation%get_num_dims()
+               radius = radius + grav_center(idime)**2  
+             end do
+             radius = sqrt(radius) 
+             
+             R = 0.5_rp ! Sphere radius 
+             N = 3      ! Number of radial alternations between materials 
+             alpha = radius/(R/real(N,rp)) 
+
+             if ( mod( alpha, 2 ) == 0 ) then 
+              this%cells_set_id(cell%get_gid()) = WHITE
+             else 
+                this%cells_set_id(cell%get_gid()) = BLACK 
+             end if
+             
           case DEFAULT 
              massert( .false., 'Materials distribution case not valid')
           end select
@@ -353,22 +403,39 @@ contains
     call this%resistivity_white%set_value(this%test_params%get_resistivity_white()) 
     call this%permeability_black%set_value(this%test_params%get_permeability_black())
     call this%permeability_white%set_value(this%test_params%get_permeability_white()) 
+    ! Set coefficient case 
+    call this%resistivity_white%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
+    call this%permeability_white%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
 
     select case ( this%test_params%get_materials_distribution_case() ) 
-    case ( checkerboard, channels ) 
+    
+    case ( checkerboard, channels, radial ) 
     allocate(this%resistivity_holder(2), stat=istat)
     allocate(this%permeability_holder(2), stat=istat) 
+    call this%resistivity_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
+    call this%permeability_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
 
     this%resistivity_holder(1)%p => this%resistivity_black 
     this%resistivity_holder(2)%p => this%resistivity_white
     this%permeability_holder(1)%p => this%permeability_black 
     this%permeability_holder(2)%p => this%permeability_white 
-    case ( homogeneous, heterogeneous ) 
+    
+    case ( homogeneous ) 
     
     allocate(this%resistivity_holder(1), stat=istat)
     allocate(this%permeability_holder(1), stat=istat) 
     this%resistivity_holder(1)%p => this%resistivity_white 
     this%permeability_holder(1)%p => this%permeability_white
+    
+    case ( heterogeneous ) 
+    
+    allocate(this%resistivity_holder(1), stat=istat)
+    allocate(this%permeability_holder(1), stat=istat) 
+    this%resistivity_holder(1)%p => this%resistivity_white 
+    this%permeability_holder(1)%p => this%permeability_white
+    
+    call this%resistivity_white%set_num_peaks( this%test_params%get_num_peaks_resistivity() ) 
+    call this%permeability_white%set_num_peaks( this%test_params%get_num_peaks_permeability() )
     
     case DEFAULT 
     massert(.false., 'Not valid material distribution case') 
@@ -462,7 +529,7 @@ contains
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution) 
     call this%maxwell_integration%set_fe_function(this%solution)
-
+    
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -491,13 +558,13 @@ contains
 
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
-    !iparm(1)   = 1 ! no solver default
-    !iparm(2)   = 2 ! fill-in reordering from METIS
-    !iparm(8)   = 2 ! numbers of iterative refinement steps
-    !iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    !iparm(11)  = 1 ! use scaling 
-    !iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    !iparm(21)  = 1 ! 1x1 + 2x2 pivots
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
@@ -597,7 +664,7 @@ contains
           select case ( this%test_params%get_materials_distribution_case() )
           case ( homogeneous, heterogeneous )
           material_id = 1
-          case ( checkerboard, channels ) 
+          case ( checkerboard, channels, radial ) 
           material_id = 1 + fe%get_set_id()
           end select 
           set_id = 1 + fe%get_set_id() ! 1-based arrays 
@@ -622,7 +689,7 @@ contains
        this%average_permeability(set_id) = this%average_permeability(set_id)/set_id_volume(set_id)
        this%average_resistivity(set_id)  = this%average_resistivity(set_id)/set_id_volume(set_id)
     end do
-
+    
     call memfree ( resistivity, __FILE__, __LINE__ ) 
     call memfree ( permeability, __FILE__, __LINE__ ) 
     call memfree(set_id_volume, __FILE__, __LINE__)

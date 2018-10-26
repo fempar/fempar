@@ -28,6 +28,7 @@
 
 module par_pb_bddc_maxwell_analytical_functions_names
   use fempar_names
+  use par_pb_bddc_maxwell_params_names
   implicit none
 # include "debug.i90"
   private
@@ -40,9 +41,13 @@ module par_pb_bddc_maxwell_analytical_functions_names
     
   type, extends(base_scalar_function_t) :: resistivity_function_t
    private 
-    real(rp) :: default_value 
+    character(len=:), allocatable :: coefficient_case 
+    real(rp)                      :: default_value 
+    integer(ip)                   :: num_peaks
    contains
      procedure :: set_value          => resistivity_function_set_default_value
+     procedure :: set_num_peaks      => resistivity_function_set_num_peaks 
+     procedure :: set_coefficient_case => resistivity_function_set_coefficient_case 
   end type resistivity_function_t 
   
   type :: resistivity_holder_t 
@@ -63,9 +68,13 @@ module par_pb_bddc_maxwell_analytical_functions_names
   
   type, extends(base_scalar_function_t) :: permeability_function_t
    private 
-    real(rp) :: default_value 
+    character(len=:), allocatable :: coefficient_case
+    real(rp)                      :: default_value 
+    integer(ip)                   :: num_peaks 
    contains
      procedure :: set_value          => permeability_function_set_default_value
+     procedure :: set_num_peaks      => permeability_function_set_num_peaks 
+     procedure :: set_coefficient_case => permeability_function_set_coefficient_case 
   end type permeability_function_t 
   
   type :: permeability_holder_t 
@@ -152,6 +161,38 @@ module par_pb_bddc_maxwell_analytical_functions_names
 
 contains  
   !===============================================================================================
+  subroutine resistivity_function_set_coefficient_case ( this, coefficient_case )
+    implicit none
+    class(resistivity_function_t), intent(inout)    :: this
+    character(len=*), intent(in) ::  coefficient_case
+    this%coefficient_case = coefficient_case
+  end subroutine resistivity_function_set_coefficient_case 
+  
+    !===============================================================================================
+  subroutine permeability_function_set_coefficient_case ( this, coefficient_case )
+    implicit none
+    class(permeability_function_t), intent(inout)    :: this
+    character(len=*), intent(in) ::  coefficient_case
+    this%coefficient_case = coefficient_case
+  end subroutine permeability_function_set_coefficient_case
+  
+    !===============================================================================================
+  subroutine resistivity_function_set_num_peaks ( this, num_peaks )
+    implicit none
+    class(resistivity_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_peaks
+    this%num_peaks = num_peaks
+  end subroutine resistivity_function_set_num_peaks 
+  
+      !===============================================================================================
+  subroutine permeability_function_set_num_peaks ( this, num_peaks )
+    implicit none
+    class(permeability_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_peaks
+    this%num_peaks = num_peaks
+  end subroutine permeability_function_set_num_peaks 
+    
+  !===============================================================================================
   subroutine resistivity_function_set_default_value ( this, default_value )
     implicit none
     class(resistivity_function_t), intent(inout)    :: this
@@ -175,14 +216,22 @@ contains
     this%num_dims = num_dims
   end subroutine base_vector_function_set_num_dims
   
-        !===============================================================================================
+   !===============================================================================================
   subroutine resistivity_function_white_get_value_space( this, point, result )
     implicit none 
     class(resistivity_function_white_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-	   result = this%default_value 
-    ! result = exp( 4.0_rp*sin(5*pi*(point%get(1)+point%get(2)+point%get(3))))
+  
+    select case ( this%coefficient_case )
+    case ( constant ) 
+	     result = this%default_value 
+    case ( sinusoidal ) 
+      result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)+point%get(2)+point%get(3))))
+    case DEFAULT 
+    massert( .false. , 'Invalid resistivity coefficient case' ) 
+    end select 
+
   end subroutine resistivity_function_white_get_value_space
   
     !===============================================================================================
@@ -192,17 +241,31 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
     result = this%default_value 
-    ! result = 10**(point%get(1) + point%get(2) + point%get(3) ) 
+    
+    select case ( this%coefficient_case ) 
+    case ( constant ) 
+    result = this%default_value
+    case DEFAULT 
+    massert( .false., 'Black subdomains only allocate constant functions' ) 
+    end select 
   end subroutine resistivity_function_black_get_value_space
   
-          !===============================================================================================
+     !===============================================================================================
   subroutine permeability_function_white_get_value_space( this, point, result )
     implicit none 
     class(permeability_function_white_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-	   result = this%default_value  
-    !result = 10**(point%get(1) + point%get(2) + point%get(3) )
+
+    select case ( this%coefficient_case )
+    case ( constant ) 
+	     result = this%default_value 
+    case ( sinusoidal ) 
+      result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)-point%get(2)+point%get(3))))
+    case DEFAULT 
+    massert( .false. , 'Invalid resistivity coefficient case' ) 
+    end select 
+
   end subroutine permeability_function_white_get_value_space
   
     !===============================================================================================
@@ -211,8 +274,14 @@ contains
     class(permeability_function_black_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-     result = this%default_value  
-    ! result = 10**(-(point%get(1)+point%get(2)+point%get(3)))
+ 
+    select case ( this%coefficient_case ) 
+    case ( constant ) 
+    result = this%default_value
+    case DEFAULT 
+    massert( .false., 'Black subdomains only allocate constant functions' ) 
+    end select 
+    
   end subroutine permeability_function_black_get_value_space
   
       !===============================================================================================
@@ -222,8 +291,7 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
-	x = point%get(1); y=point%get(2); z=point%get(3)
-	 ! result = -y
+	   x = point%get(1); y=point%get(2); z=point%get(3)
     result = 0.0_rp 
   end subroutine boundary_function_Hx_get_value_space
   
@@ -235,7 +303,6 @@ contains
     real(rp)                       , intent(inout) :: result 
 		  real(rp) :: x,y,z 
 	   x = point%get(1); y=point%get(2); z=point%get(3)
-    ! result = x
     result = 0.0_rp 
   end subroutine boundary_function_Hy_get_value_space
 
@@ -257,13 +324,9 @@ contains
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
  
-	real(rp) :: x,y,z 
+	   real(rp) :: x,y,z 
 
-	x = point%get(1); y=point%get(2); z=point%get(3)     
-	 ! call result%init(1.0_rp) 
-	 !call result%set(1, -y ) 
-	 !call result%set(2,  x ) 
-	 !call result%set(3,  0.0_rp )
+  	x = point%get(1); y=point%get(2); z=point%get(3)     
   
    call result%init(1.0_rp)
   end subroutine source_term_get_value_space

@@ -16,14 +16,21 @@ module par_pb_bddc_maxwell_params_names
   character(len=*), parameter :: permeability_black_key               = 'permeability_black'
   character(len=*), parameter :: resistivity_black_key                = 'resistivity_black'
   character(len=*), parameter :: materials_distribution_case_key      = 'materials_distribution_case'
+  character(len=*), parameter :: materials_coefficient_case_key       = 'materials_coefficient_case'
   character(len=*), parameter :: channels_ratio_key                   = 'channels_ratio' 
   character(len=*), parameter :: rpb_bddc_threshold_key               = 'rpb_bddc_threshold'
   character(len=*), parameter :: boundary_mass_trick_key              = 'boundary_mass_trick'
+  character(len=*), parameter :: num_peaks_resistivity_key            = 'num_peaks_resistivity' 
+  character(len=*), parameter :: num_peaks_permeability_key           = 'num_peaks_permeability' 
   
   character(len=*), parameter :: homogeneous     = 'homogeneous'
   character(len=*), parameter :: checkerboard    = 'checkerboard'       
   character(len=*), parameter :: channels        = 'channels'  
   character(len=*), parameter :: heterogeneous   = 'heterogeneous' 
+  character(len=*), parameter :: radial          = 'radial'
+  
+  character(len=*), parameter :: constant = 'constant' 
+  character(len=*), parameter :: sinusoidal = 'sinusoidal'
   
   type, extends(parameter_handler_t) :: par_pb_bddc_maxwell_params_t
      private
@@ -40,8 +47,11 @@ module par_pb_bddc_maxwell_params_names
        procedure, non_overridable             :: get_permeability_black 
        procedure, non_overridable             :: get_resistivity_black 
        procedure, non_overridable             :: get_materials_distribution_case 
+       procedure, non_overridable             :: get_materials_coefficient_case
        procedure, non_overridable             :: get_channels_ratio 
        procedure, non_overridable             :: get_rpb_bddc_threshold 
+       procedure, non_overridable             :: get_num_peaks_resistivity
+       procedure, non_overridable             :: get_num_peaks_permeability 
        procedure, non_overridable             :: get_boundary_mass_trick 
        procedure, non_overridable             :: get_nparts 
   end type par_pb_bddc_maxwell_params_t
@@ -49,7 +59,8 @@ module par_pb_bddc_maxwell_params_names
   ! Types
   public :: par_pb_bddc_maxwell_params_t
   
-  public :: checkerboard, channels, homogeneous, heterogeneous 
+  public :: checkerboard, channels, homogeneous, heterogeneous, radial
+  public :: constant, sinusoidal 
 
 contains
 
@@ -90,7 +101,10 @@ contains
     error = list%set(key = permeability_black_key   , value =  1.0 ); check(error==0)
     error = list%set(key = resistivity_black_key    , value =  1.0 ); check(error==0)
     error = list%set(key = materials_distribution_case_key, value = checkerboard); check(error==0) 
+    error = list%set(key = materials_coefficient_case_key, value = constant); check(error==0) 
     error = list%set(key = channels_ratio_key   , value =  0.1 ); check(error==0)
+    error = list%set(key = num_peaks_resistivity_key    , value =  3)   ; check(error==0)
+    error = list%set(key = num_peaks_permeability_key     , value =  3)   ; check(error==0)
     error = list%set(key = rpb_bddc_threshold_key   , value = 10.0 ); check(error==0)
     error = list%set(key = boundary_mass_trick_key, value =  .false.); check(error==0)
     
@@ -117,7 +131,10 @@ contains
     error = switches%set(key = permeability_black_key  , value = '--permeability_black' )  ; check(error==0)
     error = switches%set(key = resistivity_black_key   , value = '--resistivity_black' )  ; check(error==0)
     error = switches%set(key = materials_distribution_case_key   , value = '--materials_distribution_case' )  ; check(error==0)
+    error = switches%set(key = materials_coefficient_case_key   , value = '--materials_coefficient_case' )  ; check(error==0)
     error = switches%set(key = channels_ratio_key  , value = '--channels_ratio' )  ; check(error==0)
+    error = switches%set(key = num_peaks_resistivity_key  , value = '--num_peaks_resistivity' )  ; check(error==0)
+    error = switches%set(key = num_peaks_permeability_key  , value = '--num_peaks_permeability' )  ; check(error==0)
     error = switches%set(key = rpb_bddc_threshold_key  , value = '--rpb_bddc_threshold' )  ; check(error==0)
     error = switches%set(key = boundary_mass_trick_key  , value = '--boundary_mass_trick' )  ; check(error==0)
                                                              
@@ -143,7 +160,10 @@ contains
     error = switches_ab%set(key = permeability_black_key   , value = '-permeability_black' )  ; check(error==0)
     error = switches_ab%set(key = resistivity_black_key    , value = '-resistivity_black' )  ; check(error==0)
     error = switches_ab%set(key = materials_distribution_case_key, value = '-materials_case' )  ; check(error==0)
+    error = switches_ab%set(key = materials_coefficient_case_key, value = '-coefficient_case' )  ; check(error==0)
     error = switches_ab%set(key = channels_ratio_key    , value = '-channels_ratio' )  ; check(error==0)
+    error = switches_ab%set(key = num_peaks_resistivity_key    , value = '-num_peaks_resistivity' )  ; check(error==0)
+    error = switches_ab%set(key = num_peaks_permeability_key    , value = '-num_peaks_permeability' )  ; check(error==0)
     error = switches_ab%set(key = rpb_bddc_threshold_key    , value = '-rpb_bddc_threshold' )  ; check(error==0)
     error = switches_ab%set(key = boundary_mass_trick_key    , value = '-bmass_trick' )  ; check(error==0)
 
@@ -176,8 +196,11 @@ contains
     error = helpers%set(key = resistivity_white_key    , value  = 'resistivity_white  value' )  ; check(error==0)
     error = helpers%set(key = permeability_black_key   , value  = 'permeability_black value' ) ; check(error==0)
     error = helpers%set(key = resistivity_black_key    , value  = 'resistivity_black value' )  ; check(error==0)
-    error = helpers%set(key = materials_distribution_case_key, value  = 'Materials distribution case: choose between: checkerboard, channels' )  ; check(error==0)
+    error = helpers%set(key = materials_distribution_case_key, value  = 'Materials distribution case: choose between: checkerboard, channels, radial, heterogeneous' )  ; check(error==0)
+    error = helpers%set(key = materials_coefficient_case_key, value  = 'Materials coefficient case: choose between: constant, sinusoidal' )  ; check(error==0)
     error = helpers%set(key = channels_ratio_key   , value  = 'Ratio channel/non-channel of the cross section for every direction)' ) ; check(error==0)
+    error = helpers%set(key = num_peaks_resistivity_key   , value  = 'Number of peaks for the sinusoidal function describing the resistivity' ) ; check(error==0)
+    error = helpers%set(key = num_peaks_permeability_key   , value  = 'Number of peaks for the sinusoidal function describing the permeability' ) ; check(error==0)
     error = helpers%set(key = rpb_bddc_threshold_key   , value  = 'Threshold for the relaxed PB-BDDC subparts partition' ) ; check(error==0)
     error = helpers%set(key = boundary_mass_trick_key   , value  = 'Is the boundary mass trick active?' ); check(error==0)
     
@@ -203,7 +226,10 @@ contains
     error = required%set(key = permeability_black_key   , value = .false.) ; check(error==0)
     error = required%set(key = resistivity_black_key    , value = .false.) ; check(error==0)
     error = required%set(key = materials_distribution_case_key, value = .false.) ; check(error==0)
+    error = required%set(key = materials_coefficient_case_key, value = .false.) ; check(error==0)
     error = required%set(key = channels_ratio_key    , value = .false.) ; check(error==0)
+    error = required%set(key = num_peaks_resistivity_key     , value = .false. ) ; check(error==0) 
+    error = required%set(key = num_peaks_permeability_key    , value = .false. ) ; check(error==0)
     error = required%set(key = rpb_bddc_threshold_key    , value = .false.) ; check(error==0)
     error = required%set(key = boundary_mass_trick_key    , value = .false.) ; check(error==0)
 
@@ -381,6 +407,20 @@ contains
     error = list%GetAsString(key = materials_distribution_case_key, string = get_materials_distribution_case)
     assert(error==0)
   end function get_materials_distribution_case
+  
+        !==================================================================================================
+  function get_materials_coefficient_case(this)
+    implicit none
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
+    character(len=:), allocatable                    :: get_materials_coefficient_case
+    type(ParameterList_t), pointer                   :: list
+    integer(ip)                                      :: error
+    character(1) :: dummy_string
+    list  => this%get_values()
+    assert(list%isAssignable(materials_coefficient_case_key, dummy_string))
+    error = list%GetAsString(key = materials_coefficient_case_key, string = get_materials_coefficient_case)
+    assert(error==0)
+  end function get_materials_coefficient_case
 
        !==================================================================================================
   function get_channels_ratio (this)
@@ -420,5 +460,31 @@ contains
     error = list%Get(key = boundary_mass_trick_key, Value = get_boundary_mass_trick)
     assert(error==0)
   end function get_boundary_mass_trick
-
+  
+    !==================================================================================================
+  function get_num_peaks_resistivity(this)
+    implicit none
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_num_peaks_resistivity
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(num_peaks_resistivity_key, get_num_peaks_resistivity))
+    error = list%Get(key = num_peaks_resistivity_key, Value = get_num_peaks_resistivity)
+    assert(error==0)
+  end function get_num_peaks_resistivity
+  
+      !==================================================================================================
+  function get_num_peaks_permeability(this)
+    implicit none
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_num_peaks_permeability
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(num_peaks_permeability_key, get_num_peaks_permeability))
+    error = list%Get(key = num_peaks_permeability_key, Value = get_num_peaks_permeability)
+    assert(error==0)
+  end function get_num_peaks_permeability
+  
 end module par_pb_bddc_maxwell_params_names
