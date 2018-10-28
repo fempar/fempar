@@ -11,7 +11,9 @@ GNU_DEBUG:
  
   before_script: 
     - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
+    - set +e
     - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
+    - set -e
     - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
     - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=gfortran"
     - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpif90"
