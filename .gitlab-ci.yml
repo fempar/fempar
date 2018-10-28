@@ -10,6 +10,7 @@ GNU_DEBUG:
     - test-ci
  
   before_script: 
+    - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
     - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
     - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
     - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=gfortran"
