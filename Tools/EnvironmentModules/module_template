@@ -1,0 +1,30 @@
+#%Module 
+
+##
+## Module template
+##
+
+proc ModulesHelp { } {
+     puts stderr "moduleHelp"
+     }
+
+module-whatis   moduleInfo
+
+if { [ module-info mode remove ] } {
+        puts stderr "Modules moduleFullName have been unloaded."
+}
+
+## begin_additional
+if { [ module-info mode load ] } {
+        if { [ is-loaded moduleIncomp ] } {  module unload moduleIncomp } 
+        if { ![ is-loaded moduleRequired] } { 
+        module load moduleRequired         
+        puts stderr "Modules moduleRequired have been loaded."}
+}
+## end_additional
+
+
+## Module environment
+##
+## Command:
+##
