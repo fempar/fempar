@@ -232,6 +232,8 @@ contains
     integer(ip) :: resistivity_set_id 
     integer(ip) :: permeability_set_id 
     integer(ip) :: num_resistivity_set_ids 
+    type(hash_table_ip_ip_t) :: g2l_subset_id 
+    integer(ip) :: num_subsets_id, local_subset_id, global_subset_id 
 
     if ( .not. this%par_environment%am_i_l1_task() ) return 
 
@@ -256,6 +258,10 @@ contains
 
     ! rPB-BDDC needs a first cell loop to determine the minimum value of the coefficient 
     if ( this%test_params%get_materials_distribution_case() == heterogeneous ) then  
+    
+       call g2l_subset_id%init( 3 ) 
+       num_subsets_id = 0
+       
        min_values_initialized=.false. 
        do while ( .not. cell%has_finished() ) 
           if ( cell%is_local() ) then 
@@ -347,12 +353,23 @@ contains
              contrast= permeability_max / permeability_min 
              permeability_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
                 
+
+             
+             ! Transfer global to local info 
              ! PB - partition 
              ! this%cells_set_id(cell%get_gid()) = this%par_environment%get_l1_rank() + ( resistivity_set_id + permeability_set_id * num_resistivity_set_ids)* & 
              ! (this%par_environment%get_l1_size() )
+             global_subset_id = resistivity_set_id + permeability_set_id * num_resistivity_set_ids
              
-              this%cells_set_id(cell%get_gid()) =  resistivity_set_id + permeability_set_id * num_resistivity_set_ids
-            
+             call g2l_subset_id%get( key = global_subset_id, val = local_subset_id, stat=istat) 
+             if ( istat == key_found ) then 
+             this%cells_set_id(cell%get_gid()) =  local_subset_id 
+             elseif ( istat == key_not_found ) then 
+             num_subsets_id = num_subsets_id + 1
+             call g2l_subset_id%put( key = global_subset_id, val = num_subsets_id, stat=istat);     
+             this%cells_set_id(cell%get_gid()) =  num_subsets_id 
+             end if 
+             
           case ( radial ) 
            call cell%get_nodes_coordinates(cell_coordinates)
              grav_center = 0
