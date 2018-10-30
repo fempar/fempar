@@ -227,7 +227,8 @@ contains
     case ( constant ) 
 	     result = this%default_value 
     case ( sinusoidal ) 
-      result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)+point%get(2)+point%get(3))))
+      !result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)+point%get(2)+point%get(3))))
+      result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1))))
     case DEFAULT 
     massert( .false. , 'Invalid resistivity coefficient case' ) 
     end select 
@@ -262,6 +263,7 @@ contains
 	     result = this%default_value 
     case ( sinusoidal ) 
       result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)-point%get(2)+point%get(3))))
+      result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(2))))
     case DEFAULT 
     massert( .false. , 'Invalid resistivity coefficient case' ) 
     end select 

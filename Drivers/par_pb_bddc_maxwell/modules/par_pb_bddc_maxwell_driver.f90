@@ -353,8 +353,6 @@ contains
              contrast= permeability_max / permeability_min 
              permeability_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
                 
-
-             
              ! Transfer global to local info 
              ! PB - partition 
              ! this%cells_set_id(cell%get_gid()) = this%par_environment%get_l1_rank() + ( resistivity_set_id + permeability_set_id * num_resistivity_set_ids)* & 
@@ -365,11 +363,11 @@ contains
              if ( istat == key_found ) then 
              this%cells_set_id(cell%get_gid()) =  local_subset_id 
              elseif ( istat == key_not_found ) then 
-             num_subsets_id = num_subsets_id + 1
              call g2l_subset_id%put( key = global_subset_id, val = num_subsets_id, stat=istat);     
              this%cells_set_id(cell%get_gid()) =  num_subsets_id 
+             num_subsets_id = num_subsets_id + 1
              end if 
-             
+
           case ( radial ) 
            call cell%get_nodes_coordinates(cell_coordinates)
              grav_center = 0

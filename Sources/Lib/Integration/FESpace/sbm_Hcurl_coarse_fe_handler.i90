@@ -535,6 +535,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   integer(ip), pointer                   :: fe_dofs(:)
   type(list_iterator_t)                  :: own_dofs 
   logical, allocatable                   :: touched_set_id(:) 
+  real(rp)                               :: char_length 
 
   ! We assume a single field for the moment
   assert(field_id == 1)
@@ -566,7 +567,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   case ( cardinality ) 
      sub_assembled_w = 1.0_rp 
 
-  case ( permeability, resistivity )    
+  case ( permeability, resistivity, weighted_coefficients )    
      sub_assembled_w(1:this%num_interior_dofs) = 1.0_rp 
 
      call memalloc( size(this%resistivity), touched_set_id, __FILE__, __LINE__ ) 
@@ -580,7 +581,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
               call vef%get_cell_around(ielem, fe) 
               if ( fe%is_local() ) then 
                  call fe%get_field_fe_dofs(field_id, fe_dofs)
-
+                 
                  set_id = fe%get_set_id()+1 ! 1-based array vs 0-based definition  
                  if ( .not. touched_set_id(set_id) ) then 
                     touched_set_id(set_id) = .true. 
@@ -591,6 +592,10 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
                              sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%permeability(set_id) 
                           elseif ( weighting_function == resistivity ) then 
                              sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%resistivity(set_id)
+                          elseif ( weighting_function == weighted_coefficients ) then 
+                             char_length = fe%compute_volume()**(1.0_rp/par_fe_space%get_num_dims())
+                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + & 
+                             this%permeability(set_id) + this%resistivity(set_id)/(char_length**2)
                           end if
                        end if
                        call own_dofs%next() 
@@ -610,7 +615,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
      ! Get the sub-assembled diagonal
      massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')
      call this%matrix%extract_diagonal(sub_assembled_w)
-
+  
   case DEFAULT 
      wassert(.false., 'H(curl) BDDC weighting function case not defined, using inverse of cardinality' ) 
      sub_assembled_w = 1.0_rp 

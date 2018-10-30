@@ -203,14 +203,16 @@ contains
           case ( checkerboard, channels, radial ) 
           material_id = 1 + fe%get_set_id()
           end select 
-
-          call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)   
-          
+                  
           ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
           quad            => fe%get_quadrature()
           num_quad_points =  quad%get_num_quadrature_points()
           num_dofs        =  fe%get_num_dofs()
-                    
+            
+          ! Get quadrature coordinates to evaluate source_term
+										quad_coords => fe%get_quadrature_points_coordinates()
+          call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)   
+                            
           ! Compute element matrix and vector
           elmat = 0.0_rp
           call fe%get_curls(shape_curls)
@@ -220,7 +222,7 @@ contains
           
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
-                   ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
+                   ! A_M(i,j) =  (phi_i,phi_j)
                    elmat(idof,jdof) = elmat(idof,jdof) + factor * permeability(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint)
                 end do
              end do

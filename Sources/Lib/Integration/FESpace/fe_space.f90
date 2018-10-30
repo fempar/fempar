@@ -1253,13 +1253,14 @@ module fe_space_names
   character(len=*), parameter :: tangential_average_and_first_order_moment = 'tangential_average_and_first_order_moment'
   character(len=*), parameter :: all_dofs_in_coarse_edges                  = 'all_dofs_in_coarse_edges'
   ! Weighting function 
-  character(len=*), parameter :: cardinality    = 'cardinality'
-  character(len=*), parameter :: resistivity    = 'resistivity' 
-  character(len=*), parameter :: permeability   = 'permeability' 
-  character(len=*), parameter :: stiffness      = 'stiffness' 
+  character(len=*), parameter :: cardinality           = 'cardinality'
+  character(len=*), parameter :: resistivity           = 'resistivity' 
+  character(len=*), parameter :: permeability          = 'permeability' 
+  character(len=*), parameter :: stiffness             = 'stiffness'
+  character(len=*), parameter :: weighted_coefficients = 'weighted_coefficients'
   
   public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
-  public :: cardinality, resistivity, permeability, stiffness 
+  public :: cardinality, resistivity, permeability, stiffness, weighted_coefficients 
   public :: Hcurl_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
