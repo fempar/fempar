@@ -96,6 +96,8 @@ module par_test_hts_driver_names
      type(timer_t) :: timer_assemply
      type(timer_t) :: timer_setup_system 
      type(timer_t) :: timer_solver_total
+     type(timer_t) :: timer_solve_accumulated 
+     type(timer_t) :: timer_solve_last 
      type(timer_t) :: timer_write_sol
      type(timer_t) :: timer_run_simulation
 
@@ -114,6 +116,7 @@ module par_test_hts_driver_names
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_discrete_integration
      procedure        , private :: setup_operators
+     procedure        , private :: setup_solver_after_pb_partition 
      procedure        , private :: setup_theta_method 
      procedure        , private :: compute_average_parameter_values
      procedure        , private :: setup_system
@@ -163,7 +166,7 @@ contains
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
     call this%timer_setup_system%report(.false.)
-    call this%timer_solver_total%report(.false.)
+    call this%timer_solver_total%report(.true.)
     call this%timer_write_sol%report(.false.)
     call this%timer_run_simulation%report(.false.)
     if (this%environment%get_l1_rank() == 0) then
@@ -222,7 +225,6 @@ contains
     call this%triangulation%free_vef_iterator(vef)
 
     call this%set_material_cells_set_id() 
-    call this%set_pb_cells_set_id() 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
 
@@ -350,7 +352,7 @@ contains
              call fe_cell_function%compute_curl(qpoin, H_curl)
              resistivity_tensor  = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
              resistivity = max( resistivity_tensor%get(1,1), resistivity_tensor%get(2,2), resistivity_tensor%get(3,3) ) 
-             resistivity_min     = min(resistivity_min,  resistivity)
+             resistivity_min = min(resistivity_min,  resistivity)
           end do
 
        end if
@@ -367,7 +369,7 @@ contains
           quad_coords => fe%get_quadrature_points_coordinates()
 
           ! Integrate cell contribution to averages 
-          resistivity_max  = 0.0_rp 
+          resistivity_max  = 0.0_rp
           do qpoin=1, num_quad_points
             ! Evaluate parameters on the cell 
              call fe_cell_function%get_value(qpoin, H_value)
@@ -379,7 +381,7 @@ contains
 
           contrast=(resistivity_max)/(resistivity_min)
           massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
-          this%cells_set_ids(fe%get_gid()) = HTS + floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+          this%cells_set_ids(fe%get_gid()) = HTS + floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )    
        end if
        call fe%next()
     end do
@@ -623,6 +625,105 @@ contains
          &                                     fe_operator = this%fe_operator                                       )   
 
   end subroutine setup_operators
+  
+   subroutine setup_solver_after_pb_partition(this)
+    implicit none
+    class(par_test_hts_fe_driver_t), target, intent(inout) :: this
+    type(parameterlist_t)                  :: parameter_list
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
+    type(parameterlist_t) :: linear_pl
+    integer(ip) :: ilev
+    integer(ip) :: FPLError
+    integer(ip) :: field_id
+    integer(ip) :: istat
+    integer(ip) :: iparm(64)
+    class(matrix_t), pointer :: matrix
+    
+    call this%set_pb_cells_set_id()
+    call this%triangulation%setup_coarse_triangulation()
+    call this%fe_space%set_up_cell_integration()
+   
+    call this%linear_solver%free()
+    call this%linear_solver%create(this%fe_space%get_environment())
+    call this%linear_solver%set_type_from_string(cg_name)
+
+    ! BDDC preconditioner 
+    call this%compute_average_parameter_values() 
+    matrix => this%fe_operator%get_matrix() 
+    select type ( matrix ) 
+       class is (par_sparse_matrix_t) 
+       call this%coarse_fe_handler%free()
+       call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
+       class DEFAULT
+       assert(.false.) 
+    end select
+
+    ! Prepare the internal parameter list of pardiso
+    ! See https://software.intel.com/en-us/node/470298 for details
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1  ! no solver default
+    iparm(2)   = 2  ! fill-in reordering from METIS
+    iparm(8)   = 2  ! numbers of iterative refinement steps
+    iparm(10)  = 8  ! perturb the pivot elements with 1E-8
+    iparm(21)  = 1  ! 1x1 + 2x2 pivots
+    ! Customization
+    iparm(11)  = 1 ! use scaling (default 0)
+    iparm(13)  = 1 ! use maximum weighted matching algorithm (default 0)
+
+    plist => this%parameter_list  
+    if ( this%environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
+    do ilev=1, this%environment%get_num_levels()-1
+       ! Dirichlet local problems 
+       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       ! Constrained Neumann problems 
+       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+    end do
+    ! Set coarsest-grid solver parameters
+    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    
+    call this%mlbddc%free() 
+    call this%mlbddc%create(this%fe_operator, this%parameter_list)     
+
+    ! Linear solver
+    call this%linear_solver%create(this%fe_space%get_environment())
+    call this%linear_solver%set_type_from_string(cg_name)
+    call linear_pl%init()
+    FPLError = linear_pl%set(key = ils_rtol, value = this%test_params%get_relative_linear_tolerance()); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_max_num_iterations, value = 1000); assert(FPLError == 0)
+    call this%linear_solver%set_parameters_from_pl(linear_pl)
+    call this%linear_solver%set_operators( this%fe_operator%get_tangent(), this%mlbddc)
+    call linear_pl%free()
+
+    ! Nonlinear solver
+    call this%nonlinear_solver%free()
+    call this%nonlinear_solver%create(convergence_criteria = this%test_params%get_nonlinear_convergence_criteria(), & 
+         &                                         abs_tol = this%test_params%get_absolute_nonlinear_tolerance(),   &
+         &                                         rel_tol = this%test_params%get_relative_nonlinear_tolerance(),   &
+         &                                       max_iters = this%test_params%get_max_nonlinear_iterations()    ,   &
+         &                                   linear_solver = this%linear_solver                                 ,   &
+         &                                     environment = this%environment                                   ,   &
+         &                                     fe_operator = this%fe_operator                                       )   
+    
+  end subroutine  setup_solver_after_pb_partition
 
   ! -----------------------------------------------------------------------------------------------
   subroutine compute_average_parameter_values(this)
@@ -642,16 +743,30 @@ contains
     ! Compute resistivity 
     type(fe_cell_function_vector_t)        :: fe_cell_function
     type(vector_field_t)                   :: H_value, H_curl 
+    logical :: reallocate 
 
     if ( .not. this%environment%am_i_l1_task() ) return 
 
-    ! Integrate structures needed 
-    call this%fe_space%set_up_cell_integration()
-
     max_cell_set_id = maxval(this%cells_set_ids)+1 ! 1-based arrays  
-    call memalloc( max_cell_set_id, this%average_permeability, __FILE__, __LINE__ )
-    call memalloc( max_cell_set_id, this%average_resistivity, __FILE__, __LINE__ ) 
+      
+    if ( allocated(this%average_permeability) ) reallocate = ( size(this%average_permeability) < max_cell_set_id ) 
+    if ( .not. allocated(this%average_permeability) .or. reallocate ) then 
+      if ( allocated(this%average_permeability) ) then 
+          call memfree( this%average_permeability, __FILE__, __LINE__ ) 
+      end if 
+      call memalloc( max_cell_set_id, this%average_permeability, __FILE__, __LINE__ )
+    end if 
+    
+    if ( allocated(this%average_resistivity) ) reallocate = ( size(this%average_resistivity) < max_cell_set_id ) 
+    if ( .not. allocated(this%average_resistivity) .or. reallocate ) then 
+      if ( allocated(this%average_resistivity) ) then 
+          call memfree( this%average_resistivity, __FILE__, __LINE__ ) 
+      end if 
+      call memalloc( max_cell_set_id, this%average_resistivity, __FILE__, __LINE__ )
+    end if 
+    
     call memalloc( max_cell_set_id, set_id_volume, __FILE__, __LINE__ )
+    
     this%average_permeability = 0.0_rp 
     this%average_resistivity  = 0.0_rp 
     set_id_volume = 0.0_rp 
@@ -666,7 +781,6 @@ contains
     quad_coords      => fe%get_quadrature_points_coordinates()
 
     ! Loop over elements
-    this%average_permeability = this%test_params%get_air_permeability() 
     do while ( .not. fe%has_finished())
        if ( fe%is_local() ) then  
           set_id = 1 + fe%get_set_id() ! 1-based arrays 
@@ -682,7 +796,8 @@ contains
           
              factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 		
              resistivity                       = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
-             this%average_resistivity(set_id)  = this%average_resistivity(set_id)+resistivity%get(1,1)*factor
+             this%average_permeability(set_id) = this%average_permeability(set_id) + this%test_params%get_air_permeability()*factor
+             this%average_resistivity(set_id)  = this%average_resistivity(set_id)  + resistivity%get(1,1)*factor
              set_id_volume(set_id)             = set_id_volume(set_id) + factor
           end do
        end if
@@ -720,6 +835,7 @@ contains
        if ( this%nonlinear_solver%has_converged() ) then  ! Theta method goes forward 
           call this%compute_hysteresis_data() 
           call this%theta_method%update_solutions(this%H_current, this%H_previous)
+          call this%print_info()
           call this%write_time_step_solution()
           call this%theta_method%move_time_forward(this%nonlinear_solver%get_current_iteration(), this%test_params%get_stepping_parameter())
 
@@ -729,6 +845,7 @@ contains
 
        if (.not. this%theta_method%finished() ) then 
           call this%fe_space%interpolate_dirichlet_values( this%H_current, time=this%theta_method%get_current_time() )
+          call this%setup_solver_after_pb_partition()
        end if
 
     end do temporal
@@ -968,7 +1085,7 @@ contains
       enddo
       call this%triangulation%free_cell_iterator(cell) 
     end subroutine build_cell_vectors
-
+    
   end subroutine initialize_output
 
   ! -----------------------------------------------------------------------------------------------
@@ -976,14 +1093,32 @@ contains
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout)    :: this
     integer(ip)                                       :: err
+    integer(ip)                                       :: i, istat
+    class(cell_iterator_t) , allocatable :: cell
 
     if ( this%environment%am_i_l1_task() ) then
        if( this%test_params%get_write_solution() .and. this%theta_method%print_this_step() ) then
+          call update_cell_vectors_values() 
           call this%oh%append_time_step(this%theta_method%get_current_time())
           call this%oh%write()
           call this%theta_method%update_time_to_be_printed() 
        endif
     end if
+    
+  contains 
+      subroutine update_cell_vectors_values()
+      call this%triangulation%create_cell_iterator(cell) 
+      i=0
+      do while ( .not. cell%has_finished() ) 
+         if (cell%is_local() ) then  
+            i=i+1
+            this%set_id_cell_vector(i) = cell%get_set_id()
+         end if
+         call cell%next() 
+      enddo
+      call this%triangulation%free_cell_iterator(cell) 
+    end subroutine update_cell_vectors_values
+    
   end subroutine write_time_step_solution
 
   ! -----------------------------------------------------------------------------------------------

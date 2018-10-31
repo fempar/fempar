@@ -149,7 +149,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                   ; check(error==0)
  error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
  error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
- error = list%set(key = bddc_edge_continuity_algorithm_key, value =  'tangential_average_and_first_order_moment') ; check(error==0)
+ error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment) ; check(error==0)
  error = list%set(key = bddc_weighting_function_case_key, value =  resistivity ) ; check(error==0)
 
  ! Domain length 
@@ -291,7 +291,6 @@ subroutine par_test_hts_params_define_parameters(this)
  error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
  error = switches_ab%set(key = num_extra_refinements_key  , value = '-num_extra_refs')    ; check(error==0)
  error = switches_ab%set(key = epsilon_refinement_key     , value = '-eps_ref')    ; check(error==0)
-
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
  error = switches_ab%set(key = external_magnetic_field_amplitude_key , value = '-H')    ; check(error==0) 

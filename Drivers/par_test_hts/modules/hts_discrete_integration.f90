@@ -358,7 +358,7 @@ subroutine hts_discrete_integration_integrate_residual ( this, fe_space, assembl
                                        - factor * (source_term_values(qpoint,1) + permeability/time_factor*H_previous_values(qpoint)) * shape_values(idof,qpoint)
           end do
        end do
-							
+					      
        call fe%assembly(elvec, assembler)
 							
     end if
@@ -441,14 +441,14 @@ function compute_tangent_resistivity(this, H_value, curl_H, shape_value, curl_sh
   if ( this%is_analytical_solution ) then ! Analytical resistivity = rho * n * <H|H>**(n-1) * <Phi|H>
      massert(this%hts_device_type==bulk, 'In analytical solutions device type must be an isotropic bulk')
      if ( n > 0.0_rp) then 
-        tangent_resistivity = this%hts_resistivity * 2.0_rp*n*( H_value*H_value )**(n-1.0_rp)*(shape_value * H_value)
+        tangent_resistivity = this%hts_resistivity * 2.0_rp*n*( H_value*H_value )**(n-1.0_rp)*(shape_value * H_value) + 1e-14_rp 
      else 
         tangent_resistivity = 0.0_rp
      end if
   else 
      ! Tangent Nonlinear resistivity = Ec/Jc * n *|| curl(H) / Jc ||**(n-2) < curl(H)/Jc | curl(Phi)/Jc >
      if (this%nonlinear_exponent >= 1 ) then 
-        tangent_resistivity = n*Ec/Jc*( curl_H%nrm2()/Jc )**(n-2.0_rp) * ((1.0_rp/Jc)*curl_H) * ((1.0_rp/Jc)*curl_shape) 
+        tangent_resistivity = n*Ec/Jc*( curl_H%nrm2()/Jc )**(n-2.0_rp) * ((1.0_rp/Jc)*curl_H) * ((1.0_rp/Jc)*curl_shape) + 1e-14_rp 
      else
         tangent_resistivity = 0.0_rp 
      end if

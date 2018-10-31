@@ -120,7 +120,7 @@ contains
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )   ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
-    error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
+    error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type'    )   ; check(error==0)
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
