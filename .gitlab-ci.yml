@@ -1,14 +1,7 @@
 stages:
   - build
 
-GNU_DEBUG:
-  image: registry.gitlab.com/fempar/fempar:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
- 
+.base_gnu:
   before_script: 
     - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
     - set +e
@@ -34,6 +27,33 @@ GNU_DEBUG:
     - export PETSC_ARCH="x86_64"
     - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+
+GNU_DEBUG_SERIAL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+
+  extends: .base_gnu
+ 
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+
+GNU_DEBUG:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+
+  extends: .base_gnu
+ 
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
@@ -73,31 +93,8 @@ GNU_RELEASE:
   tags:
     - test-ci
  
-  before_script: 
-    - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
-    - set +e
-    - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
-    - set -e
-    - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
-    - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=gfortran"
-    - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpif90"
-    - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/GNU/5.4.0/include;/opt/OpenMPI/3.1.2/GNU/5.4.0/bin'"
-    - C_COMPILER="-DCMAKE_C_COMPILER=gcc"
-    - MPIEXEC="-DMPIEXEC='/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpirun'"
-    - ROOT_DIR=$CI_PROJECT_DIR
-    - BUILD_DIR=$ROOT_DIR/BUILD
-    - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
-    - FEMPAR_DIR=$BUILD_DIR/FEMPAR
-    - mkdir -p $THIRDPARTY_DIR
-    - mkdir -p $FEMPAR_DIR
-    - cd $ROOT_DIR
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
-    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
-    - export PETSC_DIR="/opt/petsc-3.9.0-build-gnu"
-    - export PETSC_ARCH="x86_64"
-    - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+  extends: .base_gnu
+
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
@@ -129,15 +126,9 @@ GNU_RELEASE:
     - test $serial_test_passed -eq 0
     - test $par_test_passed -eq 0
 
-INTEL_RELEASE:
-  image: registry.gitlab.com/fempar/fempar:latest
 
-  stage: build
-  
-  tags:
-    - test-ci
- 
-  before_script: 
+.base_intel:
+   before_script: 
     - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
     - set +e
     - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
@@ -163,6 +154,18 @@ INTEL_RELEASE:
     - export PETSC_ARCH="x86_64"
     - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+  
+
+INTEL_RELEASE:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+  
+  extends: .base_intel
+ 
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
@@ -193,7 +196,4 @@ INTEL_RELEASE:
     - echo $par_test_passed
     - test $serial_test_passed -eq 0
     - test $par_test_passed -eq 0
-
-
-
 
