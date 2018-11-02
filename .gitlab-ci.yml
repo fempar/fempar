@@ -41,7 +41,7 @@ GNU_DEBUG_SERIAL:
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j1
+    - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
@@ -70,7 +70,7 @@ GNU_DEBUG_PARALLEL:
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j1
+    - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
@@ -99,7 +99,7 @@ GNU_RELEASE_SERIAL:
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j1
+    - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
@@ -128,7 +128,7 @@ GNU_RELEASE_PARALLEL:
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j1
+    - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
@@ -188,7 +188,7 @@ INTEL_RELEASE_SERIAL:
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j1
+    - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - export PATH=/opt/P4EST/2.0/INTEL/19.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4EST/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
@@ -217,7 +217,7 @@ INTEL_RELEASE_PARALLEL:
   script:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j1
+    - cmake --build . -- -j8
     - cd $FEMPAR_DIR
     - export PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
