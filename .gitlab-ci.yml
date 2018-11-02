@@ -43,8 +43,20 @@ GNU_DEBUG_SERIAL:
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
+    - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - serial_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
 
-GNU_DEBUG:
+GNU_DEBUG_PARALLEL:
   image: registry.gitlab.com/fempar/fempar:latest
 
   stage: build
@@ -59,17 +71,6 @@ GNU_DEBUG:
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
-    - serial_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log  
-    - set -e
-    - rm -Rf *
     - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
@@ -80,12 +81,10 @@ GNU_DEBUG:
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
     - cat ./Testing/Temporary/LastTestsFailed*.log
     - set -e
-    - echo $serial_test_passed
     - echo $par_test_passed
-    - test $serial_test_passed -eq 0
     - test $par_test_passed -eq 0
 
-GNU_RELEASE:
+GNU_RELEASE_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
 
   stage: build
@@ -110,7 +109,24 @@ GNU_RELEASE:
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
     - cat ./Testing/Temporary/LastTestsFailed*.log  
     - set -e
-    - rm -Rf *
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
+
+GNU_RELEASE_PARALLEL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+ 
+  extends: .base_gnu
+
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
     - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
@@ -121,10 +137,9 @@ GNU_RELEASE:
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
     - cat ./Testing/Temporary/LastTestsFailed*.log
     - set -e
-    - echo $serial_test_passed
     - echo $par_test_passed
-    - test $serial_test_passed -eq 0
     - test $par_test_passed -eq 0
+
 
 
 .base_intel:
@@ -156,7 +171,7 @@ GNU_RELEASE:
     - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
   
 
-INTEL_RELEASE:
+INTEL_RELEASE_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
 
   stage: build
@@ -181,7 +196,24 @@ INTEL_RELEASE:
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
     - cat ./Testing/Temporary/LastTestsFailed*.log  
     - set -e
-    - rm -Rf *
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
+
+INTEL_RELEASE_PARALLEL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+  
+  extends: .base_intel
+ 
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
     - export PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
@@ -192,8 +224,5 @@ INTEL_RELEASE:
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
     - cat ./Testing/Temporary/LastTestsFailed*.log
     - set -e
-    - echo $serial_test_passed
     - echo $par_test_passed
-    - test $serial_test_passed -eq 0
     - test $par_test_passed -eq 0
-
