@@ -76,7 +76,8 @@ GNU_DEBUG_PARALLEL:
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
-    - ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - cmake --build . -- -j8
+    - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
     - par_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
@@ -104,6 +105,7 @@ GNU_RELEASE_SERIAL:
     - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
+    - cmake --build . -- -j8
     - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
     - serial_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
@@ -132,6 +134,7 @@ GNU_RELEASE_PARALLEL:
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
+    - cmake --build . -- -j8
     - ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
     - par_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
@@ -191,6 +194,7 @@ INTEL_RELEASE_SERIAL:
     - export LD_LIBRARY_PATH=/opt/P4EST/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
+    - cmake --build . -- -j8
     - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
     - serial_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
@@ -219,7 +223,8 @@ INTEL_RELEASE_PARALLEL:
     - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
-    - ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - cmake --build . -- -j8
+    - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
     - par_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
