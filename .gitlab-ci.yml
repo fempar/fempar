@@ -58,6 +58,9 @@ GNU_DEBUG_SERIAL:
     - echo $serial_test_passed
     - test $serial_test_passed -eq 0
 
+  except:
+    - experimental@gitlab.com/fempar/fempar-beta
+
 GNU_DEBUG_PARALLEL:
   image: registry.gitlab.com/fempar/fempar:latest
 
