@@ -29,7 +29,7 @@ stages:
     - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
 
   except:
-    - experimental@gitlab.com/fempar/fempar-beta.git
+    - experimental@gitlab.com/fempar/fempar-beta
 
 GNU_DEBUG_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
@@ -178,7 +178,7 @@ GNU_RELEASE_PARALLEL:
     - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
   
   except:
-    - experimental@gitlab.com/fempar/fempar-beta.git
+    - experimental@gitlab.com/fempar/fempar-beta
 
 INTEL_RELEASE_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
