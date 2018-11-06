@@ -59,7 +59,7 @@ GNU_DEBUG_SERIAL:
     - test $serial_test_passed -eq 0
 
   except:
-    - experimental@fempar/fempar
+    - experimental@fempar/fempar-beta
 
 GNU_DEBUG_PARALLEL:
   image: registry.gitlab.com/fempar/fempar:latest
@@ -90,6 +90,9 @@ GNU_DEBUG_PARALLEL:
     - echo $par_test_passed
     - test $par_test_passed -eq 0
 
+  except:
+    - experimental@fempar/fempar-beta
+
 GNU_RELEASE_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
 
@@ -118,6 +121,9 @@ GNU_RELEASE_SERIAL:
     - set -e
     - echo $serial_test_passed
     - test $serial_test_passed -eq 0
+
+  except:
+    - experimental@fempar/fempar-beta
 
 GNU_RELEASE_PARALLEL:
   image: registry.gitlab.com/fempar/fempar:latest
@@ -148,6 +154,8 @@ GNU_RELEASE_PARALLEL:
     - echo $par_test_passed
     - test $par_test_passed -eq 0
 
+  except:
+    - experimental@fempar/fempar-beta
 
 
 .base_intel:
@@ -208,6 +216,9 @@ INTEL_RELEASE_SERIAL:
     - echo $serial_test_passed
     - test $serial_test_passed -eq 0
 
+  except:
+    - experimental@fempar/fempar-beta
+
 INTEL_RELEASE_PARALLEL:
   image: registry.gitlab.com/fempar/fempar:latest
 
@@ -236,3 +247,6 @@ INTEL_RELEASE_PARALLEL:
     - set -e
     - echo $par_test_passed
     - test $par_test_passed -eq 0
+
+  except:
+    - experimental@fempar/fempar-beta
