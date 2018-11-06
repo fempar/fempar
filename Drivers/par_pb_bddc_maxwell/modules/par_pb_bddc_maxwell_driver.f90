@@ -427,13 +427,14 @@ contains
     case ( checkerboard, channels, radial ) 
     allocate(this%resistivity_holder(2), stat=istat)
     allocate(this%permeability_holder(2), stat=istat) 
+
     call this%resistivity_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
     call this%permeability_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
 
-    this%resistivity_holder(1)%p => this%resistivity_black 
-    this%resistivity_holder(2)%p => this%resistivity_white
-    this%permeability_holder(1)%p => this%permeability_black 
-    this%permeability_holder(2)%p => this%permeability_white 
+    this%resistivity_holder(1)%p => this%resistivity_white 
+    this%resistivity_holder(2)%p => this%resistivity_black
+    this%permeability_holder(1)%p => this%permeability_white 
+    this%permeability_holder(2)%p => this%permeability_black 
     
     case ( homogeneous ) 
     
