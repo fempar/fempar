@@ -72,18 +72,17 @@ subroutine evaluate_monomials(points,monomials,degree,topology)
     case(2)
       select case(topology)
       case(topology_tet)
-        assert( size(monomials,2)==  2*degree+1 )
+        !assert( size(monomials,2)==  factorial (degree + 1) )
+      write(*,*) 'Degree: ', degree
         do q_point = 1, points%get_num_quadrature_points()
           imo = 1
-          do p = 0, degree
-            if ( p == 0 ) then
-              monomials(q_point,imo) = 1.0_rp
-            else
-              monomials(q_point,imo) = (quad_coords(1,q_point)**p)
+          do px = 0, degree
+            do py = 0, px
+              monomials(q_point,imo) = (quad_coords(1,q_point)**(px-py))&
+                                     * (quad_coords(2,q_point)**py)
               imo = imo + 1
-              monomials(q_point,imo) = (quad_coords(2,q_point)**p)
-            end if
-            imo = imo + 1
+              
+            end do
           end do
         end do
       case(topology_hex)
@@ -104,20 +103,18 @@ subroutine evaluate_monomials(points,monomials,degree,topology)
     case(3)
       select case(topology)
       case(topology_tet)
-        assert(size(monomials,2)== 3*degree+1 )
+        !assert(size(monomials,2)== sum^p+1_n=1 fact( n ))
         do q_point = 1, points%get_num_quadrature_points()
           imo = 1
-          do p= 0, degree
-            if( p == 0 ) then
-              monomials(q_point,imo) = 1.0_rp
-            else
-              monomials(q_point,imo) = (quad_coords(1,q_point)**p)
-              imo = imo + 1
-              monomials(q_point,imo) = (quad_coords(2,q_point)**p)
-              imo = imo + 1
-              monomials(q_point,imo) = (quad_coords(3,q_point)**p)
-            end if
-            imo = imo + 1
+          do px = 0, degree
+            do py = 0, px
+              do pz = 0, py
+                monomials(q_point,imo) = (quad_coords(1,q_point)**(px-py))&
+                                       * (quad_coords(2,q_point)**(py-pz))&
+                                       * (quad_coords(3,q_point)**pz)
+                imo = imo + 1
+              end do
+            end do
           end do
         end do
       case(topology_hex)
