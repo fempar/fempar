@@ -4,8 +4,8 @@ TEST_INPUT_DATA_PATH="$2"
 final_exit_code=0
 if [ -f "$TEST_BINARY_PATH" ]
 then
- #if [ -d "$TEST_INPUT_DATA_PATH" ] 
- #  then
+  if [ -d "$TEST_INPUT_DATA_PATH" ] 
+  then
       ###############################################################################################################################
       # Scalar-valued tests
       ###############################################################################################################################
@@ -52,6 +52,41 @@ then
         done
       done
 
+      # Square + Tets        
+      for gorder in 1
+      do
+       for order in 1 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -dim 2 -in_space .true. -order $order -gorder $gorder"
+            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -dim 2 -in_space .true. -order $order -gorder $gorder 
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+
+      # Cube + Tets      
+      for gorder in 1
+      do
+       for order in 1
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -dim 3 -in_space .true. -order $order -gorder $gorder"
+            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -dim 3 -in_space .true. -order $order -gorder $gorder
+            if [ $? -ne 0 ]
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      #####
 
 
       ###############################################################################################################################
@@ -60,10 +95,10 @@ then
 
 
 
-   #else
-   #   echo "$0: input data directory not found!"
-   #   final_exit_code=1
-   #fi
+   else
+      echo "$0: input data directory not found!"
+      final_exit_code=1
+   fi
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."
   final_exit_code=1
