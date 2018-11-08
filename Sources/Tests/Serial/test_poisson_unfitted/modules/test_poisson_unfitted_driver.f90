@@ -645,7 +645,6 @@ contains
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
     call this%setup_reference_fes()

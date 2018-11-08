@@ -1,15 +1,18 @@
-
 stages:
   - build
-  - doc
 
-GNU_RELEASE:
-
-  image: registry.gitlab.com/fempar/fempar:latest
-
-  stage: build
-  
+.base_gnu:
   before_script: 
+    - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
+    - set +e
+    - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
+    - set -e
+    - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
+    - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=gfortran"
+    - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpif90"
+    - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/GNU/5.4.0/include;/opt/OpenMPI/3.1.2/GNU/5.4.0/bin'"
+    - C_COMPILER="-DCMAKE_C_COMPILER=gcc"
+    - MPIEXEC="-DMPIEXEC='/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpirun'"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
     - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
@@ -19,69 +22,231 @@ GNU_RELEASE:
     - cd $ROOT_DIR
     - git submodule sync --recursive
     - git submodule update --init --recursive
-  
-  script: 
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS=--allow-run-as-root $ROOT_DIR
-    - ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalMemCheck -D ExperimentalSubmit
-    - cd $ROOT_DIR
+    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
+    - export PETSC_DIR="/opt/petsc-3.9.0-build-gnu"
+    - export PETSC_ARCH="x86_64"
+    - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
 
-GNU_DEBUG:
 
+GNU_DEBUG_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
 
   stage: build
   
-  before_script: 
+  tags:
+    - test-ci
+
+  extends: .base_gnu
+ 
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - serial_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
+
+  except:
+    - experimental@fempar/fempar-beta
+
+GNU_DEBUG_PARALLEL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+
+  extends: .base_gnu
+ 
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - par_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log
+    - set -e
+    - echo $par_test_passed
+    - test $par_test_passed -eq 0
+
+  except:
+    - experimental@fempar/fempar-beta
+
+GNU_RELEASE_SERIAL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+ 
+  extends: .base_gnu
+
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - serial_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
+
+  except:
+    - experimental@fempar/fempar-beta
+
+GNU_RELEASE_PARALLEL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
+  
+  tags:
+    - test-ci
+ 
+  extends: .base_gnu
+
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - par_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log
+    - set -e
+    - echo $par_test_passed
+    - test $par_test_passed -eq 0
+
+  except:
+    - experimental@fempar/fempar-beta
+
+
+.base_intel:
+   before_script: 
+    - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
+    - set +e
+    - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
+    - set -e
+    - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/INTEL/19.0
+    - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=ifort"
+    - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/INTEL/19.0/bin/mpif90"
+    - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/INTEL/19.0/include;/opt/OpenMPI/3.1.2/INTEL/19.0/bin'"
+    - C_COMPILER="-DCMAKE_C_COMPILER=icc"
+    - CXX_COMPILER="-DCMAKE_CXX_COMPILER=icpc"
+    - MPIEXEC="-DMPIEXEC='/opt/OpenMPI/3.1.2/INTEL/19.0/bin/mpirun'"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
     - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
     - FEMPAR_DIR=$BUILD_DIR/FEMPAR
     - mkdir -p $THIRDPARTY_DIR
     - mkdir -p $FEMPAR_DIR
-    - cmake --version
-    - gfortran --version
-    - mpif90 --version
     - cd $ROOT_DIR
     - git submodule sync --recursive
     - git submodule update --init --recursive
+    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
+    - export PETSC_DIR="/opt/petsc-3.9.0-build-gnu"
+    - export PETSC_ARCH="x86_64"
+    - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
+
+
+INTEL_RELEASE_SERIAL:
+  image: registry.gitlab.com/fempar/fempar:latest
+
+  stage: build
   
-  script: 
+  tags:
+    - test-ci
+  
+  extends: .base_intel
+ 
+  script:
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS=--allow-run-as-root $ROOT_DIR
-    - ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
-    - cd $ROOT_DIR
+    - export PATH=/opt/P4EST/2.0/INTEL/19.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - serial_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
 
-FORD_DOC:
+  except:
+    - experimental@fempar/fempar-beta
 
-  image: registry.gitlab.com/fempar/fempar:documentation
+INTEL_RELEASE_PARALLEL:
+  image: registry.gitlab.com/fempar/fempar:latest
 
-  stage: doc
+  stage: build
+  
+  tags:
+    - test-ci
+  
+  extends: .base_intel
+ 
+  script:
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - export PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/include/:$PATH
+    - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - par_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log
+    - set -e
+    - echo $par_test_passed
+    - test $par_test_passed -eq 0
 
-  before_script: 
-    - ROOT_DIR=$PWD
-    - DOC_DIR=$ROOT_DIR/DOC
-    - mkdir -p $DOC_DIR
-    - python --version
-    - pip install ford
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
-
-  script: 
-    - git clone git@gitlab.com:fempar/documentation $DOC_DIR
-    - cd $ROOT_DIR
-    - ford -o $DOC_DIR/html ford.md
-    - cd $DOC_DIR
-    - git add -A
-    - git commit -m "Fempar automatic generated documentation from commit $CI_BUILD_REF"
-    - git push origin master
-    - cd $ROOT_DIR
-
-  only:
-    - experimental
+  except:
+    - experimental@fempar/fempar-beta

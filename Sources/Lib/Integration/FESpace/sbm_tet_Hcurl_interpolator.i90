@@ -280,6 +280,18 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 
 end subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments
 
+! ================================================================================
+subroutine tet_Hcurl_interpolator_evaluate_tensor_function_moments( this, fe, tensor_function, dof_values, time ) 
+  implicit none
+  class(tet_Hcurl_interpolator_t) , intent(inout) :: this
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  class(tensor_function_t)        , intent(in)    :: tensor_function
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+  real(rp) , optional             , intent(in)    :: time 
+  ! Does not apply for tensor FEs
+  massert(.false., 'Evaluation of tensor function moments does not make sense for this interpolator type') 
+end subroutine tet_Hcurl_interpolator_evaluate_tensor_function_moments
+
 !==================================================================================================
 subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time, time_derivative_order)
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
