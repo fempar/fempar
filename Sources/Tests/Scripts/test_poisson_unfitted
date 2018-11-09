@@ -51,15 +51,18 @@ then
       do
        for order in 1 2 3
         do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -dim 2 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -dim 2 -in_space .true. -order $order -gorder $gorder 
-            if [ $? -ne 0 ] 
+          for nelem in 3 5 10
+          do
+            if [ $order -ge $gorder ]
             then
-             final_exit_code=1
+              echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid --prefix square_tetrahedra_"$nelem"x"$nelem" -dim 2 -in_space .true. -order $order -gorder $gorder"
+              $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid --prefix square_tetrahedra_"$nelem"x"$nelem" -dim 2 -in_space .true. -order $order -gorder $gorder 
+              if [ $? -ne 0 ] 
+              then
+               final_exit_code=1
+              fi
             fi
-          fi
+          done
         done
       done
 
@@ -67,19 +70,37 @@ then
       # Cube + Tets      
       for gorder in 1
       do
-       for order in 1 2
+       for order in 1
         do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -dim 3 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -dim 3 -in_space .true. -order $order -gorder $gorder
-            if [ $? -ne 0 ]
+          for nelem in 3 5 10
+          do
+            if [ $order -ge $gorder ]
             then
-             final_exit_code=1
+              echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder"
+              $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder
+              if [ $? -ne 0 ]
+              then
+               final_exit_code=1
+              fi
             fi
-          fi
+          done
         done
       done
+
+      order=1
+      gorder=1
+      nelem=3
+      if [ $order -ge $gorder ]
+      then
+        echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder"
+        $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder
+        if [ $? -ne 0 ]
+        then
+          final_exit_code=1
+        fi
+      fi
+
+
       ###############################################################################################################################
       # Vector-valued tests
       ###############################################################################################################################

@@ -59,8 +59,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -dim 2 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -dim 2 -in_space .true. -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid --prefix square_tetrahedra_3x3 -dim 2 -in_space .true. -order $order -gorder $gorder"
+            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid --prefix square_tetrahedra_3x3 -dim 2 -in_space .true. -order $order -gorder $gorder 
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -77,8 +77,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -dim 3 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -dim 3 -in_space .true. -order $order -gorder $gorder
+            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid --prefix cube_tetrahedra_3x3 -dim 3 -in_space .true. -order $order -gorder $gorder"
+            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid --prefix cube_tetrahedra_3x3 -dim 3 -in_space .true. -order $order -gorder $gorder
             if [ $? -ne 0 ]
             then
              final_exit_code=1

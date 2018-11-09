@@ -73,7 +73,6 @@ subroutine evaluate_monomials(points,monomials,degree,topology)
       select case(topology)
       case(topology_tet)
         !assert( size(monomials,2)==  factorial (degree + 1) )
-      write(*,*) 'Degree: ', degree
         do q_point = 1, points%get_num_quadrature_points()
           imo = 1
           do px = 0, degree
