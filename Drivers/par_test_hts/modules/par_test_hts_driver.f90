@@ -96,12 +96,11 @@ module par_test_hts_driver_names
      type(timer_t) :: timer_assemply
      type(timer_t) :: timer_setup_system 
      type(timer_t) :: timer_solver_total
-     type(timer_t) :: timer_solve_accumulated 
-     type(timer_t) :: timer_solve_last 
      type(timer_t) :: timer_write_sol
      type(timer_t) :: timer_run_simulation
-
-
+     type(timer_t) :: timer_find_subsets 
+     type(timer_t) :: timer_setup_coarse_fe_handler
+     
    contains
      procedure                  :: parse_command_line_parameters
      procedure                  :: setup_timers
@@ -157,6 +156,8 @@ contains
     call this%timer_solver_total%create(w_context,"SOLVER SETUP AND RUN")
     call this%timer_write_sol%create(w_context,"WRITE SOLUTION")
     call this%timer_run_simulation%create(w_context,"RUN SIMULATION")
+    call this%timer_find_subsets%create(w_context, "FIND SUBSETS")  
+    call this%timer_setup_coarse_fe_handler%create(w_context, "SETUP COARSE FE HANDLER")  
   end subroutine setup_timers
 
   subroutine report_timers(this)
@@ -184,6 +185,8 @@ contains
     call this%timer_solver_total%free()
     call this%timer_write_sol%free()
     call this%timer_run_simulation%free()
+    call this%timer_find_subsets%free() 
+    call this%timer_setup_coarse_fe_handler%free() 
   end subroutine free_timers
 
   subroutine setup_environment(this, world_context)
@@ -317,14 +320,18 @@ contains
     integer(ip)                      :: qpoin, num_quad_points
     integer(ip) :: i, ndime
     integer(ip) :: istat, dummy_val 
-    real(rp)    :: contrast
+    real(rp)    :: contrast, cell_contrast
     ! Compute resistivity 
     type(fe_cell_function_vector_t)        :: fe_cell_function
     type(vector_field_t)                   :: H_value, H_curl
     type(tensor_field_t)                   :: resistivity_tensor 
     real(rp)                               :: resistivity
-    real(rp)                               :: resistivity_max, resistivity_min 
-
+    real(rp)                               :: cell_resistivity_max, cell_resistivity_min 
+    real(rp)                               :: sbd_resistivity_min, sbd_resistivity_max 
+    real(rp)                               :: global_resistivity_min 
+    integer(ip)                            :: num_cells_sent_to_coarse_solver  
+    integer(ip)                            :: num_sets_id 
+    
     if ( .not. this%environment%am_i_l1_task() ) return 
 
     ! Integrate structures needed 
@@ -337,9 +344,10 @@ contains
     quad_coords      => fe%get_quadrature_points_coordinates()
     
     ! rPB-BDDC needs a first cell loop to determine the minimum value of the coefficient 
-    resistivity_min = this%test_params%get_air_resistivity() 
+    sbd_resistivity_min = this%test_params%get_air_resistivity() 
+    sbd_resistivity_max = 0.0_rp 
     do while ( .not. fe%has_finished() ) 
-       if ( fe%is_local() .and. fe%get_set_id() > 0) then 
+       if ( fe%is_local() .and. fe%get_set_id() > AIR) then 
 
        call fe%update_integration()
           call fe_cell_function%update(fe, this%H_current) 
@@ -352,41 +360,59 @@ contains
              call fe_cell_function%compute_curl(qpoin, H_curl)
              resistivity_tensor  = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
              resistivity = max( resistivity_tensor%get(1,1), resistivity_tensor%get(2,2), resistivity_tensor%get(3,3) ) 
-             resistivity_min = min(resistivity_min,  resistivity)
+             sbd_resistivity_min = min(sbd_resistivity_min, resistivity)
+             sbd_resistivity_max = max(sbd_resistivity_max, resistivity)
           end do
 
        end if
        call fe%next()
     end do
     
+    ! Number of subsets that will arise
+    num_cells_sent_to_coarse_solver = 0 
+    global_resistivity_min = 1.0_rp/sbd_resistivity_min 
+    call this%environment%l1_max(global_resistivity_min)
+    global_resistivity_min = 1.0_rp/global_resistivity_min 
+    contrast    = sbd_resistivity_max/global_resistivity_min 
+    num_sets_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+
     ! Init fe iterator 
-    call fe%first() 
+    call fe%first()
     do while ( .not. fe%has_finished() )
-       if ( fe%is_local() .and. fe%get_set_id() > 0) then 
+       if ( fe%is_local() .and. fe%get_set_id() > AIR) then 
           ! Extract coordinates, evaluate resistivity/permeability
           call fe%update_integration()
           call fe_cell_function%update(fe, this%H_current) 
           quad_coords => fe%get_quadrature_points_coordinates()
 
           ! Integrate cell contribution to averages 
-          resistivity_max  = 0.0_rp
+          cell_resistivity_max  = 0.0_rp
+          cell_resistivity_min  = this%test_params%get_air_resistivity()
           do qpoin=1, num_quad_points
             ! Evaluate parameters on the cell 
              call fe_cell_function%get_value(qpoin, H_value)
              call fe_cell_function%compute_curl(qpoin, H_curl)
              resistivity_tensor = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() )
              resistivity = max( resistivity_tensor%get(1,1), resistivity_tensor%get(2,2), resistivity_tensor%get(3,3) )
-             resistivity_max = max(resistivity_max,  resistivity)
+             cell_resistivity_max = max(cell_resistivity_max,  resistivity)
+             cell_resistivity_min = min(cell_resistivity_min,  resistivity)
           end do
 
-          contrast=(resistivity_max)/(resistivity_min)
-          massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
-          this%cells_set_ids(fe%get_gid()) = HTS + floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )    
+          contrast=cell_resistivity_max/global_resistivity_min
+          cell_contrast=cell_resistivity_max/cell_resistivity_min
+          massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold')
+          if ( cell_contrast < this%test_params%get_rpb_bddc_threshold() ) then 
+          this%cells_set_ids(fe%get_gid()) = HTS + floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+          else 
+          num_cells_sent_to_coarse_solver = num_cells_sent_to_coarse_solver +1
+          this%cells_set_ids(fe%get_gid()) = HTS + num_sets_id + num_cells_sent_to_coarse_solver 
+          end if 
        end if
        call fe%next()
     end do
     call this%fe_space%free_fe_cell_iterator(fe)
     call this%triangulation%fill_cells_set(this%cells_set_ids) 
+    
   end subroutine set_pb_cells_set_id
   
   subroutine setup_reference_fes(this)
@@ -562,7 +588,7 @@ contains
        class DEFAULT
        assert(.false.) 
     end select
-
+    
     ! Prepare the internal parameter list of pardiso
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -640,7 +666,11 @@ contains
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix
     
+    call this%timer_find_subsets%start()     
     call this%set_pb_cells_set_id()
+    call this%timer_find_subsets%stop() 
+    call this%timer_find_subsets%report(.true.)
+    
     call this%triangulation%setup_coarse_triangulation()
     call this%fe_space%set_up_cell_integration()
    
@@ -649,6 +679,7 @@ contains
     call this%linear_solver%set_type_from_string(cg_name)
 
     ! BDDC preconditioner 
+    call this%timer_setup_coarse_fe_handler%start() 
     call this%compute_average_parameter_values() 
     matrix => this%fe_operator%get_matrix() 
     select type ( matrix ) 
@@ -658,7 +689,9 @@ contains
        class DEFAULT
        assert(.false.) 
     end select
-
+    call this%timer_setup_coarse_fe_handler%stop() 
+    call this%timer_setup_coarse_fe_handler%report(.true.) 
+    
     ! Prepare the internal parameter list of pardiso
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -833,11 +866,15 @@ contains
        call this%nonlinear_solver%apply(rhs_dof_values, free_dof_values )
 
        if ( this%nonlinear_solver%has_converged() ) then  ! Theta method goes forward 
-          call this%compute_hysteresis_data() 
+          ! call this%compute_hysteresis_data() 
           call this%theta_method%update_solutions(this%H_current, this%H_previous)
           call this%print_info()
           call this%write_time_step_solution()
+          if ( this%test_params%get_is_adaptive_time_stepping() ) then 
           call this%theta_method%move_time_forward(this%nonlinear_solver%get_current_iteration(), this%test_params%get_stepping_parameter())
+          else 
+          call this%theta_method%move_time_forward()
+          end if 
 
        elseif (.not. this%nonlinear_solver%has_converged()) then ! Theta method goes backwards and restarts   
           call this%theta_method%move_time_backwards(this%H_current, this%H_previous)
