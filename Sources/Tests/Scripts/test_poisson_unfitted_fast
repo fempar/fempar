@@ -86,6 +86,15 @@ then
           fi
         done
       done
+      
+      echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid --prefix cube_tetrahedra_5x5_centered -dim 3 -in_space .true. -order $order -gorder $gorder"
+      $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid --prefix cube_tetrahedra_5x5_centered -dim 3 -in_space .true. -order $order -gorder $gorder
+      if [ $? -ne 0 ]
+      then
+        final_exit_code=1
+      fi
+
+     
       #####
 
 
