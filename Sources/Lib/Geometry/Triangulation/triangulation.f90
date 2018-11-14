@@ -649,7 +649,6 @@ module triangulation_names
 
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
      type(environment_t), pointer          :: environment => NULL()
-     logical                               :: environment_allocated = .false.
      
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
