@@ -7,7 +7,7 @@ stages:
     - set +e
     - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
     - set -e
-    - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
+    #- export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
     - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=gfortran"
     - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpif90"
     - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/GNU/5.4.0/include;/opt/OpenMPI/3.1.2/GNU/5.4.0/bin'"
@@ -164,7 +164,7 @@ GNU_RELEASE_PARALLEL:
     - set +e
     - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
     - set -e
-    - export HDF5_ROOT=/opt/HDF5/1.10.0-p1/INTEL/19.0
+    #- export HDF5_ROOT=/opt/HDF5/1.10.0-p1/INTEL/19.0
     - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=ifort"
     - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/INTEL/19.0/bin/mpif90"
     - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/INTEL/19.0/include;/opt/OpenMPI/3.1.2/INTEL/19.0/bin'"
@@ -181,7 +181,7 @@ GNU_RELEASE_PARALLEL:
     - git submodule sync --recursive
     - git submodule update --init --recursive
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
-    - export PETSC_DIR="/opt/petsc-3.9.0-build-gnu"
+    - export PETSC_DIR="/opt/petsc-3.9.0-build-intel"
     - export PETSC_ARCH="x86_64"
     - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
     - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
