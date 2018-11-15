@@ -40,25 +40,22 @@ contains
 !========================================================================================
 ! TODO @fverdugo FEMPAR PRIORITY MEDIUM EFFORT HIGH
 ! A better way to do this?
-! This subroutine assumes ref elem with hex topology and linear order
+! This subroutine assumes a ref elem with hex or tet topology.
 ! Where to put this info? At the reference element?
-subroutine evaluate_monomials(points,monomials,degree,topology)
+subroutine evaluate_monomials(points, degree, topology, monomials)
   implicit none
   type(quadrature_t),    intent(in)    :: points
-  real(rp), allocatable, intent(inout) :: monomials(:,:)
   integer(ip),           intent(in)    :: degree
-  character(:), pointer, intent(in)    :: topology
+  character(*),          intent(in)    :: topology  
+  real(rp),              intent(inout) :: monomials(:,:)
+  
 
   integer(ip) :: q_point
   real(rp), pointer :: quad_coords(:,:)
   integer(ip) :: imo, px, py, pz, p
 
-  assert(allocated(monomials))
   assert(size(monomials,1)==points%get_num_quadrature_points())
-
   quad_coords => points%get_coordinates()
-  
-  
   select case(points%get_num_dims())
     case(1)
       assert(size(monomials,2)==(degree+1))
