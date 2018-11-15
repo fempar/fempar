@@ -1,0 +1,33 @@
+BeginZE /home/pmartorell/git-repos/fempar-project/cube_tetrahedra_5x5_centered.gid/cube_tetrahedra_5x5_centered.vv
+   x -3.45907974243164062 3.84691500663757324
+   y 1.90182876586914062 -1.80648529529571533
+   z -4.35889911651611328 4.35889911651611328
+   e 1.45296633243560791
+   v -0.0929591519857560777 -0.0472415699685168611 -0.0444788327190605709
+   r 0.99355345279906726
+   m 0.991579711437225342 0.0971672683954238892 -0.0856046229600906372 0 -0.0796011239290237427 0.978760480880737305 0.188922271132469177 0 0.102143481373786926 -0.180517271161079407 0.978253662586212158 0 0 0 0 1
+   c 3.64007545260533759e-17 -7.28015057433843016e-18 0
+   pd 0
+   pno 0
+   pfo 0
+   pf 4
+   pv 0
+   NowUse 0
+   DrawingType 0
+   LightVector 90 90 150 0
+   OGLShadow(UseShadows) 0
+   OGLShadow(RenderMode) RenderNice
+   OGLShadow(ShadowBias) -0.002
+   OGLShadow(AmbientShadows) 1
+   OGLShadow(UseFBO) 0
+   OGLShadow(FBOSize) 2048
+   OGLShadow(DimmedLightFactor) 0.02
+   OGLStereo(UseStereo) 0
+   OGLStereo(RelativeEyeDistance) 1
+   OGLStereo(FlipEyes) 0
+   OGLStereo(StereoMode) AnaglyphColors
+   OGLStereo(EyeDistance) 0.075
+   OGLStereo(LeftEyeDistance) 1 0 0 1
+   OGLStereo(RightEyeDistance) 0 1 1 1
+EndZE /home/pmartorell/git-repos/fempar-project/cube_tetrahedra_5x5_centered.gid/cube_tetrahedra_5x5_centered.vv
+

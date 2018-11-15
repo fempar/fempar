@@ -135,6 +135,7 @@ contains
     real(rp),      intent(inout) :: val
     integer(ip),   intent(in)    :: degree
     real(rp) :: x1, x2, x3
+    assert ( degree >= 0 ) 
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
@@ -148,15 +149,22 @@ contains
     type(vector_field_t), intent(inout) :: val
     integer(ip),          intent(in)    :: degree
     real(rp) :: x1, x2, x3, g1, g2, g3
+    assert ( degree >= 0 ) 
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
-    g1 = degree*x1**(degree-1)
-    g2 = degree*x2**(degree-1)
-    g3 = degree*x3**(degree-1)
-    call val%set(1,g1)
-    call val%set(2,g2)
-    call val%set(3,g3)
+    if ( degree >= 1 ) then 
+       g1 = degree*x1**(degree-1)
+       g2 = degree*x2**(degree-1)
+       g3 = degree*x3**(degree-1)
+       call val%set(1,g1)
+       call val%set(2,g2)
+       call val%set(3,g3)
+    else
+       call val%set( 1 , 0.0_rp )
+       call val%set( 2 , 0.0_rp )
+       call val%set( 3 , 0.0_rp )
+    end if
   end subroutine sol_ex001_3d_grad_u
 
   !==============================================================================================
@@ -166,10 +174,15 @@ contains
     real(rp),      intent(inout) :: val
     integer(ip),   intent(in)    :: degree
     real(rp) :: x1, x2, x3
+    assert ( degree >= 0 )  
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
-    val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
+    if ( degree >= 2 ) then 
+      val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
+    else 
+      val = 0.0_rp
+    end if
   end subroutine sol_ex001_3d_lapl_u
 
   !==============================================================================================

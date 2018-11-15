@@ -1,2 +1,5 @@
 table_qua4
 table_hex8
+table_tri3
+table_tet4
+table_qua2tri
