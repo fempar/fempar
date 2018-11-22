@@ -107,7 +107,9 @@ In the latter case, you must specify `-DCMAKE_CXX_COMPILER=icpc` explicitly when
 
 ## Run tests
 
-In order to run the all tests in fast mode:
+In order to run the tests, we need the right environment. If we are relying on `module` functionalities, we must be sure that the required modules are load in the terminal in which we want to run the tests.
+It seems that the only module that has to be loaded is `mkl`, whereas the path to other dynamic libraries is hard-coded, e.g., `openmpi`. In any case, one can use the initialization suggested in the `module` manual and pre-load some modules in `modulerc`.
+Assuming the right environment is in place, to run all tests in fast mode, we just do:
 
 ```
 $ cd build/FEMPAR
