@@ -27,7 +27,7 @@ For instance, the compilation of **FEMPAR** using the previous two functionaliti
 $ mkdir build
 $ cd build
 $ module load gcc/8.2.0
-$ $FEMPARDIR/Tools/configure -c GNU -s $FEMPAR/SuperBuild
+$ $FEMPARDIR/Tools/configure -c GNU -s $FEMPARDIR/SuperBuild
 $ make
 ```
 
@@ -35,7 +35,7 @@ Instead, for INTEL compilers, the last part would read:
 
 ```
 $ module load ifc/19.0.0
-$ $FEMPARDIR/Tools/configure -s $FEMPAR/SuperBuild
+$ $FEMPARDIR/Tools/configure -s $FEMPARDIR/SuperBuild
 $ make
 ```
 The compiler by default is the **INTEL** compiler. The tests are compiled unless otherwise stated with `--without-tests`.
@@ -48,7 +48,8 @@ $ cd build
 $ cmake ../fempar/SuperBuild -DFEMPAR_ENABLE_TESTS=ON
 $ make
 ```
-assuming that the right environment configuration is in place through, e.g., `.bashr`. But this approach is prone to error when switching environments.
+assuming that the right environment configuration is in place through, e.g., `.bashrc`. But this approach is prone to error when switching environments. 
+Another approach is to directly include in the `cmake` call the right compilation flags and values (see one of the notes below).
 
 In order to configure the compilation of a driver (right after the previous steps):
 
