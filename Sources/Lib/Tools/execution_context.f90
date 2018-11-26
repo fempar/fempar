@@ -51,7 +51,9 @@ module execution_context_names
   private
 
   integer(ip), parameter :: undefined_color=-1
-  public :: undefined_color
+  integer(ip), parameter :: execution_context_root = 0
+  
+  public :: undefined_color, execution_context_root
 
   type, abstract :: execution_context_t
      private 
@@ -81,6 +83,8 @@ module execution_context_names
      procedure (execution_context_max_vector_rp     ) , deferred :: max_vector_rp
      procedure (execution_context_min_scalar_rp     ) , deferred :: min_scalar_rp
      procedure (execution_context_max_scalar_ip     ) , deferred :: max_scalar_ip
+     procedure (execution_context_sum_scalar_igp    ) , deferred :: sum_scalar_igp
+     procedure (execution_context_sum_vector_igp    ) , deferred :: sum_vector_igp
      procedure (execution_context_bcast_subcontext  ) , deferred :: bcast_subcontext
      
      procedure (execution_context_scatter_scalar_ip ) , deferred :: scatter_ip
@@ -91,9 +95,10 @@ module execution_context_names
      procedure (execution_context_gather_scalar_igp ), deferred  :: gather_igp  
      generic :: gather => gather_ip, gather_igp
 
-     procedure (execution_context_bcast_scalar_ip   ) , deferred :: bcast_ip             
-     procedure (execution_context_bcast_scalar_igp  ) , deferred :: bcast_igp
-     generic :: bcast => bcast_ip, bcast_igp
+     procedure (execution_context_bcast_scalar_ip          ) , deferred :: bcast_ip       
+     procedure (execution_context_bcast_scalar_ip_1D_array ) , deferred :: bcast_ip_1D_array
+     procedure (execution_context_bcast_scalar_igp         ) , deferred :: bcast_igp
+     generic :: bcast => bcast_ip, bcast_ip_1D_array, bcast_igp
      
      procedure (execution_context_neighbours_exchange_rp                 ), deferred :: neighbours_exchange_rp
      procedure (execution_context_neighbours_exchange_wo_alpha_beta_rp   ), deferred :: neighbours_exchange_wo_alpha_beta_rp
@@ -115,6 +120,21 @@ module execution_context_names
           &                             neighbours_exchange_wo_unpack_ip, &
           &                             neighbours_exchange_variable_igp, &
           &                             neighbours_exchange_variable_ip
+
+     procedure (execution_context_send_ip          ), deferred :: send_ip
+     procedure (execution_context_send_igp         ), deferred :: send_igp     
+     procedure (execution_context_send_rp          ), deferred :: send_rp
+     procedure (execution_context_send_ip_1D_array ), deferred :: send_ip_1D_array
+     procedure (execution_context_send_rp_1D_array ), deferred :: send_rp_1D_array
+     procedure (execution_context_send_igp_1D_array), deferred :: send_igp_1D_array     
+     procedure (execution_context_rcv_ip           ), deferred :: rcv_ip
+     procedure (execution_context_rcv_igp          ), deferred :: rcv_igp     
+     procedure (execution_context_rcv_rp           ), deferred :: rcv_rp
+     procedure (execution_context_rcv_ip_1D_array  ), deferred :: rcv_ip_1D_array
+     procedure (execution_context_rcv_rp_1D_array  ), deferred :: rcv_rp_1D_array
+     procedure (execution_context_rcv_igp_1D_array ), deferred :: rcv_igp_1D_array      
+     generic :: send => send_ip, send_igp, send_rp, send_ip_1D_array, send_rp_1D_array, send_igp_1D_array
+     generic :: rcv  => rcv_ip , rcv_igp, rcv_rp , rcv_ip_1D_array , rcv_rp_1D_array, rcv_igp_1D_array
 
      procedure (execution_context_root_send_master_rcv_ip         ), deferred :: root_send_master_rcv_ip
      procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred :: root_send_master_rcv_ip_1D_array
@@ -147,8 +167,12 @@ module execution_context_names
 
   end type execution_context_t
 
+  type allocatable_execution_context_t
+     class(execution_context_t), allocatable :: a
+  end type allocatable_execution_context_t
+  
   ! Types
-  public :: execution_context_t
+  public :: allocatable_execution_context_t, execution_context_t
 
   abstract interface 
 
@@ -275,6 +299,22 @@ module execution_context_names
        class(execution_context_t) , intent(in)    :: this
        integer(ip)                , intent(inout) :: n
      end subroutine execution_context_max_scalar_ip
+     
+     !=============================================================================
+     subroutine execution_context_sum_scalar_igp (this,n)
+       import :: execution_context_t, igp
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       integer(igp)               , intent(inout) :: n
+     end subroutine execution_context_sum_scalar_igp
+     
+     !=============================================================================
+     subroutine execution_context_sum_vector_igp (this,n)
+       import :: execution_context_t, igp
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       integer(igp)               , intent(inout) :: n(:)
+     end subroutine execution_context_sum_vector_igp
 
      !=============================================================================
      subroutine execution_context_max_vector_rp(this,alpha)
@@ -534,7 +574,15 @@ module execution_context_names
        class(execution_context_t), intent(in)    :: this
        integer(ip)             , intent(inout) :: data
      end subroutine execution_context_bcast_scalar_ip
-     
+
+     !=============================================================================
+     subroutine execution_context_bcast_scalar_ip_1D_array ( this, data )
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)             , intent(inout) :: data(:)
+     end subroutine execution_context_bcast_scalar_ip_1D_array
+
      !=============================================================================
      subroutine execution_context_bcast_scalar_igp ( this, data )
        import :: execution_context_t, igp
@@ -542,6 +590,108 @@ module execution_context_names
        class(execution_context_t), intent(in)    :: this
        integer(igp)              , intent(inout) :: data
      end subroutine execution_context_bcast_scalar_igp
+
+     !=============================================================================
+     subroutine execution_context_send_ip ( this, rcv_task, data )
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(in)    :: rcv_task
+       integer(ip)               , intent(in)    :: data
+     end subroutine execution_context_send_ip
+     
+     subroutine execution_context_rcv_ip ( this, send_task, data)
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(inout) :: send_task
+       integer(ip)               , intent(inout) :: data
+     end subroutine execution_context_rcv_ip
+
+     !=============================================================================
+     subroutine execution_context_send_igp ( this, rcv_task, data )
+       import :: execution_context_t, ip, igp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(in)    :: rcv_task
+       integer(igp)              , intent(in)    :: data
+     end subroutine execution_context_send_igp
+     
+     subroutine execution_context_rcv_igp ( this, send_task, data)
+       import :: execution_context_t, ip, igp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(inout) :: send_task
+       integer(igp)              , intent(inout) :: data
+     end subroutine execution_context_rcv_igp
+     
+     !=============================================================================
+     subroutine execution_context_send_rp ( this, rcv_task, data )
+       import :: execution_context_t, ip, rp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(in)    :: rcv_task
+       real(rp)                  , intent(in)    :: data
+     end subroutine execution_context_send_rp
+     
+     subroutine execution_context_rcv_rp ( this, send_task, data)
+       import :: execution_context_t, ip, rp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(inout) :: send_task
+       real(rp)                  , intent(inout) :: data
+     end subroutine execution_context_rcv_rp
+     
+     !=============================================================================
+     subroutine execution_context_send_ip_1D_array ( this, rcv_task, data )
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(in)    :: rcv_task
+       integer(ip)               , intent(in)    :: data(:)
+     end subroutine execution_context_send_ip_1D_array
+     
+     subroutine execution_context_rcv_ip_1D_array ( this, send_task, data)
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(inout) :: send_task
+       integer(ip)               , intent(inout) :: data(:)
+     end subroutine execution_context_rcv_ip_1D_array
+
+     !=============================================================================
+     subroutine execution_context_send_igp_1D_array ( this, rcv_task, data )
+       import :: execution_context_t, ip, igp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(in)    :: rcv_task
+       integer(igp)              , intent(in)    :: data(:)
+     end subroutine execution_context_send_igp_1D_array
+     
+     subroutine execution_context_rcv_igp_1D_array ( this, send_task, data)
+       import :: execution_context_t, ip, igp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(inout) :: send_task
+       integer(igp)              , intent(inout) :: data(:)
+     end subroutine execution_context_rcv_igp_1D_array
+     
+     !=============================================================================
+     subroutine execution_context_send_rp_1D_array ( this, rcv_task, data )
+       import :: execution_context_t, ip, rp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(in)    :: rcv_task
+       real(rp)               , intent(in)    :: data(:)
+     end subroutine execution_context_send_rp_1D_array
+     
+     subroutine execution_context_rcv_rp_1D_array ( this, send_task, data)
+       import :: execution_context_t, ip, rp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       integer(ip)               , intent(inout) :: send_task
+       real(rp)               , intent(inout) :: data(:)
+     end subroutine execution_context_rcv_rp_1D_array
 
      !=============================================================================
      subroutine execution_context_root_send_master_rcv_ip ( this, input_data, output_data )

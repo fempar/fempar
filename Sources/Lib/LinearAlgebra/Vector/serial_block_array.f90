@@ -333,8 +333,10 @@ contains
     select type(op2)
        class is (serial_block_array_t)
        assert(op2%state == blocks_container_created)
-       call op1%free()
-       call op1%create(op2%nblocks)
+       if ( .not. op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%nblocks)
+       end if 
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
@@ -379,23 +381,25 @@ contains
     class(vector_t), intent(in) :: vector
     logical :: serial_block_array_same_vector_space
     integer(ip) :: iblk
-    assert ( this%state == blocks_container_created )
     serial_block_array_same_vector_space = .false.
-    select type(vector)
-    class is (serial_block_array_t)
-      assert ( vector%state == blocks_container_created )
-      serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-      if ( serial_block_array_same_vector_space ) then
-        do iblk=1, this%nblocks
-           serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-           if ( .not. serial_block_array_same_vector_space ) then
-             exit
-           end if
-        end do
-      end if
-    end select
+    if (this%state == blocks_container_created ) then
+      select type(vector)
+      class is (serial_block_array_t)
+        if ( vector%state == blocks_container_created ) then
+          serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+          if ( serial_block_array_same_vector_space ) then
+            do iblk=1, this%nblocks
+               serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+               if ( .not. serial_block_array_same_vector_space ) then
+                 exit
+               end if
+            end do
+          end if
+        end if 
+      end select
+    end if 
   end function serial_block_array_same_vector_space
- 
+
   !=============================================================================
   function serial_block_array_get_num_blocks(this) result(res)
     implicit none 

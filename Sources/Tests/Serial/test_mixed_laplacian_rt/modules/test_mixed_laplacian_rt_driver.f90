@@ -59,6 +59,7 @@ module test_mixed_laplacian_rt_driver_names
      type(fe_affine_operator_t)                  :: fe_affine_operator
 
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                       :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
 #else     
@@ -70,7 +71,9 @@ module test_mixed_laplacian_rt_driver_names
 
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -94,11 +97,25 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
 
   subroutine setup_triangulation(this)
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%serial_environment,this%parameter_list)
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)
@@ -347,10 +364,12 @@ contains
        ! Get DoF numbering within current FE
        call fe%get_fe_dofs(fe_dofs)
        
-       call dof_values%extract_subvector ( 1, &
-                                           size(nodal_values_rt), &
-                                           fe_dofs(1)%p, & 
-                                           nodal_values_rt)
+       if ( associated(fe_dofs(1)%p) ) then
+         call dof_values%extract_subvector ( 1, &
+                                             size(nodal_values_rt), &
+                                             fe_dofs(1)%p, & 
+                                             nodal_values_rt)
+       end if
               
        select type(rt_ref_fe => this%reference_fes(1)%p)
        class is (raviart_thomas_reference_fe_t)
@@ -374,7 +393,6 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

@@ -1,0 +1,37 @@
+BeginZE /home/pmartorell/git-repos/fempar-project/cube_tetrahedra_3x3.gid/cube_tetrahedra_3x3.vv
+   x -1.20621383190155029 2.20621371269226074
+   y 1.36602544784545898 -0.366025388240814209
+   z -3.09807610511779785 2.09807610511779785
+   e 0.866025388240814209
+   v -0.127385382151782578 -0.0181434364519215789 -0.131287033067111814
+   r -0.982958541890854853
+   m 0.964869081974029541 -0.253477007150650024 0.0691165924072265625 0 0.262721836566925049 0.933073341846466064 -0.245665103197097778 0 -0.00222039385698735714 0.255193084478378296 0.966887533664703369 0 0 0 0 1
+   c 0.5 0.5 0.5
+   pd 0
+   pno 0
+   pfo 0
+   pf 4
+   pv 0
+   NowUse 1
+   DrawingType 0
+   LightVector 90 90 150 0
+   OGLShadow(UseShadows) 0
+   OGLShadow(RenderMode) RenderNice
+   OGLShadow(ShadowBias) -0.002
+   OGLShadow(AmbientShadows) 1
+   OGLShadow(UseFBO) 1
+   OGLShadow(FBOSize) 2048
+   OGLShadow(DimmedLightFactor) 0.02
+   OGLStereo(UseStereo) 0
+   OGLStereo(RelativeEyeDistance) 1
+   OGLStereo(FlipEyes) 0
+   OGLStereo(StereoMode) AnaglyphColors
+   OGLStereo(EyeDistance) 0.075
+   OGLStereo(LeftEyeDistance) 1 0 0 1
+   OGLStereo(RightEyeDistance) 0 1 1 1
+EndZE /home/pmartorell/git-repos/fempar-project/cube_tetrahedra_3x3.gid/cube_tetrahedra_3x3.vv
+
+BeginMirror
+   Mirror 0 Angle 0.0 AngleFake -15.0 SizeFactor 2.0 HeightOffset 0.25 Color #d9e5f24d Backlight Off EdgeStyle No Type Scene DrawMode Mirror
+EndMirror
+

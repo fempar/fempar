@@ -64,8 +64,8 @@ subroutine error_norms_vector_free (this)
      check(istat==0)
   end if
   
-  if (allocated(this%work_array_values)) then
-     deallocate(this%work_array_values, stat=istat)
+  if (allocated(this%work_array_gradients)) then
+     deallocate(this%work_array_gradients, stat=istat)
      check(istat==0)
   end if
   

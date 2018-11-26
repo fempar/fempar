@@ -54,9 +54,12 @@ module serial_context_names
      procedure :: max_vector_rp      => serial_context_max_vector_rp
      procedure :: min_scalar_rp      => serial_context_min_scalar_rp
      procedure :: max_scalar_ip      => serial_context_max_scalar_ip
+     procedure :: sum_scalar_igp     => serial_context_sum_scalar_igp
+     procedure :: sum_vector_igp     => serial_context_sum_vector_igp
      procedure :: scatter_ip         => serial_context_scatter_scalar_ip
      procedure :: gather_ip          => serial_context_gather_scalar_ip
      procedure :: bcast_ip           => serial_context_bcast_scalar_ip
+     procedure :: bcast_ip_1D_array  => serial_context_bcast_scalar_ip_1D_array
      procedure :: scatter_igp        => serial_context_scatter_scalar_igp
      procedure :: gather_igp         => serial_context_gather_scalar_igp
      procedure :: bcast_igp          => serial_context_bcast_scalar_igp
@@ -71,6 +74,18 @@ module serial_context_names
      procedure :: neighbours_exchange_wo_unpack_ip        =>  serial_context_neighbours_exchange_wo_unpack_ip
      procedure :: neighbours_exchange_variable_igp        =>  serial_context_neighbours_exchange_variable_igp       
      procedure :: neighbours_exchange_variable_ip         =>  serial_context_neighbours_exchange_variable_ip       
+     procedure :: send_ip           => serial_context_send_ip
+     procedure :: send_igp          => serial_context_send_igp     
+     procedure :: send_rp           => serial_context_send_rp
+     procedure :: send_ip_1D_array  => serial_context_send_ip_1D_array
+     procedure :: send_igp_1D_array => serial_context_send_igp_1D_array     
+     procedure :: send_rp_1D_array  => serial_context_send_rp_1D_array
+     procedure :: rcv_ip            => serial_context_rcv_ip
+     procedure :: rcv_igp           => serial_context_rcv_igp       
+     procedure :: rcv_rp            => serial_context_rcv_rp
+     procedure :: rcv_ip_1D_array   => serial_context_rcv_ip_1D_array
+     procedure :: rcv_igp_1D_array  => serial_context_rcv_igp_1D_array     
+     procedure :: rcv_rp_1D_array   => serial_context_rcv_rp_1D_array
      procedure :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
      procedure :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
@@ -220,6 +235,20 @@ contains
     class(serial_context_t) , intent(in)    :: this
     integer(ip)             , intent(inout) :: n
   end subroutine serial_context_max_scalar_ip
+  
+  !=============================================================================
+  subroutine serial_context_sum_scalar_igp (this,n)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(igp)            , intent(inout) :: n
+  end subroutine serial_context_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine serial_context_sum_vector_igp (this,n)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(igp)            , intent(inout) :: n(:)
+  end subroutine serial_context_sum_vector_igp
 
   !=============================================================================
   subroutine serial_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
@@ -437,6 +466,14 @@ contains
   end subroutine serial_context_bcast_scalar_ip
   
   !=============================================================================
+  subroutine serial_context_bcast_scalar_ip_1D_array ( this, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)             , intent(inout) :: data(:)
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_bcast_scalar_ip_1D_array
+
+  !=============================================================================
   subroutine serial_context_gather_scalar_igp ( this, input_data, output_data )
     implicit none
     class(serial_context_t), intent(in)   :: this
@@ -462,6 +499,108 @@ contains
     check(.false.)       ! This routine should be never called
   end subroutine serial_context_bcast_scalar_igp
   
+  !=============================================================================
+  subroutine serial_context_send_ip ( this, rcv_task, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(ip)         , intent(in)    :: data
+    mcheck(.false.,'serial_context_send_ip not implemented')
+  end subroutine serial_context_send_ip
+
+  subroutine serial_context_rcv_ip ( this, send_task, data )
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(ip)          , intent(inout) :: data
+    mcheck(.false.,'serial_context_rcv_ip_ not implemented')
+  end subroutine serial_context_rcv_ip
+
+  !=============================================================================
+  subroutine serial_context_send_igp ( this, rcv_task, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)            , intent(in)    :: rcv_task
+    integer(igp)           , intent(in)    :: data
+    mcheck(.false.,'serial_context_send_ip not implemented')
+  end subroutine serial_context_send_igp
+
+  subroutine serial_context_rcv_igp ( this, send_task, data )
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)             , intent(inout) :: send_task
+    integer(igp)            , intent(inout) :: data
+    mcheck(.false.,'serial_context_rcv_igp not implemented')
+  end subroutine serial_context_rcv_igp
+  
+  !=============================================================================
+  subroutine serial_context_send_rp ( this, rcv_task, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    real(rp)         , intent(in)    :: data
+    mcheck(.false.,'serial_context_send_rp not implemented')
+  end subroutine serial_context_send_rp
+
+  subroutine serial_context_rcv_rp ( this, send_task, data )
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    real(rp)          , intent(inout) :: data
+    mcheck(.false.,'serial_context_rcv_rp_ not implemented')
+  end subroutine serial_context_rcv_rp
+
+  !=============================================================================
+  subroutine serial_context_send_ip_1D_array ( this, rcv_task, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(ip)         , intent(in)    :: data(:)
+    mcheck(.false.,'serial_context_send_ip_1D_array not implemented')
+  end subroutine serial_context_send_ip_1D_array
+
+  subroutine serial_context_rcv_ip_1D_array ( this, send_task, data)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(ip)          , intent(inout) :: data(:)
+    mcheck(.false.,'serial_context_rcv_ip_1D_array not implemented')
+  end subroutine serial_context_rcv_ip_1D_array
+
+  !=============================================================================
+  subroutine serial_context_send_igp_1D_array ( this, rcv_task, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)            , intent(in)    :: rcv_task
+    integer(igp)           , intent(in)    :: data(:)
+    mcheck(.false.,'serial_context_send_igp_1D_array not implemented')
+  end subroutine serial_context_send_igp_1D_array
+
+  subroutine serial_context_rcv_igp_1D_array ( this, send_task, data)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)             , intent(inout) :: send_task
+    integer(igp)            , intent(inout) :: data(:)
+    mcheck(.false.,'serial_context_rcv_igp_1D_array not implemented')
+  end subroutine serial_context_rcv_igp_1D_array
+  
+  !=============================================================================
+  subroutine serial_context_send_rp_1D_array ( this, rcv_task, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    real(rp)         , intent(in)    :: data(:)
+    mcheck(.false.,'serial_context_send_rp_1D_array not implemented')
+  end subroutine serial_context_send_rp_1D_array
+
+  subroutine serial_context_rcv_rp_1D_array ( this, send_task, data)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    real(rp)          , intent(inout) :: data(:)
+    mcheck(.false.,'serial_context_rcv_rp_1D_array not implemented')
+  end subroutine serial_context_rcv_rp_1D_array
+
   !=============================================================================
   subroutine serial_context_root_send_master_rcv_ip ( this, input_data, output_data )
     implicit none

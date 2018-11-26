@@ -5,7 +5,7 @@
 ! FEMPAR is free software: you can redistribute it and/or modify
 ! it under the terms of the GNU General Public License as published by
 ! the Free Software Foundation, either version 3 of the License, or
-! (at your option) any later  version.
+! (at your option) any later version.
 !
 ! FEMPAR is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -32,7 +32,13 @@ program test_unfitted_h_adaptive_poisson
   use test_unfitted_h_adaptive_poisson_driver_names  
   implicit none
   type(test_unfitted_h_adaptive_poisson_driver_t) :: test_driver
-  call fempar_init()
+  type(serial_context_t)      :: world_context
+  call world_context%create()
+  call fempar_init() 
+  call test_driver%parse_command_line_parameters()
+  call test_driver%setup_environment(world_context)
   call test_driver%run_simulation()
+  call test_driver%free_environment()
   call fempar_finalize()
+  call world_context%free(finalize=.true.)
 end program test_unfitted_h_adaptive_poisson

@@ -62,6 +62,9 @@ private
         procedure, non_overridable, public :: is_symmetric                   => par_sparse_matrix_is_symmetric
         procedure,                  public :: allocate                       => par_sparse_matrix_allocate
         procedure,                  public :: init                           => par_sparse_matrix_init
+        procedure,                  public :: scal                           => par_sparse_matrix_scal
+        procedure,                  public :: add                            => par_sparse_matrix_add
+        procedure,                  public :: copy                           => par_sparse_matrix_copy
         procedure,                  public :: free_in_stages                 => par_sparse_matrix_free_in_stages  
         generic,                    public :: create                         => par_sparse_matrix_create_square, &
                                                                                 par_sparse_matrix_create_rectangular
@@ -218,8 +221,59 @@ contains
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%init(alpha)
     end subroutine par_sparse_matrix_init
+    
+    subroutine par_sparse_matrix_scal(this, alpha)
+    !-----------------------------------------------------------------
+    !< Scale matrix entries
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        real(rp),                   intent(in)    :: alpha
 
-
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        call this%sparse_matrix%scal(alpha)
+    end subroutine par_sparse_matrix_scal
+    
+    subroutine par_sparse_matrix_add(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Add two matrices
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        real(rp),                   intent(in)    :: alpha
+        class(matrix_t),            intent(in)    :: op1
+        real(rp),                   intent(in)    :: beta
+        class(matrix_t),            intent(in)    :: op2
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        select type(op1)
+        class is (par_sparse_matrix_t) 
+           select type(op2)
+           class is (par_sparse_matrix_t) 
+              call this%sparse_matrix%add(alpha, op1%sparse_matrix, beta, op2%sparse_matrix)
+           class DEFAULT
+              assert(.false.)
+           end select
+        class DEFAULT
+           assert(.false.)
+        end select
+    end subroutine par_sparse_matrix_add
+    
+    subroutine par_sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Add two matrices
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        class(matrix_t),            intent(in)    :: op
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        select type(op)
+        class is (par_sparse_matrix_t)
+          call this%sparse_matrix%copy( op%sparse_matrix )
+        class DEFAULT
+           assert(.false.)
+        end select 
+    end subroutine par_sparse_matrix_copy
+    
     subroutine par_sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------
     !< Create vector spaces

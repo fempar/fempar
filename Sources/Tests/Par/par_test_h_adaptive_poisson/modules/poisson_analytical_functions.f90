@@ -51,7 +51,8 @@ module poisson_analytical_functions_names
   type, extends(base_scalar_function_t) :: boundary_function_t
     private
    contains
-     procedure :: get_value_space => boundary_function_get_value_space
+     procedure :: get_value_space    => boundary_function_get_value_space
+     procedure :: get_gradient_space => boundary_function_get_gradient_space
   end type boundary_function_t
 
   type, extends(base_scalar_function_t) :: solution_function_t
@@ -158,6 +159,30 @@ contains
     end if  
   end subroutine boundary_function_get_value_space 
 
+  !===============================================================================================
+  subroutine boundary_function_get_gradient_space ( this, point, result )
+    implicit none
+    class(boundary_function_t), intent(in)    :: this
+    type(point_t)             , intent(in)    :: point
+    type(vector_field_t)      , intent(inout) :: result
+    real(rp) :: n 
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    n = real(this%order, rp) 
+    if ( this%num_dims == 2 ) then
+      call result%set( 1, 1.0_rp ) ! nx^{n-1}
+      call result%set( 2, 1.0_rp ) ! ny^{n-1}
+      ! call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
+      ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
+    else if ( this%num_dims == 3 ) then
+      call result%set( 1, 1.0_rp ) ! nx^{n-1}
+      call result%set( 2, 1.0_rp ) ! ny^{n-1}
+      call result%set( 3, 1.0_rp ) ! nz^{n-1}
+      ! call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
+      ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
+      ! call result%set( 3, n*point%get(3)**(n-1.0_rp) ) ! nz^{n-1}
+    end if
+  end subroutine boundary_function_get_gradient_space
+  
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
     implicit none

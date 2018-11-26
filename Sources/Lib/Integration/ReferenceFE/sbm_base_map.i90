@@ -59,6 +59,7 @@ subroutine base_map_copy( this, other )
   this%nodes_coordinates = other%nodes_coordinates
   call this%interpolation%copy(other%interpolation)
   this%reference_fe_characteristic_length = other%reference_fe_characteristic_length
+  this%measure = other%measure
 end subroutine base_map_copy
 
 !==================================================================================================

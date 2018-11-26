@@ -177,10 +177,10 @@ if [ ! -f ./CMakeCache.txt ]
 then 
    case $COMPILER in
    Intel)
-     base_command="cmake -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc $common_cmake_variables"
+     base_command="cmake -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc $common_cmake_variables"
    ;; 
    GNU)
-     base_command="cmake -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_C_COMPILER=gcc $common_cmake_variables"
+     base_command="cmake -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++  $common_cmake_variables"
    ;; 
    esac
 else

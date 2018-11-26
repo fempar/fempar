@@ -40,10 +40,11 @@ module nonlinear_solver_names
 # include "debug.i90"
   private
 
-  character(len=*), parameter :: abs_res_norm                  = 'abs_res_norm'                  ! |r(x_i)| <= abs_tol
-  character(len=*), parameter :: rel_inc_norm                  = 'rel_inc_norm'                  ! |dx_i|   <= rel_norm*|x_i|
-  character(len=*), parameter :: rel_r0_res_norm               = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|
-  character(len=*), parameter :: abs_res_norm_and_rel_inc_norm = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
+  character(len=*), parameter :: abs_res_norm                   = 'abs_res_norm'                  ! |r(x_i)| <= abs_tol
+  character(len=*), parameter :: rel_inc_norm                   = 'rel_inc_norm'                  ! |dx_i|   <= rel_norm*|x_i|
+  character(len=*), parameter :: rel_r0_res_norm                = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|
+  character(len=*), parameter :: abs_res_norm_and_rel_inc_norm  = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
+  logical         , parameter :: default_print_iteration_output = .true.
 
   type, extends(solver_t) :: nonlinear_solver_t
   private
@@ -52,6 +53,7 @@ module nonlinear_solver_names
   real(rp)                                 :: absolute_tolerance
   real(rp)                                 :: relative_tolerance
   real(rp)                                 :: initial_residual_norm
+  logical                                  :: print_iteration_output
   character(len=:),               allocatable  :: convergence_criteria
   class(vector_t),                pointer      :: current_dof_values => null()
   class(vector_t),                allocatable  :: initial_solution 
@@ -114,7 +116,8 @@ subroutine nonlinear_solver_create(this, &
     max_iters, &
     linear_solver, &
     environment, &
-    fe_operator)
+    fe_operator, &
+    print_iteration_output )
  implicit none
  class(nonlinear_solver_t)             , intent(inout) :: this
  character(len=*)                      , intent(in)    :: convergence_criteria
@@ -124,6 +127,7 @@ subroutine nonlinear_solver_create(this, &
  class(linear_solver_t)        , target, intent(in)    :: linear_solver
  class(environment_t)          , target, intent(in)    :: environment
  class(fe_operator_t)          , target, intent(in)    :: fe_operator
+ logical                     , optional, intent(in)    :: print_iteration_output
 
  call this%free()
 
@@ -138,6 +142,13 @@ subroutine nonlinear_solver_create(this, &
  this%fe_operator => fe_operator
  call this%fe_operator%create_range_vector(this%initial_solution)
  call this%initial_solution%init(0.0_rp)
+ 
+ if( present(print_iteration_output) )  then 
+   this%print_iteration_output = print_iteration_output
+ else
+   this%print_iteration_output = default_print_iteration_output
+ end if
+ 
 end subroutine nonlinear_solver_create
 
 !==============================================================================
@@ -357,22 +368,23 @@ subroutine nonlinear_solver_print_iteration_output_header(this)
 
  implicit none
  class(nonlinear_solver_t), intent(inout)  :: this
-
- if ( this%environment%am_i_l1_root() ) then
-    select case (this%convergence_criteria)
-    case (abs_res_norm) !  |r(x_i)| <= abs_tol
-       write(*,'(a10,2a21)') 'NL iter', '|r(x_i)|', 'abs_tol'
-    case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
-       write(*,'(a10,3a21)') 'NL iter', '|dx_i|', 'rel_tol*|x_i|', 'rel_tol'
-    case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
-       write(*,'(a10,3a21)') 'NL iter', '|r(x_i)|', 'rel_tol*|r(x_0)|', 'rel_tol'
-    case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
-       write(*,'(a8,5a15)') 'NL iter', '|r(x_i)|', 'abs_tol', '|dx_i|', 'rel_tol*|x_i|', 'rel_tol'
-    case default
-       mcheck(.false., 'Unknown convergence criterium: '//this%convergence_criteria )
-    end select
+ 
+ if ( this%print_iteration_output ) then
+   if ( this%environment%am_i_l1_root() ) then
+      select case (this%convergence_criteria)
+      case (abs_res_norm) !  |r(x_i)| <= abs_tol
+         write(*,'(a10,2a21)') 'NL iter', '|r(x_i)|', 'abs_tol'
+      case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
+         write(*,'(a10,3a21)') 'NL iter', '|dx_i|', 'rel_tol*|x_i|', 'rel_tol'
+      case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
+         write(*,'(a10,3a21)') 'NL iter', '|r(x_i)|', 'rel_tol*|r(x_0)|', 'rel_tol'
+      case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
+         write(*,'(a8,5a15)') 'NL iter', '|r(x_i)|', 'abs_tol', '|dx_i|', 'rel_tol*|x_i|', 'rel_tol'
+      case default
+         mcheck(.false., 'Unknown convergence criterium: '//this%convergence_criteria )
+      end select
+   end if
  end if
-
 end subroutine nonlinear_solver_print_iteration_output_header
 
 !==============================================================================
@@ -382,32 +394,34 @@ subroutine nonlinear_solver_print_current_iteration_output(this)
  class(nonlinear_solver_t), intent(inout)  :: this
  real(rp) :: current_residual_nrm2
  real(rp) :: current_dof_values_nrm2, increment_dof_values_nrm2
+ 
+ if ( this%print_iteration_output ) then
+   select case (this%convergence_criteria)
+   case (abs_res_norm) !  |r(x_i)| <= abs_tol
+      current_residual_nrm2 = this%current_residual%nrm2()
+      if ( this%environment%am_i_l1_root()) write(*,'(i10,2es21.10)') this%current_iteration, current_residual_nrm2, this%absolute_tolerance
 
- select case (this%convergence_criteria)
- case (abs_res_norm) !  |r(x_i)| <= abs_tol
-    current_residual_nrm2 = this%current_residual%nrm2()
-    if ( this%environment%am_i_l1_root()) write(*,'(i10,2es21.10)') this%current_iteration, current_residual_nrm2, this%absolute_tolerance
+   case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
+      current_dof_values_nrm2 = this%current_dof_values%nrm2()
+      increment_dof_values_nrm2 = this%increment_dof_values%nrm2()
+      if ( this%environment%am_i_l1_root()) write(*,'(i10,3es21.10)') this%current_iteration, increment_dof_values_nrm2, &
+           this%relative_tolerance*current_dof_values_nrm2, this%relative_tolerance
 
- case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
-    current_dof_values_nrm2 = this%current_dof_values%nrm2()
-    increment_dof_values_nrm2 = this%increment_dof_values%nrm2()
-    if ( this%environment%am_i_l1_root()) write(*,'(i10,3es21.10)') this%current_iteration, increment_dof_values_nrm2, &
-         this%relative_tolerance*current_dof_values_nrm2, this%relative_tolerance
+   case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
+      current_residual_nrm2 = this%current_residual%nrm2()
+      if ( this%environment%am_i_l1_root()) write(*,'(i10,3es21.10)') this%current_iteration, current_residual_nrm2, &
+           this%relative_tolerance*this%initial_residual_norm, this%relative_tolerance
 
- case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
-    current_residual_nrm2 = this%current_residual%nrm2()
-    if ( this%environment%am_i_l1_root()) write(*,'(i10,3es21.10)') this%current_iteration, current_residual_nrm2, &
-         this%relative_tolerance*this%initial_residual_norm, this%relative_tolerance
-
- case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
-    current_residual_nrm2 = this%current_residual%nrm2()
-    current_dof_values_nrm2 = this%current_dof_values%nrm2()
-    increment_dof_values_nrm2 = this%increment_dof_values%nrm2()
-    if (this%environment%am_i_l1_root() ) write(*,'(i8,5es15.4)') this%current_iteration, current_residual_nrm2, this%absolute_tolerance, &
-         increment_dof_values_nrm2, this%relative_tolerance*current_dof_values_nrm2, this%relative_tolerance
- case default
-    mcheck(.false., 'Unknown convergence criterium: '//this%convergence_criteria )
- end select
+   case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
+      current_residual_nrm2 = this%current_residual%nrm2()
+      current_dof_values_nrm2 = this%current_dof_values%nrm2()
+      increment_dof_values_nrm2 = this%increment_dof_values%nrm2()
+      if (this%environment%am_i_l1_root() ) write(*,'(i8,5es15.4)') this%current_iteration, current_residual_nrm2, this%absolute_tolerance, &
+           increment_dof_values_nrm2, this%relative_tolerance*current_dof_values_nrm2, this%relative_tolerance
+   case default
+      mcheck(.false., 'Unknown convergence criterium: '//this%convergence_criteria )
+   end select
+ end if
 end subroutine nonlinear_solver_print_current_iteration_output
 
 !==============================================================================
@@ -415,7 +429,7 @@ subroutine nonlinear_solver_print_final_output(this)
  implicit none
  class(nonlinear_solver_t), intent(inout)  :: this
  if ( this%has_converged() ) then
-    if ( this%environment%am_i_l1_root() ) write(*,*) ' ---- Newton NL solver converged in', this%current_iteration, 'iterations ---- '
+    if ( this%environment%am_i_l1_root()  .and.  this%print_iteration_output ) write(*,*) ' ---- Newton NL solver converged in', this%current_iteration, 'iterations ---- '
  else if (.not. this%has_converged() ) then
     assert (this%has_finished() .eqv. .true.)
     if ( this%environment%am_i_l1_root() ) write(*,*) ' ---- Newton NL failed to converge after', this%current_iteration, 'iterations --- '

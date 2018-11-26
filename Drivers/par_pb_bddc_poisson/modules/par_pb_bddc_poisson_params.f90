@@ -74,7 +74,6 @@ contains
     error = list%set(key = write_solution_key                , value =  .false.)                    ; check(error==0)
     error = list%set(key = write_matrices_key                , value =  .false.)                    ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
-    error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
     error = list%set(key = jump_key                          , value =  1)                          ; check(error==0)
     error = list%set(key = inclusion_key                     , value =  1)                          ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                     ; check(error==0)
@@ -99,7 +98,6 @@ contains
     error = switches%set(key = write_solution_key            , value = '--write-solution')          ; check(error==0)
     error = switches%set(key = write_matrices_key            , value = '--write-matrices')          ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type')      ; check(error==0)
-    error = switches%set(key = execution_context_key         , value = '--execution_context')       ; check(error==0)
     error = switches%set(key = jump_key                      , value = '--jump')                    ; check(error==0)
     error = switches%set(key = inclusion_key                 , value = '--inclusion')               ; check(error==0)
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
@@ -124,7 +122,6 @@ contains
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
     error = switches_ab%set(key = write_matrices_key         , value = '-wmatrices'); check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
-    error = switches_ab%set(key = execution_context_key      , value = '-exe')      ; check(error==0)
     error = switches_ab%set(key = jump_key                   , value = '-j')        ; check(error==0)
     error = switches_Ab%set(key = inclusion_key              , value = '-i')        ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
@@ -162,13 +159,7 @@ contains
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
     error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
-    
-    msg = 'serial (*) or mpi (*) context?'
-    write(msg(9:9),'(i1)') serial_context
-    write(msg(20:20),'(i1)') mpi_context
-    error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
-
-    
+        
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
@@ -181,7 +172,6 @@ contains
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
     error = required%set(key = write_matrices_key            , value = .false.) ; check(error==0)
     error = required%set(key = triangulation_generate_key    , value = .false.) ; check(error==0)
-    error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
     error = required%set(key = jump_key                      , value = .false.) ; check(error==0)
     error = required%set(key = inclusion_key                 , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)

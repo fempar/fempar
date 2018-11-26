@@ -42,6 +42,9 @@ subroutine fe_facet_function_scalar_create ( this, fe_space, field_id )
   call this%fe_cell_function(2)%create(fe_space, field_id)
   call fe_space%create_fe_cell_iterator(this%fe)
   this%fe_space => fe_space
+  call this%my_duties%assign_evaluate_values(.true.)
+  call this%my_duties%assign_evaluate_gradients(.true.)
+  call this%my_duties%assign_evaluate_laplacians(.false.)
 end subroutine fe_facet_function_scalar_create
 
 !==================================================================================================
@@ -83,29 +86,40 @@ subroutine fe_facet_function_scalar_update ( this, facet_iterator, fe_function )
         call this%set_current_num_quadrature_points( icell_around, num_quadrature_points )
         call this%set_current_num_nodes( icell_around, num_nodes_field )  
 
-        nodal_values                => this%get_nodal_values(icell_around)
-        call this%fe_cell_function(icell_around)%move_alloc_values_out(quadrature_points_values) 
-        call this%fe_cell_function(icell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
-        
         ! Gather DoFs of current cell + field_id on nodal_values 
+        nodal_values => this%get_nodal_values(icell_around)
         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
-
-        ! Evaluate values and gradients at quadrature points
-        call facet_iterator%evaluate_fe_function ( icell_around, &
-                                                    nodal_values, & 
-                                                    quadrature_points_values, field_id )
-
-        call facet_iterator%evaluate_gradient_fe_function ( icell_around, &
-                                                             nodal_values, & 
-                                                             quadrature_points_gradients, field_id )
         
-        call this%fe_cell_function(icell_around)%move_alloc_values_in(quadrature_points_values) 
-        call this%fe_cell_function(icell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
-
+        if ( this%my_duties%evaluate_values_is_assigned() ) then
+          ! Evaluate values at quadrature points
+          call this%fe_cell_function(icell_around)%move_alloc_values_out(quadrature_points_values) 
+          call facet_iterator%evaluate_fe_function ( icell_around, &
+                                                     nodal_values, & 
+                                                     quadrature_points_values, &
+                                                     field_id )
+          call this%fe_cell_function(icell_around)%move_alloc_values_in(quadrature_points_values)
+        end if    
+        if ( this%my_duties%evaluate_gradients_is_assigned() ) then
+          ! Evaluate gradients at quadrature points
+          call this%fe_cell_function(icell_around)%move_alloc_gradients_out(quadrature_points_gradients) 
+          call facet_iterator%evaluate_gradient_fe_function ( icell_around, &
+                                                              nodal_values, & 
+                                                              quadrature_points_gradients, & 
+                                                              field_id )
+          call this%fe_cell_function(icell_around)%move_alloc_gradients_in(quadrature_points_gradients)
+        end if
+        mcheck(.not. this%my_duties%evaluate_laplacians_is_assigned(), "fe_facet_function_scalar_update:: evaluation of laplacians currently NOT implemented")
      end do
   end if
 end subroutine fe_facet_function_scalar_update
 
+!===============================================================================================
+subroutine fe_facet_function_scalar_set_duties ( this, my_duties )
+  implicit none
+  class(fe_facet_function_scalar_t), intent(inout) :: this 
+  type(fe_cell_function_duties_t)  , intent(in)    :: my_duties
+  this%my_duties = my_duties
+end subroutine fe_facet_function_scalar_set_duties 
 
 !===============================================================================================
 function fe_facet_function_scalar_get_field_id ( this )
@@ -205,6 +219,9 @@ subroutine fe_facet_function_scalar_free ( this )
     call this%fe_space%free_fe_cell_iterator(this%fe)
   end if
   nullify(this%fe_space)
+  call this%my_duties%assign_evaluate_values(.true.)
+  call this%my_duties%assign_evaluate_gradients(.true.)
+  call this%my_duties%assign_evaluate_laplacians(.false.)
 end subroutine fe_facet_function_scalar_free
 
 !**************************************************************************************************

@@ -135,9 +135,12 @@ module mpi_omp_context_names
      procedure :: max_vector_rp      => mpi_omp_context_max_vector_rp
      procedure :: min_scalar_rp      => mpi_omp_context_min_scalar_rp
      procedure :: max_scalar_ip      => mpi_omp_context_max_scalar_ip
+     procedure :: sum_scalar_igp     => mpi_omp_context_sum_scalar_igp
+     procedure :: sum_vector_igp     => mpi_omp_context_sum_vector_igp
      procedure :: scatter_ip         => mpi_omp_context_scatter_scalar_ip
      procedure :: gather_ip          => mpi_omp_context_gather_scalar_ip
      procedure :: bcast_ip           => mpi_omp_context_bcast_scalar_ip
+     procedure :: bcast_ip_1D_array  => mpi_omp_context_bcast_scalar_ip_1D_array
      procedure :: scatter_igp        => mpi_omp_context_scatter_scalar_igp
      procedure :: gather_igp         => mpi_omp_context_gather_scalar_igp
      procedure :: bcast_igp          => mpi_omp_context_bcast_scalar_igp
@@ -152,6 +155,18 @@ module mpi_omp_context_names
      procedure :: neighbours_exchange_wo_unpack_ip         => mpi_omp_context_neighbours_exchange_wo_unpack_ip
      procedure :: neighbours_exchange_variable_igp         => mpi_omp_context_neighbours_exchange_variable_igp       
      procedure :: neighbours_exchange_variable_ip          => mpi_omp_context_neighbours_exchange_variable_ip 
+     procedure :: send_ip           => mpi_omp_context_send_ip
+     procedure :: send_igp          => mpi_omp_context_send_igp     
+     procedure :: send_rp           => mpi_omp_context_send_rp
+     procedure :: send_ip_1D_array  => mpi_omp_context_send_ip_1D_array
+     procedure :: send_igp_1D_array => mpi_omp_context_send_igp_1D_array     
+     procedure :: send_rp_1D_array  => mpi_omp_context_send_rp_1D_array
+     procedure :: rcv_ip            => mpi_omp_context_rcv_ip
+     procedure :: rcv_igp           => mpi_omp_context_rcv_igp     
+     procedure :: rcv_rp            => mpi_omp_context_rcv_rp     
+     procedure :: rcv_ip_1D_array   => mpi_omp_context_rcv_ip_1D_array
+     procedure :: rcv_igp_1D_array  => mpi_omp_context_rcv_igp_1D_array     
+     procedure :: rcv_rp_1D_array   => mpi_omp_context_rcv_rp_1D_array
      procedure :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
      procedure :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
@@ -853,7 +868,34 @@ contains
     n = ip1_buffer(this%current_thread)
   end subroutine mpi_omp_context_max_scalar_ip
   
-
+  !=============================================================================
+  subroutine mpi_omp_context_sum_scalar_igp (this,n)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(igp)             , intent(inout) :: n
+    integer  :: i, istat
+    integer(ip) :: dat
+    igp1_buffer(this%current_thread) = n
+    !$OMP BARRIER
+    if(this%current_thread==this%root_thread) then
+      do i=0,this%num_threads-1
+          ip1_buffer(this%root_thread) = max(ip1_buffer(this%root_thread),igp1_buffer(i))
+       end  do
+       call mpi_allreduce(igp1_buffer,n,1,mpi_omp_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+       ip1_buffer=n
+    end if
+    !$OMP BARRIER
+    n = ip1_buffer(this%current_thread)
+  end subroutine mpi_omp_context_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine mpi_omp_context_sum_vector_igp(this,n)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(igp)             , intent(inout) :: n(:)
+    mcheck(.false., "mpi_omp_context_sum_vector_igp :: Implementation pending!")
+  end subroutine mpi_omp_context_sum_vector_igp
+ 
   !=============================================================================
   subroutine mpi_omp_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
     implicit none
@@ -1621,6 +1663,20 @@ contains
   end subroutine mpi_omp_context_bcast_scalar_ip
   
   !=============================================================================
+  subroutine mpi_omp_context_bcast_scalar_ip_1D_array ( this, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)             , intent(inout) :: data(:)
+    integer  ::  istat
+    if(this%current_thread==this%root_thread) then
+       call mpi_bcast(data,size(data),mpi_omp_context_ip,mpi_omp_context_root_rank,this%icontxt,istat); check( istat == mpi_success )
+       ip1_buffer = data
+    end if
+    !$OMP BARRIER
+    data = ip1_buffer(this%current_thread)
+  end subroutine mpi_omp_context_bcast_scalar_ip_1D_array
+
+  !=============================================================================
   subroutine mpi_omp_context_gather_scalar_igp ( this, input_data, output_data )
     implicit none
     class(mpi_omp_context_t), intent(in)   :: this
@@ -1834,7 +1890,111 @@ contains
        end do
     end do
   end subroutine unpack_igp
+
   !=============================================================================
+  subroutine mpi_omp_context_send_ip ( this, rcv_task, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(ip)         , intent(in)    :: data
+    mcheck(.false.,'mpi_omp_context_send_ip not implemented')
+  end subroutine mpi_omp_context_send_ip
+
+  subroutine mpi_omp_context_rcv_ip ( this, send_task, data )
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(ip)          , intent(inout) :: data
+    mcheck(.false.,'mpi_omp_context_rcv_ip_ not implemented')
+  end subroutine mpi_omp_context_rcv_ip
+
+  !=============================================================================
+  subroutine mpi_omp_context_send_igp ( this, rcv_task, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(igp)         , intent(in)    :: data
+    mcheck(.false.,'mpi_omp_context_send_igp not implemented')
+  end subroutine mpi_omp_context_send_igp
+
+  subroutine mpi_omp_context_rcv_igp ( this, send_task, data )
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(igp)          , intent(inout) :: data
+    mcheck(.false.,'mpi_omp_context_rcv_igp_ not implemented')
+  end subroutine mpi_omp_context_rcv_igp
+  
+  !=============================================================================
+  subroutine mpi_omp_context_send_rp ( this, rcv_task, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    real(rp)         , intent(in)    :: data
+    mcheck(.false.,'mpi_omp_context_send_rp not implemented')
+  end subroutine mpi_omp_context_send_rp
+
+  subroutine mpi_omp_context_rcv_rp ( this, send_task, data )
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    real(rp)          , intent(inout) :: data
+    mcheck(.false.,'mpi_omp_context_rcv_rp_ not implemented')
+  end subroutine mpi_omp_context_rcv_rp
+
+  !=============================================================================
+
+  subroutine mpi_omp_context_send_ip_1D_array ( this, rcv_task, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(ip)         , intent(in)    :: data(:)
+    mcheck(.false.,'mpi_omp_context_send_ip_1D_array not implemented')
+  end subroutine mpi_omp_context_send_ip_1D_array
+
+  subroutine mpi_omp_context_rcv_ip_1D_array ( this, send_task, data)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this           
+    integer(ip)         , intent(inout) :: send_task
+    integer(ip)         , intent(inout) :: data(:)
+    mcheck(.false.,'mpi_omp_context_rcv_ip_1D_array not implemented')
+  end subroutine mpi_omp_context_rcv_ip_1D_array    
+
+  !=============================================================================
+
+  subroutine mpi_omp_context_send_igp_1D_array ( this, rcv_task, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)          , intent(in)    :: rcv_task
+    integer(igp)         , intent(in)    :: data(:)
+    mcheck(.false.,'mpi_omp_context_send_igp_1D_array not implemented')
+  end subroutine mpi_omp_context_send_igp_1D_array
+
+  subroutine mpi_omp_context_rcv_igp_1D_array ( this, send_task, data)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)           , intent(inout) :: send_task
+    integer(igp)          , intent(inout) :: data(:)
+    mcheck(.false.,'mpi_omp_context_rcv_igp_1D_array not implemented')
+  end subroutine mpi_omp_context_rcv_igp_1D_array  
+  
+  !=============================================================================
+  subroutine mpi_omp_context_send_rp_1D_array ( this, rcv_task, data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    real(rp)            , intent(in)    :: data(:)
+    mcheck(.false.,'mpi_omp_context_send_rp_1D_array not implemented')
+  end subroutine mpi_omp_context_send_rp_1D_array
+
+  subroutine mpi_omp_context_rcv_rp_1D_array ( this, send_task, data)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    real(rp)          , intent(inout) :: data(:)
+    mcheck(.false.,'mpi_omp_context_rcv_rp_1D_array not implemented')
+  end subroutine mpi_omp_context_rcv_rp_1D_array
+
   !=============================================================================
   subroutine mpi_omp_context_root_send_master_rcv_ip ( this, input_data, output_data )
     implicit none

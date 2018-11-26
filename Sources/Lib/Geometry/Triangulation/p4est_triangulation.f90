@@ -408,6 +408,7 @@ module p4est_triangulation_names
      procedure                           :: is_at_interface           => p4est_vef_iterator_is_at_interface
      procedure                           :: is_proper                       => p4est_vef_iterator_is_proper
      procedure                           :: is_within_valid_range           => p4est_vef_iterator_is_within_valid_range
+     procedure                           :: is_cut                          => p4est_vef_iterator_is_cut
      
      procedure                           :: get_num_cells_around            => p4est_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around                 => p4est_vef_iterator_get_cell_around
@@ -492,6 +493,11 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
     type(std_vector_integer_igp_t)         :: cell_ggids
+    
+     ! Scratch data required to optimize p4est_vef_iterator_get_nodes_coordinates
+     integer(ip), allocatable              :: ptr_dofs_n_face(:)
+     integer(ip), allocatable              :: lst_dofs_n_face(:)
+    
   contains
     procedure                                   :: is_conforming                                 =>  p4est_base_triangulation_is_conforming
   
@@ -512,13 +518,15 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable  :: update_cell_ggids                                  => p4est_base_triangulation_update_cell_ggids
-    procedure, private        , non_overridable  :: comm_cell_ggids                                    => p4est_base_triangulation_comm_cell_ggids
     procedure, private        , non_overridable  :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
-    procedure, private        , non_overridable  :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
     procedure, private        , non_overridable  :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
     procedure, private        , non_overridable  :: update_cell_weights                                => p4est_bt_update_cell_weights
     procedure, private        , non_overridable  :: comm_cell_set_ids                                  => p4est_bt_comm_cell_set_ids
+    procedure, private        , non_overridable  :: comm_cell_wise_vef_set_ids                         => p4est_bt_comm_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
+    procedure, private        , non_overridable  :: extract_local_cell_wise_vef_set_ids                => p4est_bt_extract_local_cell_wise_vef_set_ids
+    procedure, private        , non_overridable  :: fill_ghost_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids
+    procedure, private        , non_overridable  :: fill_local_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_weights                                 => p4est_bt_clear_cell_weights
@@ -531,6 +539,9 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
     procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
     procedure                 , non_overridable  :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
+    
+    procedure, private                           :: allocate_and_gen_reference_fe_geo_scratch_data     => p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
+    procedure, private                           :: free_reference_fe_geo_scratch_data                 => p4est_bt_free_reference_fe_geo_scratch_data
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator

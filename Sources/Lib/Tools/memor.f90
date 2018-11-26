@@ -340,11 +340,12 @@ end module mem_base_names
 !***********************************************************************
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
-# define generic_status_test             allocated
-# define generic_memalloc_interface      memalloc
-# define generic_memrealloc_interface    memrealloc
-# define generic_memfree_interface       memfree
-# define generic_memmovealloc_interface  memmovealloc
+# define generic_status_test                               allocated
+# define generic_memalloc_interface                        memalloc
+# define generic_memrealloc_interface                      memrealloc
+# define generic_memrealloc_if_more_space_needed_interface memrealloc_if_more_space_needed
+# define generic_memfree_interface                         memfree
+# define generic_memmovealloc_interface                    memmovealloc
 !***********************************************************************
 ! integer(ip)
 !***********************************************************************
@@ -360,7 +361,7 @@ use iso_c_binding
 # define var_size ip
 # define bound_kind ip
 # include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
+  public :: memalloc,  memrealloc, memrealloc_if_more_space_needed, memfree, memmovealloc
 contains
 # include "mem_body.i90"
 end module mem_ip_allocatable_names
@@ -379,7 +380,7 @@ use iso_c_binding
 # define var_size ieep
 # define bound_kind ip
 # include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
+  public :: memalloc,  memrealloc, memrealloc_if_more_space_needed, memfree, memmovealloc
 contains
 # include "mem_body.i90"
 end module mem_ieep_allocatable_names
@@ -398,7 +399,7 @@ use iso_c_binding
 # define var_size   igp
 # define bound_kind igp
 # include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
+  public :: memalloc,  memrealloc, memrealloc_if_more_space_needed, memfree, memmovealloc
 contains
 # include "mem_body.i90"
 end module mem_igp_allocatable_names
@@ -417,7 +418,7 @@ use iso_c_binding
 # define var_size   rp
 # define bound_kind ip
 # include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
+  public :: memalloc,  memrealloc, memrealloc_if_more_space_needed, memfree, memmovealloc
 contains
 #ifdef exception
 #define exception_real
@@ -442,7 +443,7 @@ use iso_c_binding
 # define var_size 1 
 # define bound_kind ip
 # include "mem_header.i90"
-  public :: memalloc,  memrealloc,  memfree, memmovealloc
+  public :: memalloc,  memrealloc, memrealloc_if_more_space_needed, memfree, memmovealloc
 contains
 # include "mem_body.i90"
 end module mem_lg_allocatable_names

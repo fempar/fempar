@@ -193,7 +193,7 @@ contains
          call fe_face%get_values(1,velocity_shape_values)
          do qpoint = 1, num_quad_points
             factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-            call fe_face%get_normals(qpoint,normals)
+            call fe_face%get_normal(qpoint,normals)
             do idof = 1, fe_face%get_num_dofs_field(1,1)
               facevec(idof,1) = facevec(idof,1) - &
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor

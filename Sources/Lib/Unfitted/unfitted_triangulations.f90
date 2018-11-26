@@ -58,6 +58,8 @@ module unfitted_triangulations_names
   ! Include the look-up tables 
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
+# include "mc_tables_tri3.i90"
+# include "mc_tables_tet4.i90"
   
   type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
@@ -338,6 +340,9 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create
     procedure, non_overridable, private :: subnodes_data_free             => marching_cubes_subnodes_data_free
+    procedure, non_overridable, private :: allocate_nsubcells_arrays      => marching_cubes_allocate_nsubcells_arrays
+    procedure, non_overridable, private :: reallocate_nsubcells_arrays    => marching_cubes_reallocate_nsubcells_arrays
+    
   end type marching_cubes_t
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t

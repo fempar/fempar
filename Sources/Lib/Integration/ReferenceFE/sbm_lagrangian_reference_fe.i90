@@ -878,14 +878,7 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( this,  
     allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   
-  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
-     call quadrature_points_values(qpoint)%init(0.0_rp)
-     do inode = 1, actual_cell_interpolation%num_shape_functions
-        call this%get_gradient(actual_cell_interpolation,inode,qpoint,gradient_shape)
-        quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-             &                             gradient_shape * nodal_values(inode)
-     end do
-  end do
+  call evaluate_gradient_fe_function_scalar(actual_cell_interpolation%shape_derivatives,nodal_values,quadrature_points_values)
 
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
 
