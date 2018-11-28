@@ -32,45 +32,25 @@ module maxwell_analytical_functions_names
 # include "debug.i90"
   private
 
-  type, extends(vector_function_t) :: base_vector_function_t
-    private
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_vector_function_set_num_dims
-  end type base_vector_function_t
-  
-    type, extends(scalar_function_t) :: base_scalar_function_t
-    private
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims
-  end type base_scalar_function_t
-  
-  type, extends(base_vector_function_t) :: source_term_t
-    private 
-   contains
-     procedure :: get_value_space    => source_term_get_value_space
-  end type source_term_t
-
-  type, extends(base_scalar_function_t) :: boundary_function_Hx_t
+  type, extends(scalar_function_t) :: boundary_function_Hx_t
     private
    contains
      procedure :: get_value_space => boundary_function_Hx_get_value_space
   end type boundary_function_Hx_t
   
-    type, extends(base_scalar_function_t) :: boundary_function_Hy_t
+    type, extends(scalar_function_t) :: boundary_function_Hy_t
     private
    contains
      procedure :: get_value_space => boundary_function_Hy_get_value_space
   end type boundary_function_Hy_t
   
-    type, extends(base_scalar_function_t) :: boundary_function_Hz_t
+    type, extends(scalar_function_t) :: boundary_function_Hz_t
     private
    contains
      procedure :: get_value_space => boundary_function_Hz_get_value_space
   end type boundary_function_Hz_t
 
-  type, extends(base_vector_function_t) :: solution_function_t
+  type, extends(vector_function_t) :: solution_function_t
     private 
    contains
      procedure :: get_value_space    => solution_function_get_value_space
@@ -79,7 +59,7 @@ module maxwell_analytical_functions_names
 
   type maxwell_analytical_functions_t
      private
-     type(source_term_t)          :: source_term
+     type(vector_function_t)          :: source_term
      type(boundary_function_Hx_t) :: boundary_function_Hx
      type(boundary_function_Hy_t) :: boundary_function_Hy
      type(boundary_function_Hz_t) :: boundary_function_Hz
@@ -97,27 +77,13 @@ module maxwell_analytical_functions_names
 
 contains  
 
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
-  
-  subroutine base_vector_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_vector_function_set_num_dims
-
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
-    class(source_term_t), intent(in)    :: this
+    class(vector_function_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     call result%set(1, -point%get(2) )
     call result%set(2, point%get(1)  ) 
     call result%set(3, 0.0_rp) 
@@ -129,7 +95,7 @@ contains
     class(boundary_function_Hx_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     result = - point%get(2)
   end subroutine boundary_function_Hx_get_value_space 
   
@@ -139,7 +105,7 @@ contains
     class(boundary_function_Hy_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     result = point%get(1)
   end subroutine boundary_function_Hy_get_value_space 
   
@@ -149,7 +115,7 @@ contains
     class(boundary_function_Hz_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     result = 0.0_rp
   end subroutine boundary_function_Hz_get_value_space 
 
@@ -159,7 +125,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     call result%set(1, -point%get(2) )
     call result%set(2, point%get(1)  ) 
     call result%set(3, 0.0_rp) 
@@ -171,7 +137,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
       call result%set( 1, 2, 1.0_rp ) 
       call result%set( 2, 1, -1.0_rp )
   end subroutine solution_function_get_gradient_space

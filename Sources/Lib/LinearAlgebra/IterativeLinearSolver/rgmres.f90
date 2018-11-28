@@ -44,10 +44,6 @@ module rgmres_names
   implicit none
 # include "debug.i90"
   private
-
-  integer (ip), parameter :: default_rgmres_stopping_criteria = res_nrmgiven_res_nrmgiven
-  integer (ip), parameter :: default_dkrymax                  = 1000
-  integer (ip), parameter :: default_orthonorm_strat          = icgsro
   
   type, extends(base_iterative_linear_solver_t) :: rgmres_t
      ! Parameters

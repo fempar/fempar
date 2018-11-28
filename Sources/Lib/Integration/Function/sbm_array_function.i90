@@ -38,6 +38,20 @@ function array_function_get_num_components( this )
   array_function_get_num_components = this%num_components
 end function array_function_get_num_components
 
+subroutine array_function_set_num_dims ( this, num_dims )
+  implicit none
+  class(array_function_t), intent(inout)    :: this
+  integer(ip)             , intent(in)       ::  num_dims
+  this%num_dims = num_dims
+end subroutine array_function_set_num_dims
+  
+function array_function_get_num_dims ( this )
+  implicit none
+  class(array_function_t), intent(in)    :: this
+  integer(ip)  ::  array_function_get_num_dims
+  array_function_get_num_dims = this%num_dims
+end function array_function_get_num_dims
+
 subroutine array_function_get_component_value_space( this, point, component, result )
   class(array_function_t), intent(in) :: this
   type(point_t), intent(in)          :: point

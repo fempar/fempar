@@ -25,6 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The `buthcer_tableau_t` is created according to the time integration scheme given.
+!> The **`select case`** defines the matrix \(A\),the arrays \(b\) and \(c\), the integration
+!> order and the number of stages for the implemented time integration schemes. Other DIRK schemes 
+!> may be also implemented if needed.
 subroutine butcher_tableau_create( this, time_integration_scheme )
   implicit none
   class(butcher_tableau_t), intent(inout) :: this

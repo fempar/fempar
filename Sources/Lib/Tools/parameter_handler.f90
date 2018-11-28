@@ -153,7 +153,7 @@ contains
     implicit none
     class(parameter_handler_t), target , intent(in) :: this
     type(ParameterList_t)  , pointer    :: parameter_handler_get_required
-    parameter_handler_get_required => this%required
+    !parameter_handler_get_required => this%required
   end function parameter_handler_get_required
 
   !==================================================================================================
@@ -184,7 +184,7 @@ contains
      
      assert(this%switches%length() == this%switches_ab%length())
      assert(this%switches%length() == this%helpers%length())
-     assert(this%switches%length() == this%required%length())
+!     assert(this%switches%length() == this%required%length())
 !     assert(this%switches%length() == this%values%length())
      
      Iterator = this%switches%GetIterator()
@@ -192,7 +192,7 @@ contains
           key = Iterator%GetKey()
           assert(this%switches_ab%isPresent(key))
           assert(this%helpers%isPresent(key))
-          assert(this%required%isPresent(key))
+          !assert(this%required%isPresent(key))
           assert(this%values%isPresent(key))
           if (Iterator%isSubList()) then
             assert(Iterator%GetSublist(switches_sublist)==0)
@@ -295,7 +295,8 @@ contains
        error = error + Iterator%GetAsString   (switch)
        error = error + switches_ab%GetAsString(key = key , String = switch_ab)
        error = error + helpers%GetAsString    (key = key , String = help)
-       error = error + required%Get           (key = key , value = is_required)
+       !error = error + required%Get           (key = key , value = is_required)
+       is_required = .false.
        error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
        if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
         call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &

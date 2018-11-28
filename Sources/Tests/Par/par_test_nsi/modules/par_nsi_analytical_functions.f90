@@ -34,18 +34,14 @@ module par_nsi_analytical_functions_names
 
   type, extends(scalar_function_t) :: base_scalar_function_t
     private
-    integer(ip) :: num_dimensions = -1
     integer(ip) :: solution_case  =  0
   contains
-    procedure :: set_num_dimensions   => base_scalar_function_set_num_dimensions
     procedure :: set_solution_case    => base_scalar_function_set_solution_case
   end type base_scalar_function_t
 
   type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dimensions = -1
     integer(ip) :: solution_case  =  0  
   contains
-    procedure :: set_num_dimensions   => base_vector_function_set_num_dimensions
     procedure :: set_solution_case    => base_vector_function_set_solution_case
   end type base_vector_function_t
 
@@ -110,13 +106,6 @@ module par_nsi_analytical_functions_names
   public :: par_nsi_analytical_functions_t
 
 contains  
-
-  subroutine base_scalar_function_set_num_dimensions ( this, num_dimensions )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_scalar_function_set_num_dimensions
   
     subroutine base_scalar_function_set_solution_case ( this, solution_case )
     implicit none
@@ -124,13 +113,6 @@ contains
     integer(ip), intent(in) ::  solution_case
     this%solution_case = solution_case
   end subroutine base_scalar_function_set_solution_case
-
-  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_vector_function_set_num_dimensions
  
   subroutine base_vector_function_set_solution_case ( this, solution_case )
     implicit none
@@ -162,7 +144,7 @@ contains
     class(source_term_p_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     result = 0.0_rp 
   end subroutine source_term_p_get_value_space
 
@@ -181,7 +163,7 @@ contains
         !call result%set(1, 0.0_rp ) 
         !call result%set(2, 0.0_rp ) 
         !call result%set(3, 0.0_rp )
-        if ( this%num_dimensions == 2 ) then
+        if ( this%get_num_dims() == 2 ) then
           call result%set(1, 2*point%get(1) ) 
           call result%set(2, 2*point%get(2) ) 
         else
@@ -192,7 +174,7 @@ contains
       case default
              check(.false.)
     end select
-    !if ( this%num_dimensions == 2 ) then
+    !if ( this%get_num_dims() == 2 ) then
     !  call result%set(1,0.0_rp)
     !  call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
     !else
@@ -208,7 +190,7 @@ contains
     class(solution_function_p_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     result = 0.0_rp !(lambda+2*one_third*mu)*2.0_rp ! div u
   end subroutine solution_function_p_get_value_space
 
@@ -224,7 +206,7 @@ contains
         call result%set(1, 0.0_rp ) 
         call result%set(2, 0.0_rp ) 
         call result%set(3, 0.0_rp )
-        if ( this%num_dimensions == 2 ) then
+        if ( this%get_num_dims() == 2 ) then
           if ( point%get(2) > 1.0_rp - epsilon ) then
             if ( point%get(1) > epsilon .and. &
                point%get(1) < 1.0_rp - epsilon ) then
@@ -246,7 +228,7 @@ contains
           end if 
         end if
       case (1)
-        if ( this%num_dimensions == 2 ) then
+        if ( this%get_num_dims() == 2 ) then
           call result%set(1, point%get(1)+point%get(2) ) 
           call result%set(2, point%get(1)-point%get(2) ) 
         else
@@ -285,7 +267,7 @@ contains
     class(solution_function_p_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     result = 0.0_rp
   end subroutine solution_function_p_get_gradient_space
 
@@ -303,7 +285,7 @@ contains
           call result%set( 1, 2, 0.0_rp ) 
           call result%set( 2, 2, 0.0_rp )
       case (1)
-        if ( this%num_dimensions == 2 ) then
+        if ( this%get_num_dims() == 2 ) then
           call result%set( 1, 1, 1.0_rp ) 
           call result%set( 2, 1, 1.0_rp )
           call result%set( 1, 2, 1.0_rp ) 
@@ -330,12 +312,12 @@ contains
     implicit none
     class(par_nsi_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dimensions, solution_case
-    call this%source_term_p%set_num_dimensions(num_dimensions)
-    call this%source_term_u%set_num_dimensions(num_dimensions)
+    call this%source_term_p%set_num_dims(num_dimensions)
+    call this%source_term_u%set_num_dims(num_dimensions)
     call this%source_term_p%set_solution_case(solution_case)
     call this%source_term_u%set_solution_case(solution_case)
-    call this%solution_function_p%set_num_dimensions(num_dimensions)
-    call this%solution_function_u%set_num_dimensions(num_dimensions)
+    call this%solution_function_p%set_num_dims(num_dimensions)
+    call this%solution_function_u%set_num_dims(num_dimensions)
     call this%solution_function_p%set_solution_case(solution_case)
     call this%solution_function_u%set_solution_case(solution_case)
   end subroutine par_nsi_analytical_functions_set 
