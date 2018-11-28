@@ -166,16 +166,17 @@ contains
   end subroutine free_timers
 
   !========================================================================================
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    call this%par_environment%create (this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
 
   subroutine setup_triangulation(this)
@@ -185,7 +186,7 @@ contains
     type (point_t), allocatable  :: nodes_coordinates(:) 
     integer(ip)     :: num_nodes, istat
 
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create(this%par_environment, this%parameter_list)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then 
        call this%triangulation%create_vef_iterator(vef)

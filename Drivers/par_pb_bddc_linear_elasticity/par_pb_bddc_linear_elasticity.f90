@@ -5,6 +5,13 @@ program par_pb_bddc_linear_elasticity
   implicit none
   integer(ip) :: i
   type(par_pb_bddc_linear_elasticity_fe_driver_t), save :: test_driver 
+
+#ifdef _OPENMP   
+    type(mpi_omp_context_t) :: world_context
+#else
+    type(mpi_context_t) :: world_context
+#endif
+
   !$OMP THREADPRIVATE(test_driver)
 
   !call sleep(20)
@@ -13,7 +20,7 @@ program par_pb_bddc_linear_elasticity
   !$OMP BARRIER
   call fempar_init()  
   call test_driver%parse_command_line_parameters()
-  call test_driver%setup_environment()
+  call test_driver%setup_environment(world_context)
   call test_driver%setup_timers()
   do i = 1,5
     call test_driver%run_simulation()
@@ -23,5 +30,6 @@ program par_pb_bddc_linear_elasticity
   call test_driver%free_command_line_parameters()
   call test_driver%free_environment()
   call fempar_finalize()
+  call world_context%free(finalize=.true.)
   !$OMP END PARALLEL   
 end program par_pb_bddc_linear_elasticity
