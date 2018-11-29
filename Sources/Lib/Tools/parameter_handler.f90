@@ -153,7 +153,7 @@ contains
     implicit none
     class(parameter_handler_t), target , intent(in) :: this
     type(ParameterList_t)  , pointer    :: parameter_handler_get_required
-    !parameter_handler_get_required => this%required
+    parameter_handler_get_required => this%required
   end function parameter_handler_get_required
 
   !==================================================================================================
