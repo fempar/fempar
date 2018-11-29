@@ -32,6 +32,12 @@ module maxwell_analytical_functions_names
 # include "debug.i90"
   private
 
+  type, extends(vector_function_t) :: source_term_t
+    private 
+   contains
+     procedure :: get_value_space    => source_term_get_value_space
+  end type source_term_t
+
   type, extends(scalar_function_t) :: boundary_function_Hx_t
     private
    contains
@@ -59,7 +65,7 @@ module maxwell_analytical_functions_names
 
   type maxwell_analytical_functions_t
      private
-     type(vector_function_t)          :: source_term
+     type(source_term_t)          :: source_term
      type(boundary_function_Hx_t) :: boundary_function_Hx
      type(boundary_function_Hy_t) :: boundary_function_Hy
      type(boundary_function_Hz_t) :: boundary_function_Hz
@@ -80,7 +86,7 @@ contains
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
-    class(vector_function_t), intent(in)    :: this
+    class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
     assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
