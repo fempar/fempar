@@ -748,7 +748,7 @@ contains
     type(vector_field_t), intent(inout) :: gradients(:)
     integer(ip) :: qpoint, inode, idime
     assert ( size(shape_derivatives,4) <= size(gradients) )
-    assert ( size(shape_derivatives,2) <= size(nodal_values) )
+    assert ( size(shape_derivatives,3) <= size(nodal_values) )
     do qpoint = 1, size(shape_derivatives,4)
       gradients(qpoint)%value = 0.0_rp
       do inode=1,size(shape_derivatives,3)
