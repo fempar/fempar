@@ -27,6 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The *create* TPB must not be used, as `time_stepping_stage_fe_operator` is created from 
+!> the `fe_operator` through `create_from_operators`
 subroutine time_stepping_stage_fe_operator_create (this, &
                                                    sparse_matrix_storage_format, &
                                                    diagonal_blocks_symmetric_storage,&
@@ -47,7 +49,9 @@ subroutine time_stepping_stage_fe_operator_create (this, &
   mcheck ( .false., "time_stepping_stage_fe_operator_t :: Illegal to call time_stepping_stage_fe_operator_t inherited from fe_operator_t")
 end subroutine time_stepping_stage_fe_operator_create
 
-
+!> The *create from operators* TPB uses the `fe_operator_t` given as a reference for creating 
+!> the `time_stepping_stage_fe_operator_t`.  
+!>
 subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_op )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
@@ -55,16 +59,20 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   class(fe_operator_t),            target   , intent(in)    :: fe_op
   class(serial_fe_space_t),        pointer                  :: trial_fe_space
   call this%free()
-  
+  !< * The `fe_operator_t` and `time_steping_operator_t` are linked as pointers
   this%fe_op   => fe_op
   this%ts_op   => ts_op
+  !< * The mass operator is created `call this%create_mass_operator()`
   call this%create_mass_operator()   
  
+  !< *  The `aux`, `fe_op_residual` and `mass_residual` are created within the domain.
   trial_fe_space => this%fe_op%get_trial_fe_space()
   call this%fe_op%create_domain_vector(this%aux)
   call this%fe_op%create_domain_vector(this%fe_op_residual)
   call this%fe_op%create_domain_vector(this%mass_residual)                              
  
+  !< * Finally, the `time_stepping_stage_fe_operator_t` is created with the same parameters than
+  !< the `fe_operator_t` given
   if ( associated(trial_fe_space) ) then
     call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
                                              this%fe_op%get_diagonal_blocks_symmetric_storage(),&
@@ -84,6 +92,11 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
 end subroutine time_stepping_stage_fe_operator_create_from_operators
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The `mass_op` (mass operator) is created within the same parameter than the `fe_operator_t` introduced in `fe_op`. 
+!> Also the `fe_function_t` is created within the discrete integration of the mass operator.
+!> @note
+!> `mass_op` have a composition relationship with `time_stepping_stage_fe_operator_t`, i.e., is created and freed within
+!> the scope of `time_stepping_stage_fe_operator_t`.
 subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
@@ -100,6 +113,7 @@ subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
 end subroutine time_stepping_stage_fe_operator_create_mass_operator
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> Free subroutine as usual frees and deallocates the memory used in the scope of `time_stepping_stage_fe_operator_t`
 subroutine time_stepping_stage_fe_operator_free(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
@@ -124,6 +138,7 @@ subroutine time_stepping_stage_fe_operator_free(this)
 end subroutine time_stepping_stage_fe_operator_free
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The TPB `set_row` sets \(i\) and \(j\) to the private variables `this%i` and `this%j`
 subroutine time_stepping_stage_fe_operator_set_row(this, i, j)
  implicit none
  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
@@ -133,10 +148,24 @@ subroutine time_stepping_stage_fe_operator_set_row(this, i, j)
 end subroutine time_stepping_stage_fe_operator_set_row
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> *Set evaluation point* TBP computes the pont of evaluation of each operator:
+!> 
+!>  * `fe_op` : \(X_i\) (`this%aux`)
+!>  * `mass_op` : \(y_i\) (`x`)
+!>  * `time_stepping_stage_fe_operator_t` :  \(X_i\) (`this%aux`)
+!>
+!>  where, $$ X_i ( y_1,...,y_s) \doteq u_h^0 +\Delta t \sum_{j=1}^s a_{ij}y_j, $$
+!>  being \(u_h^0\): `this%ts_op%initial_value` and \(y_i\): `this%ts_op%dofs_stages(this%i)=x`.
+!>
+!> The respective evaluation point is set to each operator through the parent's TPB:
+!> `fe_operator_t%set_evaluation_point(...)`
+!>
+!> @note
+!> This subroutine overrides the parent's ( `fe_operator_t`) subroutine, and call it inside.
 subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x) 
   implicit none
   class(time_stepping_stage_fe_operator_t),         intent(inout) :: this
-  class(vector_t)                         , target, intent(in)    :: x
+  class(vector_t)                         , target, intent(in)    :: x !< \(y_i\)
   
   integer(ip) :: j
   
@@ -163,6 +192,9 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The *set evalation time* TPB defines the time of evaluation of each RK stage
+!> in the discrete integration asociated with each operator. If the operator is 
+!> affine, then `force_copute` is called.
 subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) 
   implicit none
   class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
@@ -187,6 +219,7 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time)
 end subroutine time_stepping_stage_fe_operator_set_evaluation_time
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The `time_stepping_stage_fe_operator_t` is linear if both `fe_op` and `mass_op` are linear
 function time_stepping_stage_fe_operator_is_linear(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(in) :: this
@@ -196,24 +229,41 @@ function time_stepping_stage_fe_operator_is_linear(this)
 end function time_stepping_stage_fe_operator_is_linear
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> Computes resudual through `this%core_compute_residual()` and got it through 
+!> `this%get_translation()`
 subroutine time_stepping_stage_fe_operator_compute_residual(this,y)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(vector_t) ,  intent(inout) :: y 
   class(environment_t),    pointer :: environment
-  call this%compute_internal_residual()
+  call this%core_compute_residual()
   y = this%get_translation()
 end subroutine time_stepping_stage_fe_operator_compute_residual
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
+!> `core_compute_residual()` is the responsible of computing the residual of 
+!> `time_stepping_stage_fe_operator_t` (`this_residual`)
+!> 
+!> * First, the `fe_op` and `mass_op` residuals are computed
+!> * Then, the `this_residual = this%fe_op_residual + this%mass_residual`
+!> * Finally, the state is updated
+!> 
+!>  The residual is defined as
+!>  $$R_{ii}(y) = My +M\partial_tu_h^\varphi(t + c_i \Delta t ) + \bar A (t + c_i \Delta t, X_i(Y_{|1:i-1|},y),$$
+!>  where the `fe_op_residual` is,
+!>  $$ \bar A (t + c_i \Delta t, X_i(Y_{|1:i-1|},y) , $$
+!>  and 
+!>  $$ \bar A ( t, u_h ) \doteq a(t; u_h + u_h^\varphi, \cdot) - (f(t),\cdot ) \in V_h(0)'.$$
+!>  And `mass_op_residual` is,
+!> $$ My +M\partial_tu_h^\varphi(t + c_i \Delta t )$$
+subroutine time_stepping_stage_fe_operator_core_compute_residual(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this  
   class(serial_fe_space_t)     , pointer :: fe_sp
   class(environment_t)         , pointer :: environment
   class(assembler_t)           , pointer :: this_assembler
   integer(ip)                  , pointer :: state
-  class(vector_t)              , pointer :: this_residual
+  class(vector_t)              , pointer :: this_residual !< \( R_{ii} (y)|)
 
   state => this%get_state() 
   assert (associated(state))
@@ -243,9 +293,20 @@ subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
     end if
   end if
 
-end subroutine time_stepping_stage_fe_operator_compute_internal_residual
+end subroutine time_stepping_stage_fe_operator_core_compute_residual
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> The *compute tangent* TBP computes the tangent of the `time_stepping_stage_fe_operator_t`
+!> by combining the mass matrix with the tangent of the fe operator.
+!> 
+!>  * The tangents of the `mass_operator` (`mass matrix`) and the `fe_operator` are computed
+!>  * Then those are combined into `this_tangent`
+!>  * Finally, the storage is compressed and the state updated
+!> 
+!>   The tangent is defined as follows,
+!>   \[\frac{\partial R_{ii}(y) }{\partial y} = M + a_{ii} \Delta t \frac{\partial \bar{A}(t + c_i \Delta t, x) }{\partial x}.\]
+!>   expressed as: 
+!>   `this_tangent` = `mass_matrix` +  `a(this%i,this%j)` * `dt` * `fe_op_tangent`
 subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this

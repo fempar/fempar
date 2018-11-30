@@ -31,31 +31,18 @@ module vector_poisson_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
-
-  type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims
-  end type base_scalar_function_t
-  
-  type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_vector_function_set_num_dims
-  end type base_vector_function_t
-  
-  
-  type, extends(base_vector_function_t) :: source_term_t
+    
+  type, extends(vector_function_t) :: source_term_t
    contains
      procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
 
-  type, extends(base_scalar_function_t) :: boundary_function_t
+  type, extends(scalar_function_t) :: boundary_function_t
    contains
      procedure :: get_value_space => boundary_function_get_value_space  
   end type boundary_function_t
 
-  type, extends(base_vector_function_t) :: solution_function_t
+  type, extends(vector_function_t) :: solution_function_t
    contains
      procedure :: get_value_space    => solution_function_get_value_space
      procedure :: get_gradient_space => solution_function_get_gradient_space
@@ -77,29 +64,13 @@ module vector_poisson_analytical_functions_names
 
 contains  
 
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
-
-  !===============================================================================================
-
-  subroutine base_vector_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_vector_function_set_num_dims
-
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       call result%set(1,0.0_rp)
       call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
     else
@@ -115,7 +86,7 @@ contains
     class(boundary_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1)+point%get(2) !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
     else
       result = point%get(1)+point%get(2)+point%get(3)
@@ -128,7 +99,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       call result%set(1, point%get(1)+point%get(2) ) 
       call result%set(2, point%get(1)+point%get(2) ) 
     else
@@ -144,7 +115,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       call result%set( 1, 1, 1.0_rp ) 
       call result%set( 2, 1, 1.0_rp )
       call result%set( 1, 2, 1.0_rp ) 
@@ -152,7 +123,7 @@ contains
     else
       call result%init(1.0_rp)
     end if
-    !if ( this%num_dims == 2 ) then
+    !if ( this%get_num_dims() == 2 ) then
     !  call result%set( 1, 1, 1.0_rp ) 
     !  call result%set( 2, 1, 0.0_rp )
     !  call result%set( 1, 2, 1.0_rp ) 

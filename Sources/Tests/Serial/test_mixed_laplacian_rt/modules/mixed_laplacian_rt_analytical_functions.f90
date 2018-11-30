@@ -31,37 +31,24 @@ module mixed_laplacian_rt_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
-
- type, extends(scalar_function_t) :: base_scalar_function_t
-    private
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims
-  end type base_scalar_function_t
   
- type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_vector_function_set_num_dims
-  end type base_vector_function_t
-  
-  type, extends(base_scalar_function_t) :: pressure_source_term_t
+  type, extends(scalar_function_t) :: pressure_source_term_t
    contains
      procedure :: get_value_space => pressure_source_term_get_value_space
   end type pressure_source_term_t
  
-  type, extends(base_scalar_function_t) :: pressure_boundary_function_t
+  type, extends(scalar_function_t) :: pressure_boundary_function_t
    contains
      procedure :: get_value_space => pressure_boundary_function_get_value_space
   end type pressure_boundary_function_t
   
-  type, extends(base_scalar_function_t) :: pressure_solution_t
+  type, extends(scalar_function_t) :: pressure_solution_t
    contains
      procedure :: get_value_space    => pressure_solution_get_value_space
      procedure :: get_gradient_space => pressure_solution_get_gradient_space
   end type pressure_solution_t
   
-  type, extends(base_vector_function_t) :: velocity_solution_t
+  type, extends(vector_function_t) :: velocity_solution_t
    contains
      procedure :: get_value_space    => velocity_solution_get_value_space
      procedure :: get_gradient_space => velocity_solution_get_gradient_space
@@ -86,23 +73,6 @@ module mixed_laplacian_rt_analytical_functions_names
 contains  
 
   !===============================================================================================
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
- 
-  
-  !===============================================================================================
-  subroutine base_vector_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_vector_function_set_num_dims
-
-  !===============================================================================================
   subroutine pressure_source_term_get_value_space ( this, point, result )
     implicit none
     class(pressure_source_term_t), intent(in)    :: this
@@ -117,10 +87,10 @@ contains
     class(pressure_boundary_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1) + point%get(2) ! x+y
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
     end if  
   end subroutine pressure_boundary_function_get_value_space
@@ -131,10 +101,10 @@ contains
     class(pressure_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1) + point%get(2) ! x+y
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
     end if  
   end subroutine pressure_solution_get_value_space
@@ -145,11 +115,11 @@ contains
     class(pressure_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       call result%set(1,1.0_rp)
       call result%set(2,1.0_rp)
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       call result%set(1,1.0_rp)
       call result%set(2,1.0_rp)
       call result%set(3,1.0_rp)
@@ -163,11 +133,11 @@ contains
     class(velocity_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       call result%set(1,-1.0_rp)
       call result%set(2,-1.0_rp)
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       call result%set(1,-1.0_rp)
       call result%set(2,-1.0_rp)
       call result%set(3,-1.0_rp)

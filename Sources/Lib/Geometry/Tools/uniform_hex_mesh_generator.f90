@@ -40,7 +40,7 @@ module uniform_hex_mesh_generator_names
   character(len=*), parameter :: num_cells_x_dir_key = 'num_cells_x_dir'
   character(len=*), parameter :: num_parts_x_dir_key = 'num_parts_x_dir'
   character(len=*), parameter :: is_dir_periodic_key         = 'is_dir_periodic'
-  character(len=*), parameter :: interpolation_order_key     = 'interpolation_order'
+  character(len=*), parameter :: geometric_interpolation_order_key     = 'geometric_interpolation_order'
   character(len=*), parameter :: hex_mesh_domain_limits_key  = 'hex_mesh_domain_limits'
 
   public :: num_dims_key
@@ -48,7 +48,7 @@ module uniform_hex_mesh_generator_names
   public :: num_cells_x_dir_key 
   public :: num_parts_x_dir_key 
   public :: is_dir_periodic_key         
-  public :: interpolation_order_key
+  public :: geometric_interpolation_order_key
   public :: hex_mesh_domain_limits_key
 
   integer(ip) , parameter :: not_described = 0

@@ -98,18 +98,6 @@ function time_stepping_operator_get_order( this )
   time_stepping_operator_get_order =  this%scheme%order
 end function time_stepping_operator_get_order
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_operator_initial_assembly( this, free_dof_values )
-  implicit none
-  class(time_stepping_operator_t), intent(inout) :: this
-  class(vector_t)                , intent(in)    :: free_dof_values
-  !call this%set_initial_data(free_dof_values) 
-  !call this%fe_op%set_row(1,1)
-  !call this%fe_op%set_evaluation_time( this%current_initial_time )
-  !call this%fe_op%set_evaluation_point(free_dof_values)
-  !call this%fe_op%compute_tangent()
-end subroutine time_stepping_operator_initial_assembly
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_allocate_dofs_stages( this )
   implicit none
@@ -151,53 +139,3 @@ function time_stepping_operator_get_stage_operator( this, i, j ) result(fe_op)
   call this%fe_op%set_row(i,j)
   fe_op => this%fe_op
 end function time_stepping_operator_get_stage_operator
-
-!!$
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-!!$!subroutine time_stepping_operator_apply_row( this, i, x, y )
-!!$!  class(time_stepping_operator_t), intent(inout) :: this
-!!$!  integer(ip)                    , intent(in)    :: i
-!!$!  class(vector_t)          , intent(in)    :: x
-!!$!  class(vector_t)                , intent(inout) :: y
-!!$!  ! sbadia : We should set the time in the nonlinear operator too for variable body force / bc's
-!!$!  call this%set_evaluation_point_row(x,i)
-!!$!  call this%fe_op%compute_residual()
-!!$!  ! Here we should provide also the trial fe space
-!!$!end subroutine time_stepping_operator_apply_row
-!!$
-!!$! Compute  \partial R*_i / \partial v_j = M  \delta_ij
-!!$!                 + \partial A / \partial v * a_ij
-!!$!subroutine time_stepping_operator_compute_tangent_block( this, tangent, mass, i, j )
-!!$!  class(time_stepping_operator_t), intent(inout) :: this
-!!$!  integer(ip)                    , intent(in)    :: i, j
-!!$!  class(lvalue_operator_t)       , intent(inout) :: tangent
-!!$!  class(matrix_t)                , intent(inout) :: mass
-!!$!  !call this%set_evaluation_point_row(x,i)
-!!$!  this%fe_operator%compute_tangent()
-!!$!  ! sbadia : error, get_tangent not a matrix but lvalue operator
-!!$!  tangent = this%fe_operator%get_tangent() * ( dt * this%scheme%a(i,j) )
-!!$!  if ( i == j ) then
-!!$!     ! only when needed probably based on vector spaces compatibility
-!!$!     call this%compute_mass_matrix()
-!!$!     tangent = tangent + this%mass%get_matrix()
-!!$!  end if
-!!$!end subroutine time_stepping_operator_compute_tangent_block
-!!$
-!!$!subroutine time_stepping_operator_compute_mass_matrix( this )
-!!$!  class(time_stepping_operator_t), intent(inout) :: this
-!!$!  call this%mass_integration%integrate( this%fe_op%get_fe_space(), this%mass )
-!!$!end subroutine time_stepping_operator_compute_mass_matrix
-!!$
-!!$!subroutine time_stepping_operator_set_evaluation_point_row( this, y, i )
-!!$!  class(time_stepping_operator_t), intent(inout) :: this
-!!$!  integer(ip)                    , intent(in)    :: i
-!!$!  class(vector_t)                , intent(in)    :: y
-!!$!  class(vector_t)  :: aux
-!!$!  integer(ip) :: j
-!!$!  this%dofs_stages(i) = y
-!!$!  aux = this%initial_value
-!!$!  do j = 1, this%scheme%stages
-!!$!     if ( this%scheme%a(i,j) /= 0.0_rp ) aux = aux + this%dofs_stages(j)*this%scheme%a(i,j)
-!!$!  end do
-!!$!  call this%fe_op%set_evaluation_point(aux)
-!!$!end subroutine time_stepping_operator_set_evaluation_point_row

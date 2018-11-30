@@ -185,7 +185,7 @@ module reference_fe_names
     procedure, non_overridable :: get_measure                           => base_map_get_measure 
   end type base_map_t
 
-#define duties cell_map_duties
+#define duties cell_map_duties 
 #define task_01 compute_jacobian_inverse
 #define task_02 compute_jacobian_derivative
 #include "duties_header.i90"

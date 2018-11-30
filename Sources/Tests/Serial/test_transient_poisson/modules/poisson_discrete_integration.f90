@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!* title: Discrete Integration
 module poisson_cG_discrete_integration_names
   use fempar_names
   use poisson_analytical_functions_names

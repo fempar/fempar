@@ -25,6 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine scalar_function_set_num_dims ( this, num_dims )
+  implicit none
+  class(scalar_function_t), intent(inout)    :: this
+  integer(ip)             , intent(in)       ::  num_dims
+  this%num_dims = num_dims
+end subroutine scalar_function_set_num_dims
+
+function scalar_function_get_num_dims ( this )
+  implicit none
+  class(scalar_function_t), intent(in)    :: this
+  integer(ip)  ::  scalar_function_get_num_dims
+  scalar_function_get_num_dims = this%num_dims
+end function scalar_function_get_num_dims
+  
 subroutine scalar_function_get_value_space( this, point, result )
   implicit none
   class(scalar_function_t), intent(in)    :: this

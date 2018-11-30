@@ -43,6 +43,7 @@ module fempar_names
   use FPL
   use timer_names
   use parameter_handler_names
+  use fempar_parameter_handler_names
   use base_output_handler_names
   use output_handler_names
   use output_handler_parameters_names
