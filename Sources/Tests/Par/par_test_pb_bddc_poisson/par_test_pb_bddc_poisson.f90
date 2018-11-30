@@ -1,9 +1,9 @@
-program par_pb_bddc_poisson
+program par_test_pb_bddc_poisson
   use fempar_names
-  use par_pb_bddc_poisson_driver_names
+  use par_test_pb_bddc_poisson_driver_names
   implicit none
   integer(ip) :: i
-  type(par_pb_bddc_poisson_fe_driver_t)     :: test_driver  
+  type(par_test_pb_bddc_poisson_fe_driver_t)     :: test_driver  
   type(mpi_context_t) :: world_context
 
   call world_context%create()
@@ -17,4 +17,4 @@ program par_pb_bddc_poisson
   call test_driver%free_environment()
   call fempar_finalize()
   call world_context%free(finalize=.true.)
-end program par_pb_bddc_poisson
+end program par_test_pb_bddc_poisson

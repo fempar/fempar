@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_pb_bddc_poisson_driver_names
+module par_test_pb_bddc_poisson_driver_names
   use fempar_names
-  use par_pb_bddc_poisson_params_names
+  use par_test_pb_bddc_poisson_params_names
   use pb_bddc_poisson_cG_discrete_integration_names
   use pb_bddc_poisson_conditions_names
   use pb_bddc_poisson_analytical_functions_names
@@ -36,11 +36,11 @@ module par_pb_bddc_poisson_driver_names
   implicit none
   private
 
-  type par_pb_bddc_poisson_fe_driver_t 
+  type par_test_pb_bddc_poisson_fe_driver_t 
      private 
 
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_pb_bddc_poisson_params_t)      :: test_params
+     type(par_test_pb_bddc_poisson_params_t)      :: test_params
      type(ParameterList_t), pointer          :: parameter_list
 
      ! Cells and lower dimension objects container
@@ -92,23 +92,23 @@ module par_pb_bddc_poisson_driver_names
      procedure        , private :: free
      procedure                  :: free_environment
      procedure                  :: free_command_line_parameters
-  end type par_pb_bddc_poisson_fe_driver_t
+  end type par_test_pb_bddc_poisson_fe_driver_t
 
   ! Types
-  public :: par_pb_bddc_poisson_fe_driver_t
+  public :: par_test_pb_bddc_poisson_fe_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
     
     call this%triangulation%create(this%environment,this%parameter_list)
@@ -139,7 +139,7 @@ contains
 
   subroutine setup_cell_set_ids(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable       :: cell
     integer(ip)                               :: istat, idummy
     integer(ip), allocatable                  :: cells_set(:)
@@ -628,7 +628,7 @@ contains
 
   subroutine setup_reference_fes(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
@@ -651,7 +651,7 @@ contains
 
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), target, intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
     
     allocate(this%coarse_fe_handlers(1), stat=istat)
@@ -666,7 +666,7 @@ contains
   
   subroutine setup_fe_space(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
     call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
@@ -684,7 +684,7 @@ contains
 
   subroutine setup_system (this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
 
     call this%poisson_integration%set_analytical_functions(this%poisson_analytical_functions)
 
@@ -704,7 +704,7 @@ contains
 
   subroutine setup_solver (this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
@@ -795,7 +795,7 @@ contains
 
   subroutine assemble_system (this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%compute()
@@ -820,7 +820,7 @@ contains
 
   subroutine solve_system(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
@@ -849,7 +849,7 @@ contains
 
   subroutine check_solution(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
 
@@ -883,7 +883,7 @@ contains
 
   subroutine write_solution(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
     type(parameterlist_t)                              :: parameter_list
     class(triangulation_t), pointer        :: triangulation
@@ -935,7 +935,7 @@ contains
 
   subroutine write_matrices(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     character(:), allocatable :: matrix_filename
     character(:), allocatable :: mapping_filename
     class(matrix_t), pointer :: matrix
@@ -988,7 +988,7 @@ contains
   !========================================================================================
   subroutine print_info (this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
 
     integer(ip) :: num_sub_domains
     real(rp) :: num_total_cells
@@ -1025,7 +1025,7 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     type(timer_t) :: t_solve_system
     
     !call this%free()
@@ -1053,7 +1053,7 @@ contains
 
   subroutine free(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
     call this%solution%free()
@@ -1080,7 +1080,7 @@ contains
 
   !function get_icontxt(this)
   !  implicit none
-  !  class(par_pb_bddc_poisson_fe_driver_t), intent(in) :: this
+  !  class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
   !  integer(ip) :: get_icontxt
   !  class(execution_context_t), pointer :: w_context
   !  w_context => this%environment%get_w_context()
@@ -1092,13 +1092,13 @@ contains
   
   subroutine free_command_line_parameters(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
   subroutine setup_environment(this,world_context)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
     integer(ip) :: istat
 
@@ -1112,8 +1112,8 @@ contains
 
   subroutine free_environment(this)
     implicit none
-    class(par_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     call this%environment%free()
   end subroutine free_environment
 
-end module par_pb_bddc_poisson_driver_names
+end module par_test_pb_bddc_poisson_driver_names
