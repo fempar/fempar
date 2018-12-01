@@ -839,7 +839,7 @@ contains
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
-    call this%linear_elasticity_analytical_functions%set_num_dimensions(this%triangulation%get_num_dims())
+    call this%linear_elasticity_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%linear_elasticity_conditions%set_number_components(this%linear_elasticity_integration%get_number_components())
     call this%linear_elasticity_conditions%set_number_dimensions(this%triangulation%get_num_dims())
     if (this%test_params%get_is_a_beam()) then
