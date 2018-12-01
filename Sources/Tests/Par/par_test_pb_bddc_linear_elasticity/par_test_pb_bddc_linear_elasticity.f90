@@ -1,10 +1,10 @@
-program par_pb_bddc_linear_elasticity
+program par_test_pb_bddc_linear_elasticity
   use fempar_names
-  use par_pb_bddc_linear_elasticity_driver_names
+  use par_test_pb_bddc_linear_elasticity_driver_names
   !$ use omp_lib
   implicit none
   integer(ip) :: i
-  type(par_pb_bddc_linear_elasticity_fe_driver_t), save :: test_driver 
+  type(par_test_pb_bddc_linear_elasticity_fe_driver_t), save :: test_driver 
 
 #ifdef _OPENMP   
     type(mpi_omp_context_t) :: world_context
@@ -32,4 +32,4 @@ program par_pb_bddc_linear_elasticity
   call fempar_finalize()
   call world_context%free(finalize=.true.)
   !$OMP END PARALLEL   
-end program par_pb_bddc_linear_elasticity
+end program par_test_pb_bddc_linear_elasticity

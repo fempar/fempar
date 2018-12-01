@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_pb_bddc_linear_elasticity_driver_names
+module par_test_pb_bddc_linear_elasticity_driver_names
   use fempar_names
-  use par_pb_bddc_linear_elasticity_params_names
+  use par_test_pb_bddc_linear_elasticity_params_names
 
   use linear_elasticity_discrete_integration_names
   use linear_elasticity_conditions_names
@@ -38,11 +38,11 @@ module par_pb_bddc_linear_elasticity_driver_names
   implicit none
   private
 
-  type par_pb_bddc_linear_elasticity_fe_driver_t 
+  type par_test_pb_bddc_linear_elasticity_fe_driver_t 
      private 
 
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_pb_bddc_linear_elasticity_params_t)      :: test_params
+     type(par_test_pb_bddc_linear_elasticity_params_t)      :: test_params
      type(ParameterList_t), pointer       :: parameter_list
 
      ! Cells and lower dimension objects container
@@ -113,16 +113,16 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure                  :: free_discrete_integration 
-  end type par_pb_bddc_linear_elasticity_fe_driver_t
+  end type par_test_pb_bddc_linear_elasticity_fe_driver_t
 
   ! Types
-  public :: par_pb_bddc_linear_elasticity_fe_driver_t
+  public :: par_test_pb_bddc_linear_elasticity_fe_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
@@ -130,7 +130,7 @@ contains
   !========================================================================================
   subroutine setup_timers(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
     w_context => this%par_environment%get_w_context()
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
@@ -143,7 +143,7 @@ contains
   !========================================================================================
   subroutine report_timers(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
@@ -157,7 +157,7 @@ contains
   !========================================================================================
   subroutine free_timers(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
@@ -168,7 +168,7 @@ contains
   !========================================================================================
   subroutine setup_environment(this, world_context)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
@@ -181,7 +181,7 @@ contains
 
   subroutine setup_triangulation(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable  :: vef
     type (point_t), allocatable  :: nodes_coordinates(:) 
     integer(ip)     :: num_nodes, istat
@@ -253,7 +253,7 @@ contains
 
   subroutine setup_cell_set_ids(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable       :: cell
     integer(ip)                               :: istat, idummy
     integer(ip), allocatable                  :: cells_set(:)
@@ -751,7 +751,7 @@ contains
 
   subroutine setup_discrete_integration(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
 
     if ( this%test_params%get_discrete_integration_type() == 'homogeneous' ) then
@@ -786,7 +786,7 @@ contains
 
   subroutine free_discrete_integration(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     if (allocated(this%linear_elasticity_integration)) then
       call this%linear_elasticity_integration%free()
@@ -798,7 +798,7 @@ contains
 
   subroutine setup_reference_fes(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
@@ -821,7 +821,7 @@ contains
 
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), target, intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
@@ -835,7 +835,7 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
@@ -859,7 +859,7 @@ contains
 
   subroutine setup_system (this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(vector_field_t) :: zero_vector_field
 
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -880,7 +880,7 @@ contains
   subroutine setup_solver (this)
     implicit none
 
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
@@ -987,7 +987,7 @@ contains
 
   subroutine assemble_system (this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%compute()
@@ -1012,7 +1012,7 @@ contains
 
   subroutine solve_system(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
@@ -1042,7 +1042,7 @@ contains
 
   subroutine check_solution(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: scalar_error_norm 
     type(error_norms_vector_t) :: vector_error_norm 
     real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
@@ -1088,7 +1088,7 @@ contains
 
   subroutine write_solution(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(output_handler_t)                          :: oh
     class(fe_cell_iterator_t), allocatable :: fe
     real(rp),allocatable :: cell_vector(:)
@@ -1143,7 +1143,7 @@ contains
 
     subroutine write_matrices(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
     character(:), allocatable :: matrix_filename
     character(:), allocatable :: mapping_filename
     character(:), allocatable :: kernel_filename
@@ -1230,7 +1230,7 @@ contains
   
   subroutine generate_kernel(this, kernel) 
    implicit none
-   class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in)     :: this
+   class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(in)     :: this
    real(rp), allocatable                           , intent(inout)  :: kernel(:,:) 
    class(environment_t), pointer :: environment
    type(fe_vef_iterator_t) :: vef
@@ -1331,7 +1331,7 @@ contains
     
   subroutine  generate_IS_PCBDDCSetDofsSplitting ( this, dofs_gids, f1_IS, f2_IS, f3_IS )
    implicit none
-   class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in)    :: this
+   class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(in)    :: this
    integer(igp)                                    , intent(in)    :: dofs_gids(:)
    type(std_vector_integer_igp_t)                  , intent(inout) :: f1_IS
    type(std_vector_integer_igp_t)                  , intent(inout) :: f2_IS
@@ -1417,7 +1417,7 @@ contains
     
   subroutine run_simulation(this) 
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(timer_t) :: t_solve_system
 
     call this%timer_triangulation%start()
@@ -1453,7 +1453,7 @@ contains
   !========================================================================================
   subroutine print_info (this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
 
     integer(ip) :: num_sub_domains
     real(rp) :: num_total_cells
@@ -1490,7 +1490,7 @@ contains
   !========================================================================================  
   subroutine free(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
     call this%solution%free() 
@@ -1517,16 +1517,16 @@ contains
   !========================================================================================
   subroutine free_environment(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
 
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
-    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
 
-end module par_pb_bddc_linear_elasticity_driver_names
+end module par_test_pb_bddc_linear_elasticity_driver_names
