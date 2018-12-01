@@ -43,9 +43,6 @@ module richardson_names
 # include "debug.i90"
   private
 
-  integer (ip), parameter :: default_richardson_stopping_criteria = res_res
-  real (rp),    parameter :: default_richardson_relaxation        = 1.0_rp
-
   type, extends(base_iterative_linear_solver_t) :: richardson_t
     ! Working space vectors for type(richardson_t)
     class(vector_t), allocatable :: r

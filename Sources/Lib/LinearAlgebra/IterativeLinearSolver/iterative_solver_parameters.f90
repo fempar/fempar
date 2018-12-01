@@ -29,7 +29,7 @@ module iterative_linear_solver_parameters_names
 
   use types_names
 
-implicit none
+  implicit none
 
   !-------------------------------------------------------------------
   ! List of convergence criteria available for iterative solvers 
@@ -57,6 +57,7 @@ implicit none
   character(len=*), parameter :: ils_output_frequency          = 'iterative_linear_solver_output_frequency'
   character(len=*), parameter :: ils_max_num_iterations        = 'iterative_linear_solver_max_num_iterations'
   character(len=*), parameter :: ils_track_convergence_history = 'iterative_linear_solver_track_convergence_history'
+  character(len=*), parameter :: ils_luout                      = 'iterative_linear_solver_luout'
 
   !-----------------------------------------------------------------
   ! Iterative linear solver names
@@ -86,5 +87,27 @@ implicit none
   ! Parameters used in RICHARDSON iterative linear solvers
   !-----------------------------------------------------------------
   character(len=*), parameter :: ils_relaxation = 'iterative_linear_solver_relaxation'
-
+  
+  
+  !------------------------------------------------------------------------------------
+  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
+  !------------------------------------------------------------------------------------
+  integer (ip), parameter :: default_luout                        = 6
+  real    (rp), parameter :: default_rtol                         = 1.0e-06_rp
+  real    (rp), parameter :: default_atol                         = 0.0_rp
+  integer (ip), parameter :: default_output_frequency             = 1 
+  integer (ip), parameter :: default_max_num_iterations           = 1000
+  logical,      parameter :: default_track_convergence_history    = .false.
+  integer (ip), parameter :: default_fgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_lfom_stopping_criteria       = res_res
+  integer (ip), parameter :: default_lgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_rgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
+  integer (ip), parameter :: default_minres_stopping_criteria     = res_res
+  integer (ip), parameter :: default_cg_stopping_criteria         = res_res
+  integer (ip), parameter :: default_icg_stopping_criteria        = res_res
+  integer (ip), parameter :: default_richardson_stopping_criteria = res_res
+  real (rp),    parameter :: default_richardson_relaxation        = 1.0_rp
+  integer (ip), parameter :: default_dkrymax                      = 1000
+  integer (ip), parameter :: default_orthonorm_strat              = icgsro
+  
 end module iterative_linear_solver_parameters_names

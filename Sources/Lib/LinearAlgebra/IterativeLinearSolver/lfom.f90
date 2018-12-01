@@ -45,10 +45,6 @@ module lfom_names
   implicit none
 # include "debug.i90"
   private
-
-  integer (ip), parameter :: default_lfom_stopping_criteria = res_res
-  integer (ip), parameter :: default_dkrymax                = 1000
-  integer (ip), parameter :: default_orthonorm_strat        = icgsro
   
   type, extends(base_iterative_linear_solver_t) :: lfom_t
      ! Parameters

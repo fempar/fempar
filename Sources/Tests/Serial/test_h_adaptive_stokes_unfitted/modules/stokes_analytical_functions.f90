@@ -39,21 +39,17 @@ module stokes_analytical_functions_names
   !===================================================
 
   type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims    = -1  
     integer(ip) :: case_id = 1
     integer(ip) :: degree      = 1
   contains
-    procedure :: set_num_dims          => base_scalar_function_set_num_dims 
     procedure :: set_case_id    => base_scalar_function_set_case_id
     procedure :: set_degree            => base_scalar_function_set_degree
   end type base_scalar_function_t
 
   type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dims    = -1  
     integer(ip) :: case_id = 1
     integer(ip) :: degree      = 1
   contains
-    procedure :: set_num_dims          => base_vector_function_set_num_dims 
     procedure :: set_case_id    => base_vector_function_set_case_id
     procedure :: set_degree            => base_vector_function_set_degree
   end type base_vector_function_t
@@ -629,14 +625,6 @@ contains
     call val%init(0.0)
   end subroutine sol_ex005_3d_grad_p
 
-  !===================================================
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
-
   subroutine base_scalar_function_set_case_id(this,val)
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -650,13 +638,6 @@ contains
     integer(ip),                   intent(in)       :: degree
     this%degree = degree
   end subroutine base_scalar_function_set_degree
-
-  subroutine base_vector_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_vector_function_set_num_dims
 
   subroutine base_vector_function_set_case_id(this,val)
     implicit none
@@ -680,7 +661,7 @@ contains
     type(point_t)         , intent(in)    :: point
     type(vector_field_t)  , intent(inout) :: result
     type(vector_field_t) :: val
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_2d_lapl_u(point,val,this%degree)
@@ -695,7 +676,7 @@ contains
         case default
           check(.false.)
       end select
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_3d_lapl_u(point,val,this%degree)
@@ -735,7 +716,7 @@ contains
     class(solution_function_u_t), intent(in)    :: this
     type(point_t)         , intent(in)    :: point
     type(vector_field_t)  , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_2d_u(point,result,this%degree)
@@ -744,7 +725,7 @@ contains
         case default
           check(.false.)
       end select
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_3d_u(point,result,this%degree)
@@ -769,7 +750,7 @@ contains
     class(solution_function_u_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_2d_grad_u(point,result,this%degree)
@@ -778,7 +759,7 @@ contains
         case default
           check(.false.)
       end select
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_3d_grad_u(point,result,this%degree)
@@ -803,7 +784,7 @@ contains
     class(source_term_p_t), intent(in)    :: this
     type(point_t)         , intent(in)    :: point
     real(rp)              , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_2d_div_u(point,result,this%degree)
@@ -812,7 +793,7 @@ contains
         case default
           check(.false.)
       end select
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_3d_div_u(point,result,this%degree)
@@ -837,7 +818,7 @@ contains
     class(solution_function_p_t), intent(in)    :: this
     type(point_t)         , intent(in)    :: point
     real(rp)              , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_2d_p(point,result,this%degree)
@@ -846,7 +827,7 @@ contains
         case default
           check(.false.)
       end select
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_3d_p(point,result,this%degree)
@@ -871,7 +852,7 @@ contains
     class(solution_function_p_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_2d_grad_p(point,result,this%degree)
@@ -880,7 +861,7 @@ contains
         case default
           check(.false.)
       end select
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       select case (this%case_id)
         case (1)
           call sol_ex001_3d_grad_p(point,result,this%degree)

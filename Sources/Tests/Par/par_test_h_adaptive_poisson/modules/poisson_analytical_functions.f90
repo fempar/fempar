@@ -34,10 +34,8 @@ module poisson_analytical_functions_names
 
   type, extends(scalar_function_t) :: base_scalar_function_t
     private
-    integer(ip) :: num_dims = -1  
     integer(ip) :: order 
   contains
-    procedure :: set_num_dims          => base_scalar_function_set_num_dims
     procedure :: set_polynomial_order  => base_scalar_function_set_polynomial_order
   end type base_scalar_function_t
   
@@ -78,13 +76,6 @@ module poisson_analytical_functions_names
   public :: poisson_analytical_functions_t
 
 contains  
-
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
   
     subroutine base_scalar_function_set_polynomial_order ( this, order )
     implicit none
@@ -100,16 +91,16 @@ contains
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     real(rp) :: n
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result =  point%get(1) + point%get(2)
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result =  point%get(1) + point%get(2) + point%get(3) 
     end if
     !n = real(this%order, rp)
-    !if ( this%num_dims == 2 ) then
+    !if ( this%get_num_dims() == 2 ) then
     !  result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + point%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
-    !else if ( this%num_dims == 3 ) then
+    !else if ( this%get_num_dims() == 3 ) then
     !  result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + & 
     !            point%get(2)**(n-2.0_rp) + point%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
     !end if
@@ -122,21 +113,21 @@ contains
     type(point_t)           , intent(in)    :: point(:)
     real(rp)                , intent(inout) :: result(:)
     integer(ip) :: n, i, num_points
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     num_points = size(point)
     do i = 1, num_points
-      if ( this%num_dims == 2 ) then
+      if ( this%get_num_dims() == 2 ) then
        result(i) = 0.0_rp ! x+y
-      else if ( this%num_dims == 3 ) then
+      else if ( this%get_num_dims() == 3 ) then
        result(i) = 0.0_rp ! x+y+z
       end if  
     end do
     !num_points = size(point)
     !n = real(this%order, rp)
     !do i = 1, num_points
-    !  if ( this%num_dims == 2 ) then
+    !  if ( this%get_num_dims() == 2 ) then
     !    result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + point(i)%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
-    !  else if ( this%num_dims == 3 ) then
+    !  else if ( this%get_num_dims() == 3 ) then
     !    result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + & 
     !              point(i)%get(2)**(n-2.0_rp) + point(i)%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
     !  end if 
@@ -149,11 +140,11 @@ contains
     class(boundary_function_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1) + point%get(2)
       !result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1) + point%get(2) + point%get(3) 
       !result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n
     end if  
@@ -166,14 +157,14 @@ contains
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
     real(rp) :: n 
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     n = real(this%order, rp) 
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       call result%set( 1, 1.0_rp ) ! nx^{n-1}
       call result%set( 2, 1.0_rp ) ! ny^{n-1}
       ! call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
       ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       call result%set( 1, 1.0_rp ) ! nx^{n-1}
       call result%set( 2, 1.0_rp ) ! ny^{n-1}
       call result%set( 3, 1.0_rp ) ! nz^{n-1}
@@ -189,11 +180,11 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1) + point%get(2) 
       ! result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n 
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1) + point%get(2) + point%get(3)
       ! result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
     end if  
@@ -207,14 +198,14 @@ contains
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
     real(rp) :: n 
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     n = real(this%order, rp) 
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       call result%set( 1, 1.0_rp ) ! nx^{n-1}
       call result%set( 2, 1.0_rp ) ! ny^{n-1}
       ! call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
       ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       call result%set( 1, 1.0_rp ) ! nx^{n-1}
       call result%set( 2, 1.0_rp ) ! ny^{n-1}
       call result%set( 3, 1.0_rp ) ! nz^{n-1}

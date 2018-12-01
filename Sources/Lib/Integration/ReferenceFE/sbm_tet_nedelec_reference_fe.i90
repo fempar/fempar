@@ -108,8 +108,8 @@ subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, quadrature,
   n_q_points = quadrature%get_num_quadrature_points()
 
 
-  call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
-       &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
+  call qpoints_perm%create(n_q_points, &    ! Number of quadrature points
+       &                ndime*2**ndime)  ! Number of possible permutations x possible rotations
   forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
 
 end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations

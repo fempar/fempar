@@ -57,7 +57,7 @@ contains
     implicit none
     class(vector_poisson_unfitted_conditions_t), intent(in) :: this
     integer(ip) :: vector_poisson_unfitted_conditions_get_num_components
-    vector_poisson_unfitted_conditions_get_num_components = this%boundary_function%num_dims
+    vector_poisson_unfitted_conditions_get_num_components = this%boundary_function%get_num_dims()
   end function vector_poisson_unfitted_conditions_get_num_components
 
   subroutine vector_poisson_unfitted_conditions_get_components_code(this, boundary_id, components_code)

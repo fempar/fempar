@@ -1179,10 +1179,8 @@ module fe_space_names
   
   type, extends(vector_function_t) :: rigid_body_mode_t
     private
-    integer(ip)  :: num_dims = -1
     integer(ip)  :: imode = -1  
   contains
-    procedure :: set_num_dims         => rigid_body_mode_set_num_dims
     procedure :: set_mode             => rigid_body_mode_set_mode
     procedure :: get_values_set_space => rigid_body_mode_get_values_set_space 
   end type rigid_body_mode_t

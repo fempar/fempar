@@ -83,7 +83,7 @@ contains
     error = error + this%list%set(key = prefix_key                    , value = 'uniform')
     error = error + this%list%set(key = dir_path_out_key              , value = '.')
     error = error + this%list%set(key = num_dims_key      , value =  2)
-    error = error + this%list%set(key = interpolation_order_key       , value =  1)
+    error = error + this%list%set(key = geometric_interpolation_order_key       , value =  1)
     tmp = [4,4,0]; error = error + this%list%set(key = num_cells_x_dir_key   , value = tmp)
     tmp = [3,1,1]; error = error + this%list%set(key = num_parts_x_dir_key   , value = tmp)
     tmp = [0,1,0]; error = error + this%list%set(key = is_dir_periodic_key           , value = tmp)

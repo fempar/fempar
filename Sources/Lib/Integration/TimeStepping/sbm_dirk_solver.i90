@@ -48,16 +48,29 @@ subroutine dirk_solver_create( this, ts_op, nl_solver, initial_time, final_time,
 end subroutine dirk_solver_create
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> summary: Get DOF vaules at next timestep by solving a system in each RK stage
+!> The function `apply` does the following:  
+!>
 subroutine dirk_solver_apply( this, x, y )
   implicit none
   class(dirk_solver_t),   intent(inout) :: this
-  class(vector_t)     ,   intent(in)    :: x
-  class(vector_t)     ,   intent(inout) :: y
+  class(vector_t)     ,   intent(in)    :: x !< Input DOF values
+  class(vector_t)     ,   intent(inout) :: y !< Output DOF values
   integer(ip) :: i
   type(time_stepping_stage_fe_operator_t), pointer :: stage_op
 
   assert ( associated(this%ts_op) )
   assert ( associated(this%nl_solver) )
+  
+!<  - Set `x` as initial data, i.e., \(u_h^0=x\)
+!<  - For each RK stage (i)
+!<    - Interpolate BC at \(t_i = t + c_i \Delta t \), \(u_h^{\varphi} (t_i) \)  and \(\partial u_h^{\varphi} (t_i) \)   
+!<    - Set discrite integration time at \(t_i\)
+!<    - Integrate mass matrix ( and affine operator if lineal )
+!<    - Solve a non-linear system for each `dof_stages(i)` (\(y_i\)), with:
+!<        $$ R_{ii} (y) = My + M\partial_t u_h^{\varphi} (t + c_i \Delta t)  + \bar A (  t + c_i \Delta t, X_i (Y_{|1:i-1|},y),$$
+!<        $$ \frac{\partial R_{ii} (y)} {\partial y} = M + a_{ii}\Delta t \frac{\partial \bar A (t + c_i \Delta t,x)}{\partial x}$$
+!<  - Set output `y` as \(u_h^1 = u_h^0 + \Delta t \sum_{i=1}^s b_i y_i \)
   
   call this%ts_op%set_initial_data(x) 
   call y%copy(x)
@@ -71,6 +84,14 @@ subroutine dirk_solver_apply( this, x, y )
 end subroutine dirk_solver_apply
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> summary: Upgrade the values of the given `fe_function_t` at the next timestep
+!> The function `advance_fe_function` does the following:  
+!> 
+!>  - Get the *free DOF values* at the next time step  
+!>  - Update the time at the next time step   
+!>  - Interpolate the *fixed DOF values* at the next time step  
+!>  - Build the `fe_function_t` at the next time step with the *free DOF values* and *fixed DOF values*  
+!>
 subroutine dirk_solver_advance_fe_function( this, fe_function)
   implicit none
   class(dirk_solver_t),    intent(inout) :: this
@@ -88,14 +109,15 @@ subroutine dirk_solver_advance_fe_function( this, fe_function)
   
   call this%apply(this%free_dof_values_previous,free_dof_values_current)
   
-  ! Update Dirichlet BC at t^n+1 = t^n + dt,
-  !  recaluculation is needed as fe_function_t may not be evaluated at t^n+1 
-  !  within the DIRK solver loop, e.g., 'forward euler' scheme.
+  !<  @note
+  !<  When updating Dirichlet BC at \(t^{n+1} = t^n + dt\),
+  !<  recaluculation is needed as `fe_function_t` may not be evaluated at \(t^{n+1}\) 
+  !<  within the DIRK solver loop, e.g., *forward euler* scheme.
   call this%update_current_time() 
   call di_fe_op%set_current_time( fe_space, this%get_current_time() )
   call fixed_dof_values%copy( di_fe_op%get_boundary_data() )
 
-end subroutine
+end subroutine dirk_solver_advance_fe_function
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine dirk_solver_set_initial_time( this, initial_time )
@@ -107,6 +129,7 @@ subroutine dirk_solver_set_initial_time( this, initial_time )
 end subroutine dirk_solver_set_initial_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!> The time step size can be modified arbitrarily in the driver during the simulation
 subroutine dirk_solver_set_time_step_size( this, dt )
   implicit none
   class(dirk_solver_t), intent(inout) :: this
@@ -124,6 +147,7 @@ subroutine dirk_solver_set_final_time( this, final_time)
 end subroutine dirk_solver_set_final_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!> This method updates the current time ( initial time of RK scheme ) at \(t^1=t^0+\Delta t \)
 subroutine dirk_solver_update_current_time( this )
   implicit none
   class(dirk_solver_t), intent(inout) :: this
@@ -161,17 +185,24 @@ function dirk_solver_has_finished( this )
   logical :: dirk_solver_has_finished
   real(rp), parameter :: has_finished_tol = 1.0e-8_rp
   dirk_solver_has_finished = .false.
-  ! This method will return true in either one of these two cases:
-  ! (1) If current_initial_time is larger or equal to final_time .
-  ! (2) If current_initial_time is smaller than final_time, and distance to the end is 
-  !     "small enough" (determined by has_finished_tol) compared to the magnitude of 
-  !     current time step
+  !< This method will return true in either one of these two cases:
+  !<
+  !<  1. If current_initial_time is larger or equal to `final_time` .
+  !<  2. If current_initial_time is smaller than `final_time`, and distance to the end is 
+  !<     "small enough" (determined by `has_finished_tol`) compared to the magnitude of 
+  !<     current time step
   if (this%final_time-this%stage_initial_time <=  this%dt * has_finished_tol) then
     dirk_solver_has_finished = .true.
   endif
 end function dirk_solver_has_finished
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!> This method prints the information about the curren time step evaluation
+!> 
+!>  * Current time ( `t` )
+!>  * Time step size ( `dt`)
+!>  * Simulation final time (`tf`)
+!>  * Time integration scheme 
 subroutine dirk_solver_print_log_line( this, luout )
   implicit none
   class(dirk_solver_t), intent(in) :: this
