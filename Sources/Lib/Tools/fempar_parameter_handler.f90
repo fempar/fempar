@@ -36,6 +36,7 @@ module fempar_parameter_handler_names
   use uniform_hex_mesh_generator_names
   use fe_space_names
   use parameter_handler_names
+  use reference_fe_names
   use FPL
 # include "debug.i90"
   implicit none
@@ -201,39 +202,50 @@ contains
 
     ! New keys to create FE space with ParameterList
     ! Reference FE types ( lagrangian, edge, face, B-spline...)
-    error = error + helpers%set(key = reference_fe_type_keys, value = 'Reference finite element types')
-    error = error + switches%set(key = reference_fe_type_keys, value = '--REFERENCE_FE_TYPES')
-    error = error + values%set(key = reference_fe_type_keys, value = [ fe_type_lagrangian ])
-
-    ! Reference FE order (0,1,2,...)
-    error = error + helpers%set(key = reference_fe_order_keys, value = 'Reference finite element orders')
-    error = error + switches%set(key = reference_fe_order_keys, value = '--REFERENCE_FE_ORDERS')
-    error = error + values%set(key = reference_fe_order_keys, value = [ 1 ])
-
-    ! FE field types (scalar, vector, tensor)
-    error = error + helpers%set(key = fe_space_field_types_keys, value = 'Finite element space field types')
-    error = error + switches%set(key = fe_space_field_types_keys, value = '--FE_SPACE_FIELD_TYPES')
-    error = error + values%set(key = fe_space_field_types_keys, value = [ scalar ])
-
-    ! FE space conformities ( true = no face integration needed, false = face integration required )
-    error = error + helpers%set(key = reference_fe_conformity_keys, value = 'Finite element space conformities')
-    error = error + switches%set(key = reference_fe_order_keys, value = '--FE__SPACE_CONFORMITIES')
-    error = error + values%set(key = reference_fe_order_keys, value = [ .true. ])
-
-    ! FE space construction type homogeneous/heterogeneous ( .true. = all cells same reference fe, .false. = otherwise ) 
-    error = error + helpers%set(key = fe_space_same_reference_fe_all_cells_keys, value = 'Finite element space fixed reference fe logical')
-    error = error + switches%set(key = fe_space_same_reference_fe_all_cells_keys, value = '--FE__SPACE_SAME_REFERENCE_FE_ALL_CELLS')
-    error = error + values%set(key = fe_space_same_reference_fe_all_cells_keys, value = .true.)
-
-    ! FE space 
-    error = error + helpers%set(key = fe_space_keys, value = 'Finite element space fixed reference fe logical')
-    error = error + switches%set(key = fe_space_keys, value = '--FE__SPACE_SAME_REFERENCE_FE_ALL_CELLS')
-    error = error + values%set(key = , value = .true.)
 
     ! FE field IDs (0, 1, 2...) to be consitent with mesh data
-    error = error + helpers%set(key = fe_space_field_ids_keys, value = 'Finite element space field ids')
-    error = error + switches%set(key = fe_space_field_ids_keys, value = '--FE_SPACE_FIELD_IDS')
-    error = error + values%set(key = fe_space_field_ids_keys, value = [ 1 ])
+    error = error + helpers%set(key = fe_space_num_fields_key, value = 'Finite element space number of fields')
+    error = error + switches%set(key = fe_space_num_fields_key, value = '--FE_SPACE_NUM_FIELD')
+    error = error + values%set(key = fe_space_num_fields_key, value = 1)
+
+    error = error + helpers%set(key = reference_fe_type_key, value = 'Reference finite element types')
+    error = error + switches%set(key = reference_fe_type_key, value = '--REFERENCE_FE_TYPES')
+    error = error + values%set(key = reference_fe_type_key, value = fe_type_lagrangian)
+
+    ! Reference FE order (0,1,2,...)
+    error = error + helpers%set(key = reference_fe_orders_key, value = 'Reference finite element orders')
+    error = error + switches%set(key = reference_fe_orders_key, value = '--REFERENCE_FE_ORDERS')
+    error = error + values%set(key = reference_fe_orders_key, value = [ 1 ])
+
+    ! FE space conformities ( true = no face integration needed, false = face integration required )
+    error = error + helpers%set(key = reference_fe_conformity_key, value = 'Finite element space conformities')
+    error = error + switches%set(key = reference_fe_conformity_key, value = '--FE__SPACE_CONFORMITIES')
+    error = error + values%set(key = reference_fe_conformity_key, value = [ .true. ])
+
+    ! FE space continuities ( true = continuous FE space, false = otherwise )
+    error = error + helpers%set(key = reference_fe_continuity_key, value = 'Finite element space continuities')
+    error = error + switches%set(key = reference_fe_continuity_key, value = '--FE__SPACE_CONTINUITIES')
+    error = error + values%set(key = reference_fe_continuity_key, value = [ .true. ])
+
+    ! FE field types (scalar, vector, tensor)
+    error = error + helpers%set(key = fe_space_field_types_key, value = 'Finite element space field types')
+    error = error + switches%set(key = fe_space_field_types_key, value = '--FE_SPACE_FIELD_TYPES')
+    error = error + values%set(key = fe_space_field_types_key, value =  field_type_scalar )
+
+    ! FE field blocks (scalar, vector, tensor)
+    error = error + helpers%set(key = fe_space_field_blocks_key, value = 'Finite element space field blocks')
+    error = error + switches%set(key = fe_space_field_blocks_key, value = '--FE_SPACE_FIELD_BLOCKS')
+    error = error + values%set(key = fe_space_field_blocks_key, value = [ 1 ])
+
+    ! FE space construction type homogeneous/heterogeneous ( .true. = all cells same reference fe, .false. = otherwise ) 
+    error = error + helpers%set(key = fe_space_same_reference_fe_all_cells_key, value = 'Finite element space fixed reference fe logical')
+    error = error + switches%set(key = fe_space_same_reference_fe_all_cells_key, value = '--FE__SPACE_SAME_REFERENCE_FE_ALL_CELLS')
+    error = error + values%set(key = fe_space_same_reference_fe_all_cells_key, value = .true.)
+
+    ! FE field IDs (0, 1, 2...) to be consitent with mesh data
+    error = error + helpers%set(key = fe_space_field_ids_key, value = 'Finite element space field ids')
+    error = error + switches%set(key = fe_space_field_ids_key, value = '--FE_SPACE_FIELD_IDS')
+    error = error + values%set(key = fe_space_field_ids_key, value = [ 1 ])
 
 
     error = error + helpers%set(key = coarse_space_use_vertices_key     , value = 'Shape functions on vertices')
@@ -318,7 +330,7 @@ contains
     error = error + helpers%set(key = triangulation_generate_key     , Value = 'Way to generate the triangulation')
     error = error + switches%set(key = triangulation_generate_key    , Value = '--triang_gen')
     error = error + switches_ab%set(key = triangulation_generate_key , Value = '-tg')
-    error = error + values%set(key = triangulation_generate_key      , Value = triangulation_generate_from_mesh )
+    error = error + values%set(key = triangulation_generate_key      , Value = triangulation_generate_structured )
 
     ! Uniform hexahedral mesh keys
     error = error + helpers%set(key = num_dims_key     , value = 'Number of space dimensions')                   

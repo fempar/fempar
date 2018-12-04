@@ -36,6 +36,7 @@ module fe_space_names
   use hash_table_names
   use std_vector_names
   use FPL
+  use flap_utils_m
 
   use environment_names
   use triangulation_names
@@ -80,7 +81,31 @@ module fe_space_names
   
   implicit none
 # include "debug.i90"
-  private
+  
+  ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
+  ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
+  ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
+  ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
+  ! class(coarse_fe_handler_t).
+  character(len=*), parameter :: coarse_space_use_vertices_key = 'coarse_space_use_vertices_key'
+  character(len=*), parameter :: coarse_space_use_edges_key    = 'coarse_space_use_edges_key'
+  character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
+  
+  ! Keys being used by the FE space constructor that relies on the parameter handler
+  character(len=*), parameter, public :: fe_space_num_fields_key = 'fe_space_num_fields_key'
+  character(len=*), parameter, public :: fe_space_field_types_key = 'fe_space_field_types_key'
+  character(len=*), parameter, public :: fe_space_field_ids_key = 'fe_space_field_ids_key'
+  character(len=*), parameter, public :: fe_space_field_blocks_key = 'fe_space_field_blocks_key'
+  character(len=*), parameter, public :: fe_space_same_reference_fe_all_cells_key = 'fe_space_same_reference_fe_all_cells_key'
+  
+  private 
+  
+  ! These parameter constants are used in order to generate a unique (non-consecutive) 
+  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
+  ! See type(par_fe_space_t)%generate_non_consecutive_dof_ggid()
+  integer(ip), parameter :: cell_ggid_shift              = 44
+  integer(ip), parameter :: dofs_x_reference_fe_shift = 14
+  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_ggid_shift+dofs_x_reference_fe_shift)-1
   
   ! Towards having the final hierarchy of FE spaces, I moved  to a root superclass
   ! those member variables which are in common by type(serial/par_fe_space_t) and 
@@ -579,6 +604,7 @@ module fe_space_names
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
+     type(p_reference_fe_t)        , allocatable :: reference_fes_internally_allocated(:)
      logical                                     :: same_reference_fes_on_all_cells = .false.
      logical                       , allocatable :: same_reference_fe_or_void_x_field(:)
 
@@ -667,9 +693,11 @@ module fe_space_names
      type(allocatable_array_ip1_t), allocatable  :: dofs_component(:)    
  
    contains
+     procedure                           :: serial_fe_space_create_with_parameter_list
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
-     generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
+     generic                             :: create                                       => serial_fe_space_create_with_parameter_list,&
+                                                                                            serial_fe_space_create_same_reference_fes_on_all_cells,&
                                                                                             serial_fe_space_create_different_ref_fes_between_cells
      procedure                           :: free                                         => serial_fe_space_free
      procedure                           :: print                                        => serial_fe_space_print
@@ -892,23 +920,6 @@ module fe_space_names
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
     procedure, non_overridable           :: create_faces_object_iterator          => fe_object_iterator_create_faces_object_iterator
   end type fe_object_iterator_t
-    
-  
-  ! These parameter constants are used in order to generate a unique (non-consecutive) 
-  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
-  ! See type(par_fe_space_t)%generate_non_consecutive_dof_ggid()
-  integer(ip), parameter :: cell_ggid_shift              = 44
-  integer(ip), parameter :: dofs_x_reference_fe_shift = 14
-  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_ggid_shift+dofs_x_reference_fe_shift)-1
-  
-  ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
-  ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
-  ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
-  ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
-  ! class(coarse_fe_handler_t).
-  character(len=*), parameter :: coarse_space_use_vertices_key = 'coarse_space_use_vertices_key'
-  character(len=*), parameter :: coarse_space_use_edges_key    = 'coarse_space_use_edges_key'
-  character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
 
   type :: p_l1_coarse_fe_handler_t
     class(l1_coarse_fe_handler_t), pointer :: p
@@ -977,6 +988,7 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: rcv_lst_parts_dofs_cell_wise
    
  contains
+   procedure          :: serial_fe_space_create_with_parameter_list                => par_fe_space_serial_create_with_parameter_list
    procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
    procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 

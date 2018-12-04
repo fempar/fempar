@@ -77,7 +77,7 @@ module base_iterative_linear_solver_names
     class(vector_t), allocatable :: initial_solution
   
     ! Parameters
-    real(rp)      :: luout                     ! Logical Unit Output
+    integer(ip)   :: luout                     ! Logical Unit Output
     real(rp)      :: rtol                      ! Relative tolerance
     real(rp)      :: atol                      ! Absolute tolerance
     integer(ip)   :: stopping_criteria         ! Stopping criteria

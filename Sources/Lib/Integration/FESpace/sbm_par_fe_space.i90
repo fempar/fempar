@@ -25,6 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine par_fe_space_serial_create_with_parameter_list( this,          &
+                                                       triangulation, &
+                                                       conditions,    &
+                                                       parameters)
+  implicit none
+  class(par_fe_space_t)                     , intent(inout)        :: this
+  class(triangulation_t)            , target   , intent(in)           :: triangulation
+  class(conditions_t)               , target   , optional, intent(in) :: conditions
+  type(ParameterList_t)                        , intent(inout)        :: parameters
+  assert(.false.)
+end subroutine par_fe_space_serial_create_with_parameter_list
+
 subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,          &
                                                                        triangulation, &
                                                                        reference_fes, &

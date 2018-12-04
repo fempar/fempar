@@ -182,7 +182,7 @@ contains
      type(ParameterList_t), pointer :: required_sublist
      type(ParameterList_t), pointer :: values_sublist
      
-     assert(this%switches%length() == this%switches_ab%length())
+!     assert(this%switches%length() == this%switches_ab%length())
      assert(this%switches%length() == this%helpers%length())
 !     assert(this%switches%length() == this%required%length())
 !     assert(this%switches%length() == this%values%length())
@@ -190,7 +190,7 @@ contains
      Iterator = this%switches%GetIterator()
      do while (.not. Iterator%HasFinished())
           key = Iterator%GetKey()
-          assert(this%switches_ab%isPresent(key))
+          !assert(this%switches_ab%isPresent(key))
           assert(this%helpers%isPresent(key))
           !assert(this%required%isPresent(key))
           assert(this%values%isPresent(key))
@@ -293,16 +293,20 @@ contains
        endif
        key = Iterator%GetKey()
        error = error + Iterator%GetAsString   (switch)
-       error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       !error = error + switches_ab%GetAsString(key = key , String = switch_ab)
        error = error + helpers%GetAsString    (key = key , String = help)
        !error = error + required%Get           (key = key , value = is_required)
        is_required = .false.
        error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
        if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
-        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+        !call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+        !   &               required=is_required,act='store',def=cvalue,error=error)
+        call this%cli%add(group=group,switch=switch,help=help, &
            &               required=is_required,act='store',def=cvalue,error=error)
        else if(values%GetDimensions(Key=Iterator%GetKey()) == 1) then 
-         call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+         !call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+         !   &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         call this%cli%add(group=group,switch=switch, help=help, &
             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
        else
           write(*,*) 'Rank >1 arrays not supported by CLI'

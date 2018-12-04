@@ -6,7 +6,7 @@ module par_nsi_params_names
   private
 
   character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
-  character(len=*), parameter :: reference_fe_orders_key       = 'reference_fe_orders'    
+  character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key            = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key        = 'triangulation_type'    
   character(len=*), parameter :: discrete_integration_type_key = 'discrete_integration_type' 
@@ -58,7 +58,7 @@ contains
     error = list%set(key = num_levels_key                    , value =  3)                   ; check(error==0)
     error = list%set(key = num_parts_x_dir_key               , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
-    error = list%set(key = reference_fe_orders_key           , value =  default_reference_fe_orders); check(error==0)
+    error = list%set(key = reference_fe_order_key           , value =  default_reference_fe_orders); check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
@@ -76,7 +76,7 @@ contains
     error = switches%set(key = num_levels_key                , value = '--num_levels')               ; check(error==0)
     error = switches%set(key = num_parts_x_dir_key           , value = '--number_of_parts_per_dir')  ; check(error==0)
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
-    error = switches%set(key = reference_fe_orders_key        , value = '--reference-fe-orders'    )   ; check(error==0)
+    error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-orders'    )   ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--triangulation-generate')   ; check(error==0)
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
@@ -93,7 +93,7 @@ contains
     error = switches_ab%set(key = num_levels_key             , value = '-l')        ; check(error==0)
     error = switches_ab%set(key = num_parts_x_dir_key        , value = '-np')       ; check(error==0)
     error = switches_ab%set(key = reference_fe_geo_order_key , value = '-gorder')   ; check(error==0)
-    error = switches_ab%set(key = reference_fe_orders_key    , value = '-order')    ; check(error==0)
+    error = switches_ab%set(key = reference_fe_order_key    , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
@@ -110,7 +110,7 @@ contains
     error = helpers%set(key = num_levels_key                , value = 'Number of levels')                         ; check(error==0)
     error = helpers%set(key = num_parts_x_dir_key           , value = 'Number of parts per dir and per level')    ; check(error==0)
     error = helpers%set(key = reference_fe_geo_order_key    , value = 'Order of the triangulation reference fe')  ; check(error==0)
-    error = helpers%set(key = reference_fe_orders_key       , value = 'Orders of the fe space reference fes')     ; check(error==0)
+    error = helpers%set(key = reference_fe_order_key       , value = 'Orders of the fe space reference fes')     ; check(error==0)
     error = helpers%set(key = write_solution_key            , value = 'Write solution in VTK format')             ; check(error==0)
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
@@ -132,7 +132,7 @@ contains
     error = required%set(key = num_levels_key                , value = .false.) ; check(error==0)
     error = required%set(key = num_parts_x_dir_key           , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_geo_order_key    , value = .false.) ; check(error==0)
-    error = required%set(key = reference_fe_orders_key        , value = .false.) ; check(error==0)
+    error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
     error = required%set(key = triangulation_generate_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
@@ -192,7 +192,7 @@ contains
     integer(ip)                                   :: error
     list  => this%get_values()
     assert(list%isAssignable(reference_fe_orders_key, reference_fe_orders))
-    error = list%Get(key = reference_fe_orders_key, Value = reference_fe_orders)
+    error = list%Get(key = reference_fe_order_key, Value = reference_fe_orders)
     get_reference_fe_orders = reference_fe_orders(ifield)
     assert(error==0)
   end function get_reference_fe_orders

@@ -46,7 +46,30 @@ module reference_fe_names
   
   implicit none
 # include "debug.i90"
+  
+  ! Keys being used by the FE space constructor that relies on the parameter handler
+  character(len=*), parameter, public :: reference_fe_conformity_key = 'reference_fe_conformity_key'
+  character(len=*), parameter, public :: reference_fe_continuity_key = 'reference_fe_continuity_key'
+  character(len=*), parameter, public :: reference_fe_orders_key = 'reference_fe_order_key'
+  character(len=*), parameter, public :: reference_fe_type_key = 'reference_fe_type_key'
 
+  character(*), parameter, public :: field_type_scalar           = 'scalar'
+  character(*), parameter, public :: field_type_vector           = 'vector'
+  character(*), parameter, public :: field_type_tensor           = 'tensor'
+  character(*), parameter, public :: field_type_symmetric_tensor = 'symmetric_tensor'
+  
+  integer(ip), parameter, public :: field_type_scalar_cla_code           = 0 
+  integer(ip), parameter, public :: field_type_vector_cla_code           = 1 
+  integer(ip), parameter, public :: field_type_tensor_cla_code           = 2 
+  integer(ip), parameter, public :: field_type_symmetric_tensor_cla_code = 3
+  
+  character(*), parameter, public :: topology_hex = "hex"
+  character(*), parameter, public :: topology_tet = "tet"
+  character(*), parameter, public :: fe_type_lagrangian = "Lagrangian"
+  character(*), parameter, public :: fe_type_raviart_thomas = "Raviart_Thomas"
+  character(*), parameter, public :: fe_type_nedelec = "Nedelec"
+  character(*), parameter, public :: fe_type_void = "Void"
+  
   private
 
   ! This module includes all the reference FE related machinery that is required
@@ -405,17 +428,7 @@ module reference_fe_names
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-  character(*), parameter :: field_type_scalar           = 'scalar'
-  character(*), parameter :: field_type_vector           = 'vector'
-  character(*), parameter :: field_type_tensor           = 'tensor'
-  character(*), parameter :: field_type_symmetric_tensor = 'symmetric_tensor'
 
-  character(*), parameter :: topology_hex = "hex"
-  character(*), parameter :: topology_tet = "tet"
-  character(*), parameter :: fe_type_lagrangian = "Lagrangian"
-  character(*), parameter :: fe_type_raviart_thomas = "Raviart_Thomas"
-  character(*), parameter :: fe_type_nedelec = "Nedelec"
-  character(*), parameter :: fe_type_void = "Void"
 
 
   ! Abstract reference_fe
@@ -1102,8 +1115,6 @@ module reference_fe_names
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
-  public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_raviart_thomas, fe_type_nedelec, fe_type_void
 
   type p_lagrangian_reference_fe_t
      class(lagrangian_reference_fe_t), pointer :: p => NULL()

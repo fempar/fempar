@@ -25,6 +25,186 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!function field_type_cla_code_to_string ( field_type_cla_code ) 
+!    implicit none
+!    integer(ip)      , intent(in) :: field_type_cla_code 
+!    character(len=:), allocatable :: field_type_cla_code_to_string
+!    select case (field_type_cla_code)
+!      case (field_type_scalar_cla_code)
+!        field_type = field_type_scalar
+!      case (field_type_vector_cla_code)
+!        field_type = field_type_vector
+!      case (field_type_vector_cla_code)
+!        field_type = field_type_tensor
+!      case (field_type_symmetric_tensor_cla_code)
+!        field_type = field_type_symmetric_tensor   
+!      case default
+!        massert(.false., "Invalid field type command-line argument code")
+!    end select  
+!end function field_type_cla_code_to_string
+
+  function count_tokens_cla_string_list (string_list) 
+    implicit none
+    character(*)       , intent(in) :: string_list
+    integer(ip) :: count_tokens_cla_string_list
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=count_tokens_cla_string_list)
+    deallocate(vals)
+  end function count_tokens_cla_string_list
+  
+  
+  subroutine process_tokens_cla_string_list ( string_list, values ) 
+    implicit none 
+    character(*)       , intent(in)    :: string_list
+    character(*)       , intent(inout) :: values(:)
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    integer(ip) :: Nt, i
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=Nt)
+    assert ( size(values) == Nt) 
+    do i=1, size(vals) 
+      write(*,*) len(vals(i))
+      write(*,'(A)') vals(i)
+      values(i)=vals(i)
+    end do 
+    deallocate(vals)
+  end subroutine process_tokens_cla_string_list
+
+subroutine serial_fe_space_create_with_parameter_list( this,          &
+                                                       triangulation, &
+                                                       conditions,    &
+                                                       parameters)
+  implicit none
+  class(serial_fe_space_t)                     , intent(inout)        :: this
+  class(triangulation_t)            , target   , intent(in)           :: triangulation
+  class(conditions_t)               , target   , optional, intent(in) :: conditions
+  type(ParameterList_t)                        , intent(inout)        :: parameters
+  
+  integer(ip) :: istat, i, num_fields, Nt
+  integer(ip), allocatable :: fe_space_field_ids(:), fe_space_field_blocks(:)
+  integer(ip), allocatable :: reference_fe_order(:)
+  type(p_reference_fe_t), allocatable :: reference_fes(:)
+  logical, allocatable :: reference_fe_conformity(:), reference_fe_continuity(:)
+  logical :: fe_space_same_reference_fe_all_cells
+  
+  class(cell_iterator_t), allocatable  :: cell
+  class(reference_fe_t), pointer       :: reference_fe_geo
+  
+  integer(ip), allocatable :: shape(:)
+  character(100), allocatable :: fe_space_field_types_array(:), reference_fe_type_array(:)
+  character(:), allocatable :: fe_space_field_types, reference_fe_type
+  
+  ! Optional parameters
+  istat = parameters%get(key = fe_space_same_reference_fe_all_cells_key, &
+                         value = fe_space_same_reference_fe_all_cells)
+  istat = parameters%get(key = fe_space_num_fields_key, value = num_fields)
+
+  istat = parameters%GetShape(Key=fe_space_field_blocks_key, Shape=Shape)
+  call memalloc( Shape(1), fe_space_field_blocks, __FILE__, __LINE__) 
+  istat = parameters%get(key = fe_space_field_blocks_key, value = fe_space_field_blocks)
+  if ( .not. Shape(1) == num_fields ) then
+    call memrealloc(num_fields,fe_space_field_blocks,__FILE__,__LINE__)
+    fe_space_field_blocks(1:num_fields) = 1    
+    istat = istat + parameters%set(key = fe_space_field_blocks_key, value = fe_space_field_blocks)
+    wassert( .false., "FE_SPACE_FIELD_BLOCKS size is different from FE_SPACE_NUM_FIELDS, assuming monolithic storage")
+  end if
+  
+  istat = parameters%GetShape(Key=reference_fe_conformity_key, Shape=Shape)
+  call memalloc( Shape(1), reference_fe_conformity, __FILE__, __LINE__) 
+  istat = parameters%get(key = reference_fe_conformity_key, value = reference_fe_conformity)
+  if ( .not. Shape(1) == num_fields ) then
+    call memrealloc(num_fields,reference_fe_conformity,__FILE__,__LINE__)
+    reference_fe_conformity(1:num_fields) = .true.   
+    istat = istat + parameters%set(key = reference_fe_conformity_key, value = reference_fe_conformity)
+    wassert( .false., "FE_SPACE_FIELD_CONFORMITIES size is different from FE_SPACE_NUM_FIELDS, assuming conformity for all fields")
+  end if
+  
+  istat = parameters%GetShape(Key=reference_fe_continuity_key, Shape=Shape)
+  call memalloc( Shape(1), reference_fe_continuity, __FILE__, __LINE__) 
+  istat = parameters%get(key = reference_fe_continuity_key, value = reference_fe_continuity)
+  if ( .not. Shape(1) == num_fields ) then
+    call memrealloc(num_fields,reference_fe_continuity,__FILE__,__LINE__)
+    reference_fe_continuity(1:num_fields) = .true.   
+    istat = istat + parameters%set(key = reference_fe_continuity_key, value = reference_fe_continuity)
+    wassert( .false., "FE_SPACE_FIELD_CONTINUITIES size is different from FE_SPACE_NUM_FIELDS, assuming continuous spaces for all fields")
+  end if
+  
+  !istat = parameters%GetShape(Key=fe_space_field_types_key, Shape=Shape)
+  !massert( Shape(1) == num_fields, "FE_SPACE_FIELD_TYPES size is different from FE_SPACE_NUM_FIELDS" )
+  !call memalloc( num_fields, fe_space_field_types, __FILE__, __LINE__) 
+  !istat = parameters%get(key = fe_space_field_types_key, value = fe_space_field_types)
+  
+  istat = parameters%getasstring(key = fe_space_field_types_key, string = fe_space_field_types)
+  Nt    = count_tokens_cla_string_list(fe_space_field_types)
+  massert( Nt == num_fields, "FE_SPACE_FIELD_TYPES size is different from FE_SPACE_NUM_FIELDS" )
+  allocate ( fe_space_field_types_array(Nt) )
+  call process_tokens_cla_string_list(fe_space_field_types,fe_space_field_types_array)
+  
+  istat = parameters%getasstring(key = reference_fe_type_key, string = reference_fe_type)
+  Nt    = count_tokens_cla_string_list(reference_fe_type)
+  massert( Nt == num_fields, "FE_SPACE_REFERENCE_FES size is different from FE_SPACE_NUM_FIELDS" )
+  allocate ( reference_fe_type_array(Nt) )
+  call process_tokens_cla_string_list(reference_fe_type,reference_fe_type_array)
+  
+  
+  !istat = parameters%GetShape(Key=reference_fe_type_key, Shape=Shape)
+  !massert( Shape(1) == num_fields, "FE_SPACE_REFERENCE_FES size is different from FE_SPACE_NUM_FIELDS" )
+  !call memalloc( num_fields, reference_fe_type, __FILE__, __LINE__) 
+  !istat = parameters%get(key = reference_fe_type_key, value = reference_fe_type)
+  
+  !call memalloc(num_fields,fe_space_field_ids,__FILE__,__LINE__)
+  
+  istat = parameters%GetShape(Key=reference_fe_orders_key, Shape=Shape)
+  massert( Shape(1) == num_fields, "FE_SPACE_FIELD_ORDERS size is different from FE_SPACE_NUM_FIELDS" )
+  call memalloc( num_fields, reference_fe_order, __FILE__, __LINE__) 
+  istat = parameters%get(key = reference_fe_orders_key, value = reference_fe_order)  
+  
+  !istat = parameters%get(key = fe_space_field_ids_key, value = fe_space_field_ids)
+  !istat = parameters%get(key = reference_fe_type_key, value = reference_fe_type)
+
+  allocate(reference_fes(num_fields), stat=istat)
+  
+  !if ( fe_space_same_reference_fe_all_cells ) then
+  
+    ! Extract cell topology
+    call triangulation%create_cell_iterator(cell)
+    reference_fe_geo => cell%get_reference_fe()
+
+    ! Create reference FEs
+    do i = 1, num_fields
+      reference_fes(i) = make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                             fe_type = trim(reference_fe_type_array(i)), &
+                                             num_dims = triangulation%get_num_dims(), &
+                                             order =    reference_fe_order(i), &
+                                             field_type = trim(fe_space_field_types_array(i)), &
+                                             conformity = reference_fe_conformity(i) )
+    end do
+    
+    call serial_fe_space_create_same_reference_fes_on_all_cells( this,                  &
+                                                                 triangulation,         &
+                                                                 reference_fes,         &
+                                                                 conditions,            &
+                                                                 fe_space_field_blocks)!, &
+                                                                 !generate_global_dof_numbering)
+                                                                 !field_coupling, 
+    
+    allocate(this%reference_fes_internally_allocated(size(reference_fes)), stat=istat); check(istat==0)
+    do i=1, size(reference_fes)
+      this%reference_fes_internally_allocated(i) = reference_fes(i)
+    end do
+    call triangulation%free_cell_iterator(cell)
+    call memfree( reference_fe_order, __FILE__, __LINE__) 
+    call memfree( reference_fe_continuity, __FILE__, __LINE__) 
+    call memfree( reference_fe_conformity, __FILE__, __LINE__) 
+    call memfree( fe_space_field_blocks, __FILE__, __LINE__) 
+
+
+  !else
+  !  assert(0==1)
+  !end if
+end subroutine serial_fe_space_create_with_parameter_list
+
+
 subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,          &
                                                                    triangulation, &
                                                                    reference_fes, &
@@ -1501,12 +1681,19 @@ end subroutine serial_fe_space_allocate_and_fill_reference_fes
 subroutine serial_fe_space_free_reference_fes ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
-  integer(ip) :: istat
+  integer(ip) :: istat, i
   this%reference_fes_size = 0
   if (allocated(this%reference_fes)) then
      deallocate( this%reference_fes, stat=istat )
      check ( istat == 0 )
   end if
+  if (allocated(this%reference_fes_internally_allocated)) then
+     do i=1, size(this%reference_fes_internally_allocated)
+       call this%reference_fes_internally_allocated(i)%p%free()
+     end do 
+     deallocate( this%reference_fes_internally_allocated, stat=istat )
+     check ( istat == 0 )
+  end if     
 end subroutine serial_fe_space_free_reference_fes
 
 !========================================================================================
