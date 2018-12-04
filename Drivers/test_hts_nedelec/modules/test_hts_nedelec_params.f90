@@ -124,10 +124,10 @@ contains
     error = list%set(key = write_solution_key , value =  .false.) ; check(error==0)
 
     ! MESHING parameters 
-    error = list%set(key = num_dims_key   , value =  2)                                 ; check(error==0)
-    error = list%set(key = num_cells_x_dir_key, value =  [2,2,2])                           ; check(error==0)
-    error = list%set(key = is_dir_periodic_key        , value =  [0,0,0])                           ; check(error==0)
-    error = list%set(key = triangulation_generate_key , value =  triangulation_generate_structured) ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_dims_key   , value =  2)                                 ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_cells_dir, value =  [2,2,2])                           ; check(error==0)
+    error = list%set(key = struct_hex_triang_is_dir_periodic_key        , value =  [0,0,0])                           ; check(error==0)
+    error = list%set(key = triang_generate_key , value =  triangulation_generate_structured) ; check(error==0)
     error = list%set(key = domain_length_key          , value =  [1.0,1.0,1.0])                     ; check(error==0)
     error = list%set(key = hts_domain_length_key      , value =  [0.5,0.5,0.5])                     ; check(error==0)
     error = list%set(key = eps_hts_domain_length_key  , value =  [0.0,0.0,0.0])                     ; check(error==0)
@@ -182,10 +182,10 @@ contains
     error = switches%set(key = write_solution_key            , value = '--write_solution')   ; check(error==0)
     
     ! MESHING parameters 
-    error = switches%set(key = num_dims_key      , value = '--num_dims') ; check(error==0)
-    error = switches%set(key = num_cells_x_dir_key   , value = '--num_cells')   ; check(error==0)
-    error = switches%set(key = is_dir_periodic_key           , value = '--is_dir_periodic')   ; check(error==0)
-    error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type'); check(error==0)
+    error = switches%set(key = struct_hex_triang_num_dims_key      , value = '--num_dims') ; check(error==0)
+    error = switches%set(key = struct_hex_triang_num_cells_dir   , value = '--num_cells')   ; check(error==0)
+    error = switches%set(key = struct_hex_triang_is_dir_periodic_key           , value = '--is_dir_periodic')   ; check(error==0)
+    error = switches%set(key = triang_generate_key    , value = '--triangulation-type'); check(error==0)
     error = switches%set(key = domain_length_key             , value = '--domain_length')     ; check(error==0)
     error = switches%set(key = hts_domain_length_key         , value = '--hts_domain_length') ; check(error==0)
     error = switches%set(key = eps_hts_domain_length_key     , value = '--eps_hts_domain_length') ; check(error==0)
@@ -242,10 +242,10 @@ contains
     
     ! MESHING parameters 
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution') ; check(error==0)
-    error = switches_ab%set(key = num_dims_key   , value = '-dim')       ; check(error==0)
-    error = switches_ab%set(key = num_cells_x_dir_key, value = '-nelem')     ; check(error==0)
-    error = switches_ab%set(key = is_dir_periodic_key        , value = '-idp')       ; check(error==0)
-    error = switches_ab%set(key = triangulation_generate_key , value = '-tt')        ; check(error==0)
+    error = switches_ab%set(key = struct_hex_triang_num_dims_key   , value = '-dim')       ; check(error==0)
+    error = switches_ab%set(key = struct_hex_triang_num_cells_dir, value = '-nelem')     ; check(error==0)
+    error = switches_ab%set(key = struct_hex_triang_is_dir_periodic_key        , value = '-idp')       ; check(error==0)
+    error = switches_ab%set(key = triang_generate_key , value = '-tt')        ; check(error==0)
     error = switches_ab%set(key = domain_length_key          , value = '-dl')        ; check(error==0)
     error = switches_ab%set(key = hts_domain_length_key      , value = '-hts_dl')    ; check(error==0)
     error = switches_ab%set(key = eps_hts_domain_length_key  , value = '-eps_hts_dl')    ; check(error==0)
@@ -300,14 +300,14 @@ contains
     error = helpers%set(key = write_solution_key , value = 'Print solution?')    ; check(error==0)
     
     ! MESHING parameters
-    error = helpers%set(key = num_dims_key   , value = 'Number of dimensions')  ; check(error==0)
-    error = helpers%set(key = num_cells_x_dir_key, value = 'Number of elements in each direction'); check(error==0)
-    error = helpers%set(key = is_dir_periodic_key        , value = 'Is periodic? in each direction'); check(error==0)
+    error = helpers%set(key = struct_hex_triang_num_dims_key   , value = 'Number of dimensions')  ; check(error==0)
+    error = helpers%set(key = struct_hex_triang_num_cells_dir, value = 'Number of elements in each direction'); check(error==0)
+    error = helpers%set(key = struct_hex_triang_is_dir_periodic_key        , value = 'Is periodic? in each direction'); check(error==0)
   
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
-    error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
+    error = helpers%set(key = triang_generate_key     , value = msg)  ; check(error==0)
     error = helpers%set(key = domain_length_key              , value = 'Domain length for each direction')   ; check(error==0)
     error = helpers%set(key = hts_domain_length_key          , value = 'High Temperature Superconductor Device length ( concentric with the domain) ') ; check(error==0)
     error = helpers%set(key = eps_hts_domain_length_key      , value = 'Surrounding of HTS domain (per dim) refined in the same level as hts') ; check(error==0)
@@ -363,10 +363,10 @@ contains
     error = required%set(key = write_solution_key , value = .false.)    ; check(error==0)
     
     ! MESHING parameters
-    error = required%set(key = num_dims_key   , value = .false.)  ; check(error==0)
-    error = required%set(key = num_cells_x_dir_key, value = .false.)  ; check(error==0)
-    error = required%set(key = is_dir_periodic_key        , value = .false.)  ; check(error==0)
-    error = required%set(key = triangulation_generate_key , value = .false.)  ; check(error==0)
+    error = required%set(key = struct_hex_triang_num_dims_key   , value = .false.)  ; check(error==0)
+    error = required%set(key = struct_hex_triang_num_cells_dir, value = .false.)  ; check(error==0)
+    error = required%set(key = struct_hex_triang_is_dir_periodic_key        , value = .false.)  ; check(error==0)
+    error = required%set(key = triang_generate_key , value = .false.)  ; check(error==0)
     error = required%set(key = domain_length_key          , value = .false.)  ; check(error==0)
     error = required%set(key = hts_domain_length_key      , value = .false.)  ; check(error==0)
     error = required%set(key = eps_hts_domain_length_key      , value = .false.)  ; check(error==0)
@@ -473,8 +473,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
-    error = list%Get(key=triangulation_generate_key, Value = get_triangulation_type)
+    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
+    error = list%Get(key=triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type
 

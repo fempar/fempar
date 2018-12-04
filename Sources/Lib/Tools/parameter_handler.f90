@@ -293,21 +293,29 @@ contains
        endif
        key = Iterator%GetKey()
        error = error + Iterator%GetAsString   (switch)
-       !error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       if ( switches_ab%isPresent(key = key) ) then
+         error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       end if
        error = error + helpers%GetAsString    (key = key , String = help)
        !error = error + required%Get           (key = key , value = is_required)
        is_required = .false.
        error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
        if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
-        !call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-        !   &               required=is_required,act='store',def=cvalue,error=error)
-        call this%cli%add(group=group,switch=switch,help=help, &
-           &               required=is_required,act='store',def=cvalue,error=error)
+         if ( switches_ab%isPresent(key = key) ) then
+           call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error)
+         else 
+           call this%cli%add(group=group,switch=switch,help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error)
+         end if  
        else if(values%GetDimensions(Key=Iterator%GetKey()) == 1) then 
-         !call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-         !   &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
-         call this%cli%add(group=group,switch=switch, help=help, &
-            &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         if ( switches_ab%isPresent(key = key) ) then
+           call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         else 
+           call this%cli%add(group=group,switch=switch, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         end if
        else
           write(*,*) 'Rank >1 arrays not supported by CLI'
           assert(.false.)

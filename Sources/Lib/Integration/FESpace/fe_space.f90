@@ -92,11 +92,18 @@ module fe_space_names
   character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
   
   ! Keys being used by the FE space constructor that relies on the parameter handler
-  character(len=*), parameter, public :: fe_space_num_fields_key = 'fe_space_num_fields_key'
-  character(len=*), parameter, public :: fe_space_field_types_key = 'fe_space_field_types_key'
+  character(len=*), parameter, public :: fes_num_fields_key = 'fe_space_num_fields_key'
+  character(len=*), parameter, public :: fes_num_ref_fes_key = 'fe_space_num_reference_fes_key'
+  character(len=*), parameter, public :: fes_field_types_key = 'fe_space_field_types_key'
   character(len=*), parameter, public :: fe_space_field_ids_key = 'fe_space_field_ids_key'
-  character(len=*), parameter, public :: fe_space_field_blocks_key = 'fe_space_field_blocks_key'
-  character(len=*), parameter, public :: fe_space_same_reference_fe_all_cells_key = 'fe_space_same_reference_fe_all_cells_key'
+  character(len=*), parameter, public :: fes_field_blocks_key = 'fe_space_field_blocks_key'
+  character(len=*), parameter, public :: fes_same_ref_fes_all_cells_key = 'fes_same_ref_fes_all_cells_key'
+      
+  character(len=*), parameter, public :: fes_ref_fe_conformities_key = 'fes_ref_fe_conformities_key'
+  character(len=*), parameter, public :: fes_ref_fe_continuities_key = 'fes_ref_fe_continuities_key'
+  character(len=*), parameter, public :: fes_ref_fe_orders_key = 'reference_fe_order_key'
+  character(len=*), parameter, public :: fes_ref_fe_types_key = 'reference_fe_type_key'
+  character(len=*), parameter, public :: fes_set_ids_ref_fes_key = 'fes_set_ids_ref_fes_key'
   
   private 
   

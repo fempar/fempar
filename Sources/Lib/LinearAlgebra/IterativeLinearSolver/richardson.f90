@@ -91,9 +91,9 @@ contains
    integer(ip)                          :: FPLError
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Relaxation
-   if(parameter_list%isPresent(ils_relaxation)) then
-       assert(parameter_list%isAssignable(ils_relaxation, this%relaxation))
-       FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
+   if(parameter_list%isPresent(ils_relaxation_key)) then
+       assert(parameter_list%isAssignable(ils_relaxation_key, this%relaxation))
+       FPLError   = parameter_list%Get(Key=ils_relaxation_key, Value=this%relaxation)
        assert(FPLError == 0)
    endif
   end subroutine richardson_set_parameters_from_pl

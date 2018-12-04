@@ -134,7 +134,7 @@ contains
     ! Create a structured mesh with a custom domain 
     domain_length     = this%test_params%get_domain_length() 
     domain = [ 0.0_rp, domain_length(0), 0.0_rp, domain_length(1), 0.0_rp, domain_length(2) ]  
-    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list)
 
     do i = 1, this%test_params%get_num_refinements() 

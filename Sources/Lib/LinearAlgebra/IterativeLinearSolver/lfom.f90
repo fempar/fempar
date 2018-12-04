@@ -107,15 +107,15 @@ contains
    integer(ip)                          :: FPLError
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Dkrymax
-   if(parameter_list%isPresent(ils_dkrymax)) then
-       assert(parameter_list%isAssignable(ils_dkrymax, this%dkrymax))
-       FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+   if(parameter_list%isPresent(ils_max_dim_krylov_basis_key)) then
+       assert(parameter_list%isAssignable(ils_max_dim_krylov_basis_key, this%dkrymax))
+       FPLError   = parameter_list%Get(Key=ils_max_dim_krylov_basis_key, Value=this%dkrymax)
        assert(FPLError == 0)
    endif
    ! Orthonorm strat
-   if(parameter_list%isPresent(ils_orthonorm_strat)) then
-       assert(parameter_list%isAssignable(ils_orthonorm_strat, this%orthonorm_strat))
-       FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+   if(parameter_list%isPresent(ils_orthonorm_strategy_key)) then
+       assert(parameter_list%isAssignable(ils_orthonorm_strategy_key, this%orthonorm_strat))
+       FPLError   = parameter_list%Get(Key=ils_orthonorm_strategy_key, Value=this%orthonorm_strat)
        assert(FPLError == 0)
    endif
   end subroutine lfom_set_parameters_from_pl

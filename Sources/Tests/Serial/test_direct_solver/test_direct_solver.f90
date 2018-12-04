@@ -70,7 +70,7 @@ implicit none
 
     ! ParameterList: set parameters
     FPLError = 0
-    FPLError = FPLError + direct_solver_params%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = FPLError + direct_solver_params%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + direct_solver_params%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uss)
     FPLError = FPLError + direct_solver_params%set(key = pardiso_mkl_message_level, value = 0)
     FPLError = FPLError + direct_solver_params%set(key = pardiso_mkl_iparm,         value = iparm)
@@ -133,7 +133,7 @@ implicit none
 
     ! ParameterList: set parameters
     FPLError = 0
-    FPLError = FPLError + direct_solver_params%set(key = DIRECT_SOLVER_TYPE,     value = UMFPACK)
+    FPLError = FPLError + direct_solver_params%set(key = dls_type_key,     value = UMFPACK)
     FPLError = FPLError + direct_solver_params%set(key = UMFPACK_CONTROL_PARAMS, value = control_params)
     check(FPLError == 0)
 

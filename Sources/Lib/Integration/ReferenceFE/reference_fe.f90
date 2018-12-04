@@ -46,22 +46,12 @@ module reference_fe_names
   
   implicit none
 # include "debug.i90"
-  
-  ! Keys being used by the FE space constructor that relies on the parameter handler
-  character(len=*), parameter, public :: reference_fe_conformity_key = 'reference_fe_conformity_key'
-  character(len=*), parameter, public :: reference_fe_continuity_key = 'reference_fe_continuity_key'
-  character(len=*), parameter, public :: reference_fe_orders_key = 'reference_fe_order_key'
-  character(len=*), parameter, public :: reference_fe_type_key = 'reference_fe_type_key'
+
 
   character(*), parameter, public :: field_type_scalar           = 'scalar'
   character(*), parameter, public :: field_type_vector           = 'vector'
   character(*), parameter, public :: field_type_tensor           = 'tensor'
   character(*), parameter, public :: field_type_symmetric_tensor = 'symmetric_tensor'
-  
-  integer(ip), parameter, public :: field_type_scalar_cla_code           = 0 
-  integer(ip), parameter, public :: field_type_vector_cla_code           = 1 
-  integer(ip), parameter, public :: field_type_tensor_cla_code           = 2 
-  integer(ip), parameter, public :: field_type_symmetric_tensor_cla_code = 3
   
   character(*), parameter, public :: topology_hex = "hex"
   character(*), parameter, public :: topology_tet = "tet"

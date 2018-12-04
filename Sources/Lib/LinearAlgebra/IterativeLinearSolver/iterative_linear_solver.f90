@@ -147,8 +147,8 @@ contains
      type(ParameterList_t),            intent(in)    :: parameter_list
      character(len=:)      , allocatable             :: iterative_linear_solver_type
      integer                                         :: FPLError
-     assert(parameter_list%isAssignable(ils_type, 'string'))
-     FPLError = parameter_list%GetAsString(Key=ils_type, String=iterative_linear_solver_type)
+     assert(parameter_list%isAssignable(ils_type_key, 'string'))
+     FPLError = parameter_list%GetAsString(Key=ils_type_key, String=iterative_linear_solver_type)
      assert(FPLError == 0)
      call this%set_type_from_string (iterative_linear_solver_type)
    end subroutine iterative_linear_solver_set_type_from_pl
