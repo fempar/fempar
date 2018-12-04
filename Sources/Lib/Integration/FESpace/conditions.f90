@@ -70,5 +70,95 @@ module conditions_names
        class(scalar_function_t), pointer, intent(out) :: function
      end subroutine get_function_interface 
   end interface
+  
+  type, extends(conditions_t) :: general_conditions_t
+     private
+     integer(ip)                       :: num_components
+     integer(ip)                       :: num_boundary_ids
+     !integer(ip)                       :: num_dims
+     type(scalar_function_t), allocatable :: boundary_functions_array(:,:)
+  contains
+     procedure :: create                   => general_conditions_create
+     procedure :: set_boundary_function    => general_conditions_set_boundary_function
+     procedure :: set_num_components       => general_conditions_set_num_components
+     procedure :: set_num_boundary_ids     => general_conditions_set_num_boundary_ids
+     procedure :: get_num_components       => general_conditions_get_num_components  
+     procedure :: get_num_boundary_ids     => general_conditions_get_num_boundary_ids
+     procedure :: get_components_code      => general_conditions_get_components_code
+     procedure :: get_function             => general_conditions_get_function
+  end type general_conditions_t
+  
+  public :: general_conditions_t
+  
+  contains
+  
+  subroutine general_conditions_create(this,num_components,num_boundary_ids)
+    implicit none
+    class(general_conditions_t), intent(inout) :: this
+    integer(ip)            , intent(in)    :: num_components
+    integer(ip)            , intent(in)    :: num_boundary_ids
+    allocate(this%boundary_functions_array(num_boundary_ids,num_components))
+  end subroutine general_conditions_create 
 
+  function general_conditions_get_num_components(this)
+    implicit none
+    class(general_conditions_t), intent(in) :: this
+    integer(ip) :: general_conditions_get_num_components
+    general_conditions_get_num_components = this%num_components
+  end function general_conditions_get_num_components
+  
+  subroutine general_conditions_set_num_components (this, num_components)
+    implicit none
+    class(general_conditions_t), intent(inout) :: this
+    integer(ip)            , intent(in)    :: num_components
+    this%num_components = num_components
+  end subroutine general_conditions_set_num_components
+
+  function general_conditions_get_num_boundary_ids(this)
+    implicit none
+    class(general_conditions_t), intent(in) :: this
+    integer(ip) :: general_conditions_get_num_boundary_ids
+    general_conditions_get_num_boundary_ids = this%num_boundary_ids
+  end function general_conditions_get_num_boundary_ids
+  
+  subroutine general_conditions_set_num_boundary_ids (this, num_boundary_ids)
+    implicit none
+    class(general_conditions_t), intent(inout) :: this
+    integer(ip)            , intent(in)    :: num_boundary_ids
+    this%num_boundary_ids = num_boundary_ids
+  end subroutine general_conditions_set_num_boundary_ids
+  
+  subroutine general_conditions_set_boundary_function(this,boundary_id,component_id,boundary_function)
+    implicit none
+    class(general_conditions_t), intent(inout)   :: this
+    integer(ip)                  , intent(in)    :: boundary_id
+    integer(ip)                  , intent(in)    :: component_id
+    class(scalar_function_t), target, intent(in) :: boundary_function
+    this%boundary_functions_array(boundary_id,component_id) = boundary_function
+  end subroutine general_conditions_set_boundary_function
+
+  subroutine general_conditions_get_function ( this, boundary_id, component_id, function )
+    implicit none
+    class(general_conditions_t), target, intent(in)  :: this
+    integer(ip)                        , intent(in)  :: boundary_id
+    integer(ip)                        , intent(in)  :: component_id
+    class(scalar_function_t), pointer  , intent(out) :: function
+
+    nullify(function)
+    function => this%boundary_functions_array(boundary_id,component_id)
+  end subroutine general_conditions_get_function 
+  
+    subroutine general_conditions_get_components_code(this, boundary_id, components_code)
+    implicit none
+    class(general_conditions_t), intent(in)  :: this
+    integer(ip)                  , intent(in)  :: boundary_id
+    logical                      , intent(out) :: components_code(:)
+    
+    !assert ( size(components_code) >= this%number_components )
+    !components_code(1:this%number_dimensions) = .true.
+    !components_code(this%number_dimensions+1) = .false.
+    !if ( boundary_id == 2 ) then
+    !   components_code(this%number_dimensions+1) = .true.
+    !end if
+  end subroutine general_conditions_get_components_code
 end module conditions_names

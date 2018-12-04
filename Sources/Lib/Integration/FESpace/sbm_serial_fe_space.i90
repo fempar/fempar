@@ -26,24 +26,6 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!function field_type_cla_code_to_string ( field_type_cla_code ) 
-!    implicit none
-!    integer(ip)      , intent(in) :: field_type_cla_code 
-!    character(len=:), allocatable :: field_type_cla_code_to_string
-!    select case (field_type_cla_code)
-!      case (field_type_scalar_cla_code)
-!        field_type = field_type_scalar
-!      case (field_type_vector_cla_code)
-!        field_type = field_type_vector
-!      case (field_type_vector_cla_code)
-!        field_type = field_type_tensor
-!      case (field_type_symmetric_tensor_cla_code)
-!        field_type = field_type_symmetric_tensor   
-!      case default
-!        massert(.false., "Invalid field type command-line argument code")
-!    end select  
-!end function field_type_cla_code_to_string
-
   function count_tokens_cla_string_list (string_list) 
     implicit none
     character(*)       , intent(in) :: string_list
