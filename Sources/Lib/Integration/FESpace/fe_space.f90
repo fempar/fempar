@@ -36,7 +36,7 @@ module fe_space_names
   use hash_table_names
   use std_vector_names
   use FPL
-  use flap_utils_m
+  use parameter_handler_names
 
   use environment_names
   use triangulation_names
@@ -797,6 +797,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_type                            => serial_fe_space_get_field_type 
      procedure, non_overridable, private :: determine_fe_space_type                   => serial_fe_space_determine_fe_space_type
      procedure, non_overridable          :: get_num_components                        => serial_fe_space_get_num_components
+     procedure, non_overridable          :: get_field_offset_component                => serial_fe_space_update_get_field_offset_component
      procedure, non_overridable          :: get_max_num_shape_functions               => serial_fe_space_get_max_num_shape_functions
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
@@ -1593,6 +1594,50 @@ procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_int
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
 
+  !module general_conditions_names
+  !use fempar_names
+
+  integer(ip), parameter, public :: component_1       = 1
+  integer(ip), parameter, public :: component_2       = 2
+  integer(ip), parameter, public :: component_3       = 3
+  integer(ip), parameter, public :: component_4       = 4
+  integer(ip), parameter, public :: component_5       = 5
+  integer(ip), parameter, public :: component_6       = 6
+  integer(ip), parameter, public :: component_7       = 7
+  integer(ip), parameter, public :: component_8       = 8
+  integer(ip), parameter, public :: all_components    = 9
+  integer(ip), parameter, public :: normal_component  = 10
+  integer(ip), parameter, public :: tangent_component = 11
+
+   
+  type, extends(conditions_t) :: strong_boundary_conditions_t
+     private
+     logical                                :: is_processed = .false.
+     ! Pre-processed state member variables
+     integer(ip)                            :: num_conditions = 0
+     type(std_vector_integer_ip_t)          :: boundary_id_array
+     type(std_vector_integer_ip_t)          :: condition_type_array
+     type(std_vector_integer_ip_t)          :: fixed_field_array
+     type(std_vector_p_scalar_function_t)   :: pre_boundary_functions_array
+     ! Post-processed state member variables
+     integer(ip)                            :: num_fields
+     integer(ip)                            :: field_components
+     integer(ip)                            :: num_components
+     integer(ip)                            :: num_boundary_ids
+     type(p_scalar_function_t), allocatable :: boundary_functions_array(:,:)
+  contains
+     procedure :: create                     => strong_boundary_conditions_create
+     procedure :: free                       => strong_boundary_conditions_free
+     procedure :: insert_boundary_condition  => strong_boundary_conditions_insert_boundary_condition
+     procedure :: process_boundary_condition => strong_boundary_conditions_process_boundary_condition
+     procedure :: get_num_components         => strong_boundary_conditions_get_num_components  
+     procedure :: get_num_boundary_ids       => strong_boundary_conditions_get_num_boundary_ids
+     procedure :: get_components_code        => strong_boundary_conditions_get_components_code
+     procedure :: get_function               => strong_boundary_conditions_get_function
+  end type strong_boundary_conditions_t
+  
+  public :: strong_boundary_conditions_t  
+
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -1626,5 +1671,7 @@ contains
 #include "sbm_Hcurl_interpolator.i90"
 #include "sbm_hex_Hcurl_interpolator.i90" 
 #include "sbm_tet_Hcurl_interpolator.i90"
+
+#include "sbm_strong_boundary_conditions.i90"
 
 end module fe_space_names

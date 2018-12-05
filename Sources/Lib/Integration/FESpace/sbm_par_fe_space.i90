@@ -27,13 +27,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine par_fe_space_serial_create_with_parameter_list( this,          &
                                                        triangulation, &
-                                                       conditions,    &
-                                                       parameters)
+                                                       parameters,    &
+                                                       conditions)
   implicit none
-  class(par_fe_space_t)                     , intent(inout)        :: this
-  class(triangulation_t)            , target   , intent(in)           :: triangulation
-  class(conditions_t)               , target   , optional, intent(in) :: conditions
-  type(ParameterList_t)                        , intent(inout)        :: parameters
+  class(par_fe_space_t)                        , intent(inout)  :: this
+  class(triangulation_t)               , target, intent(in)     :: triangulation
+  type(ParameterList_t)                        , intent(inout)  :: parameters
+  class(strong_boundary_conditions_t), optional, target,  intent(inout) :: conditions
   assert(.false.)
 end subroutine par_fe_space_serial_create_with_parameter_list
 

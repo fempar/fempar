@@ -28,6 +28,7 @@
 module parameter_handler_names
   use types_names
   use flap, only : Command_Line_Interface
+  use flap_utils_m
   use FPL
 # include "debug.i90"
   implicit none
@@ -66,6 +67,8 @@ module parameter_handler_names
   end type parameter_handler_t
 
   public :: parameter_handler_t
+  public :: count_tokens_cla_string_list 
+  public :: process_tokens_cla_string_list
   
   
   abstract interface
@@ -423,5 +426,29 @@ contains
     call this%helpers%init()
     call this%required%init()
   end subroutine parameter_handler_initialize_lists
+  
+  function count_tokens_cla_string_list (string_list) 
+    implicit none
+    character(*)       , intent(in) :: string_list
+    integer(ip) :: count_tokens_cla_string_list
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=count_tokens_cla_string_list)
+    deallocate(vals)
+  end function count_tokens_cla_string_list
+  
+  subroutine process_tokens_cla_string_list ( string_list, values ) 
+    implicit none 
+    character(*)       , intent(in)    :: string_list
+    character(*)       , intent(inout) :: values(:)
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    integer(ip) :: Nt, i
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=Nt)
+    assert ( size(values) == Nt) 
+    do i=1, size(vals) 
+      values(i)=vals(i)
+    end do 
+    deallocate(vals)
+  end subroutine process_tokens_cla_string_list
+  
 
 end module parameter_handler_names 

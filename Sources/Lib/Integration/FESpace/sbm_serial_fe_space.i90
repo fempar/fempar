@@ -26,41 +26,15 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  function count_tokens_cla_string_list (string_list) 
-    implicit none
-    character(*)       , intent(in) :: string_list
-    integer(ip) :: count_tokens_cla_string_list
-    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
-    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=count_tokens_cla_string_list)
-    deallocate(vals)
-  end function count_tokens_cla_string_list
-  
-  
-  subroutine process_tokens_cla_string_list ( string_list, values ) 
-    implicit none 
-    character(*)       , intent(in)    :: string_list
-    character(*)       , intent(inout) :: values(:)
-    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
-    integer(ip) :: Nt, i
-    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=Nt)
-    assert ( size(values) == Nt) 
-    do i=1, size(vals) 
-      write(*,*) len(vals(i))
-      write(*,'(A)') vals(i)
-      values(i)=vals(i)
-    end do 
-    deallocate(vals)
-  end subroutine process_tokens_cla_string_list
-
 subroutine serial_fe_space_create_with_parameter_list( this,          &
                                                        triangulation, &
-                                                       conditions,    &
-                                                       parameters)
+                                                       parameters,    &
+                                                       conditions)
   implicit none
-  class(serial_fe_space_t)                     , intent(inout)        :: this
-  class(triangulation_t)            , target   , intent(in)           :: triangulation
-  class(conditions_t)               , target   , optional, intent(in) :: conditions
-  type(ParameterList_t)                        , intent(inout)        :: parameters
+  class(serial_fe_space_t)                ,         intent(inout)        :: this
+  class(triangulation_t)                  , target, intent(in)           :: triangulation
+  type(ParameterList_t)                   ,         intent(inout)        :: parameters
+  class(strong_boundary_conditions_t), optional   , target, intent(inout)        :: conditions
   
   integer(ip) :: istat, i, num_fields, Nt
   integer(ip), allocatable :: fe_space_field_ids(:), fe_space_field_blocks(:)
@@ -75,6 +49,8 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
   integer(ip), allocatable :: shape(:)
   character(100), allocatable :: fe_space_field_types_array(:), reference_fe_type_array(:)
   character(:), allocatable :: fe_space_field_types, reference_fe_type
+  
+  call this%free()
   
   ! Optional parameters
   istat = parameters%get(key = fes_same_ref_fes_all_cells_key, &
@@ -128,49 +104,56 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
   call memalloc( num_fields, reference_fe_order, __FILE__, __LINE__) 
   istat = parameters%get(key = fes_ref_fe_orders_key, value = reference_fe_order)
 
-  allocate(reference_fes(num_fields), stat=istat)
-  
+  allocate(this%reference_fes_internally_allocated(num_fields), stat=istat); check(istat==0)
   if ( fe_space_same_reference_fe_all_cells ) then
-  
     ! Extract cell topology
     call triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
-
     ! Create reference FEs
     do i = 1, num_fields
-      reference_fes(i) = make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                             fe_type = trim(reference_fe_type_array(i)), &
-                                             num_dims = triangulation%get_num_dims(), &
-                                             order =    reference_fe_order(i), &
-                                             field_type = trim(fe_space_field_types_array(i)), &
-                                             conformity = reference_fe_conformity(i) )
-    end do
-    
-    call serial_fe_space_create_same_reference_fes_on_all_cells( this,                  &
-                                                                 triangulation,         &
-                                                                 reference_fes,         &
-                                                                 conditions,            &
-                                                                 fe_space_field_blocks)!, &
-                                                                 !generate_global_dof_numbering)
-                                                                 !field_coupling, 
-    else
-      massert( 0 == 1, "Parameter list based FE space constructor not available" )
-    end if
-    
-    allocate(this%reference_fes_internally_allocated(size(reference_fes)), stat=istat); check(istat==0)
-    do i=1, size(reference_fes)
-      this%reference_fes_internally_allocated(i) = reference_fes(i)
+      this%reference_fes_internally_allocated(i) = make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                                       fe_type = trim(reference_fe_type_array(i)), &
+                                                                       num_dims = triangulation%get_num_dims(), &
+                                                                       order =    reference_fe_order(i), &
+                                                                       field_type = trim(fe_space_field_types_array(i)), &
+                                                                       conformity = reference_fe_conformity(i) )
     end do
     call triangulation%free_cell_iterator(cell)
-    call memfree( reference_fe_order, __FILE__, __LINE__) 
-    call memfree( reference_fe_continuity, __FILE__, __LINE__) 
-    call memfree( reference_fe_conformity, __FILE__, __LINE__) 
-    call memfree( fe_space_field_blocks, __FILE__, __LINE__) 
-
-
-  !else
-  !  assert(0==1)
-  !end if
+    
+    call this%set_triangulation(triangulation)
+    call this%set_environment(triangulation%get_environment())
+    call this%set_num_fields(num_fields)
+    call this%allocate_and_fill_reference_fes(this%reference_fes_internally_allocated)
+    call this%allocate_and_fill_set_ids_to_reference_fes(  RESHAPE([(i, i=1,size(reference_fes))], [size(reference_fes),1]) )
+    call this%allocate_field_cell_to_ref_fes()
+    call this%fill_field_cell_to_ref_fes_same_on_all_cells()
+    this%same_reference_fes_on_all_cells = .true. 
+    call this%allocate_same_reference_fe_or_void_x_field()
+    this%same_reference_fe_or_void_x_field(:) = .true.
+    call this%allocate_and_fill_gen_dof_num_scratch_data()
+    call this%check_cell_vs_fe_topology_consistency()
+    call this%allocate_and_fill_fe_space_type_x_field()
+    call this%fill_facet_gids()
+    call this%allocate_and_init_ptr_lst_dofs_gids()
+    
+    else
+      massert( 0 == 1, "Parameter list based FE space constructor not available" )
+  end if
+  
+  if ( present(conditions) ) then
+    call conditions%process_boundary_condition(this)
+    call this%set_conditions(conditions)
+  end if
+  call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
+  call this%allocate_and_init_has_hanging_dofs_x_fe()
+  call this%set_up_strong_dirichlet_bcs()
+  call this%block_layout%create( this%get_num_fields(),fe_space_field_blocks)   
+  call this%generate_global_dof_numbering()
+  call memfree( reference_fe_order, __FILE__, __LINE__) 
+  call memfree( reference_fe_continuity, __FILE__, __LINE__) 
+  call memfree( reference_fe_conformity, __FILE__, __LINE__) 
+  call memfree( fe_space_field_blocks, __FILE__, __LINE__) 
 end subroutine serial_fe_space_create_with_parameter_list
 
 
@@ -210,7 +193,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
   call this%allocate_and_init_ptr_lst_dofs_gids()
-  
+
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
@@ -267,24 +250,22 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%fill_facet_gids()
   call this%allocate_and_init_ptr_lst_dofs_gids()
   
-  if ( present(conditions) ) call this%set_conditions(conditions)
-  call this%allocate_and_init_at_strong_dirichlet_bound()
-  call this%allocate_and_init_has_fixed_dofs()
-  call this%allocate_and_init_has_hanging_dofs_x_fe()
-  call this%set_up_strong_dirichlet_bcs()
-  
-  call this%block_layout%create( this%get_num_fields(), &
+
+    if ( present(conditions) ) call this%set_conditions(conditions)
+    call this%allocate_and_init_at_strong_dirichlet_bound()
+    call this%allocate_and_init_has_fixed_dofs()
+    call this%allocate_and_init_has_hanging_dofs_x_fe()
+    call this%set_up_strong_dirichlet_bcs()
+    call this%block_layout%create( this%get_num_fields(), &
                                  field_blocks, &
-                                 field_coupling ) 
-  
-  if ( present(generate_global_dof_numbering) ) then
-    if ( generate_global_dof_numbering ) then
+                                 field_coupling )   
+    if ( present(generate_global_dof_numbering) ) then
+      if ( generate_global_dof_numbering ) then
+        call this%generate_global_dof_numbering()
+      end if 
+    else
       call this%generate_global_dof_numbering()
     end if 
-  else
-    call this%generate_global_dof_numbering()
-  end if 
-  
 end subroutine serial_fe_space_create_different_ref_fes_between_cells
 
 subroutine serial_fe_space_free (this)
@@ -4461,6 +4442,23 @@ subroutine serial_fe_space_update_ghost_dof_values (this, fe_function )
   class(fe_function_t)    , intent(inout) :: fe_function
 end subroutine serial_fe_space_update_ghost_dof_values 
 
+
+
+function serial_fe_space_update_get_field_offset_component (this, field_id )
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip)    , intent(in)  :: field_id
+  integer(ip) :: serial_fe_space_update_get_field_offset_component
+  integer(ip) :: i
+  serial_fe_space_update_get_field_offset_component = 1
+  do i = 1, field_id-1
+     reference_fe => this%get_reference_fe(i)
+     serial_fe_space_update_get_field_offset_component = serial_fe_space_update_get_field_offset_component &
+                                                         + reference_fe%get_num_field_components()
+  end do
+end function serial_fe_space_update_get_field_offset_component 
+
 #ifndef ENABLE_P4EST
   subroutine serial_fe_space_not_enabled_error(this)
     class(serial_fe_space_t), intent(in) :: this
@@ -4469,5 +4467,3 @@ end subroutine serial_fe_space_update_ghost_dof_values
     check(.false.)
   end subroutine serial_fe_space_not_enabled_error
 #endif
-
-
