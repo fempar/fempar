@@ -1,0 +1,148 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine strong_boundary_conditions_create(this)
+  implicit none
+  class(strong_boundary_conditions_t), intent(inout) :: this
+  call this%free()
+  call this%boundary_id_array%resize(0)
+  call this%condition_type_array%resize(0)
+  call this%fixed_field_array%resize(0)
+  call this%pre_boundary_functions_array%resize(0)
+  this%is_processed = .false.
+  this%num_conditions = 0
+end subroutine strong_boundary_conditions_create
+
+subroutine strong_boundary_conditions_free(this)
+  implicit none
+  class(strong_boundary_conditions_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%boundary_id_array%free()
+  call this%condition_type_array%free()
+  call this%fixed_field_array%free()
+  call this%pre_boundary_functions_array%free()
+  if (allocated(this%boundary_functions_array)) then
+     deallocate(this%boundary_functions_array,stat=istat); check(istat==0);
+  end if
+  this%is_processed = .false.
+  this%num_conditions = 0 
+end subroutine strong_boundary_conditions_free
+
+subroutine strong_boundary_conditions_insert_boundary_condition( this, boundary_id, field_id, cond_type, boundary_function )
+  implicit none
+  class(strong_boundary_conditions_t)     , intent(inout) :: this
+  integer(ip)                     , intent(in)    :: boundary_id
+  integer(ip)                     , intent(in)    :: field_id  
+  integer(ip)                     , intent(in)    :: cond_type  
+  class(scalar_function_t), target, intent(in)    :: boundary_function
+  type(p_scalar_function_t) :: p_boundary_function
+  massert( .not. this%is_processed, "Boundary conditions already processed, no new bc's can be added in this state")
+  massert ( boundary_id >= 1, "Boundary set ID equal to 0 ignored" ) 
+  call this%boundary_id_array%push_back(boundary_id)
+  call this%condition_type_array%push_back(field_id)
+  call this%fixed_field_array%push_back(cond_type)
+  this%num_conditions = this%num_conditions + 1
+  p_boundary_function%p => boundary_function
+  call this%pre_boundary_functions_array%push_back(p_boundary_function)
+end subroutine strong_boundary_conditions_insert_boundary_condition
+  
+subroutine strong_boundary_conditions_process_boundary_condition( this, fe_space )
+  implicit none
+  class(strong_boundary_conditions_t), intent(inout) :: this
+  class(serial_fe_space_t), intent(in) :: fe_space
+  !character(:), pointer :: field_type
+  integer(ip) :: bou_id, cond_id, field_id, comp_id, i, offset_field
+  integer(ip), pointer :: p_boundary_id(:)
+  wassert( .not. this%is_processed, "Boundary conditions already processed")
+  if ( this%is_processed ) return
+  p_boundary_id => this%boundary_id_array%get_pointer()
+  this%num_boundary_ids = maxval(p_boundary_id)
+  this%num_fields = fe_space%get_num_fields()
+  this%num_components = fe_space%get_num_components()
+  allocate(this%boundary_functions_array(this%num_boundary_ids,this%num_components))
+
+  do i = 1,this%num_conditions
+     bou_id  = this%boundary_id_array%get(i)
+     cond_id = this%condition_type_array%get(i)
+     field_id  = this%fixed_field_array%get(i)
+     offset_field = fe_space%get_field_offset_component(field_id)
+     select case ( cond_id )
+     case ( normal_component )
+        ! To be done
+        mcheck(.false., "Non-slip boundary conditions to be implemented")
+     case ( tangent_component )
+        ! To be done
+        mcheck(.false., "Tangent boundary conditions to be implemented")
+     end select
+     comp_id = offset_field+cond_id-1
+     this%boundary_functions_array(bou_id,comp_id) = this%pre_boundary_functions_array%get(i)
+  end do
+  this%is_processed = .true.
+end subroutine strong_boundary_conditions_process_boundary_condition
+  
+function strong_boundary_conditions_get_num_components(this)
+  implicit none
+  class(strong_boundary_conditions_t), intent(in) :: this
+  integer(ip) :: strong_boundary_conditions_get_num_components
+  strong_boundary_conditions_get_num_components = this%num_components
+end function strong_boundary_conditions_get_num_components
+
+function strong_boundary_conditions_get_num_boundary_ids(this)
+  implicit none
+  class(strong_boundary_conditions_t), intent(in) :: this
+  integer(ip) :: strong_boundary_conditions_get_num_boundary_ids
+  strong_boundary_conditions_get_num_boundary_ids = this%num_boundary_ids
+end function strong_boundary_conditions_get_num_boundary_ids
+
+subroutine strong_boundary_conditions_get_components_code(this, boundary_id, components_code)
+  implicit none
+  class(strong_boundary_conditions_t), intent(in)  :: this
+  integer(ip)                  , intent(in)  :: boundary_id
+  logical                      , intent(out) :: components_code(:)
+  integer(ip) :: i
+  assert ( size(components_code) >= this%num_components )
+  if ( boundary_id > this%num_boundary_ids) then
+     components_code(1:this%num_components) = .false.
+  else 
+     do i=1,this%num_components
+        components_code(i) = .false.
+        if ( associated (this%boundary_functions_array(boundary_id,i)%p) ) then
+           components_code(i) = .true.
+        end if
+     end do
+  end if
+end subroutine strong_boundary_conditions_get_components_code
+
+subroutine strong_boundary_conditions_get_function ( this, boundary_id, component_id, function )
+  implicit none
+  class(strong_boundary_conditions_t), target, intent(in)  :: this
+  integer(ip)                        , intent(in)  :: boundary_id
+  integer(ip)                        , intent(in)  :: component_id
+  class(scalar_function_t), pointer  , intent(out) :: function
+  function => this%boundary_functions_array(boundary_id,component_id)%p
+end subroutine strong_boundary_conditions_get_function

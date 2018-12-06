@@ -259,56 +259,56 @@ contains
     ! Values
     ! ------
     ! Structured/non-structured
-    error = values_group%set(key = triangulation_generate_key, value = triangulation_generate_structured); check(error==0)
+    error = values_group%set(key = triang_generate_key, value = triangulation_generate_structured); check(error==0)
     ! Domain definition
     error = values_group%set(key = domain_length_key   , value = [1.0_rp,1.0_rp,1.0_rp]);                   check(error==0)
     error = values_group%set(key = domain_origin_key   , value = [0.0_rp,0.0_rp,0.0_rp]);                   check(error==0)
-    error = values_group%set(key = is_dir_periodic_key , value = [non_periodic,non_periodic,non_periodic]); check(error==0)
+    error = values_group%set(key = struct_hex_triang_is_dir_periodic_key , value = [non_periodic,non_periodic,non_periodic]); check(error==0)
     ! Mesh characterization
     error = values_group%set(key = reference_fe_geo_order_key   , value = 1);                         check(error==0)
-    error = values_group%set(key = num_dims_key     , value = 2);                         check(error==0)
-    error = values_group%set(key = num_cells_x_dir_key  , value = [2,2,2]);                   check(error==0)
+    error = values_group%set(key = struct_hex_triang_num_dims_key     , value = 2);                         check(error==0)
+    error = values_group%set(key = struct_hex_triang_num_cells_dir  , value = [2,2,2]);                   check(error==0)
     error = values_group%set(key = discretization_type_key      , value = [uniform,uniform,uniform]); check(error==0)
     error = values_group%set(key = mesh_stretching_parameter_key, value = [2.75_rp,2.75_rp,2.75_rp]); check(error==0)
     ! Mesh parallelization
-    error = values_group%set(key = num_levels_key       , value = 1);       check(error==0)
-    error = values_group%set(key = num_parts_x_dir_key, value = [1,1,0]); check(error==0)
+    error = values_group%set(key = struct_hex_triang_num_levels_key       , value = 1);       check(error==0)
+    error = values_group%set(key = struct_hex_triang_num_parts_x_dir_key, value = [1,1,0]); check(error==0)
     
     ! Switches
     ! --------
     ! Structured/non-structured
-    error = switches_group%set(key = triangulation_generate_key, value = '--triangulation-type'); check(error==0)
+    error = switches_group%set(key = triang_generate_key, value = '--triangulation-type'); check(error==0)
     ! Domain definition
     error = switches_group%set(key = domain_length_key   , value = '--domain_length'); check(error==0)
     error = switches_group%set(key = domain_origin_key   , value = '--domain_origin'); check(error==0)
-    error = switches_group%set(key = is_dir_periodic_key , value = '--periodicity')  ; check(error==0)
+    error = switches_group%set(key = struct_hex_triang_is_dir_periodic_key , value = '--periodicity')  ; check(error==0)
     ! Mesh characterization
     error = switches_group%set(key = reference_fe_geo_order_key   , value = '--reference-fe-geo-order'); check(error==0)
-    error = switches_group%set(key = num_dims_key     , value = '--dim')                   ; check(error==0)
-    error = switches_group%set(key = num_cells_x_dir_key  , value = '--num_cells')       ; check(error==0)
+    error = switches_group%set(key = struct_hex_triang_num_dims_key     , value = '--dim')                   ; check(error==0)
+    error = switches_group%set(key = struct_hex_triang_num_cells_dir  , value = '--num_cells')       ; check(error==0)
     error = switches_group%set(key = discretization_type_key      , value = '--discretization_type')   ; check(error==0)
     error = switches_group%set(key = mesh_stretching_parameter_key, value = '--stretching')            ; check(error==0)
     ! Mesh parallelization
-    error = switches_group%set(key = num_levels_key       , value = '--num_levels'); check(error==0)
-    error = switches_group%set(key = num_parts_x_dir_key, value = '--num_parts') ; check(error==0)
+    error = switches_group%set(key = struct_hex_triang_num_levels_key       , value = '--num_levels'); check(error==0)
+    error = switches_group%set(key = struct_hex_triang_num_parts_x_dir_key, value = '--num_parts') ; check(error==0)
     
     ! Switches abbreviation
     ! ---------------------
     ! Structured/non-structured
-    error = switches_ab_group%set(key = triangulation_generate_key, value = '-tt'); check(error==0)
+    error = switches_ab_group%set(key = triang_generate_key, value = '-tt'); check(error==0)
     ! Domain definition
     error = switches_ab_group%set(key = domain_length_key   , value = '-dl')    ; check(error==0)
     error = switches_ab_group%set(key = domain_origin_key   , value = '-do')    ; check(error==0)
-    error = switches_ab_group%set(key = is_dir_periodic_key , value = '-period'); check(error==0)
+    error = switches_ab_group%set(key = struct_hex_triang_is_dir_periodic_key , value = '-period'); check(error==0)
     ! Mesh characterization
     error = switches_ab_group%set(key = reference_fe_geo_order_key   , value = '-gorder'); check(error==0)
-    error = switches_ab_group%set(key = num_dims_key     , value = '-dm')    ; check(error==0)
-    error = switches_ab_group%set(key = num_cells_x_dir_key  , value = '-n')     ; check(error==0)
+    error = switches_ab_group%set(key = struct_hex_triang_num_dims_key     , value = '-dm')    ; check(error==0)
+    error = switches_ab_group%set(key = struct_hex_triang_num_cells_dir  , value = '-n')     ; check(error==0)
     error = switches_ab_group%set(key = discretization_type_key      , value = '-dt')    ; check(error==0)
     error = switches_ab_group%set(key = mesh_stretching_parameter_key, value = '-st')    ; check(error==0)
     ! Mesh parallelization
-    error = switches_ab_group%set(key = num_levels_key       , value = '-l') ; check(error==0)
-    error = switches_ab_group%set(key = num_parts_x_dir_key, value = '-np'); check(error==0)
+    error = switches_ab_group%set(key = struct_hex_triang_num_levels_key       , value = '-l') ; check(error==0)
+    error = switches_ab_group%set(key = struct_hex_triang_num_parts_x_dir_key, value = '-np'); check(error==0)
 
     ! Helpers
     ! -------
@@ -316,15 +316,15 @@ contains
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
-    error = helpers_group%set(key = triangulation_generate_key, value = msg); check(error==0)
+    error = helpers_group%set(key = triang_generate_key, value = msg); check(error==0)
     ! Domain definition
     error = helpers_group%set(key = domain_length_key  , value = 'Domain length per direction')     ; check(error==0)
     error = helpers_group%set(key = domain_origin_key  , value = 'Domain origin coordinates')       ; check(error==0)
-    error = helpers_group%set(key = is_dir_periodic_key, value = 'Domain periodicity per direction'); check(error==0)
+    error = helpers_group%set(key = struct_hex_triang_is_dir_periodic_key, value = 'Domain periodicity per direction'); check(error==0)
     ! Mesh characterization
     error = helpers_group%set(key = reference_fe_geo_order_key , value = 'Order of the triangulation reference Finite Element'); check(error==0)
-    error = helpers_group%set(key = num_dims_key   , value = 'Number of space dimensions')                         ; check(error==0)
-    error = helpers_group%set(key = num_cells_x_dir_key, value = 'Number of cells per direction')                      ; check(error==0)
+    error = helpers_group%set(key = struct_hex_triang_num_dims_key   , value = 'Number of space dimensions')                         ; check(error==0)
+    error = helpers_group%set(key = struct_hex_triang_num_cells_dir, value = 'Number of cells per direction')                      ; check(error==0)
     msg = 'Discretization type: (*) uniform, (*) cubic, (*) tanh'
     write(msg(23:23),'(i1)') uniform
     write(msg(36:36),'(i1)') cubic
@@ -332,26 +332,26 @@ contains
     error = helpers_group%set(key = discretization_type_key      , value = msg)                                 ; check(error==0)
     error = helpers_group%set(key = mesh_stretching_parameter_key, value = 'Stretching parameter per direction'); check(error==0)
     ! Mesh parallelization
-    error = helpers_group%set(key = num_levels_key       , value = 'Number of parallel solver coarsening levels'); check(error==0)
-    error = helpers_group%set(key = num_parts_x_dir_key, value = 'Number of parts per direction and per level'); check(error==0)
+    error = helpers_group%set(key = struct_hex_triang_num_levels_key       , value = 'Number of parallel solver coarsening levels'); check(error==0)
+    error = helpers_group%set(key = struct_hex_triang_num_parts_x_dir_key, value = 'Number of parts per direction and per level'); check(error==0)
 
     ! Required
     ! --------
     ! Structured/non-structured
-    error = required_group%set(key = triangulation_generate_key, value = .false.); check(error==0)
+    error = required_group%set(key = triang_generate_key, value = .false.); check(error==0)
     ! Domain definition
     error = required_group%set(key = domain_length_key   , value = .false.); check(error==0)
     error = required_group%set(key = domain_origin_key   , value = .false.); check(error==0)
-    error = required_group%set(key = is_dir_periodic_key , value = .false.); check(error==0)
+    error = required_group%set(key = struct_hex_triang_is_dir_periodic_key , value = .false.); check(error==0)
     ! Mesh characterization
     error = required_group%set(key = reference_fe_geo_order_key   , value = .false.); check(error==0)
-    error = required_group%set(key = num_dims_key     , value = .false.); check(error==0)
-    error = required_group%set(key = num_cells_x_dir_key  , value = .false.); check(error==0)
+    error = required_group%set(key = struct_hex_triang_num_dims_key     , value = .false.); check(error==0)
+    error = required_group%set(key = struct_hex_triang_num_cells_dir  , value = .false.); check(error==0)
     error = required_group%set(key = discretization_type_key      , value = .false.); check(error==0)
     error = required_group%set(key = mesh_stretching_parameter_key, value = .false.); check(error==0)
     ! Mesh parallelization
-    error = required_group%set(key = num_levels_key       , value = .false.); check(error==0)
-    error = required_group%set(key = num_parts_x_dir_key, value = .false.); check(error==0)
+    error = required_group%set(key = struct_hex_triang_num_levels_key       , value = .false.); check(error==0)
+    error = required_group%set(key = struct_hex_triang_num_parts_x_dir_key, value = .false.); check(error==0)
 
   end subroutine set_mesh_group_lists
 
@@ -757,7 +757,7 @@ contains
 
     ! Values
     ! ------
-    error = values_group%set(key = solver_type_key , value = direct_solver_type); check(error==0)
+    error = values_group%set(key = solver_type_key , value = dls_type_key); check(error==0)
     error = values_group%set(key = solver_rtol_key , value = 1.0e-12_rp);         check(error==0)
     error = values_group%set(key = solver_trace_key, value = 100);                check(error==0)
     
@@ -901,8 +901,8 @@ contains
     values  => this%get_values()
     error = values%getsublist(mesh_group_key, values_group)
     assert(error==0)
-    assert(values_group%isAssignable(triangulation_generate_key, get_triangulation_type))
-    error = values_group%Get(key = triangulation_generate_key, Value = get_triangulation_type)
+    assert(values_group%isAssignable(triang_generate_key, get_triangulation_type))
+    error = values_group%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
 

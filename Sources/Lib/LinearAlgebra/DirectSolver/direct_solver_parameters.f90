@@ -33,7 +33,7 @@ implicit none
     ! Parameters used in DIRECT SOLVERS
     !-----------------------------------------------------------------
     ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: direct_solver_type = 'direct_solver_type'
+    character(len=*), parameter :: dls_type_key = 'direct_solver_type'
     character(len=*), parameter :: pardiso_mkl        = 'pardiso_mkl'                      ! Name of the PARDISO MKL direct solver type
     character(len=*), parameter :: umfpack            = 'umfpack'                          ! Name of the UMFPACK direct solver type
 

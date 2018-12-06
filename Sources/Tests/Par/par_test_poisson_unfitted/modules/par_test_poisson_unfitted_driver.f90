@@ -192,9 +192,9 @@ end subroutine free_timers
     type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = num_dims_key) )
-    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = struct_hex_triang_num_dims_key) )
+    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_level_set_function_type(), this%level_set_function)
@@ -252,7 +252,7 @@ end subroutine free_timers
     real(rp)                       :: num_blocked_vertex
 
     ! Create a structured mesh with a custom domain
-    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
 
     ! Create the unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function,this%par_environment)
@@ -510,7 +510,7 @@ end subroutine free_timers
        ! Fill the fempar list to be eventually given to bddc
        plist => this%parameter_list 
        if ( this%par_environment%get_l1_size() == 1 ) then
-          FPLError = plist%set(key=direct_solver_type,        value=pardiso_mkl);     assert(FPLError == 0)
+          FPLError = plist%set(key=dls_type_key,        value=pardiso_mkl);     assert(FPLError == 0)
           FPLError = plist%set(key=pardiso_mkl_matrix_type,   value=pardiso_mkl_spd); assert(FPLError == 0)
           FPLError = plist%set(key=pardiso_mkl_message_level, value=0);               assert(FPLError == 0)
           FPLError = plist%set(key=pardiso_mkl_iparm,         value=iparm);           assert(FPLError == 0)
@@ -518,14 +518,14 @@ end subroutine free_timers
        do ilev=1, this%par_environment%get_num_levels()-1
           ! Set current level Dirichlet solver parameters
           dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-          FPLError = dirichlet%set(key=direct_solver_type,        value=pardiso_mkl);     assert(FPLError == 0)
+          FPLError = dirichlet%set(key=dls_type_key,        value=pardiso_mkl);     assert(FPLError == 0)
           FPLError = dirichlet%set(key=pardiso_mkl_matrix_type,   value=pardiso_mkl_spd); assert(FPLError == 0)
           FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0);               assert(FPLError == 0)
           FPLError = dirichlet%set(key=pardiso_mkl_iparm,         value=iparm);           assert(FPLError == 0)
           
           ! Set current level Neumann solver parameters
           neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-          FPLError = neumann%set(key=direct_solver_type,        value=pardiso_mkl);     assert(FPLError == 0)
+          FPLError = neumann%set(key=dls_type_key,        value=pardiso_mkl);     assert(FPLError == 0)
           FPLError = neumann%set(key=pardiso_mkl_matrix_type,   value=pardiso_mkl_sin); assert(FPLError == 0)
           FPLError = neumann%set(key=pardiso_mkl_message_level, value=0);               assert(FPLError == 0)
           FPLError = neumann%set(key=pardiso_mkl_iparm,         value=iparm);           assert(FPLError == 0)
@@ -534,7 +534,7 @@ end subroutine free_timers
           plist  => coarse 
        end do
        ! Set coarsest-grid solver parameters
-       FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl);          assert(FPLError == 0)
+       FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl);          assert(FPLError == 0)
        FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = coarse%set(key=pardiso_mkl_message_level, value=0);             assert(FPLError == 0)
        FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm);                 assert(FPLError == 0)
@@ -551,10 +551,10 @@ end subroutine free_timers
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
-    FPLError = parameter_list%set(key = ils_stopping_criteria, value = res_rhs); assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp); assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_atol, value = 0.0_rp); assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_stopping_criterium_key, value = res_rhs); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-9_rp); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_atol_key, value = 0.0_rp); assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 1000); assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call parameter_list%free()
 

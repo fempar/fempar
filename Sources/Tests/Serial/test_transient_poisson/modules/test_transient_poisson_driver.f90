@@ -294,7 +294,7 @@ contains
     call parameter_list%init()
     !* Setup direct solver when MKL is enabled
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0

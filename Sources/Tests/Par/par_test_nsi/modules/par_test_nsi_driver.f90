@@ -361,13 +361,13 @@ end subroutine free_timers
     plist => this%parameter_list 
     do ilev=1, this%par_environment%get_num_levels()-1
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
-    FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
     
     call this%mlbddc%create(this%fe_operator, this%parameter_list)    
     
@@ -375,9 +375,9 @@ end subroutine free_timers
     call this%linear_solver%create(this%fe_space%get_environment())
     call this%linear_solver%set_type_from_string(lgmres_name)
     call linear_pl%init()
-    FPLError = linear_pl%set(key = ils_rtol, value = 1.0e-12_rp); assert(FPLError == 0)
-    FPLError = linear_pl%set(key = ils_max_num_iterations, value = 5000); assert(FPLError == 0)
-    FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_rtol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_max_num_iterations_key, value = 5000); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_atol_key, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
     ! sbadia : For the moment identity preconditioner
     call this%linear_solver%set_operators( this%fe_operator%get_tangent(), this%mlbddc )

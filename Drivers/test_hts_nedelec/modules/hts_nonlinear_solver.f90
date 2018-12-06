@@ -151,7 +151,7 @@ call fe_affine_operator%create_range_vector(this%increment_dof_values)
     iparm(13)  = 1  ! use maximum weighted matching algorithm 
     iparm(21)  = 1  ! 1x1 + 2x2 pivots
     
-    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError =            parameter_list%set(key = dls_type_key     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -381,7 +381,7 @@ subroutine hts_nonlinear_solver_solve_constrained_tangent_system(this, constrain
   ! in the final implementation
   call parameter_list%init()
   FPLError = 0
-  FPLError = FPLError + parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+  FPLError = FPLError + parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uss)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
   iparm = 0

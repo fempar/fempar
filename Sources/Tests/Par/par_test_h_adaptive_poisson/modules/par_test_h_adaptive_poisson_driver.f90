@@ -198,7 +198,7 @@ end subroutine free_timers
     ! Create a p4est mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
-    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
     istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
     call this%triangulation%create(this%par_environment,this%parameter_list)
     
@@ -493,7 +493,7 @@ end subroutine free_timers
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -501,14 +501,14 @@ end subroutine free_timers
     do ilev=1, this%par_environment%get_num_levels()-1
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -517,7 +517,7 @@ end subroutine free_timers
        plist  => coarse 
     end do
     ! Set coarsest-grid solver parameters
-    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -532,9 +532,9 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     

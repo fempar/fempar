@@ -36,6 +36,7 @@ module fe_space_names
   use hash_table_names
   use std_vector_names
   use FPL
+  use parameter_handler_names
 
   use environment_names
   use triangulation_names
@@ -80,7 +81,38 @@ module fe_space_names
   
   implicit none
 # include "debug.i90"
-  private
+  
+  ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
+  ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
+  ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
+  ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
+  ! class(coarse_fe_handler_t).
+  character(len=*), parameter :: coarse_space_use_vertices_key = 'coarse_space_use_vertices_key'
+  character(len=*), parameter :: coarse_space_use_edges_key    = 'coarse_space_use_edges_key'
+  character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
+  
+  ! Keys being used by the FE space constructor that relies on the parameter handler
+  character(len=*), parameter, public :: fes_num_fields_key = 'fe_space_num_fields_key'
+  character(len=*), parameter, public :: fes_num_ref_fes_key = 'fe_space_num_reference_fes_key'
+  character(len=*), parameter, public :: fes_field_types_key = 'fe_space_field_types_key'
+  character(len=*), parameter, public :: fe_space_field_ids_key = 'fe_space_field_ids_key'
+  character(len=*), parameter, public :: fes_field_blocks_key = 'fe_space_field_blocks_key'
+  character(len=*), parameter, public :: fes_same_ref_fes_all_cells_key = 'fes_same_ref_fes_all_cells_key'
+      
+  character(len=*), parameter, public :: fes_ref_fe_conformities_key = 'fes_ref_fe_conformities_key'
+  character(len=*), parameter, public :: fes_ref_fe_continuities_key = 'fes_ref_fe_continuities_key'
+  character(len=*), parameter, public :: fes_ref_fe_orders_key = 'reference_fe_order_key'
+  character(len=*), parameter, public :: fes_ref_fe_types_key = 'reference_fe_type_key'
+  character(len=*), parameter, public :: fes_set_ids_ref_fes_key = 'fes_set_ids_ref_fes_key'
+  
+  private 
+  
+  ! These parameter constants are used in order to generate a unique (non-consecutive) 
+  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
+  ! See type(par_fe_space_t)%generate_non_consecutive_dof_ggid()
+  integer(ip), parameter :: cell_ggid_shift              = 44
+  integer(ip), parameter :: dofs_x_reference_fe_shift = 14
+  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_ggid_shift+dofs_x_reference_fe_shift)-1
   
   ! Towards having the final hierarchy of FE spaces, I moved  to a root superclass
   ! those member variables which are in common by type(serial/par_fe_space_t) and 
@@ -579,6 +611,7 @@ module fe_space_names
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
+     type(p_reference_fe_t)        , allocatable :: reference_fes_internally_allocated(:)
      logical                                     :: same_reference_fes_on_all_cells = .false.
      logical                       , allocatable :: same_reference_fe_or_void_x_field(:)
 
@@ -667,9 +700,11 @@ module fe_space_names
      type(allocatable_array_ip1_t), allocatable  :: dofs_component(:)    
  
    contains
+     procedure                           :: serial_fe_space_create_with_parameter_list
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
-     generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
+     generic                             :: create                                       => serial_fe_space_create_with_parameter_list,&
+                                                                                            serial_fe_space_create_same_reference_fes_on_all_cells,&
                                                                                             serial_fe_space_create_different_ref_fes_between_cells
      procedure                           :: free                                         => serial_fe_space_free
      procedure                           :: print                                        => serial_fe_space_print
@@ -762,6 +797,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_type                            => serial_fe_space_get_field_type 
      procedure, non_overridable, private :: determine_fe_space_type                   => serial_fe_space_determine_fe_space_type
      procedure, non_overridable          :: get_num_components                        => serial_fe_space_get_num_components
+     procedure, non_overridable          :: get_field_offset_component                => serial_fe_space_update_get_field_offset_component
      procedure, non_overridable          :: get_max_num_shape_functions               => serial_fe_space_get_max_num_shape_functions
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
@@ -892,23 +928,6 @@ module fe_space_names
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
     procedure, non_overridable           :: create_faces_object_iterator          => fe_object_iterator_create_faces_object_iterator
   end type fe_object_iterator_t
-    
-  
-  ! These parameter constants are used in order to generate a unique (non-consecutive) 
-  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
-  ! See type(par_fe_space_t)%generate_non_consecutive_dof_ggid()
-  integer(ip), parameter :: cell_ggid_shift              = 44
-  integer(ip), parameter :: dofs_x_reference_fe_shift = 14
-  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_ggid_shift+dofs_x_reference_fe_shift)-1
-  
-  ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
-  ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
-  ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
-  ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
-  ! class(coarse_fe_handler_t).
-  character(len=*), parameter :: coarse_space_use_vertices_key = 'coarse_space_use_vertices_key'
-  character(len=*), parameter :: coarse_space_use_edges_key    = 'coarse_space_use_edges_key'
-  character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
 
   type :: p_l1_coarse_fe_handler_t
     class(l1_coarse_fe_handler_t), pointer :: p
@@ -977,6 +996,7 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: rcv_lst_parts_dofs_cell_wise
    
  contains
+   procedure          :: serial_fe_space_create_with_parameter_list                => par_fe_space_serial_create_with_parameter_list
    procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
    procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
@@ -1574,6 +1594,50 @@ procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_int
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
 
+  !module general_conditions_names
+  !use fempar_names
+
+  integer(ip), parameter, public :: component_1       = 1
+  integer(ip), parameter, public :: component_2       = 2
+  integer(ip), parameter, public :: component_3       = 3
+  integer(ip), parameter, public :: component_4       = 4
+  integer(ip), parameter, public :: component_5       = 5
+  integer(ip), parameter, public :: component_6       = 6
+  integer(ip), parameter, public :: component_7       = 7
+  integer(ip), parameter, public :: component_8       = 8
+  integer(ip), parameter, public :: all_components    = 9
+  integer(ip), parameter, public :: normal_component  = 10
+  integer(ip), parameter, public :: tangent_component = 11
+
+   
+  type, extends(conditions_t) :: strong_boundary_conditions_t
+     private
+     logical                                :: is_processed = .false.
+     ! Pre-processed state member variables
+     integer(ip)                            :: num_conditions = 0
+     type(std_vector_integer_ip_t)          :: boundary_id_array
+     type(std_vector_integer_ip_t)          :: condition_type_array
+     type(std_vector_integer_ip_t)          :: fixed_field_array
+     type(std_vector_p_scalar_function_t)   :: pre_boundary_functions_array
+     ! Post-processed state member variables
+     integer(ip)                            :: num_fields
+     integer(ip)                            :: field_components
+     integer(ip)                            :: num_components
+     integer(ip)                            :: num_boundary_ids
+     type(p_scalar_function_t), allocatable :: boundary_functions_array(:,:)
+  contains
+     procedure :: create                     => strong_boundary_conditions_create
+     procedure :: free                       => strong_boundary_conditions_free
+     procedure :: insert_boundary_condition  => strong_boundary_conditions_insert_boundary_condition
+     procedure :: process_boundary_condition => strong_boundary_conditions_process_boundary_condition
+     procedure :: get_num_components         => strong_boundary_conditions_get_num_components  
+     procedure :: get_num_boundary_ids       => strong_boundary_conditions_get_num_boundary_ids
+     procedure :: get_components_code        => strong_boundary_conditions_get_components_code
+     procedure :: get_function               => strong_boundary_conditions_get_function
+  end type strong_boundary_conditions_t
+  
+  public :: strong_boundary_conditions_t  
+
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -1607,5 +1671,7 @@ contains
 #include "sbm_Hcurl_interpolator.i90"
 #include "sbm_hex_Hcurl_interpolator.i90" 
 #include "sbm_tet_Hcurl_interpolator.i90"
+
+#include "sbm_strong_boundary_conditions.i90"
 
 end module fe_space_names

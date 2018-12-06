@@ -37,6 +37,7 @@ module std_vector_names
   use std_vector_cell_integrator_names
   use std_vector_facet_maps_names
   use std_vector_facet_integrator_names
+  use std_vector_p_scalar_function_names
 contains
 
 end module std_vector_names
