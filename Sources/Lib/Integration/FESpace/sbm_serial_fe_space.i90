@@ -124,7 +124,7 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
     call this%set_environment(triangulation%get_environment())
     call this%set_num_fields(num_fields)
     call this%allocate_and_fill_reference_fes(this%reference_fes_internally_allocated)
-    call this%allocate_and_fill_set_ids_to_reference_fes(  RESHAPE([(i, i=1,size(reference_fes))], [size(reference_fes),1]) )
+    call this%allocate_and_fill_set_ids_to_reference_fes(  RESHAPE([(i, i=1,size(this%reference_fes_internally_allocated))], [size(this%reference_fes_internally_allocated),1]) )
     call this%allocate_field_cell_to_ref_fes()
     call this%fill_field_cell_to_ref_fes_same_on_all_cells()
     this%same_reference_fes_on_all_cells = .true. 
