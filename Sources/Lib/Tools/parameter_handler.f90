@@ -53,8 +53,9 @@ module parameter_handler_names
      procedure                                  :: create                   => parameter_handler_create
      procedure(define_parameters_interface), deferred :: define_parameters 
      procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
-     procedure, non_overridable, private        :: add_to_cli               => parameter_handler_add_to_cli
+     procedure, non_overridable                 :: add_to_cli               => parameter_handler_add_to_cli
      procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
+     procedure, non_overridable                 :: init_cli                 => parameter_handler_init_cli
      procedure, non_overridable                 :: parse                    => parameter_handler_parse
      procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
      procedure                                  :: free                     => parameter_handler_free
@@ -338,7 +339,7 @@ contains
        call Iterator%Next()
     end do
   end subroutine parameter_handler_add_to_cli_group
-
+  
   !==================================================================================================
   subroutine parameter_handler_parse(this)
     implicit none
@@ -370,6 +371,13 @@ contains
     enddo
 
   end subroutine parameter_handler_parse  
+  
+  !==================================================================================================
+  subroutine parameter_handler_init_cli(this)
+    implicit none
+    class(parameter_handler_t), intent(inout) :: this
+    call this%cli%init()
+  end subroutine parameter_handler_init_cli  
 
   
   subroutine parameter_handler_parse_group(this,switches,values,group)

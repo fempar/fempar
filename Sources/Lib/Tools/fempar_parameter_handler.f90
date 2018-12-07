@@ -52,7 +52,6 @@ module fempar_parameter_handler_names
      procedure                           :: process_parameters                      => fph_process_parameters
      procedure, private, non_overridable :: define_fempar_parameters                => fph_define_fempar_parameters
      procedure                           :: define_parameters                       => fph_define_parameters
-     !procedure                           :: set_define_user_parameters_procedure    => fph_set_define_user_parameters_procedure
      procedure                           :: free                                    => fph_free
      procedure                           :: get_dir_path => fph_get_dir_path
      procedure                           :: get_dir_path_out => fph_get_dir_path_out
@@ -67,28 +66,27 @@ module fempar_parameter_handler_names
   end interface
   public :: fempar_parameter_handler_t
 contains
-  subroutine fph_process_parameters(this,define_user_parameters_procedure)
+  subroutine fph_process_parameters(this,define_user_parameters_procedure,parse_cla)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
-    !logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
     procedure(define_user_parameters), optional :: define_user_parameters_procedure
-    !call parameter_handler_create(this)
-    !logical :: parse_cla_
-    !parse_cla_ = .true.
-    !if ( present(parse_cla) ) parse_cla_ = parse_cla
+    logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
+    logical :: parse_cla_
+    parse_cla_ = .true.
+    if ( present(parse_cla) ) parse_cla_ = parse_cla
     call this%free()
-    !if ( parse_cla_ ) then
-    !  call this%cli%init()
-    !end if    
+    if ( parse_cla_ ) then
+      call this%init_cli()
+    end if    
     call this%initialize_lists()
     call this%define_parameters()
 #ifdef DEBUG
     call this%assert_lists_consistency()
 #endif
-    !if ( parse_cla_ ) then 
-    !  call this%add_to_cli()
-    !  call this%parse()
-    !end if
+    if ( parse_cla_ ) then 
+      call this%add_to_cli()
+      call this%parse()
+    end if
     if (present(define_user_parameters_procedure)) then
     this%define_user_parameters => define_user_parameters_procedure
     call this%define_user_parameters()
