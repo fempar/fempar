@@ -49,9 +49,10 @@ module fempar_parameter_handler_names
      private 
      procedure(define_user_parameters), pointer :: define_user_parameters => NULL()
    contains
+     procedure                           :: process_parameters                      => fph_process_parameters
      procedure, private, non_overridable :: define_fempar_parameters                => fph_define_fempar_parameters
      procedure                           :: define_parameters                       => fph_define_parameters
-     procedure                           :: set_define_user_parameters_procedure    => fph_set_define_user_parameters_procedure
+     !procedure                           :: set_define_user_parameters_procedure    => fph_set_define_user_parameters_procedure
      procedure                           :: free                                    => fph_free
      procedure                           :: get_dir_path => fph_get_dir_path
      procedure                           :: get_dir_path_out => fph_get_dir_path_out
@@ -64,17 +65,43 @@ module fempar_parameter_handler_names
         class(fempar_parameter_handler_t ), intent(inout)    :: this
       end subroutine define_user_parameters
   end interface
-
   public :: fempar_parameter_handler_t
-
 contains
+  subroutine fph_process_parameters(this,define_user_parameters_procedure)
+    implicit none
+    class(fempar_parameter_handler_t), intent(inout) :: this
+    !logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
+    procedure(define_user_parameters), optional :: define_user_parameters_procedure
+    !call parameter_handler_create(this)
+    !logical :: parse_cla_
+    !parse_cla_ = .true.
+    !if ( present(parse_cla) ) parse_cla_ = parse_cla
+    call this%free()
+    !if ( parse_cla_ ) then
+    !  call this%cli%init()
+    !end if    
+    call this%initialize_lists()
+    call this%define_parameters()
+#ifdef DEBUG
+    call this%assert_lists_consistency()
+#endif
+    !if ( parse_cla_ ) then 
+    !  call this%add_to_cli()
+    !  call this%parse()
+    !end if
+    if (present(define_user_parameters_procedure)) then
+    this%define_user_parameters => define_user_parameters_procedure
+    call this%define_user_parameters()
+    end if
+  end subroutine fph_process_parameters
+  
   subroutine fph_define_parameters(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
     call this%define_fempar_parameters()
-    if (associated(this%define_user_parameters)) then
-      call this%define_user_parameters()
-    end if
+    !if (associated(this%define_user_parameters)) then
+    !  call this%define_user_parameters()
+    !end if
   end subroutine fph_define_parameters
   
   subroutine fph_free(this)
@@ -84,14 +111,13 @@ contains
     nullify(this%define_user_parameters)
   end subroutine fph_free  
   
-  subroutine fph_set_define_user_parameters_procedure(this, define_user_parameters_procedure)
-    implicit none
-    class(fempar_parameter_handler_t), intent(inout) :: this
-    procedure(define_user_parameters) :: define_user_parameters_procedure
-    this%define_user_parameters => define_user_parameters_procedure
-  end subroutine fph_set_define_user_parameters_procedure
-  
-  
+  !subroutine fph_set_define_user_parameters_procedure(this, define_user_parameters_procedure)
+  !  implicit none
+  !  class(fempar_parameter_handler_t), intent(inout) :: this
+  !  procedure(define_user_parameters) :: define_user_parameters_procedure
+  !  this%define_user_parameters => define_user_parameters_procedure
+  !  !call this%define_user_parameters()
+  !end subroutine fph_set_define_user_parameters_procedure  
   
   subroutine fph_define_fempar_parameters(this)
     implicit none
@@ -372,6 +398,10 @@ contains
 !
 !    ! Sample
 !    !error = error + values%set(key = , Value= )
+    
+    !if associated ( this%define_user_parameters) then
+    !  call this%define_user_parameters()
+    !end if 
 
   end subroutine fph_define_fempar_parameters
 

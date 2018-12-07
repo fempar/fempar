@@ -96,7 +96,7 @@ program test_stokes_parameter_list
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
-  call parameter_handler%create()
+  call parameter_handler%process_parameters(test_stokes_parameter_list_define_fempar_parameters)
   parameter_list => parameter_handler%get_values()
 
   !* Determine a serial execution mode (default case)
@@ -148,6 +148,10 @@ program test_stokes_parameter_list
   error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = [.true., .false.])
   error = error + parameter_list%set(key = fes_field_types_key, value =  field_type_vector // " " // field_type_scalar)
   error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
+  
+  
+  call parameter_list%print()
+  
   !
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = stokes_conditions, &
@@ -199,7 +203,7 @@ program test_stokes_parameter_list
   dof_values => solution%get_free_dof_values()
   !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
   !* putting the result in dof_values.
-  call iterative_linear_solver%apply(fe_affine_operator%get_translation(), &
+  call iterative_linear_solver%apply(-fe_affine_operator%get_translation(), &
                                           dof_values)   
   
   error = error + parameter_list%set(key = dir_path_out_key      , Value= 'RESULTS_STOKES_DRIVER')
@@ -240,6 +244,23 @@ program test_stokes_parameter_list
   call world_context%free(.true.)
 
   call fempar_finalize()
+  contains
+    subroutine test_stokes_parameter_list_define_fempar_parameters(this)
+    implicit none
+    class(fempar_parameter_handler_t), intent(inout) :: this
+    type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
+    integer(ip) :: error
+
+    values      => this%get_values()
+    switches    => this%get_switches()
+    switches_ab => this%get_switches_ab()
+    helpers     => this%get_helpers()
+
+    error = 0
+    error = error + helpers%set(key = 'viscosity'     , Value= 'Value of the viscosity')
+    error = error + switches%set(key = 'viscosity'    , Value= '--VISCOSITY')
+    error = error + values%set(key = 'viscosity'      , Value= '1.0')
+    end subroutine  test_stokes_parameter_list_define_fempar_parameters
 end program test_stokes_parameter_list
 
 

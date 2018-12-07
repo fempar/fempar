@@ -52,10 +52,10 @@ module parameter_handler_names
    contains
      procedure                                  :: create                   => parameter_handler_create
      procedure(define_parameters_interface), deferred :: define_parameters 
-     procedure, non_overridable, private        :: assert_lists_consistency => parameter_handler_assert_lists_consistency
+     procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
      procedure, non_overridable, private        :: add_to_cli               => parameter_handler_add_to_cli
      procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
-     procedure, non_overridable, private        :: parse                    => parameter_handler_parse
+     procedure, non_overridable                 :: parse                    => parameter_handler_parse
      procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
      procedure                                  :: free                     => parameter_handler_free
      procedure, non_overridable                 :: get_values               => parameter_handler_get_values 
@@ -63,7 +63,7 @@ module parameter_handler_names
      procedure, non_overridable                 :: get_switches_ab          => parameter_handler_get_switches_ab
      procedure, non_overridable                 :: get_helpers              => parameter_handler_get_helpers    
      procedure, non_overridable                 :: get_required             => parameter_handler_get_required   
-     procedure, non_overridable, private        :: initialize_lists         => parameter_handler_initialize_lists  
+     procedure, non_overridable                 :: initialize_lists         => parameter_handler_initialize_lists  
   end type parameter_handler_t
 
   public :: parameter_handler_t
