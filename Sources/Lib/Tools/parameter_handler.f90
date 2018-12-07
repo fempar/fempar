@@ -57,7 +57,7 @@ module parameter_handler_names
      procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
      procedure, non_overridable, private        :: parse                    => parameter_handler_parse
      procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
-     procedure, non_overridable                 :: free                     => parameter_handler_free
+     procedure                                  :: free                     => parameter_handler_free
      procedure, non_overridable                 :: get_values               => parameter_handler_get_values 
      procedure, non_overridable                 :: get_switches             => parameter_handler_get_switches   
      procedure, non_overridable                 :: get_switches_ab          => parameter_handler_get_switches_ab
@@ -67,6 +67,7 @@ module parameter_handler_names
   end type parameter_handler_t
 
   public :: parameter_handler_t
+  public :: parameter_handler_free
   public :: count_tokens_cla_string_list 
   public :: process_tokens_cla_string_list
   
@@ -88,11 +89,12 @@ module parameter_handler_names
 
 contains
 
-  subroutine parameter_handler_create(this, progname, version, help, description, &
+  subroutine parameter_handler_create(this, parse_cla, progname, version, help, description, &
                                         license, authors, examples, epilog, disable_hv, &
                                         usage_lun, error_lun, version_lun)
     implicit none
     class(parameter_handler_t), intent(inout) :: this
+    logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
     character(*),       optional, intent(in)    :: progname          !< Program name.
     character(*),       optional, intent(in)    :: version           !< Program version.
     character(*),       optional, intent(in)    :: help              !< Help message introducing the CLI usage.
@@ -106,19 +108,28 @@ contains
     integer(ip),        optional, intent(in)    :: version_lun       !< Unit number to print version/license info
     integer(ip),        optional, intent(in)    :: error_lun         !< Unit number to print error info
     
+    logical :: parse_cla_
+    parse_cla_ = .true.
+    if ( present(parse_cla) ) parse_cla_ = parse_cla
+
     call this%free()
 
-    call this%cli%init(progname, version, help, description, &
-                       license, authors, examples, epilog, disable_hv, &
-                       usage_lun, error_lun, version_lun)
+    if ( parse_cla_ ) then
+      call this%cli%init(progname, version, help, description, &
+                         license, authors, examples, epilog, disable_hv, &
+                         usage_lun, error_lun, version_lun)
+    end if
     
     call this%initialize_lists()
     call this%define_parameters()
+    
 #ifdef DEBUG
     call this%assert_lists_consistency()
 #endif
-    call this%add_to_cli()
-    call this%parse()
+    if ( parse_cla_ ) then 
+      call this%add_to_cli()
+      call this%parse()
+    end if
   end subroutine parameter_handler_create
 
   !==================================================================================================

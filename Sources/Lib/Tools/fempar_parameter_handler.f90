@@ -47,11 +47,20 @@ module fempar_parameter_handler_names
  
   type, extends(parameter_handler_t) :: fempar_parameter_handler_t 
      private 
+     procedure(define_user_parameters), pointer :: define_user_parameters => NULL()
    contains
-     procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
-     procedure                           :: define_parameters        => fph_define_parameters
-     procedure                           :: define_user_parameters   => fph_define_user_parameters 
+     procedure, private, non_overridable :: define_fempar_parameters                => fph_define_fempar_parameters
+     procedure                           :: define_parameters                       => fph_define_parameters
+     procedure                           :: set_define_user_parameters_procedure    => fph_set_define_user_parameters_procedure
+     procedure                           :: free                                    => fph_free
   end type fempar_parameter_handler_t
+  
+  interface
+      subroutine define_user_parameters(this)
+        import :: fempar_parameter_handler_t 
+        class(fempar_parameter_handler_t ), intent(inout)    :: this
+      end subroutine define_user_parameters
+  end interface
 
   public :: fempar_parameter_handler_t
 
@@ -60,15 +69,26 @@ contains
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
     call this%define_fempar_parameters()
-    call this%define_user_parameters()
+    if (associated(this%define_user_parameters)) then
+      call this%define_user_parameters()
+    end if
   end subroutine fph_define_parameters
- 
-  subroutine fph_define_user_parameters(this)
+  
+  subroutine fph_free(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
-
-  end subroutine fph_define_user_parameters
-
+    call parameter_handler_free(this) ! this%parameter_handler_t%free()
+    nullify(this%define_user_parameters)
+  end subroutine fph_free  
+  
+  subroutine fph_set_define_user_parameters_procedure(this, define_user_parameters_procedure)
+    implicit none
+    class(fempar_parameter_handler_t), intent(inout) :: this
+    procedure(define_user_parameters) :: define_user_parameters_procedure
+    this%define_user_parameters => define_user_parameters_procedure
+  end subroutine fph_set_define_user_parameters_procedure
+  
+  
   
   subroutine fph_define_fempar_parameters(this)
     implicit none

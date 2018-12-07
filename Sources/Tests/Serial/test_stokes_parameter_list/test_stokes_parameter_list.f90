@@ -133,12 +133,12 @@ program test_stokes_parameter_list
 
   error = error + parameter_list%set(key = fes_num_fields_key, value = 2)
   error = error + parameter_list%set(key = fes_num_ref_fes_key, value = 2)
-  error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'lagrangian lagrangian' )
-  error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = '2 1')
-  error = error + parameter_list%set(key = fes_ref_fe_conformities_key, value = '.true. .true.')
-  error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = '.true. .false.')
+  error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian Lagrangian' )
+  error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = [2, 1])
+  error = error + parameter_list%set(key = fes_ref_fe_conformities_key, value =  [.true., .true.])
+  error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = [.true., .false.])
   error = error + parameter_list%set(key = fes_field_types_key, value =  'vector scalar')
-  error = error + parameter_list%set(key = fes_field_blocks_key, value = '1 1')
+  error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
   !
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = stokes_conditions, &
