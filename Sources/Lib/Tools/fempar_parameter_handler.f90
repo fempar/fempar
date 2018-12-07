@@ -53,6 +53,9 @@ module fempar_parameter_handler_names
      procedure                           :: define_parameters                       => fph_define_parameters
      procedure                           :: set_define_user_parameters_procedure    => fph_set_define_user_parameters_procedure
      procedure                           :: free                                    => fph_free
+     procedure                           :: get_dir_path => fph_get_dir_path
+     procedure                           :: get_dir_path_out => fph_get_dir_path_out
+     procedure                           :: get_prefix => fph_get_prefix
   end type fempar_parameter_handler_t
   
   interface
@@ -123,7 +126,7 @@ contains
 
     error = error + helpers%set(key = prefix_key     , Value= 'Name of the GiD files')
     error = error + switches%set(key = prefix_key    , Value= '--PREFIX')
-    error = error + values%set(key = prefix_key      , Value= '')
+    error = error + values%set(key = prefix_key      , Value= 'A')
 
     error = error + helpers%set(key = dir_path_out_key     , Value= 'Output Directory')
     error = error + switches%set(key = dir_path_out_key    , Value= '--DIR_PATH_OUT')
@@ -372,6 +375,44 @@ contains
 
   end subroutine fph_define_fempar_parameters
 
+    ! GETTERS *****************************************************************************************
+  function fph_get_dir_path(this)
+    implicit none
+    class(fempar_parameter_handler_t) , intent(in) :: this
+    character(len=:),      allocatable            :: fph_get_dir_path
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(dir_path_key, 'string'))
+    error = list%GetAsString(key = dir_path_key, string = fph_get_dir_path)
+    assert(error==0)
+  end function fph_get_dir_path 
+  
+  ! GETTERS *****************************************************************************************
+  function fph_get_dir_path_out(this)
+    implicit none
+    class(fempar_parameter_handler_t) , intent(in) :: this
+    character(len=:),      allocatable            :: fph_get_dir_path_out
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(dir_path_out_key, 'string'))
+    error = list%GetAsString(key = dir_path_out_key, string = fph_get_dir_path_out)
+    assert(error==0)
+  end function fph_get_dir_path_out
+
+  !==================================================================================================
+  function fph_get_prefix(this)
+    implicit none
+    class(fempar_parameter_handler_t) , intent(in) :: this
+    character(len=:),      allocatable            :: fph_get_prefix
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(prefix_key, 'string'))
+    error = list%GetAsString(key = prefix_key, string = fph_get_prefix)
+    assert(error==0)
+  end function fph_get_prefix
 
 
 end module fempar_parameter_handler_names 

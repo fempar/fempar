@@ -28,106 +28,22 @@
 
 !****************************************************************************************************
 
-module stokes_analytical_functions_names
-  use fempar_names
-  implicit none
-# include "debug.i90"
-  private
-  type, extends(scalar_function_t) :: source_term_t
-    private 
-   contains
-     procedure :: get_value_space    => source_term_get_value_space
-  end type source_term_t
-
-  type, extends(scalar_function_t) :: boundary_function_t
-    private
-   contains
-     procedure :: get_value_space => boundary_function_get_value_space
-  end type boundary_function_t
-
-  type, extends(scalar_function_t) :: solution_function_t
-    private 
-   contains
-     procedure :: get_value_space    => solution_function_get_value_space
-     procedure :: get_gradient_space => solution_function_get_gradient_space
-  end type solution_function_t
-
-  public :: source_term_t, boundary_function_t, solution_function_t
-contains  
-
-  !===============================================================================================
-  subroutine source_term_get_value_space ( this, point, result )
-    implicit none
-    class(source_term_t), intent(in)    :: this
-    type(point_t)       , intent(in)    :: point
-    real(rp)            , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    result = 0.0_rp 
-  end subroutine source_term_get_value_space
-
-  !===============================================================================================
-  subroutine boundary_function_get_value_space ( this, point, result )
-    implicit none
-    class(boundary_function_t), intent(in)  :: this
-    type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    if ( this%get_num_dims() == 2 ) then
-      result = point%get(1)+ point%get(2) ! x+y
-    else if ( this%get_num_dims() == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
-    end if  
-  end subroutine boundary_function_get_value_space 
-
-  !===============================================================================================
-  subroutine solution_function_get_value_space ( this, point, result )
-    implicit none
-    class(solution_function_t), intent(in)    :: this
-    type(point_t)             , intent(in)    :: point
-    real(rp)                  , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    if ( this%get_num_dims() == 2 ) then
-      result = point%get(1)+ point%get(2) ! x+y 
-    else if ( this%get_num_dims() == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
-    end if  
-      
-  end subroutine solution_function_get_value_space
-  
-  !===============================================================================================
-  subroutine solution_function_get_gradient_space ( this, point, result )
-    implicit none
-    class(solution_function_t), intent(in)    :: this
-    type(point_t)             , intent(in)    :: point
-    type(vector_field_t)      , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    if ( this%get_num_dims() == 2 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-    else if ( this%get_num_dims() == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
-    end if
-  end subroutine solution_function_get_gradient_space
-
-end module stokes_analytical_functions_names
-!***************************************************************************************************
-
 module stokes_discrete_integration_names
   use fempar_names
-  use stokes_analytical_functions_names
-  
   implicit none
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: stokes_discrete_integration_t
-     type(source_term_t), pointer :: source_term 
-     type(fe_function_t)                 , pointer :: fe_function          => NULL()
+     class(vector_function_t), pointer :: source_term          => NULL()
+     type(fe_function_t), pointer :: fe_function          => NULL()
+     real(rp)                     :: viscosity 
    contains
+     procedure :: integrate_galerkin   => stokes_discrete_integration_integrate
+     procedure :: integrate_residual   => stokes_discrete_integration_integrate_residual  
+     procedure :: integrate_tangent    => stokes_discrete_integration_integrate_tangent      
      procedure :: set_source_term
-     procedure :: set_fe_function
-     procedure :: integrate_galerkin
+     procedure :: set_viscosity
+     procedure :: set_fe_function 
   end type stokes_discrete_integration_t
   
   public :: stokes_discrete_integration_t
@@ -135,10 +51,17 @@ module stokes_discrete_integration_names
 contains
   subroutine set_source_term ( this, source_term )
      implicit none
-     class(stokes_discrete_integration_t)        , intent(inout) :: this
-     type(source_term_t)    , target, intent(in)    :: source_term
+     class(stokes_discrete_integration_t), intent(inout) :: this
+     class(vector_function_t), target     , intent(in)    :: source_term
      this%source_term => source_term
-  end subroutine set_source_term
+  end subroutine set_source_term  
+  
+  subroutine set_viscosity ( this, viscosity )
+     implicit none
+     class(stokes_discrete_integration_t), intent(inout) :: this
+    real(rp)                             , intent(in)    :: viscosity
+     this%viscosity = viscosity
+  end subroutine set_viscosity
 
   subroutine set_fe_function (this, fe_function)
      implicit none
@@ -147,83 +70,254 @@ contains
      this%fe_function => fe_function
   end subroutine set_fe_function
 
-  subroutine integrate_galerkin ( this, fe_space, assembler )
-    implicit none
-    class(stokes_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(assembler_t)      , intent(inout) :: assembler
+subroutine stokes_discrete_integration_integrate ( this, fe_space, assembler )
+  implicit none
+  class(stokes_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)               , intent(inout) :: fe_space
+  class(assembler_t)        , intent(inout) :: assembler
+  call this%integrate_tangent(fe_space, assembler)
+  call this%integrate_residual(fe_space, assembler)
+end subroutine stokes_discrete_integration_integrate
 
-    ! FE space traversal-related data types
-    class(fe_cell_iterator_t), allocatable :: fe
+subroutine stokes_discrete_integration_integrate_tangent ( this, fe_space, assembler )
+  implicit none
+  class(stokes_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)               , intent(inout) :: fe_space
+  class(assembler_t)        , intent(inout) :: assembler
+  ! FE space traversal-related data types
+  class(fe_cell_iterator_t), allocatable :: fe
+  ! FE integration-related data types
+  type(quadrature_t)       , pointer :: quad
+  type(point_t)            , pointer :: quad_coords(:)
+  type(vector_field_t), allocatable  :: shape_p_gradients(:,:)
+  real(rp)            , allocatable  :: shape_p_values(:,:)
+  type(tensor_field_t), allocatable  :: shape_u_gradients(:,:)
+  type(vector_field_t), allocatable  :: shape_u_values(:,:)
+  ! Workspace (FE matrix and vector, assembly data), it could be allocated in the creation
+  real(rp)   , allocatable :: elmat(:,:), elvec(:)
+  integer(ip), allocatable :: num_dofs_per_field(:)  
 
-    ! FE integration-related data types
-    type(quadrature_t)       , pointer :: quad
-    type(point_t)            , pointer :: quad_coords(:)
-    type(vector_field_t), allocatable  :: shape_gradients(:,:)
-    real(rp)            , allocatable  :: shape_values(:,:)
+  ! Locals
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  integer(ip)  :: idof, jdof, idof_u, jdof_u, idof_p, jdof_p , num_dofs
 
-    ! FE matrix and vector i.e., A_K + f_K
-    real(rp), allocatable              :: elmat(:,:), elvec(:)
+  type(fe_cell_function_vector_t) :: cell_solution_u
+  type(fe_cell_function_scalar_t) :: cell_solution_p
+  type(vector_field_t), pointer   :: solution_u(:) => null()
+  type(tensor_field_t), pointer   :: solution_gradu(:) => null()
+  real(rp)            , pointer   :: solution_p(:) => null()
 
-    integer(ip)  :: istat
-    integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
-    real(rp)     :: factor
-    real(rp)     :: source_term_value
-    
-    call fe_space%create_fe_cell_iterator(fe)
-    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
-
-    do while ( .not. fe%has_finished() )
-
-       if ( fe%is_local() ) then
-          ! Update FE-integration related data structures
-          call fe%update_integration()
-
-          ! Very important: this has to be inside the loop, as different FEs can be present!
-          quad            => fe%get_quadrature()
-          num_quad_points = quad%get_num_quadrature_points()
-          num_dofs = fe%get_num_dofs()
-          
-          ! Get quadrature coordinates to evaluate source_term
-          quad_coords => fe%get_quadrature_points_coordinates()
-                    
-          ! Compute element matrix and vector
-          elmat = 0.0_rp
-          elvec = 0.0_rp
-          call fe%get_gradients(shape_gradients)
-          call fe%get_values(shape_values)
-          do qpoint = 1, num_quad_points
-             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-             do idof = 1, num_dofs
-                do jdof = 1, num_dofs
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
-                end do
-             end do
-             
-             ! Source term
-             call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
-             do idof = 1, num_dofs
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
-             end do
-          end do
-          
-          call fe%assembly( this%fe_function, elmat, elvec, assembler )
-       end if
-       call fe%next()
-    end do
-    call fe_space%free_fe_cell_iterator(fe)
-    call memfree(shape_values, __FILE__, __LINE__)
-    deallocate (shape_gradients, stat=istat); check(istat==0);
-    call memfree ( elmat, __FILE__, __LINE__ )
-    call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate_galerkin
+  ! Problem variables
+  type(vector_field_t) :: source_term_value
+  type(tensor_field_t) :: s_u, epsd_v, epsd_u
+  real(rp)     :: dV, div_v, div_u
   
+  assert (associated(this%source_term)) 
+
+  call fe_space%set_up_cell_integration()
+  call fe_space%create_fe_cell_iterator(fe)
+  !call cell_solution_u%create(fe_space,1)
+  !call cell_solution_p%create(fe_space,2)
+
+
+  num_dofs = fe%get_num_dofs()
+  call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
+  call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+  call memalloc ( fe_space%get_num_fields(), num_dofs_per_field, __FILE__, __LINE__ )
+  num_dofs_per_field(1) = fe%get_num_dofs_field(1)
+  num_dofs_per_field(2) = fe%get_num_dofs_field(2)
+
+  quad            => fe%get_quadrature()
+  num_quad_points = quad%get_num_quadrature_points()
+
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+        ! Update FE-integration related data structures
+        call fe%update_integration()
+        !call cell_solution_u%update(fe,this%fe_function)
+        !call cell_solution_p%update(fe,this%fe_function)
+        !solution_u      => cell_solution_u%get_quadrature_points_values()
+        !solution_gradu => cell_solution_u%get_quadrature_points_gradients()
+        !solution_p     => cell_solution_p%get_quadrature_points_values()
+
+        ! Get quadrature coordinates to evaluate source_term
+        quad_coords => fe%get_quadrature_points_coordinates()
+
+        ! Compute element matrix and vector
+        elmat = 0.0_rp
+
+        call fe%get_gradients(shape_u_gradients,1)
+        call fe%get_values(shape_u_values,1)
+        call fe%get_gradients(shape_p_gradients,2)
+        call fe%get_values(shape_p_values,2)
+
+        do qpoint = 1, num_quad_points
+          dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof_u = 1, num_dofs_per_field(1)
+            idof = idof_u
+            ! U-U
+            epsd_v  = symmetric_part(shape_u_gradients(idof_u,qpoint)) 
+            div_v = trace(epsd_v)
+            do jdof_u = 1, num_dofs_per_field(1)
+              jdof = jdof_u
+              epsd_u  = symmetric_part(shape_u_gradients(jdof_u,qpoint))
+              !s_u = 2*viscosity*epsd_u
+              elmat(idof,jdof) = elmat(idof,jdof) + dV * double_contract(epsd_v,2*this%viscosity*epsd_u)
+              !> Convective term $\int_\Omega u_i \cdot \partial_i u_j v_j
+              !elmat(idof,jdof) = elmat(idof,jdof) + dv * (solution_u(qpoint) * shape_u_gradients(jdof_u,qpoint)) * shape_u_values(idof_u,qpoint)
+            end do
+            ! U-P
+            do jdof_p = 1, num_dofs_per_field(2)
+              jdof = num_dofs_per_field(1)+jdof_p
+              elmat(idof,jdof) = elmat(idof,jdof) + dV * div_v * shape_p_values(jdof_p,qpoint)
+            end do
+         end do
+         do idof_p = 1, num_dofs_per_field(2)
+           idof = num_dofs_per_field(1)+idof_p
+           ! P-U
+           do jdof_u = 1, num_dofs_per_field(1)
+             div_u = trace(shape_u_gradients(jdof_u,qpoint))
+             jdof = jdof_u
+             elmat(idof,jdof) = elmat(idof,jdof) + dV * shape_p_values(idof_p,qpoint) * div_u
+           end do
+         end do
+       end do      
+
+       call fe%assembly( elmat, assembler)
+     end if
+     call fe%next()
+  end do
+
+  !call cell_solution_u%free()
+  !call cell_solution_p%free()
+  call fe_space%free_fe_cell_iterator(fe)
+  call memfree(shape_p_values, __FILE__, __LINE__)
+  deallocate (shape_p_gradients, stat=istat); check(istat==0);
+  deallocate (shape_u_values, stat=istat); check(istat==0);
+  deallocate (shape_u_gradients, stat=istat); check(istat==0);
+  call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
+  call memfree ( elmat, __FILE__, __LINE__ )
+  call memfree ( elvec, __FILE__, __LINE__ )
+
+end subroutine stokes_discrete_integration_integrate_tangent
+
+
+
+subroutine stokes_discrete_integration_integrate_residual ( this, fe_space, assembler )
+  implicit none
+  class(stokes_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)               , intent(inout) :: fe_space
+  class(assembler_t)        , intent(inout) :: assembler
+
+  ! FE space traversal-related data types
+  class(fe_cell_iterator_t), allocatable :: fe
+
+  ! FE integration-related data types
+  type(quadrature_t)       , pointer :: quad
+  type(point_t)            , pointer :: quad_coords(:)
+  type(vector_field_t), allocatable  :: shape_p_gradients(:,:)
+  real(rp)            , allocatable  :: shape_p_values(:,:)
+  type(tensor_field_t), allocatable  :: shape_u_gradients(:,:)
+  type(vector_field_t), allocatable  :: shape_u_values(:,:)
+
+  ! Workspace (FE matrix and vector, assembly data), it could be allocated in the creation
+  real(rp)   , allocatable :: elmat(:,:), elvec(:)
+  integer(ip), allocatable :: num_dofs_per_field(:)  
+
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  integer(ip)  :: idof, jdof, idof_u, jdof_u, idof_p, jdof_p , num_dofs
+
+  type(fe_cell_function_vector_t) :: cell_solution_u
+  type(fe_cell_function_scalar_t) :: cell_solution_p
+  type(vector_field_t), pointer   :: solution_u(:) => null()
+  type(tensor_field_t), pointer   :: solution_gradu(:) => null()
+  real(rp)            , pointer   :: solution_p(:) => null()
+
+  ! Problem variables
+  type(vector_field_t) :: source_term_value
+  type(tensor_field_t) :: s_u, epsd_v, epsd_u
+  real(rp)     :: dV, div_v, div_u
+  
+  assert (associated(this%source_term)) 
+
+  call fe_space%set_up_cell_integration()
+  call fe_space%create_fe_cell_iterator(fe)
+  call cell_solution_u%create(fe_space,1)
+  call cell_solution_p%create(fe_space,2)
+
+  num_dofs = fe%get_num_dofs()
+  call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
+  call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+  call memalloc ( fe_space%get_num_fields(), num_dofs_per_field, __FILE__, __LINE__ )
+  num_dofs_per_field(1) = fe%get_num_dofs_field(1)
+  num_dofs_per_field(2) = fe%get_num_dofs_field(2)
+
+  quad            => fe%get_quadrature()
+  num_quad_points = quad%get_num_quadrature_points()
+
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+        ! Update FE-integration related data structures
+        call fe%update_integration()
+        call cell_solution_u%update(fe,this%fe_function)
+        call cell_solution_p%update(fe,this%fe_function)
+        solution_u      => cell_solution_u%get_quadrature_points_values()
+        solution_gradu => cell_solution_u%get_quadrature_points_gradients()
+        solution_p     => cell_solution_p%get_quadrature_points_values()
+
+        ! Get quadrature coordinates to evaluate source_term
+        quad_coords => fe%get_quadrature_points_coordinates()
+
+        ! Compute element matrix and vector
+        elvec = 0.0_rp
+
+        call fe%get_gradients(shape_u_gradients,1)
+        call fe%get_values(shape_u_values,1)
+        call fe%get_gradients(shape_p_gradients,2)
+        call fe%get_values(shape_p_values,2)
+
+        do qpoint = 1, num_quad_points
+          dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          
+         ! Residual
+         call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+         epsd_u = symmetric_part(solution_gradu(qpoint))
+         div_u  = trace(epsd_u)
+         do idof_u = 1, num_dofs_per_field(1)
+           idof = idof_u
+           epsd_v  = symmetric_part(shape_u_gradients(idof_u,qpoint)) 
+           div_v = trace(epsd_v)
+           elvec(idof) = elvec(idof) - dV * source_term_value * shape_u_values(idof_u,qpoint)
+           elvec(idof) = elvec(idof) + dV * double_contract(epsd_v,2*this%viscosity*epsd_u)
+           elvec(idof) = elvec(idof) + dV * div_v * solution_p(qpoint)
+           !> Convective term $\int_\Omega u_i \cdot \partial_i u_j v_j
+           !elvec(idof) = elvec(idof) + dV * (solution_u(qpoint)*solution_gradu(qpoint))*shape_u_values(idof_u,qpoint)
+         end do
+ 
+         do idof_p = 1, num_dofs_per_field(2)
+           idof = num_dofs_per_field(1)+idof_p
+           elvec(idof) = elvec(idof) + dV * shape_p_values(idof_p,qpoint) * div_u
+         end do
+       end do      
+
+       call fe%assembly( elvec, assembler)
+     end if
+     call fe%next()
+  end do
+
+  call cell_solution_u%free()
+  call cell_solution_p%free()
+  call fe_space%free_fe_cell_iterator(fe)
+  call memfree(shape_p_values, __FILE__, __LINE__)
+  deallocate (shape_p_gradients, stat=istat); check(istat==0);
+  deallocate (shape_u_values, stat=istat); check(istat==0);
+  deallocate (shape_u_gradients, stat=istat); check(istat==0);
+  call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
+  call memfree ( elmat, __FILE__, __LINE__ )
+  call memfree ( elvec, __FILE__, __LINE__ )
+
+end subroutine stokes_discrete_integration_integrate_residual
 end module stokes_discrete_integration_names
-
-
-
 

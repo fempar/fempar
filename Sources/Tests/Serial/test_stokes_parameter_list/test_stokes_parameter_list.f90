@@ -30,7 +30,6 @@
 program test_stokes_parameter_list
 !* uses the `fempar_names` and `test_stokes_parameter_list_driver_names`:
   use fempar_names
-  use stokes_analytical_functions_names
   use stokes_discrete_integration_names  
   !* First, declare the `test_driver` and the `world_context`  
   implicit none  
@@ -60,12 +59,14 @@ program test_stokes_parameter_list
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
   type(strong_boundary_conditions_t)   :: stokes_conditions
   !* An analytical_function_t with the expression of the desired source term, which is just 0 in this case.
-  type(source_term_t)                  :: source_term
+  type(vector_field_t) :: zero_vector
+  type(constant_vector_function_t)            :: source_term
+  !type(source_term_t)                  :: source_term
   !* An analytical_function_t with the expression of the desired Dirichlet boundary condition.
   type(constant_scalar_function_t)            :: zero_function
   type(constant_scalar_function_t)            :: one_function
   !* An analytical_function_t with the expression of exact solution of the problem, to check the code.
-  type(solution_function_t)            :: exact_solution
+  !type(solution_function_t)            :: exact_solution
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                  :: solution
   !* stokes_discrete_integration_t provides the definition of the blilinear form and right-hand side of the problem at hand.
@@ -76,7 +77,9 @@ program test_stokes_parameter_list
   !* The problem will be solved with an iterative linear solver, to be defined later.
   type(iterative_linear_solver_t)      :: iterative_linear_solver
   !* The following object automatically compute error norms given a fe_function_t and the analytical solution.
-  type(error_norms_scalar_t) :: error_norm
+  !type(error_norms_scalar_t) :: error_norm
+  !* The output handler type is used to print the results
+  type(output_handler_t) :: output_handler
 
   !* Local variables
   integer(ip) :: fe_order, istat, error, i, boundary_ids
@@ -116,19 +119,25 @@ program test_stokes_parameter_list
   if ( triangulation%get_num_dims() == 3) boundary_ids = 26
   call stokes_conditions%create()
   do i = 1, boundary_ids
-    call stokes_conditions%insert_boundary_condition(boundary_id=i, field_id=2, &
-                                                     cond_type=component_1, boundary_function=zero_function)
+    call stokes_conditions%insert_boundary_condition(boundary_id=i, field_id=1, &
+                                                     cond_type=component_2, boundary_function=zero_function)
   end do
   ! 
   call stokes_conditions%insert_boundary_condition(boundary_id=1, field_id=1, &
-                                                   cond_type=component_1, boundary_function=one_function)
+                                                   cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=2, field_id=1, &
-                                                   cond_type=component_1, boundary_function=one_function)
+                                                   cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=5, field_id=1, &
-                                                   cond_type=component_1, boundary_function=one_function)
-  call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
-                                                   cond_type=component_1, boundary_function=one_function)
+                                                   cond_type=component_1, boundary_function=zero_function)
+  call stokes_conditions%insert_boundary_condition(boundary_id=8, field_id=1, &
+                                                   cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=7, field_id=1, &
+                                                   cond_type=component_1, boundary_function=zero_function)
+  call stokes_conditions%insert_boundary_condition(boundary_id=3, field_id=1, &
+                                                   cond_type=component_1, boundary_function=zero_function)
+  call stokes_conditions%insert_boundary_condition(boundary_id=4, field_id=1, &
+                                                   cond_type=component_1, boundary_function=zero_function)
+  call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
 
   error = error + parameter_list%set(key = fes_num_fields_key, value = 2)
@@ -137,7 +146,7 @@ program test_stokes_parameter_list
   error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = [2, 1])
   error = error + parameter_list%set(key = fes_ref_fe_conformities_key, value =  [.true., .true.])
   error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = [.true., .false.])
-  error = error + parameter_list%set(key = fes_field_types_key, value =  'vector scalar')
+  error = error + parameter_list%set(key = fes_field_types_key, value =  field_type_vector // " " // field_type_scalar)
   error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
   !
   call fe_space%create( triangulation            = triangulation,      &
@@ -147,8 +156,11 @@ program test_stokes_parameter_list
   call fe_space%set_up_cell_integration()
 
   ! Now, we define the source term with the function we have created in our module.
-  call source_term%set_num_dims(triangulation%get_num_dims())
+  !call source_term%set_num_dims(triangulation%get_num_dims())
+  call zero_vector%init(0.0)
+  call source_term%create(zero_vector)
   call stokes_integration%set_source_term(source_term)
+  call stokes_integration%set_viscosity(1.0_rp)
 
   !* Now, we create the affine operator, i.e., b - Ax, providing the info for the matrix (storage, symmetric, etc.), and the form to
   !* be used to fill it, e.g., the bilinear form related that represents the weak form of the stokes problem and the right hand
@@ -189,23 +201,34 @@ program test_stokes_parameter_list
   !* putting the result in dof_values.
   call iterative_linear_solver%apply(fe_affine_operator%get_translation(), &
                                           dof_values)   
+  
+  error = error + parameter_list%set(key = dir_path_out_key      , Value= 'RESULTS_STOKES_DRIVER')
+  call output_handler%create()
+  call output_handler%attach_fe_space(fe_space)
+  call output_handler%add_fe_function(solution, 1, 'velocity')
+  call output_handler%add_fe_function(solution, 2, 'pressure')
+  call output_handler%open(parameter_handler%get_dir_path_out(), parameter_handler%get_prefix())
+  call output_handler%write()
+  call output_handler%close()
+  call output_handler%free()
+  
+  
+  
   !* Now, we want to compute error wrt an exact solution. It needs the FE space above to be constructed.                                       
-  call error_norm%create(fe_space,1)  
-  
-  call exact_solution%set_num_dims(triangulation%get_num_dims())
-  
+  !call error_norm%create(fe_space,1)  
+  !call exact_solution%set_num_dims(triangulation%get_num_dims())
   !* We compute the L2 norm of the difference between the exact and computed solution.
-  l2 = error_norm%compute(exact_solution, solution, l2_norm) 
+  !l2 = error_norm%compute(exact_solution, solution, l2_norm) 
 
   !* We finally write the result and check we have solved the problem "exactly", since the exact solution belongs to the FE space.
-  write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
+  !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
 !*
 !* Free all the created objects
 !*  call fempar_parameter_handler%free()
 !*  call triangulation%free()
 !*
 !*   In the following code, we will use
-  call error_norm%free()
+  !call error_norm%free()
   call solution%free()
   call iterative_linear_solver%free()
   call fe_affine_operator%free()
