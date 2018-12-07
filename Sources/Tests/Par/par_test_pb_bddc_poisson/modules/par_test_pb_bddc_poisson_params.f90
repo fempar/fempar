@@ -17,6 +17,7 @@ module par_test_pb_bddc_poisson_params_names
   character(len=*), parameter :: nchannel_x_direction_key   = 'nchannel_x_direction' 
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
   character(len=*), parameter :: size_sub_object_key        = 'size_sub_object_key' 
+  character(len=*), parameter :: hex_mesh_domain_limits_key = 'hex_mesh_domain_limits_key'
 
   type, extends(parameter_handler_t) :: par_test_pb_bddc_poisson_params_t
      private
@@ -366,7 +367,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(num_levels_key, num_levels))
+    assert(list%isAssignable(struct_hex_triang_num_levels_key, num_levels))
     error = list%Get(key = struct_hex_triang_num_levels_key, Value = num_levels)
     assert(error==0)       
     error = list%GetShape(key = struct_hex_triang_num_parts_x_dir_key   , shape = array_size); 
