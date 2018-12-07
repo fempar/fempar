@@ -25,6 +25,18 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine par_fe_space_serial_create_with_parameter_list( this,          &
+                                                       triangulation, &
+                                                       parameters,    &
+                                                       conditions)
+  implicit none
+  class(par_fe_space_t)                        , intent(inout)  :: this
+  class(triangulation_t)               , target, intent(in)     :: triangulation
+  type(ParameterList_t)                        , intent(inout)  :: parameters
+  class(strong_boundary_conditions_t), optional, target,  intent(inout) :: conditions
+  assert(.false.)
+end subroutine par_fe_space_serial_create_with_parameter_list
+
 subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,          &
                                                                        triangulation, &
                                                                        reference_fes, &
@@ -3868,8 +3880,8 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      call matrix%convert(csr_format)
 
      call parameter_list%init()
-     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-     FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
+     FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
+     FPLError = FPLError + parameter_list%set(key = ils_output_frequency_key, value = 30)
      assert(FPLError == 0)
      call iterative_linear_solver%create(this%get_environment())
      call iterative_linear_solver%set_type_from_string(cg_name)

@@ -713,8 +713,7 @@ subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subfa
         if ( IBITS( this%node_array%polytope%topology, i, 1 ) == 1 ) then 
            this%topology = IBSET( this%topology, c )
         else
-           write(*,*) 'ERROR: node_iterator_create_on_n_subface not implemented for pyramid extended polytopes',__FILE__,__LINE__
-           check(.false.)
+           mcheck(.false., 'ERROR: node_iterator_create_on_n_subface not implemented for pyramid extended polytopes')
         end if
         c = c+1
      end if   

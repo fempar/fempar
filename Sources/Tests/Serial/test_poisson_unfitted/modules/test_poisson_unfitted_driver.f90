@@ -150,9 +150,9 @@ contains
 
     ! Get number of dimensions form input
     if ( this%test_params%get_triangulation_type() == 'structured' ) then
-      assert( this%parameter_list%isPresent    (key = num_dims_key) )
-      assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dims) )
-      istat = this%parameter_list%get          (key = num_dims_key, value=num_dims); check(istat==0)
+      assert( this%parameter_list%isPresent    (key = struct_hex_triang_num_dims_key) )
+      assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dims) )
+      istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dims); check(istat==0)
     else
       num_dims = this%test_params%get_num_dims()
     end if
@@ -369,7 +369,7 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0

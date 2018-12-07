@@ -904,10 +904,10 @@ module triangulation_names
   public :: triangulation_generate_from_mesh
   public :: triangulation_generate_structured
   
-  character(len=*), parameter :: geometry_interpolation_order_key    = 'geometry_interpolation_order'
-  character(len=*), parameter :: triangulation_generate_key          = 'triangulation_generate'
-  public :: geometry_interpolation_order_key
-  public :: triangulation_generate_key
+  character(len=*), parameter :: triang_geometric_interpolation_order_key    = 'geometric_interpolation_order'
+  character(len=*), parameter :: triang_generate_key          = 'triangulation_generate'
+  public :: triang_geometric_interpolation_order_key
+  public :: triang_generate_key
   
   character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
   character(len=*), parameter :: all_coupled                    = 'all_coupled'

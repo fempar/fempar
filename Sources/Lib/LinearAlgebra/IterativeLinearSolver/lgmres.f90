@@ -116,30 +116,30 @@ contains
    integer(ip), allocatable             :: shape(:)
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Dkrymax
-   is_present     = parameter_list%isPresent(Key=ils_dkrymax)
+   is_present     = parameter_list%isPresent(Key=ils_max_dim_krylov_basis_key)
    if(is_present) then
 #ifdef DEBUG
-      same_data_type = parameter_list%isOfDataType(Key=ils_dkrymax, mold=this%dkrymax)
-      FPLError       = parameter_list%getshape(Key=ils_dkrymax, shape=shape)
+      same_data_type = parameter_list%isOfDataType(Key=ils_max_dim_krylov_basis_key, mold=this%dkrymax)
+      FPLError       = parameter_list%getshape(Key=ils_max_dim_krylov_basis_key, shape=shape)
       if(same_data_type .and. size(shape) == 0) then
 #endif
-         FPLError   = parameter_list%Get(Key=ils_dkrymax, Value=this%dkrymax)
+         FPLError   = parameter_list%Get(Key=ils_max_dim_krylov_basis_key, Value=this%dkrymax)
          assert(FPLError == 0)
 #ifdef DEBUG
       else
-         write(0,'(a)') ' Warning! ils_dkrymax ignored. Wrong data type or shape. '
+         write(0,'(a)') ' Warning! ils_max_dim_krylov_basis ignored. Wrong data type or shape. '
       endif
 #endif
    endif
    ! Orthonorm strat
-   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strat)
+   is_present     = parameter_list%isPresent(Key=ils_orthonorm_strategy_key)
    if(is_present) then
 #ifdef DEBUG
-      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strat, mold=this%orthonorm_strat)
-      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strat, shape=shape)
+      same_data_type = parameter_list%isOfDataType(Key=ils_orthonorm_strategy_key, mold=this%orthonorm_strat)
+      FPLError       = parameter_list%getshape(Key=ils_orthonorm_strategy_key, shape=shape)
       if(same_data_type .and. size(shape) == 0) then
 #endif
-         FPLError   = parameter_list%Get(Key=ils_orthonorm_strat, Value=this%orthonorm_strat)
+         FPLError   = parameter_list%Get(Key=ils_orthonorm_strategy_key, Value=this%orthonorm_strat)
          assert(FPLError == 0)
 #ifdef DEBUG
       else

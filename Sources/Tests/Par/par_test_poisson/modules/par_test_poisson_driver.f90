@@ -431,7 +431,7 @@ end subroutine free_timers
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -439,7 +439,7 @@ end subroutine free_timers
     do ilev=1, this%par_environment%get_num_levels()-1
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        if ( ilev > 1 ) then
          FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
        else
@@ -450,7 +450,7 @@ end subroutine free_timers
        
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        if ( ilev > 1 ) then
          FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
        else
@@ -469,7 +469,7 @@ end subroutine free_timers
        plist  => coarse 
     end do
     ! Set coarsest-grid solver parameters
-    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)

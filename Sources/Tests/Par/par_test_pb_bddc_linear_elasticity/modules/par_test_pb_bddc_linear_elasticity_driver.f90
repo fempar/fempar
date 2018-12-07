@@ -893,9 +893,9 @@ contains
        call this%iterative_linear_solver%create(this%fe_space%get_environment())
        call this%iterative_linear_solver%set_type_from_string(cg_name)
        call parameter_list%init()
-       FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
+       FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-6_rp)
        assert(FPLError == 0)
-       FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+       FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
        assert(FPLError == 0)
        call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
        call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
@@ -929,7 +929,7 @@ contains
     ! Fill the fempar list to be eventually given to bddc
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        if ( si_solver ) then
           !FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
           !FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
@@ -939,7 +939,7 @@ contains
     do ilev=1, this%par_environment%get_num_levels()-1
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        if ( si_solver ) then
           !FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
           !FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
@@ -948,7 +948,7 @@ contains
 
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        if ( si_solver ) then
           FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
           FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
@@ -959,7 +959,7 @@ contains
        plist  => coarse 
     end do
     ! Set coarsest-grid solver parameters
-    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
     if ( si_solver ) then
        !FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
        !FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
@@ -973,8 +973,8 @@ contains
     call this%mlbddc%numerical_setup()
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-6_rp)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
 
     call this%iterative_linear_solver%create(this%fe_space%get_environment())

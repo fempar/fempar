@@ -28,6 +28,7 @@
 module parameter_handler_names
   use types_names
   use flap, only : Command_Line_Interface
+  use flap_utils_m
   use FPL
 # include "debug.i90"
   implicit none
@@ -66,6 +67,8 @@ module parameter_handler_names
   end type parameter_handler_t
 
   public :: parameter_handler_t
+  public :: count_tokens_cla_string_list 
+  public :: process_tokens_cla_string_list
   
   
   abstract interface
@@ -182,7 +185,7 @@ contains
      type(ParameterList_t), pointer :: required_sublist
      type(ParameterList_t), pointer :: values_sublist
      
-     assert(this%switches%length() == this%switches_ab%length())
+!     assert(this%switches%length() == this%switches_ab%length())
      assert(this%switches%length() == this%helpers%length())
 !     assert(this%switches%length() == this%required%length())
 !     assert(this%switches%length() == this%values%length())
@@ -190,7 +193,7 @@ contains
      Iterator = this%switches%GetIterator()
      do while (.not. Iterator%HasFinished())
           key = Iterator%GetKey()
-          assert(this%switches_ab%isPresent(key))
+          !assert(this%switches_ab%isPresent(key))
           assert(this%helpers%isPresent(key))
           !assert(this%required%isPresent(key))
           assert(this%values%isPresent(key))
@@ -293,17 +296,29 @@ contains
        endif
        key = Iterator%GetKey()
        error = error + Iterator%GetAsString   (switch)
-       error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       if ( switches_ab%isPresent(key = key) ) then
+         error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       end if
        error = error + helpers%GetAsString    (key = key , String = help)
        !error = error + required%Get           (key = key , value = is_required)
        is_required = .false.
        error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
        if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
-        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-           &               required=is_required,act='store',def=cvalue,error=error)
+         if ( switches_ab%isPresent(key = key) ) then
+           call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error)
+         else 
+           call this%cli%add(group=group,switch=switch,help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error)
+         end if  
        else if(values%GetDimensions(Key=Iterator%GetKey()) == 1) then 
-         call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-            &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         if ( switches_ab%isPresent(key = key) ) then
+           call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         else 
+           call this%cli%add(group=group,switch=switch, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         end if
        else
           write(*,*) 'Rank >1 arrays not supported by CLI'
           assert(.false.)
@@ -411,5 +426,29 @@ contains
     call this%helpers%init()
     call this%required%init()
   end subroutine parameter_handler_initialize_lists
+  
+  function count_tokens_cla_string_list (string_list) 
+    implicit none
+    character(*)       , intent(in) :: string_list
+    integer(ip) :: count_tokens_cla_string_list
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=count_tokens_cla_string_list)
+    deallocate(vals)
+  end function count_tokens_cla_string_list
+  
+  subroutine process_tokens_cla_string_list ( string_list, values ) 
+    implicit none 
+    character(*)       , intent(in)    :: string_list
+    character(*)       , intent(inout) :: values(:)
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    integer(ip) :: Nt, i
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=Nt)
+    assert ( size(values) == Nt) 
+    do i=1, size(vals) 
+      values(i)=vals(i)
+    end do 
+    deallocate(vals)
+  end subroutine process_tokens_cla_string_list
+  
 
 end module parameter_handler_names 
