@@ -80,16 +80,17 @@ contains
     end if    
     call this%initialize_lists()
     call this%define_parameters()
+    if (present(define_user_parameters_procedure)) then
+      this%define_user_parameters => define_user_parameters_procedure
+      call this%define_user_parameters()
+    end if
+    
 #ifdef DEBUG
     call this%assert_lists_consistency()
 #endif
     if ( parse_cla_ ) then 
       call this%add_to_cli()
       call this%parse()
-    end if
-    if (present(define_user_parameters_procedure)) then
-    this%define_user_parameters => define_user_parameters_procedure
-    call this%define_user_parameters()
     end if
   end subroutine fph_process_parameters
   
