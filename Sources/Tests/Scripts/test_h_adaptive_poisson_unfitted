@@ -37,7 +37,7 @@ then
                   is_bconst=".false."
                 fi
         
-                cmd="$TEST_BINARY_PATH -tt structured -dim $idim -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst  -d $SCRIPT_NAME -p $SCRIPT_NAME"
+                cmd="$TEST_BINARY_PATH -tt structured -dim $idim -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst  -o $SCRIPT_NAME -p $SCRIPT_NAME"
         
                 echo $cmd
                 $cmd

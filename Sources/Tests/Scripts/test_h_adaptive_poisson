@@ -1,4 +1,4 @@
-#!/bin/sh
+!/bin/sh
 SCRIPT_NAME=$(basename $0)
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
@@ -18,8 +18,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -52,8 +52,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -69,8 +69,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG -d $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG -d $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -86,8 +86,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -103,8 +103,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG -d $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG -d $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -142,8 +142,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true. -d $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
+            $TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
