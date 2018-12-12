@@ -3,17 +3,7 @@ stages:
 
 .base_gnu:
   before_script: 
-    - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
-    - set +e
-    - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
-    - set -e
-    #- export HDF5_ROOT=/opt/HDF5/1.10.0-p1/GNU/5.3.0
-    - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=gfortran"
-    - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpif90"
-    - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/GNU/5.4.0/include;/opt/OpenMPI/3.1.2/GNU/5.4.0/bin'"
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
-    - C_COMPILER="-DCMAKE_C_COMPILER=gcc"
-    - MPIEXEC="-DMPIEXEC='/opt/OpenMPI/3.1.2/GNU/5.4.0/bin/mpirun'"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
     - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
@@ -24,10 +14,6 @@ stages:
     - git submodule sync --recursive
     - git submodule update --init --recursive
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
-    - export PETSC_DIR="/opt/petsc-3.9.0-build-gnu"
-    - export PETSC_ARCH="x86_64"
-    - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
 
 
 GNU_DEBUG_SERIAL:
@@ -41,13 +27,12 @@ GNU_DEBUG_SERIAL:
   extends: .base_gnu
  
   script:
+    - module load GNU_SERIAL
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -73,13 +58,12 @@ GNU_DEBUG_PARALLEL:
   extends: .base_gnu
  
   script:
+    - module load GNU_PARALLEL
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -105,13 +89,12 @@ GNU_RELEASE_SERIAL:
   extends: .base_gnu
 
   script:
+    - module load GNU_SERIAL
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4EST/2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -137,13 +120,12 @@ GNU_RELEASE_PARALLEL:
   extends: .base_gnu
 
   script:
+    - module load GNU_PARALLEL
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -161,18 +143,7 @@ GNU_RELEASE_PARALLEL:
 
 .base_intel:
    before_script: 
-    - ls -l /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh
-    - set +e
-    - source /opt/intel/compilers_and_libraries_2019.0.117/linux/bin/compilervars.sh intel64
-    - set -e
-    #- export HDF5_ROOT=/opt/HDF5/1.10.0-p1/INTEL/19.0
-    - FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=ifort"
-    - FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/3.1.2/INTEL/19.0/bin/mpif90"
-    - FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/3.1.2/INTEL/19.0/include;/opt/OpenMPI/3.1.2/INTEL/19.0/bin'"
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-implicitnone"
-    - C_COMPILER="-DCMAKE_C_COMPILER=icc"
-    - CXX_COMPILER="-DCMAKE_CXX_COMPILER=icpc"
-    - MPIEXEC="-DMPIEXEC='/opt/OpenMPI/3.1.2/INTEL/19.0/bin/mpirun'"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
     - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
@@ -183,11 +154,6 @@ GNU_RELEASE_PARALLEL:
     - git submodule sync --recursive
     - git submodule update --init --recursive
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
-    - export PETSC_DIR="/opt/petsc-3.9.0-build-intel"
-    - export PETSC_ARCH="x86_64"
-    - export PATH=/opt/QHULL/7.2.0/GNU/5.3.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/QHULL/7.2.0/GNU/5.3.0/lib:$LD_LIBRARY_PATH
-
 
 INTEL_RELEASE_SERIAL:
   image: registry.gitlab.com/fempar/fempar:latest
@@ -200,13 +166,12 @@ INTEL_RELEASE_SERIAL:
   extends: .base_intel
  
   script:
+    - module load INTEL_SERIAL
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4EST/2.0/INTEL/19.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4EST/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
@@ -232,13 +197,12 @@ INTEL_RELEASE_PARALLEL:
   extends: .base_intel
  
   script:
+    - module load INTEL_PARALLEL
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - export PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/include/:$PATH
-    - export LD_LIBRARY_PATH=/opt/P4ESTMPI/2.0/INTEL/19.0/lib:$LD_LIBRARY_PATH
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $CXX_COMPILER $MPIEXEC $MACROS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
