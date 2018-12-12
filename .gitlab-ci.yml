@@ -3,6 +3,8 @@ stages:
 
 .base_gnu:
   before_script: 
+    - whoami
+    - echo $PATH
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
