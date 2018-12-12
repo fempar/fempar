@@ -3,8 +3,7 @@ stages:
 
 .base_gnu:
   before_script: 
-    - whoami
-    - echo $PATH
+    - source /usr/local/Modules/init/bash
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
@@ -145,6 +144,7 @@ GNU_RELEASE_PARALLEL:
 
 .base_intel:
    before_script: 
+    - source /usr/local/Modules/init/bash
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-implicitnone"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
