@@ -46,7 +46,7 @@ then
                     dom="-1.0 1.0"
                   fi
         
-                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -d $SCRIPT_NAME -p $SCRIPT_NAME"
+                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -o $SCRIPT_NAME -p $SCRIPT_NAME"
         
                   echo $cmd
                   $cmd
@@ -101,7 +101,7 @@ then
                     dom="-1.0 1.0"
                   fi
         
-                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -lt vector -d $SCRIPT_NAME -p $SCRIPT_NAME"
+                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -lt vector -o $SCRIPT_NAME -p $SCRIPT_NAME"
         
                   echo $cmd
                   $cmd
