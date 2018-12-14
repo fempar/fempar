@@ -488,9 +488,9 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
 #else
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 

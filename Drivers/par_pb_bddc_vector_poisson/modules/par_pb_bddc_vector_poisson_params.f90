@@ -354,7 +354,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(num_levels_key, num_levels))
+    assert(list%isAssignable(struct_hex_triang_num_levels_key, num_levels))
     error = list%Get(key = struct_hex_triang_num_levels_key, Value = num_levels)
     assert(error==0)       
     error = list%GetShape(key = struct_hex_triang_num_parts_x_dir_key   , shape = array_size); 
