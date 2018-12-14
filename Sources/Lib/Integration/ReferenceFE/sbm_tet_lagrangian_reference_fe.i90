@@ -851,6 +851,34 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
 end subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
 
 !==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_h_refinement_interpolation(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ...
+end subroutine tet_lagrangian_reference_fe_fill_h_refinement_interpolation
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_h_refinement_permutations(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ...
+end subroutine tet_lagrangian_reference_fe_fill_h_refinement_permutations
+
+!==================================================================================================
+subroutine tlrf_fill_scalar_coarsening_projection_operator(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ... 
+end subroutine tlrf_fill_scalar_coarsening_projection_operator
+
+!==================================================================================================
+subroutine tlrf_scalar_to_multicomp_coarsening_projection_operator(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ... 
+end subroutine tlrf_scalar_to_multicomp_coarsening_projection_operator
+
+!==================================================================================================
 function tet_lagrangian_reference_fe_compute_permutation_index(source_reference_fe, target_reference_fe,          &
      &                                                         source_n_face_id, target_n_face_id,         &
      &                                                         source_n_faces, target_n_faces)
