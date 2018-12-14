@@ -88,13 +88,13 @@ contains
     tmp = [3,1,1]; error = error + this%list%set(key = struct_hex_triang_num_parts_x_dir_key   , value = tmp)
     tmp = [0,1,0]; error = error + this%list%set(key = struct_hex_triang_is_dir_periodic_key           , value = tmp)
 
-    ! tmp = [4,2,0]; error = error + this%list%set(key = num_cells_x_dir_key   , value = tmp)
-    ! tmp = [1,1,1]; error = error + this%list%set(key = num_parts_x_dir_key   , value = tmp)
-    ! tmp = [1,1,0]; error = error + this%list%set(key = is_dir_periodic_key           , value = tmp)
+    ! tmp = [4,2,0]; error = error + this%list%set(key = struct_hex_triang_num_cells_dir   , value = tmp)
+    ! tmp = [1,1,1]; error = error + this%list%set(key = struct_hex_triang_num_parts_x_dir_key   , value = tmp)
+    ! tmp = [1,1,0]; error = error + this%list%set(key = struct_hex_triang_is_dir_periodic_key           , value = tmp)
 
-    !error = error + this%list%set(key = num_cells_x_dir_key   , value =  [4,2,0])
-    !error = error + this%list%set(key = num_parts_x_dir_key   , value =  [1,1,1])
-    !error = error + this%list%set(key = is_dir_periodic_key           , value =  [0,0,0])
+    !error = error + this%list%set(key = struct_hex_triang_num_cells_dir   , value =  [4,2,0])
+    !error = error + this%list%set(key = struct_hex_triang_num_parts_x_dir_key   , value =  [1,1,1])
+    !error = error + this%list%set(key = struct_hex_triang_is_dir_periodic_key           , value =  [0,0,0])
     check(error==0)
 
     ! Only some of them are controlled from cli
@@ -265,7 +265,7 @@ program partitioner
   call input%create()
   parameters => input%get_parameters()
 
-  !error = parameters%get(key = num_cells_x_dir_key, value = n)
+  !error = parameters%get(key = struct_hex_triang_num_cells_dir, value = n)
   !write(*,*) n
 
   ! call uniform_hex_mesh_generator_generate_connectivities(parameters,        &

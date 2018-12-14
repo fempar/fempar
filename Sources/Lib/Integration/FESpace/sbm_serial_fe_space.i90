@@ -1307,7 +1307,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
   call direct_solver%solve(rhs,projected_nodal_values)
   call direct_solver%free()
 #else
-  FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+  FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
   FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
   assert(FPLError == 0)
   call iterative_linear_solver%create(this%get_environment())
