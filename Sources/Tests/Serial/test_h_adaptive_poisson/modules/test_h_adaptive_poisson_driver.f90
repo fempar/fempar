@@ -506,10 +506,8 @@ contains
     
     do i=1,3
        
-       if ( i == 2 ) then 
-         if (this%triangulation%get_num_dims() == 2) then
-           call this%set_cells_for_coarsening()
-         end if
+       if ( i == 2 ) then
+         call this%set_cells_for_coarsening()
        else
          call this%set_cells_for_refinement()
        end if

@@ -59,7 +59,7 @@ module reference_fe_names
   character(*), parameter, public :: fe_type_raviart_thomas = "Raviart_Thomas"
   character(*), parameter, public :: fe_type_nedelec = "Nedelec"
   character(*), parameter, public :: fe_type_void = "Void"
-  
+
   private
 
   ! This module includes all the reference FE related machinery that is required
@@ -417,9 +417,6 @@ module reference_fe_names
   public :: node_iterator_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
 
   ! Abstract reference_fe
   type, abstract ::  reference_fe_t
@@ -1118,6 +1115,7 @@ module reference_fe_names
   integer(ip)              :: order_vector(SPACE_DIM)
   integer(ip), allocatable :: node_component_array(:,:)
   integer(ip), allocatable :: node_array_component(:,:)
+  real(rp),    allocatable :: coarsening_projection_operator(:,:)
   type(quadrature_t)       :: nodal_quadrature
 contains
   ! Additional deferred methods
@@ -1179,6 +1177,14 @@ contains
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
        & => lagrangian_reference_fe_fill
+  procedure, private :: fill_h_refinement_interpolation  &
+       & => lagrangian_reference_fe_fill_h_refinement_interpolation
+  procedure, private :: fill_h_refinement_permutations                     &
+      &  =>  lagrangian_reference_fe_fill_h_refinement_permutations
+  procedure, private :: scalar_to_multicomp_coarsening_projection_operator  &
+       & => lrf_scalar_to_multicomp_coarsening_projection_operator 
+  procedure, private :: fill_scalar_coarsening_projection_operator  &
+       & => lrf_fill_scalar_coarsening_projection_operator       
   procedure :: generate_own_dofs_cell_permutations           &
        & => lagrangian_reference_fe_generate_own_dofs_cell_permutations
   procedure :: fill_qpoints_permutations           &
@@ -1308,7 +1314,7 @@ procedure, private :: apply_cell_map_to_interpolation &
 procedure, private :: fill                         & 
     & => raviart_thomas_fill
 procedure, private :: fill_vector                         & 
-    & => raviart_thomas_fill_vector    
+    & => raviart_thomas_fill_vector
 procedure, private :: fill_nodal_quadrature &
     & => raviart_thomas_fill_nodal_quadrature
 procedure, private :: invert_change_basis_matrix &
@@ -1325,8 +1331,7 @@ abstract interface
     implicit none 
     class(raviart_thomas_reference_fe_t), intent(inout) :: this 
   end subroutine change_basis_interface
-end interface  
-
+end interface
 
 public :: raviart_thomas_reference_fe_t  
 
@@ -1448,7 +1453,15 @@ contains
              &  => tet_lagrangian_reference_fe_fill_nodal_quadrature
    procedure, private :: fill_interpolation                                             &
              &  => tet_lagrangian_reference_fe_fill_interpolation
-   procedure, private :: fill_interp_restricted_to_facet                                        &
+   procedure, private :: fill_h_refinement_interpolation                                &
+             &  => tet_lagrangian_reference_fe_fill_h_refinement_interpolation
+   procedure, private :: fill_h_refinement_permutations                                 &
+             & =>  tet_lagrangian_reference_fe_fill_h_refinement_permutations             
+   procedure, private :: fill_scalar_coarsening_projection_operator  &
+             &  => tlrf_fill_scalar_coarsening_projection_operator
+   procedure, private :: scalar_to_multicomp_coarsening_projection_operator  &
+             &  => tlrf_scalar_to_multicomp_coarsening_projection_operator
+   procedure, private :: fill_interp_restricted_to_facet                                &
              &  => tet_lagrangian_reference_fe_fill_interp_restricted_to_facet
    procedure, private :: compute_num_quadrature_points                                   &
              &  => tet_lagrangian_reference_fe_compute_num_quadrature_points
@@ -1532,11 +1545,7 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
-
-contains 
-
-procedure :: create => hex_lagrangian_reference_fe_create
-
+contains
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                                 &
 &   => hex_lagrangian_reference_fe_check_compatibility_of_n_faces
@@ -1556,6 +1565,8 @@ procedure, private :: fill_quadrature                                    &
 procedure, private :: fill_nodal_quadrature                              &
 & => hex_lagrangian_reference_fe_fill_nodal_quadrature
 procedure, private :: fill_interpolation                                 &
+& => hex_lagrangian_reference_fe_fill_interpolation
+procedure :: fill_interpolation_pre_basis                                &
 & => hex_lagrangian_reference_fe_fill_interpolation
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => hex_lagrangian_reference_fe_fill_interp_restricted_to_facet
@@ -1579,6 +1590,27 @@ procedure, private :: compute_num_quadrature_points                   &
 & => hex_lagrangian_reference_fe_compute_num_quadrature_points
 procedure :: fill_qpoints_permutations                                   &
 & => hex_lagrangian_reference_fe_fill_qpoints_permutations
+procedure          :: scalar_to_multicomp_coarsening_projection_operator                   &
+& => hlrf_scalar_to_multicomp_coarsening_projection_operator
+procedure, private :: fill_scalar_coarsening_projection_operator  &
+& => hlrf_fill_scalar_coarsening_projection_operator
+procedure          :: free_projection_operator                          &
+& => hex_lagrangian_free_projection_operator
+procedure          :: fill_subcell_to_cell_node_identifier              &
+& => hex_lagrangian_fill_subcell_to_cell_node_identifier
+procedure          :: get_num_nodes_on_subcell                           &
+& => hex_lagrangian_get_num_nodes_on_subcell
+procedure          :: compute_coarse_mass_matrix_for_scalar_fields      &
+& => hex_lagrangian_compute_coarse_mass_matrix_for_scalar_fields
+procedure          :: compute_children_mass_matrix_for_scalar_fields     &
+& => hex_lagrangian_compute_children_mass_matrix_for_scalar_fields
+procedure          :: get_num_nodes                                      &
+& => hex_lagrangian_get_num_nodes
+procedure          :: get_num_nodes_children_patch                       &
+& => hex_lagrangian_get_num_nodes_children_patch
+procedure          :: fill_multicomp_fe_scalar_projection_operator          &
+& => hlrf_fill_multicomp_fe_scalar_projection_operator
+
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t

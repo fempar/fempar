@@ -171,6 +171,7 @@ subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature,
   call aux_reference_fe%p%create_interpolation ( quadrature, edget_interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_edget_interpolation
+
 !==================================================================================================
 subroutine lagrangian_reference_fe_apply_cell_map( this, &
                                                    cell_ressemblance, &
@@ -998,6 +999,8 @@ subroutine lagrangian_reference_fe_free ( this )
        call memfree(this%node_component_array,__FILE__,__LINE__)
   if(allocated(this%node_array_component)) & 
        call memfree(this%node_array_component,__FILE__,__LINE__)
+  if(allocated(this%coarsening_projection_operator)) & 
+       call memfree(this%coarsening_projection_operator,__FILE__,__LINE__)       
    call this%nodal_quadrature%free()    
   call reference_fe_free ( this )
 end subroutine lagrangian_reference_fe_free
@@ -1085,7 +1088,9 @@ subroutine lagrangian_reference_fe_fill (this)
         c = c+1
      end do
   end do
-
+  
+  call this%fill_h_refinement_permutations()
+  call this%scalar_to_multicomp_coarsening_projection_operator()
 end subroutine lagrangian_reference_fe_fill
 
 !==================================================================================================
@@ -1309,6 +1314,38 @@ subroutine lagrangian_reference_fe_get_h_refinement_coefficient ( this, ishape_f
   real(rp)                                , intent(inout) :: coefficient
   massert(.false.,'Note: you are calling get_h_refinement_coefficient on a type extension of reference_fe_t where it is not implemented.')
 end subroutine lagrangian_reference_fe_get_h_refinement_coefficient
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_fill_h_refinement_interpolation (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lagrangian_reference_fe_fill_h_refinement_interpolation
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_fill_h_refinement_permutations (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lagrangian_reference_fe_fill_h_refinement_permutations
+
+!==================================================================================================
+subroutine lrf_fill_scalar_coarsening_projection_operator (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lrf_fill_scalar_coarsening_projection_operator
+
+!==================================================================================================
+subroutine lrf_scalar_to_multicomp_coarsening_projection_operator (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lrf_scalar_to_multicomp_coarsening_projection_operator
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
@@ -1544,6 +1581,12 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         i = i + 1 
      enddo
   end if
+  
+  ! Compute h_refinement_interpolation
+  call this%fill_h_refinement_interpolation()
+  
+  ! Fill coarsening projection operator for scalar fields
+  call this%fill_scalar_coarsening_projection_operator()
   
 contains
   recursive function count_n_faces_in_n_face(i, visited) result (num_n_faces)
