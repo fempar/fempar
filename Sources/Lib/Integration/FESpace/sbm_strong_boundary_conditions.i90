@@ -64,8 +64,8 @@ subroutine strong_boundary_conditions_insert_boundary_condition( this, boundary_
   massert( .not. this%is_processed, "Boundary conditions already processed, no new bc's can be added in this state")
   massert ( boundary_id >= 1, "Boundary set ID equal to 0 ignored" ) 
   call this%boundary_id_array%push_back(boundary_id)
-  call this%condition_type_array%push_back(field_id)
-  call this%fixed_field_array%push_back(cond_type)
+  call this%condition_type_array%push_back(cond_type)
+  call this%fixed_field_array%push_back(field_id)
   this%num_conditions = this%num_conditions + 1
   p_boundary_function%p => boundary_function
   call this%pre_boundary_functions_array%push_back(p_boundary_function)

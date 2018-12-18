@@ -47,28 +47,76 @@ module fempar_parameter_handler_names
  
   type, extends(parameter_handler_t) :: fempar_parameter_handler_t 
      private 
+     procedure(define_user_parameters), pointer :: define_user_parameters => NULL()
    contains
-     procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
-     procedure                           :: define_parameters        => fph_define_parameters
-     procedure                           :: define_user_parameters   => fph_define_user_parameters 
+     procedure                           :: process_parameters                      => fph_process_parameters
+     procedure, private, non_overridable :: define_fempar_parameters                => fph_define_fempar_parameters
+     procedure                           :: define_parameters                       => fph_define_parameters
+     procedure                           :: free                                    => fph_free
+     procedure                           :: get_dir_path => fph_get_dir_path
+     procedure                           :: get_dir_path_out => fph_get_dir_path_out
+     procedure                           :: get_prefix => fph_get_prefix
   end type fempar_parameter_handler_t
-
+  
+  interface
+      subroutine define_user_parameters(this)
+        import :: fempar_parameter_handler_t 
+        class(fempar_parameter_handler_t ), intent(inout)    :: this
+      end subroutine define_user_parameters
+  end interface
   public :: fempar_parameter_handler_t
-
 contains
+  subroutine fph_process_parameters(this,define_user_parameters_procedure,parse_cla)
+    implicit none
+    class(fempar_parameter_handler_t), intent(inout) :: this
+    procedure(define_user_parameters), optional :: define_user_parameters_procedure
+    logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
+    logical :: parse_cla_
+    parse_cla_ = .true.
+    if ( present(parse_cla) ) parse_cla_ = parse_cla
+    call this%free()
+    if ( parse_cla_ ) then
+      call this%init_cli()
+    end if    
+    call this%initialize_lists()
+    call this%define_parameters()
+    if (present(define_user_parameters_procedure)) then
+      this%define_user_parameters => define_user_parameters_procedure
+      call this%define_user_parameters()
+    end if
+    
+#ifdef DEBUG
+    call this%assert_lists_consistency()
+#endif
+    if ( parse_cla_ ) then 
+      call this%add_to_cli()
+      call this%parse()
+    end if
+  end subroutine fph_process_parameters
+  
   subroutine fph_define_parameters(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
     call this%define_fempar_parameters()
-    call this%define_user_parameters()
+    !if (associated(this%define_user_parameters)) then
+    !  call this%define_user_parameters()
+    !end if
   end subroutine fph_define_parameters
- 
-  subroutine fph_define_user_parameters(this)
+  
+  subroutine fph_free(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
-
-  end subroutine fph_define_user_parameters
-
+    call parameter_handler_free(this) ! this%parameter_handler_t%free()
+    nullify(this%define_user_parameters)
+  end subroutine fph_free  
+  
+  !subroutine fph_set_define_user_parameters_procedure(this, define_user_parameters_procedure)
+  !  implicit none
+  !  class(fempar_parameter_handler_t), intent(inout) :: this
+  !  procedure(define_user_parameters) :: define_user_parameters_procedure
+  !  this%define_user_parameters => define_user_parameters_procedure
+  !  !call this%define_user_parameters()
+  !end subroutine fph_set_define_user_parameters_procedure  
   
   subroutine fph_define_fempar_parameters(this)
     implicit none
@@ -103,7 +151,7 @@ contains
 
     error = error + helpers%set(key = prefix_key     , Value= 'Name of the GiD files')
     error = error + switches%set(key = prefix_key    , Value= '--PREFIX')
-    error = error + values%set(key = prefix_key      , Value= '')
+    error = error + values%set(key = prefix_key      , Value= 'A')
 
     error = error + helpers%set(key = dir_path_out_key     , Value= 'Output Directory')
     error = error + switches%set(key = dir_path_out_key    , Value= '--DIR_PATH_OUT')
@@ -349,9 +397,51 @@ contains
 !
 !    ! Sample
 !    !error = error + values%set(key = , Value= )
+    
+    !if associated ( this%define_user_parameters) then
+    !  call this%define_user_parameters()
+    !end if 
 
   end subroutine fph_define_fempar_parameters
 
+    ! GETTERS *****************************************************************************************
+  function fph_get_dir_path(this)
+    implicit none
+    class(fempar_parameter_handler_t) , intent(in) :: this
+    character(len=:),      allocatable            :: fph_get_dir_path
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(dir_path_key, 'string'))
+    error = list%GetAsString(key = dir_path_key, string = fph_get_dir_path)
+    assert(error==0)
+  end function fph_get_dir_path 
+  
+  ! GETTERS *****************************************************************************************
+  function fph_get_dir_path_out(this)
+    implicit none
+    class(fempar_parameter_handler_t) , intent(in) :: this
+    character(len=:),      allocatable            :: fph_get_dir_path_out
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(dir_path_out_key, 'string'))
+    error = list%GetAsString(key = dir_path_out_key, string = fph_get_dir_path_out)
+    assert(error==0)
+  end function fph_get_dir_path_out
+
+  !==================================================================================================
+  function fph_get_prefix(this)
+    implicit none
+    class(fempar_parameter_handler_t) , intent(in) :: this
+    character(len=:),      allocatable            :: fph_get_prefix
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(prefix_key, 'string'))
+    error = list%GetAsString(key = prefix_key, string = fph_get_prefix)
+    assert(error==0)
+  end function fph_get_prefix
 
 
 end module fempar_parameter_handler_names 
