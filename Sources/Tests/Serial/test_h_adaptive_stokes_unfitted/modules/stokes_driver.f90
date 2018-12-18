@@ -647,7 +647,7 @@ contains
     
 #else    
     FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
-    FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 5)
+    FPLError = FPLError + parameter_list%set(key = ils_output_frequency_key, value = 5)
     FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations_key, value = 50000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
