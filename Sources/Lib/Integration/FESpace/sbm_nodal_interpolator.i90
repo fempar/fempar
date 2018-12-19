@@ -55,7 +55,9 @@ subroutine nodal_interpolator_create( this, fe_space, field_id  )
      select type( reference_fe ) 
      type is (hex_lagrangian_reference_fe_t) 
         reference_fe_type_is_nodal = .true. 
-     type is (tet_lagrangian_reference_fe_t)  
+     type is (hex_lagrangian_gp_reference_fe_t)
+        reference_fe_type_is_nodal = .true.
+     type is (tet_lagrangian_reference_fe_t)
         reference_fe_type_is_nodal = .true.
      end select
 

@@ -315,13 +315,6 @@ subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadratur
   
 end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
 
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_free ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
-  call lagrangian_reference_fe_free ( this )
-end subroutine hex_lagrangian_reference_fe_free
-
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_blending(this,values)
@@ -371,6 +364,14 @@ end subroutine hex_lagrangian_reference_fe_blending
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_change_basis ( this )
+  implicit none
+  class(hex_lagrangian_reference_fe_t),  intent(inout)  :: this
+  ! For hex_lagrangian_reference_fe the change_basis_matrix is equivalent to the
+  ! unit matrix, then, this procedure is void.
+end subroutine hex_lagrangian_reference_fe_change_basis
 
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
