@@ -937,8 +937,8 @@ end subroutine free_timers
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
           call cell%set_for_coarsening()
-          call cell%next()
         end if  
+        call cell%next()
       end do
       call this%triangulation%free_cell_iterator(cell)
     end if
