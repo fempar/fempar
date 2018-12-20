@@ -53,6 +53,7 @@ subroutine mlbddc_coarse_create_vector_spaces (this)
   type(vector_space_t), pointer :: mlbddc_coarse_range_vector_space
   par_sparse_matrix_domain_vector_space => this%par_sparse_matrix%get_domain_vector_space()
   par_sparse_matrix_range_vector_space => this%par_sparse_matrix%get_range_vector_space()
+  assert ( par_sparse_matrix_domain_vector_space%equal_to(this%par_sparse_matrix%get_range_vector_space()) )
   mlbddc_coarse_domain_vector_space => this%get_domain_vector_space()
   mlbddc_coarse_range_vector_space => this%get_range_vector_space()
   call par_sparse_matrix_domain_vector_space%clone(mlbddc_coarse_domain_vector_space)

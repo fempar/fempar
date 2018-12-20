@@ -1252,8 +1252,8 @@ contains
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: this
-        real(rp), allocatable,  intent(inout) :: diagonal(:)
+        class(sparse_matrix_t), intent(in)     :: this
+        real(rp)              ,  intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%extract_diagonal(diagonal)

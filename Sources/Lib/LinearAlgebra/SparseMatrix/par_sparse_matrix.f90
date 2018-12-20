@@ -728,7 +728,7 @@ contains
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t), intent(in)    :: this
-        real(rp), allocatable,  intent(inout) :: diagonal(:)
+        real(rp)                  , intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%extract_diagonal(diagonal)

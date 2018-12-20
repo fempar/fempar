@@ -132,6 +132,7 @@ subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,para
 
   ! Get the sub-assembled diagonal
   massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')
+  call memalloc (this%matrix%get_num_rows(), sub_assembled_diag, __FILE__,__LINE__)
   call this%matrix%extract_diagonal(sub_assembled_diag)
 
   ! Communicate to compute the fully assembled diagonal
@@ -147,7 +148,7 @@ subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,para
   weighting_operator(:) = sub_assembled_diag(:)/assembled_diag(:)
 
   ! Clean up
-  deallocate(sub_assembled_diag,stat=istat); check(istat == 0)
+  call memfree(sub_assembled_diag,__FILE__,__LINE__)
   call par_array%free()
 
 end subroutine stiffness_l1_setup_weighting_operator
