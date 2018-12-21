@@ -30,7 +30,6 @@ module jacobi_preconditioner_names
  ! Tools
  use types_names
  use list_types_names
- use allocatable_array_names
  use FPL
  
  ! Integration related modules
@@ -46,21 +45,10 @@ module jacobi_preconditioner_names
  use vector_names
  
  use matrix_names
- use base_sparse_matrix_names
  use sparse_matrix_parameters_names
  use sparse_matrix_names
  use par_sparse_matrix_names
- use direct_solver_names
- use direct_solver_parameters_names
-
-#ifdef ENABLE_BLAS
- use blas77_interfaces_names
-#endif
-
-#ifdef ENABLE_LAPACK
- use lapack77_interfaces_names
-#endif
-  
+ 
  ! Parallel communication-related data structures
  use environment_names
  
@@ -101,8 +89,7 @@ module jacobi_preconditioner_names
   ! Symbolic            | free_numeric                          | Symbolic         ! it does nothing
   ! Symbolic            | update_matrix + same_nonzero_pattern  | Symbolic         ! it does nothing
   ! Symbolic            | update_matrix + !same_nonzero_pattern | Symbolic         ! free_symbolic()+symbolic_setup()
-    
-    
+  
   ! Numeric             | symbolic_setup                        | Numeric          ! it does nothing
   ! Numeric             | numeric_setup                         | Numeric          ! it does nothing
   ! Numeric             | apply                                 | Numeric          ! it does nothing
@@ -112,77 +99,81 @@ module jacobi_preconditioner_names
   ! Numeric             | update_matrix + same_nonzero_pattern  | Numeric          ! free_numerical_setup()+numerical_setup()
   ! Numeric             | update_matrix + !same_nonzero_pattern | Numeric          ! free_numerical_setup()+free_symbolic_setup()
                                                                                    ! symbolic_setup()+numeric_setup()
- type, extends(operator_t) :: jacobi_preconditioner_t
+ 
+type, extends(operator_t) :: jacobi_preconditioner_t
    private
-   integer(ip)                                 :: state  = jacobi_preconditioner_STATE_START   
-   class(environment_t), pointer               :: environment => NULL()
-
+   integer(ip)                        :: state = jacobi_preconditioner_STATE_START   
+   class(environment_t) , pointer     :: environment                  => NULL()
    ! Pointer to the fe_nonlinear_operator_t this jacobi_preconditioner_t instance has been created from
-   type(fe_operator_t) , pointer               :: fe_nonlinear_operator => NULL()
-   
-   class(vector_t), allocatable                :: inverse_diagonal        
-  
+   type(fe_operator_t)  , pointer     :: fe_nonlinear_operator        => NULL()
+   class(vector_t)      , allocatable :: inverse_diagonal        
    ! This pointer is set-up during jacobi_preconditioner_t%create() and re-used in the rest of stages.
    ! Therefore, type(parameter_list_t) to which type(jacobi_preconditioner_t) points to MUST NOT BE
    ! freed before type(jacobi_preconditioner_t).
-   type(parameterlist_t)         , pointer     :: jacobi_preconditioner_params   => NULL()
+   type(parameterlist_t), pointer     :: jacobi_preconditioner_params => NULL()
    
  contains
+ 
+   ! Creational methods
    procedure, non_overridable  :: jacobi_preconditioner_create_w_parameter_list
    procedure, non_overridable  :: jacobi_preconditioner_create_wo_parameter_list
    generic                     :: create => jacobi_preconditioner_create_w_parameter_list, &
-                                            jacobi_preconditioner_create_wo_parameter_list 
+                                            jacobi_preconditioner_create_wo_parameter_list
    
-   procedure,                  private :: create_vector_spaces                  => jacobi_preconditioner_create_vector_spaces
-   procedure,                  private :: create_and_allocate_inverse_diagonal  => jacobi_preconditioner_create_and_allocate_inverse_diagonal
-   procedure,                  private :: free_and_destroy_inverse_diagonal     => jacobi_preconditioner_free_and_destroy_inverse_diagonal
+   procedure,                  private :: create_vector_spaces   => jacobi_preconditioner_create_vector_spaces
+   procedure,                  private :: create_and_allocate_inverse_diagonal & 
+                                                                 => jacobi_preconditioner_create_and_allocate_inverse_diagonal
  
    ! State transition handling-related TBPs
-   procedure, non_overridable, private :: set_state_start              => jacobi_preconditioner_set_state_start
-   procedure, non_overridable, private :: set_state_created            => jacobi_preconditioner_set_state_created
-   procedure, non_overridable, private :: set_state_symbolic           => jacobi_preconditioner_set_state_symbolic
-   procedure, non_overridable, private :: set_state_numeric            => jacobi_preconditioner_set_state_numeric
-   procedure, non_overridable, private :: state_is_start               => jacobi_preconditioner_state_is_start
-   procedure, non_overridable, private :: state_is_created             => jacobi_preconditioner_state_is_created
-   procedure, non_overridable, private :: state_is_symbolic            => jacobi_preconditioner_state_is_symbolic
-   procedure, non_overridable, private :: state_is_numeric             => jacobi_preconditioner_state_is_numeric
+   procedure, non_overridable, private :: set_state_start        => jacobi_preconditioner_set_state_start
+   procedure, non_overridable, private :: set_state_created      => jacobi_preconditioner_set_state_created
+   procedure, non_overridable, private :: set_state_symbolic     => jacobi_preconditioner_set_state_symbolic
+   procedure, non_overridable, private :: set_state_numeric      => jacobi_preconditioner_set_state_numeric
+   procedure, non_overridable, private :: state_is_start         => jacobi_preconditioner_state_is_start
+   procedure, non_overridable, private :: state_is_created       => jacobi_preconditioner_state_is_created
+   procedure, non_overridable, private :: state_is_symbolic      => jacobi_preconditioner_state_is_symbolic
+   procedure, non_overridable, private :: state_is_numeric       => jacobi_preconditioner_state_is_numeric
  
    ! Symbolic setup-related TBPs
-   procedure, non_overridable          :: symbolic_setup               => jacobi_preconditioner_symbolic_setup
+   procedure, non_overridable          :: symbolic_setup         => jacobi_preconditioner_symbolic_setup
 
    ! Numerical setup-related TBPs
-   procedure, non_overridable          :: numerical_setup              => jacobi_preconditioner_numerical_setup
+   procedure, non_overridable          :: numerical_setup        => jacobi_preconditioner_numerical_setup
 
    ! Apply related TBPs
-   procedure                           :: apply                        => jacobi_preconditioner_apply
-   procedure                           :: apply_add                    => jacobi_preconditioner_apply_add
+   procedure                           :: apply                  => jacobi_preconditioner_apply
+   procedure                           :: apply_add              => jacobi_preconditioner_apply_add
    
    ! Free-related TBPs
-   procedure, non_overridable          :: free                         => jacobi_preconditioner_free
-   procedure, non_overridable          :: free_clean                   => jacobi_preconditioner_free_clean
-   procedure, non_overridable          :: free_symbolic_setup          => jacobi_preconditioner_free_symbolic_setup   
-   procedure, non_overridable          :: free_numerical_setup         => jacobi_preconditioner_free_numerical_setup
+   procedure, non_overridable          :: free                   => jacobi_preconditioner_free
+   procedure, non_overridable          :: free_clean             => jacobi_preconditioner_free_clean
+   procedure, non_overridable          :: free_symbolic_setup    => jacobi_preconditioner_free_symbolic_setup   
+   procedure, non_overridable          :: free_numerical_setup   => jacobi_preconditioner_free_numerical_setup
+   procedure, non_overridable, private :: free_and_destroy_inverse_diagonal & 
+                                                                 => jacobi_preconditioner_free_and_destroy_inverse_diagonal
  
-   procedure, non_overridable, private :: am_i_l1_task                 => jacobi_preconditioner_am_i_l1_task
-   procedure                           :: is_linear                    => jacobi_preconditioner_is_linear
-   procedure, private                  :: get_par_environment          => jacobi_preconditioner_get_par_environment
-   procedure, private                  :: set_par_environment          => jacobi_preconditioner_set_par_environment
+   procedure, non_overridable, private :: am_i_l1_task           => jacobi_preconditioner_am_i_l1_task
+   procedure                           :: is_linear              => jacobi_preconditioner_is_linear
+   procedure, private                  :: get_par_environment    => jacobi_preconditioner_get_par_environment
+   procedure, private                  :: set_par_environment    => jacobi_preconditioner_set_par_environment
    
    ! Miscellaneous 
-   procedure, private                  :: get_par_sparse_matrix        => jacobi_preconditioner_get_par_sparse_matrix
-   procedure, private                  :: get_fe_space                 => jacobi_preconditioner_get_fe_space
-   procedure, private                  :: get_par_fe_space             => jacobi_preconditioner_get_par_fe_space
-   procedure                 , private :: is_operator_associated       => jacobi_preconditioner_is_operator_associated
-   procedure                 , private :: nullify_operator             => jacobi_preconditioner_nullify_operator 
+   procedure, private                  :: get_par_sparse_matrix  => jacobi_preconditioner_get_par_sparse_matrix
+   procedure, private                  :: get_fe_space           => jacobi_preconditioner_get_fe_space
+   procedure, private                  :: get_par_fe_space       => jacobi_preconditioner_get_par_fe_space
+   procedure                 , private :: is_operator_associated => jacobi_preconditioner_is_operator_associated
+   procedure                 , private :: nullify_operator       => jacobi_preconditioner_nullify_operator 
      
    ! Update-matrix related TBPs
-   procedure                           :: update_matrix                                   => jacobi_preconditioner_update_matrix   
+   procedure                           :: update_matrix          => jacobi_preconditioner_update_matrix
 end type jacobi_preconditioner_t
 
-interface jacobi_preconditioner_t
-  module procedure create_jacobi_preconditioner
-end interface jacobi_preconditioner_t
+ interface jacobi_preconditioner_t
+   module procedure create_jacobi_preconditioner
+ end interface jacobi_preconditioner_t
  
+ public :: jacobi_preconditioner_t
+
 contains
 
 #include "sbm_jacobi_preconditioner.i90"
