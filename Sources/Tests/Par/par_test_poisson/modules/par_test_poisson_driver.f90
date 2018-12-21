@@ -66,6 +66,9 @@ module par_test_poisson_driver_names
 #ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
+#else
+     ! Jacobi preconditioner
+     type(jacobi_preconditioner_t)             :: jacobi_preconditioner
 #endif  
     
      ! Iterative linear solvers data type
@@ -414,11 +417,11 @@ end subroutine free_timers
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse, coarse_matrix_params
 
-    integer(ip) :: ilev
     integer(ip) :: FPLError
+#ifdef ENABLE_MKL
+    integer(ip) :: ilev
     integer(ip) :: iparm(64)
-
-#ifdef ENABLE_MKL  
+  
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
     iparm(1)   = 1 ! no solver default
@@ -479,6 +482,10 @@ end subroutine free_timers
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
+#else
+    call this%jacobi_preconditioner%create(this%fe_affine_operator)
+    call this%jacobi_preconditioner%symbolic_setup()
+    call this%jacobi_preconditioner%numerical_setup()
 #endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
@@ -493,7 +500,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%jacobi_preconditioner )
     call parameter_list%free()
 #endif   
     
@@ -667,6 +674,8 @@ end subroutine free_timers
     call this%fe_affine_operator%free()
 #ifdef ENABLE_MKL    
     call this%mlbddc%free()
+#else
+    call this%jacobi_preconditioner%free()
 #endif       
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
