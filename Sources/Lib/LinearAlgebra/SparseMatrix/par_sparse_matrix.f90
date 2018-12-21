@@ -723,9 +723,10 @@ contains
         call this%sparse_matrix%convert(mold)
     end subroutine par_sparse_matrix_convert_base_par_sparse_matrix_mold
 
+    
     subroutine par_sparse_matrix_extract_diagonal(this, diagonal) 
     !-----------------------------------------------------------------
-    !< Apply matrix vector product y=op*x
+    !< Extract the diagonal entries of a matrix in a rank-1 array
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t), intent(in)    :: this
         real(rp)                  , intent(inout) :: diagonal(:)

@@ -34,13 +34,14 @@ module matrix_names
 
   type, abstract, extends(operator_t) :: matrix_t
   contains
-     procedure (allocate_interface)       , deferred :: allocate
-     procedure (init_interface)           , deferred :: init
-     procedure (scal_interface)           , deferred :: scal
-     procedure (add_interface)            , deferred :: add
-     procedure (copy_interface)           , deferred :: copy
-     procedure (free_in_stages_interface) , deferred :: free_in_stages
-     procedure (create_iterator_interface), deferred :: create_iterator
+     procedure (allocate_interface)        , deferred :: allocate
+     procedure (init_interface)            , deferred :: init
+     procedure (scal_interface)            , deferred :: scal
+     procedure (add_interface)             , deferred :: add
+     procedure (copy_interface)            , deferred :: copy
+     procedure (free_in_stages_interface)  , deferred :: free_in_stages
+     procedure (create_iterator_interface) , deferred :: create_iterator
+     procedure (extract_diagonal_interface), deferred :: extract_diagonal
      
      procedure :: is_linear => matrix_is_linear
      ! This subroutine is an instance of the Template Method pattern with
@@ -124,6 +125,17 @@ module matrix_names
        class(matrix_iterator_t), allocatable, intent(inout) :: iterator
        !-----------------------------------------------------------------
      end subroutine create_iterator_interface
+     
+     subroutine extract_diagonal_interface(this, diagonal)
+       !-----------------------------------------------------------------
+       !< Extract the diagonal entries of a matrix in a rank-1 array
+       !-----------------------------------------------------------------
+       import :: matrix_t
+       import :: rp
+       class(matrix_t), intent(in)    :: this
+       real(rp)       , intent(inout) :: diagonal(:)
+       !-----------------------------------------------------------------
+     end subroutine extract_diagonal_interface
   end interface
   
   !-----------------------------------------------------------------

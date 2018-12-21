@@ -1250,7 +1250,7 @@ contains
 
     subroutine sparse_matrix_extract_diagonal(this, diagonal) 
     !-----------------------------------------------------------------
-    !< Apply matrix vector product y=op*x
+    !< Extract the diagonal entries of a matrix in a rank-1 array
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(in)     :: this
         real(rp)              ,  intent(inout) :: diagonal(:)
