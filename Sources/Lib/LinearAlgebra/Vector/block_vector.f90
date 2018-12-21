@@ -103,6 +103,8 @@ module block_vector_names
      procedure :: get_num_blocks
      procedure :: extract_subvector => block_vector_extract_subvector
      procedure :: insert_subvector => block_vector_insert_subvector
+     procedure :: entrywise_product => block_vector_entrywise_product
+     procedure :: entrywise_invert => block_vector_entrywise_invert
   end type block_vector_t
 
   ! Types
@@ -405,7 +407,7 @@ contains
    call op2%CleanTemp()
  end subroutine block_vector_clone
  
- ! op <- comm(op), i.e., fully assembled op <- subassembled op 
+ ! op <- comm(op), i.e. fully assembled op <- subassembled op 
  subroutine block_vector_comm(op)
    implicit none
    class(block_vector_t), intent(inout) :: op 
@@ -490,5 +492,41 @@ contains
    assert( .false. )
    
  end subroutine block_vector_insert_subvector
+ 
+ subroutine block_vector_entrywise_product(op1,op2,op3)
+   implicit none
+   class(block_vector_t), intent(inout) :: op1
+   class(vector_t)      , intent(in)    :: op2
+   class(vector_t)      , intent(in)    :: op3
+   integer(ip) :: ib
+   massert( op1%state == assembled, 'bv_entrywise_product: op1 is not assembled' )
+   select type ( op2 )
+     class is ( block_vector_t )
+       massert( op2%state == assembled, 'bv_entrywise_product: op2 is not assembled' )
+       massert( op2%nblocks == op1%nblocks, 'bv_entrywise_product: op2 and op1 have different number of blocks' )
+       select type ( op3 )
+         class is ( block_vector_t )
+           massert( op3%state == assembled, 'bv_entrywise_product: op3 is not assembled' )
+           massert( op3%nblocks == op1%nblocks, 'bv_entrywise_product: op3 and op1 have different number of blocks' )
+           do ib=1,op1%nblocks
+             call op1%blocks(ib)%vector%entrywise_product(op2%blocks(ib)%vector,op3%blocks(ib)%vector)
+           end do
+         class default
+           mcheck(.false.,'bv_entrywise_product: unsupported op3 class')
+       end select
+     class default
+       mcheck(.false.,'bv_entrywise_product: unsupported op2 class')
+   end select
+ end subroutine block_vector_entrywise_product
+ 
+ subroutine block_vector_entrywise_invert(op1)
+   implicit none
+   class(block_vector_t), intent(inout) :: op1
+   integer(ip) :: ib
+   massert( op1%state == assembled, 'bv_entrywise_invert: op1 is not assembled' )
+   do ib=1,op1%nblocks
+     call op1%blocks(ib)%vector%entrywise_invert()
+   end do
+ end subroutine block_vector_entrywise_invert
  
 end module block_vector_names

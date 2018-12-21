@@ -107,6 +107,8 @@ module serial_scalar_array_names
      procedure :: get_num_blocks      => serial_scalar_array_get_num_blocks
      procedure :: extract_subvector      => serial_scalar_array_extract_subvector
      procedure :: insert_subvector       => serial_scalar_array_insert_subvector
+     procedure :: entrywise_product      => serial_scalar_array_entrywise_product
+     procedure :: entrywise_invert       => serial_scalar_array_entrywise_invert
   end type serial_scalar_array_t
 
   ! Types
@@ -442,7 +444,7 @@ contains
     call op2%CleanTemp()
   end subroutine serial_scalar_array_clone
 
-  ! op <- comm(op), i.e., fully assembled op <- subassembled op 
+  ! op <- comm(op), i.e. fully assembled op <- subassembled op 
   subroutine serial_scalar_array_comm(op)
     implicit none
     class(serial_scalar_array_t), intent(inout) :: op 
@@ -549,5 +551,38 @@ contains
       end if
     end do 
   end subroutine serial_scalar_array_insert_subvector
+  
+  subroutine serial_scalar_array_entrywise_product(op1,op2,op3)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: op1
+    class(vector_t)             , intent(in)    :: op2
+    class(vector_t)             , intent(in)    :: op3
+    massert( .not. op1%state == not_created, 'ssa_entrywise_product: op1 is not created' )
+    if ( op1%state == created ) call op1%allocate()
+    select type ( op2 )
+      class is ( serial_scalar_array_t )
+        massert( op2%state == entries_ready, 'ssa_entrywise_product: op2 entries not ready' )
+        massert( op2%size == op1%size, 'ssa_entrywise_product: op2 and op1 have different sizes' )
+        select type ( op3 )
+          class is ( serial_scalar_array_t )
+            massert( op3%state == entries_ready, 'ssa_entrywise_product: op2 entries not ready' )
+            massert( op3%size == op1%size, 'ssa_entrywise_product: op2 and op1 have different sizes' )
+            ! BLAS does not have an implementation of entrywise vector product
+            op1%b = op2%b * op3%b
+          class default
+            mcheck(.false.,'ssa_entrywise_product: unsupported op3 class')
+        end select
+      class default
+        mcheck(.false.,'ssa_entrywise_product: unsupported op2 class')
+    end select
+  end subroutine serial_scalar_array_entrywise_product
+  
+  subroutine serial_scalar_array_entrywise_invert(op1)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: op1
+    massert( op1%state == entries_ready, 'ssa_entrywise_invert: op1 entries are not ready' )
+    ! BLAS does not have an implementation of entrywise vector inversion
+    op1%b = 1.0_rp / op1%b
+  end subroutine serial_scalar_array_entrywise_invert
 
 end module serial_scalar_array_names
