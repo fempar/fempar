@@ -387,7 +387,7 @@ contains
     call op2%CleanTemp()
   end subroutine par_block_array_clone
 
-  ! op <- comm(op)
+  ! op <- comm(op), i.e., fully assembled op <- subassembled op 
   subroutine par_block_array_comm(op)
     implicit none
     class(par_block_array_t), intent(inout) :: op 

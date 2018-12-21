@@ -493,7 +493,7 @@ contains
     call op2%CleanTemp()
   end subroutine par_scalar_array_clone
 
-  ! op <- comm(op)
+  ! op <- comm(op), i.e., fully assembled op <- subassembled op 
   subroutine par_scalar_array_comm(op)
     implicit none
     class(par_scalar_array_t), intent(inout) :: op

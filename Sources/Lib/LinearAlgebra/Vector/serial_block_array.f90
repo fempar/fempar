@@ -66,6 +66,7 @@ module serial_block_array_names
      procedure :: axpby             => serial_block_array_axpby
      procedure :: nrm2              => serial_block_array_nrm2
      procedure :: clone             => serial_block_array_clone
+     procedure :: comm              => serial_block_array_comm
      procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages    => serial_block_array_free_in_stages
      procedure :: get_num_blocks => serial_block_array_get_num_blocks
@@ -347,6 +348,13 @@ contains
     call op2%CleanTemp()
   end subroutine serial_block_array_clone
 
+  ! op <- comm(op), i.e., fully assembled op <- subassembled op 
+  subroutine serial_block_array_comm(op)
+    implicit none
+    class(serial_block_array_t), intent(inout) :: op 
+    ! Serial block array is already fully assembled
+  end subroutine serial_block_array_comm
+  
   !=============================================================================
   subroutine serial_block_array_free_in_stages(this,action)
     implicit none

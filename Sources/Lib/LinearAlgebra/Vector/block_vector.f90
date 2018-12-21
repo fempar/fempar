@@ -98,6 +98,7 @@ module block_vector_names
      procedure :: axpby => block_vector_axpby
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
+     procedure :: comm => block_vector_comm
      procedure :: same_vector_space => block_vector_same_vector_space
      procedure :: get_num_blocks
      procedure :: extract_subvector => block_vector_extract_subvector
@@ -403,6 +404,20 @@ contains
    end select
    call op2%CleanTemp()
  end subroutine block_vector_clone
+ 
+ ! op <- comm(op), i.e., fully assembled op <- subassembled op 
+ subroutine block_vector_comm(op)
+   implicit none
+   class(block_vector_t), intent(inout) :: op 
+
+   ! Locals
+   integer(ip) :: ib
+   assert(op%state == blocks_container_created)
+   do ib=1,op%nblocks
+      call op%blocks(ib)%vector%comm()
+   end do
+
+ end subroutine block_vector_comm 
  
  function block_vector_same_vector_space(this,vector)
    implicit none

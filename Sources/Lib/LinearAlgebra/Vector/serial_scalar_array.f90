@@ -100,6 +100,7 @@ module serial_scalar_array_names
      procedure :: axpby                  => serial_scalar_array_axpby
      procedure :: nrm2                   => serial_scalar_array_nrm2
      procedure :: clone                  => serial_scalar_array_clone
+     procedure :: comm                   => serial_scalar_array_comm
      procedure :: same_vector_space      => serial_scalar_array_same_vector_space
      procedure :: free_in_stages         => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
@@ -441,6 +442,13 @@ contains
     call op2%CleanTemp()
   end subroutine serial_scalar_array_clone
 
+  ! op <- comm(op), i.e., fully assembled op <- subassembled op 
+  subroutine serial_scalar_array_comm(op)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: op 
+    ! Serial scalar array is already fully assembled
+  end subroutine serial_scalar_array_comm
+  
   !=============================================================================
   subroutine serial_scalar_array_free_in_stages(this,action)
     implicit none
