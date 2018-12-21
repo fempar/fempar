@@ -37,7 +37,7 @@ module vector_names
    contains
      procedure (allocate_interface), deferred :: allocate
      procedure (dot_interface) , deferred     :: dot
-     procedure (dot_interface) , deferred     :: local_dot
+     procedure (local_dot_interface) , deferred :: local_dot
      procedure (copy_interface), deferred     :: copy
      procedure (init_interface), deferred     :: init
      procedure (scal_interface), deferred     :: scal
