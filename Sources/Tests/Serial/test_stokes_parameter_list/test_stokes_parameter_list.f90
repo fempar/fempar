@@ -140,6 +140,7 @@ program test_stokes_parameter_list
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
 
+  error = 0_ip
   error = error + parameter_list%set(key = fes_num_fields_key, value = 2)
   error = error + parameter_list%set(key = fes_num_ref_fes_key, value = 2)
   error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian Lagrangian' )
