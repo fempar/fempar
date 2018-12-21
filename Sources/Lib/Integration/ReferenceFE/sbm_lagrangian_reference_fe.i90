@@ -997,6 +997,9 @@ subroutine lagrangian_reference_fe_free ( this )
   ! lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
+  if ( allocated(this%change_basis_matrix) ) &
+       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+  this%basis_changed = .false.
   if(allocated(this%node_array_component)) & 
        call memfree(this%node_array_component,__FILE__,__LINE__)
   if(allocated(this%coarsening_projection_operator)) & 
@@ -1092,6 +1095,68 @@ subroutine lagrangian_reference_fe_fill (this)
   call this%fill_h_refinement_permutations()
   call this%scalar_to_multicomp_coarsening_projection_operator()
 end subroutine lagrangian_reference_fe_fill
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_invert_change_basis_matrix(this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout) :: this 
+
+  integer(ip) :: error
+  integer(ip), allocatable :: ipiv(:)
+  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
+  integer(ip) :: i, num_shape_functions_x_component
+
+  num_shape_functions_x_component = this%num_shape_functions
+  assert ( allocated(this%change_basis_matrix) )
+  assert ( size(this%change_basis_matrix,1) == num_shape_functions_x_component )
+  assert ( size(this%change_basis_matrix,2) == num_shape_functions_x_component )
+
+  ! Solve linear system with several RHS
+  ! Compute LU factorization of this%change_basis_matrix
+#ifdef ENABLE_LAPACK
+  call memalloc ( num_shape_functions_x_component, ipiv, __FILE__,__LINE__ )
+
+  call memalloc ( num_shape_functions_x_component, & 
+       num_shape_functions_x_component, &
+       inverse_change_basis_matrix, &
+       __FILE__,__LINE__ )
+
+  call DGETRF( num_shape_functions_x_component, & 
+       num_shape_functions_x_component, &
+       this%change_basis_matrix, &
+       num_shape_functions_x_component, &
+       ipiv, &
+       error )
+  check ( error == 0 )
+
+  inverse_change_basis_matrix = 0.0_rp
+  do i=1, num_shape_functions_x_component
+     inverse_change_basis_matrix(i,i) = 1.0_rp
+  end do
+
+  call DGETRS( 'N', & 
+       num_shape_functions_x_component, &
+       num_shape_functions_x_component, &
+       this%change_basis_matrix, &
+       num_shape_functions_x_component, &
+       ipiv, &
+       inverse_change_basis_matrix, &
+       num_shape_functions_x_component, &
+       error )
+  check ( error == 0 )
+
+  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
+
+  call memmovealloc(inverse_change_basis_matrix, &
+       this%change_basis_matrix, __FILE__, __LINE__ )
+  call memfree ( ipiv, __FILE__,__LINE__ )
+#else
+  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
+  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
+  check(.false.)
+#endif 
+
+end subroutine lagrangian_reference_fe_invert_change_basis_matrix
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations (this)
@@ -1581,7 +1646,13 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         i = i + 1 
      enddo
   end if
+
+  ! Create nodal quadrature
+  call this%create_nodal_quadrature()
   
+  ! Compute change basis
+  call this%change_basis()
+
   ! Compute h_refinement_interpolation
   call this%fill_h_refinement_interpolation()
   
