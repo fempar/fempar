@@ -92,7 +92,7 @@ program test_steady_poisson
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
-  call parameter_handler%create()
+  call parameter_handler%process_parameters()
   parameter_list => parameter_handler%get_values()
 
   !* Determine a serial execution mode (default case)

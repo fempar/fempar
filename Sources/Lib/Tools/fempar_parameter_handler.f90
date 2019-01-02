@@ -79,6 +79,7 @@ contains
       call this%init_cli()
     end if    
     call this%initialize_lists()
+    call this%define_fempar_parameters()
     call this%define_parameters()
     if (present(define_user_parameters_procedure)) then
       this%define_user_parameters => define_user_parameters_procedure
@@ -97,7 +98,7 @@ contains
   subroutine fph_define_parameters(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
-    call this%define_fempar_parameters()
+    !call this%define_fempar_parameters()
     !if (associated(this%define_user_parameters)) then
     !  call this%define_user_parameters()
     !end if

@@ -139,8 +139,7 @@ program test_stokes_parameter_list
                                                    cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
-
-  error = 0_ip
+  error = 0
   error = error + parameter_list%set(key = fes_num_fields_key, value = 2)
   error = error + parameter_list%set(key = fes_num_ref_fes_key, value = 2)
   error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian Lagrangian' )
@@ -149,7 +148,7 @@ program test_stokes_parameter_list
   error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = [.true., .false.])
   error = error + parameter_list%set(key = fes_field_types_key, value =  field_type_vector // " " // field_type_scalar)
   error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
-  
+  mcheck(error==0,'Failed parameter set')
   
   call parameter_list%print()
   

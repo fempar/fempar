@@ -25,52 +25,40 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_test_h_adaptive_poisson_driver_names
+module par_test_h_adaptive_lagrangian_gp_fe_driver_names
   use fempar_names
-  use par_test_h_adaptive_poisson_params_names
-  use poisson_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use par_test_h_adaptive_lagrangian_gp_fe_params_names
+  use lagrangian_gp_conditions_names
+  use lagrangian_gp_analytical_functions_names
 # include "debug.i90"
 
   implicit none
   private
 
-  integer(ip), parameter :: PAR_TEST_POISSON_FULL = 1 ! Has to be == 1
-  integer(ip), parameter :: PAR_TEST_POISSON_VOID = 2
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL = 1 ! Has to be == 1
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID = 2
 
-  type par_test_h_adaptive_poisson_fe_driver_t 
+  integer(ip), parameter :: TEMPERATURE_FIELD_ID  = 1
+
+  type par_test_h_adaptive_lagrangian_gp_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_test_h_adaptive_poisson_params_t) :: test_params
-     type(ParameterList_t), pointer       :: parameter_list
+     type(par_test_h_adaptive_lagrangian_gp_params_t) :: test_params
+     type(ParameterList_t), pointer                   :: parameter_list
      
      ! Cells and lower dimension objects container
      type(p4est_par_triangulation_t)       :: triangulation
      integer(ip), allocatable              :: cell_set_ids(:)
      
      ! Discrete weak problem integration-related data type instances 
-     type(par_fe_space_t)                      :: fe_space 
-     type(p_reference_fe_t), allocatable       :: reference_fes(:) 
+     type(par_fe_space_t)                              :: fe_space 
+     type(p_reference_fe_t), allocatable               :: reference_fes(:) 
      type(h_adaptive_algebraic_l1_coarse_fe_handler_t) :: coarse_fe_handler
-     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
-     type(poisson_CG_discrete_integration_t)   :: poisson_integration
-     type(poisson_conditions_t)                :: poisson_conditions
-     type(poisson_analytical_functions_t)      :: poisson_analytical_functions
+     type(p_l1_coarse_fe_handler_t), allocatable       :: coarse_fe_handlers(:)
+     type(lagrangian_gp_conditions_t)                  :: lagrangian_gp_conditions
+     type(lagrangian_gp_analytical_functions_t)        :: lagrangian_gp_analytical_functions
 
-     
-     ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)            :: fe_affine_operator
-     
-#ifdef ENABLE_MKL     
-     ! MLBDDC preconditioner
-     type(mlbddc_t)                            :: mlbddc
-#endif  
-    
-     ! Iterative linear solvers data type
-     type(iterative_linear_solver_t)           :: iterative_linear_solver
- 
      ! Poisson problem solution FE function
      type(fe_function_t)                   :: solution
      
@@ -93,10 +81,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
-     procedure        , private :: setup_system
-     procedure        , private :: setup_solver
-     procedure        , private :: assemble_system
-     procedure        , private :: solve_system
+     procedure        , private :: interpolate_analytical_functions
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure                  :: run_simulation
@@ -104,20 +89,22 @@ module par_test_h_adaptive_poisson_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-     procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
+     procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_lagrangian_gp_driver_popcorn_fun
      procedure                  :: set_cells_for_uniform_refinement
      procedure                  :: set_cells_for_refinement
+     procedure                  :: set_cells_for_coarsening
+     procedure                  :: refine_and_coarsen
      procedure                  :: set_cells_weights
-  end type par_test_h_adaptive_poisson_fe_driver_t 
+  end type par_test_h_adaptive_lagrangian_gp_fe_driver_t 
 
   ! Types
-  public :: par_test_h_adaptive_poisson_fe_driver_t
+  public :: par_test_h_adaptive_lagrangian_gp_fe_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
@@ -125,7 +112,7 @@ contains
 !========================================================================================
 subroutine setup_timers(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
     w_context => this%par_environment%get_w_context()
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
@@ -137,7 +124,7 @@ end subroutine setup_timers
 !========================================================================================
 subroutine report_timers(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
@@ -150,7 +137,7 @@ end subroutine report_timers
 !========================================================================================
 subroutine free_timers(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
@@ -160,7 +147,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_environment(this, world_context)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     class(execution_context_t)                    , intent(in)    :: world_context
     integer(ip) :: istat
     istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
@@ -169,7 +156,7 @@ end subroutine free_timers
    
   subroutine setup_triangulation(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
 
     class(cell_iterator_t), allocatable :: cell, coarser_cell
     type(point_t), allocatable :: cell_coords(:)
@@ -219,21 +206,21 @@ end subroutine free_timers
         allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
         do while( .not. cell%has_finished() )
           if (cell%is_local()) then
-            set_id = PAR_TEST_POISSON_VOID
+            set_id = PAR_TEST_LAGRANGIAN_GP_VOID
             call cell%get_nodes_coordinates(cell_coords)
             select case (trim(this%test_params%get_use_void_fes_case()))
             case ('half')
               y = cell_coords(1)%get(2)
-              if (y>=0.5) set_id = PAR_TEST_POISSON_FULL
+              if (y>=0.5) set_id = PAR_TEST_LAGRANGIAN_GP_FULL
             case ('quarter')
               x = cell_coords(1)%get(1)
               y = cell_coords(1)%get(2)
-              if (x>=0.5 .and. y>=0.5) set_id = PAR_TEST_POISSON_FULL
+              if (x>=0.5 .and. y>=0.5) set_id = PAR_TEST_LAGRANGIAN_GP_FULL
             case ('popcorn')
               do inode = 1,cell%get_num_nodes()
                 if ( this%popcorn_fun(cell_coords(inode),&
                   this%triangulation%get_num_dims()) < 0.0 ) then
-                  set_id = PAR_TEST_POISSON_FULL
+                  set_id = PAR_TEST_LAGRANGIAN_GP_FULL
                   exit
                 end if
               end do
@@ -287,12 +274,12 @@ end subroutine free_timers
              num_void_neigs = 0
              do icell_arround = 1,vef%get_num_cells_around()
                call vef%get_cell_around(icell_arround,cell)
-               if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+               if (cell%get_set_id() == PAR_TEST_LAGRANGIAN_GP_VOID) num_void_neigs = num_void_neigs + 1
              end do
              
              do icell_arround = 1,vef%get_num_improper_cells_around()
                call vef%get_improper_cell_around(icell_arround,cell)
-               if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+               if (cell%get_set_id() == PAR_TEST_LAGRANGIAN_GP_VOID) num_void_neigs = num_void_neigs + 1
              end do
 
              if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
@@ -367,7 +354,7 @@ end subroutine free_timers
        all_coarser_cells_around_vef_are_void = .true.
        do icell_arround = 1,vef%get_num_improper_cells_around()
          call vef%get_improper_cell_around(icell_arround,coarser_cell)
-         if (coarser_cell%get_set_id() == PAR_TEST_POISSON_FULL) all_coarser_cells_around_vef_are_void = .false.
+         if (coarser_cell%get_set_id() == PAR_TEST_LAGRANGIAN_GP_FULL) all_coarser_cells_around_vef_are_void = .false.
          exit
        end do
      end function all_coarser_cells_around_vef_are_void
@@ -376,7 +363,7 @@ end subroutine free_timers
   
   subroutine setup_reference_fes(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
@@ -391,14 +378,15 @@ end subroutine free_timers
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe()
-      this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian, &
+      this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_lagrangian_gp, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
-                                                   conformity = .true. )
+                                                   conformity = .true., &
+                                                   continuity = .false. )
       if (this%test_params%get_use_void_fes()) then
-        this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+        this%reference_fes(PAR_TEST_LAGRANGIAN_GP_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = -1, &
@@ -411,7 +399,7 @@ end subroutine free_timers
   
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), target, intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
@@ -420,27 +408,27 @@ end subroutine free_timers
 
   subroutine setup_fe_space(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
-    call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-    call this%poisson_analytical_functions%set_solution_polynomial_order(this%test_params%get_reference_fe_order())
-    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+    call this%lagrangian_gp_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+    call this%lagrangian_gp_analytical_functions%set_solution_polynomial_order(this%test_params%get_reference_fe_order())
+    call this%lagrangian_gp_conditions%set_boundary_function(this%lagrangian_gp_analytical_functions%get_boundary_function())
  
     if (this%test_params%get_use_void_fes()) then
-      set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
-      set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
+      set_ids_to_reference_fes(1,PAR_TEST_LAGRANGIAN_GP_FULL) = PAR_TEST_LAGRANGIAN_GP_FULL
+      set_ids_to_reference_fes(1,PAR_TEST_LAGRANGIAN_GP_VOID) = PAR_TEST_LAGRANGIAN_GP_VOID
       call this%fe_space%create( triangulation            = this%triangulation,       &
                                  reference_fes            = this%reference_fes,       &
                                  set_ids_to_reference_fes = set_ids_to_reference_fes, &
                                  coarse_fe_handlers       = this%coarse_fe_handlers,  &
-                                 conditions               = this%poisson_conditions )
+                                 conditions               = this%lagrangian_gp_conditions )
     else
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
                                  coarse_fe_handlers  = this%coarse_fe_handlers, &
-                                 conditions          = this%poisson_conditions )
+                                 conditions          = this%lagrangian_gp_conditions )
     end if
     
     call this%fe_space%set_up_cell_integration()
@@ -450,178 +438,26 @@ end subroutine free_timers
 #endif    
     !call this%fe_space%print()
   end subroutine setup_fe_space
-  
-  subroutine setup_system (this)
-    implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
-    
-    call this%poisson_integration%set_analytical_functions(this%poisson_analytical_functions)
-    
-    ! if (test_single_scalar_valued_reference_fe) then
-    call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%poisson_integration )
-    
-    call this%solution%create(this%fe_space) 
-    call this%fe_space%interpolate_dirichlet_values(this%solution)
-    call this%poisson_integration%set_fe_function(this%solution)
-  end subroutine setup_system
-  
-  subroutine setup_solver (this)
-    implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), target, intent(inout) :: this
-    type(parameterlist_t) :: parameter_list
-    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
 
-    integer(ip) :: ilev
-    integer(ip) :: FPLError
-    integer(ip) :: iparm(64)
-
-#ifdef ENABLE_MKL  
-    ! See https://software.intel.com/en-us/node/470298 for details
-    iparm      = 0 ! Init all entries to zero
-    iparm(1)   = 1 ! no solver default
-    iparm(2)   = 2 ! fill-in reordering from METIS
-    iparm(8)   = 2 ! numbers of iterative refinement steps
-    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    iparm(11)  = 1 ! use scaling 
-    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    iparm(21)  = 1 ! 1x1 + 2x2 pivots
-
-    plist => this%parameter_list 
-    if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-    end if
-    do ilev=1, this%par_environment%get_num_levels()-1
-       ! Set current level Dirichlet solver parameters
-       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-       
-       ! Set current level Neumann solver parameters
-       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-     
-       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
-       plist  => coarse 
-    end do
-    ! Set coarsest-grid solver parameters
-    FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
-    ! Set-up MLBDDC preconditioner
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-    call this%mlbddc%symbolic_setup()
-    call this%mlbddc%numerical_setup()
-#endif    
-   
-    call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(cg_name)
-
-    call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
-    assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
-    assert(FPLError == 0)
-    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    
-#ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_matrix(), this%mlbddc) 
-#else
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_matrix(), .identity. this%fe_affine_operator) 
-#endif   
-    call parameter_list%free()
-  end subroutine setup_solver
-  
-  
-  subroutine assemble_system (this)
-    implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
-    class(matrix_t)                  , pointer       :: matrix
-    class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%compute()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
-    
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-  end subroutine assemble_system
-  
-  
-  subroutine solve_system(this)
-    implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
-    class(matrix_t)                         , pointer       :: matrix
-    class(vector_t)                         , pointer       :: rhs
-    class(vector_t)                         , pointer       :: dof_values
-
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
-    
-    call this%fe_space%update_hanging_dof_values(this%solution)
-    
-    !select type (dof_values)
-    !class is (par_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-  end subroutine solve_system
-   
   subroutine check_solution(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: requested_precision
     
     call error_norm%create(this%fe_space,1)    
-    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
+    mean = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
       requested_precision=1.0e-8_rp
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < requested_precision )
@@ -641,7 +477,7 @@ end subroutine free_timers
   
   subroutine write_solution(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(in) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: mypart_vector(:)
@@ -684,9 +520,22 @@ end subroutine free_timers
     endif
   end subroutine write_solution
   
+  subroutine interpolate_analytical_functions(this)
+    implicit none
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this    
+
+    ! Create solution function
+    call this%solution%create(this%fe_space)
+
+    ! Project analytical function to solution function using the gp-lagrangian fe
+    call this%fe_space%interpolate( TEMPERATURE_FIELD_ID, this%lagrangian_gp_analytical_functions%get_solution_function(), this%solution )
+    call this%fe_space%interpolate_dirichlet_values( this%solution )  
+
+  end subroutine interpolate_analytical_functions
+  
   subroutine run_simulation(this) 
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
 
     call this%timer_triangulation%start()
     call this%setup_triangulation()
@@ -698,27 +547,13 @@ end subroutine free_timers
     call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
-
-    call this%timer_assemply%start()
-    call this%setup_system()
-    call this%assemble_system()
-    call this%timer_assemply%stop()
     
-    call this%timer_solver%start()
-    call this%setup_solver()
-    call this%solve_system()
-    call this%timer_solver%stop()
-
+    call this%interpolate_analytical_functions()
+    
     call this%check_solution()
-    
     call this%print_info() 
     
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    call this%fe_space%refine_and_coarsen(this%solution)
-    call this%fe_space%set_up_cell_integration()
-    
-    call this%check_solution()
+    call this%refine_and_coarsen()
     
     call this%set_cells_weights()
     call this%triangulation%redistribute()
@@ -726,22 +561,39 @@ end subroutine free_timers
     call this%fe_space%set_up_cell_integration()
     
     call this%check_solution()
-    
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
+  subroutine refine_and_coarsen(this)
+    implicit none
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
+    integer(ip) :: i
+    
+    do i=1,3
+       
+       if ( i == 2 ) then
+         call this%set_cells_for_coarsening()
+       else
+         call this%set_cells_for_refinement()
+       end if
+
+       call this%triangulation%refine_and_coarsen()
+       call this%fe_space%refine_and_coarsen( this%solution ) 
+       call this%fe_space%set_up_cell_integration()
+
+       call this%check_solution()
+
+    end do  
+    
+  end subroutine refine_and_coarsen  
+  
   subroutine free(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
     call this%solution%free()
-#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-#endif    
-    call this%iterative_linear_solver%free()
-    call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
@@ -761,18 +613,18 @@ end subroutine free_timers
   !========================================================================================
   subroutine free_environment(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
 
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
-  function par_test_h_adaptive_poisson_driver_popcorn_fun(point,num_dim) result (val)
+  function par_test_h_adaptive_lagrangian_gp_driver_popcorn_fun(point,num_dim) result (val)
     implicit none
     type(point_t), intent(in) :: point
     integer(ip),   intent(in) :: num_dim
@@ -811,11 +663,11 @@ end subroutine free_timers
         end if
         val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
     end do
-  end function par_test_h_adaptive_poisson_driver_popcorn_fun
-  
+  end function par_test_h_adaptive_lagrangian_gp_driver_popcorn_fun
+
   subroutine set_cells_for_refinement(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
     type(point_t), allocatable    :: cell_coordinates(:)
@@ -891,7 +743,7 @@ end subroutine free_timers
   
   subroutine set_cells_for_uniform_refinement(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
     environment => this%triangulation%get_environment()
@@ -910,7 +762,7 @@ end subroutine free_timers
   
   subroutine set_cells_weights(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
     environment => this%triangulation%get_environment()
@@ -928,7 +780,7 @@ end subroutine free_timers
   
   subroutine set_cells_for_coarsening(this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t)      , allocatable :: cell
     class(environment_t), pointer :: environment
     environment => this%triangulation%get_environment()
@@ -947,7 +799,7 @@ end subroutine free_timers
       !========================================================================================
   subroutine print_info (this)
     implicit none
-    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: num_sub_domains
     real(rp) :: num_dofs
@@ -989,4 +841,4 @@ end subroutine free_timers
   end subroutine print_info
   
   
-end module par_test_h_adaptive_poisson_driver_names
+end module par_test_h_adaptive_lagrangian_gp_fe_driver_names
