@@ -46,6 +46,7 @@ subroutine jacobi_preconditioner_create_wo_parameter_list ( this, fe_nonlinear_o
   this%fe_nonlinear_operator => fe_nonlinear_operator
   fe_space                   => this%get_par_fe_space()
   triangulation              => fe_space%get_triangulation()
+  
   assert ( fe_space%get_num_blocks() == 1 )
   call this%set_par_environment(triangulation%get_environment())
   call this%create_vector_spaces()
@@ -156,7 +157,7 @@ subroutine jacobi_preconditioner_numerical_setup ( this )
   if ( this%state_is_symbolic() ) then
     par_environment => this%get_par_environment()
     if ( par_environment%am_i_l1_task() ) then
-      fe_matrix       => this%fe_nonlinear_operator%get_matrix()
+      fe_matrix => this%fe_nonlinear_operator%get_matrix()
       select type ( id_vector => this%inverse_diagonal )
         class is (serial_scalar_array_t)
           id_entries          => id_vector%get_entries()
