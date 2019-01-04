@@ -28,8 +28,12 @@ then
       final_exit_code=1
      fi
      #test 2
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false. > tmp_output"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false. 
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true."
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true. > tmp_output
+     grep "CG:" tmp_output  >  tmp_convergence
+     grep "CG converged to" tmp_output >> tmp_convergence 
+     grep "Last iteration error estimate:" tmp_output >> tmp_convergence 
+     diff -q tmp_convergence $TEST_INPUT_DATA_PATH/test2_convergence 
      if [ $? -ne 0 ] 
      then
       final_exit_code=1
