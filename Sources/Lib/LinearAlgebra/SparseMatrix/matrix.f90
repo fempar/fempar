@@ -42,6 +42,7 @@ module matrix_names
      procedure (free_in_stages_interface)  , deferred :: free_in_stages
      procedure (create_iterator_interface) , deferred :: create_iterator
      procedure (extract_diagonal_interface), deferred :: extract_diagonal
+     procedure (get_sign_interface)        , deferred :: get_sign
      
      procedure :: is_linear => matrix_is_linear
      ! This subroutine is an instance of the Template Method pattern with
@@ -136,6 +137,17 @@ module matrix_names
        real(rp)       , intent(inout) :: diagonal(:)
        !-----------------------------------------------------------------
      end subroutine extract_diagonal_interface
+     
+     function get_sign_interface(this) result(sign)
+       !-----------------------------------------------------------------
+       !< Get the sign of the sparse matrix
+       !-----------------------------------------------------------------
+       import :: matrix_t
+       import :: ip
+       class(matrix_t), intent(in) :: this
+       integer(ip)                 :: sign
+       !-----------------------------------------------------------------
+     end function get_sign_interface
   end interface
   
   !-----------------------------------------------------------------

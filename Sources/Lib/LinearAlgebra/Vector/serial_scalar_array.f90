@@ -582,7 +582,7 @@ contains
     class(serial_scalar_array_t), intent(inout) :: op1
     massert( op1%state == entries_ready, 'ssa_entrywise_invert: op1 entries are not ready' )
     ! BLAS does not have an implementation of entrywise vector inversion
-    mcheck(minval(abs(op1%b)) > 0.0_rp,'op1 cannot be entrywise inverted; there exists a null entry')
+    mcheck(minval(abs(op1%b)) > 0.0_rp,'op1 cannot be entrywise inverted; there exists a null diagonal entry')
     op1%b = 1.0_rp / op1%b
   end subroutine serial_scalar_array_entrywise_invert
 

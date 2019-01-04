@@ -77,6 +77,7 @@ module block_sparse_matrix_names
      procedure :: get_block                     => block_sparse_matrix_get_block
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
      procedure :: extract_diagonal              => block_sparse_matrix_extract_diagonal
+     procedure :: get_sign                      => block_sparse_matrix_get_sign
      procedure :: apply                         => block_sparse_matrix_apply
      procedure :: apply_add                     => block_sparse_matrix_apply_add
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
@@ -284,6 +285,17 @@ contains
       mcheck(.false.,'block_sparse_matrix_extract_diagonal is not implemented')
   end subroutine block_sparse_matrix_extract_diagonal
   
+  
+  function block_sparse_matrix_get_sign(this) result(sign) 
+  !-----------------------------------------------------------------
+  !< Get the sign of the sparse matrix
+  !-----------------------------------------------------------------
+      class(block_sparse_matrix_t), intent(in) :: this
+      integer(ip)                              :: sign
+  !-----------------------------------------------------------------
+      mcheck(.false.,'block_sparse_matrix_get_sign is not implemented')
+  end function block_sparse_matrix_get_sign
+ 
   
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated

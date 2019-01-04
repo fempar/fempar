@@ -53,7 +53,7 @@ private
         procedure, non_overridable ::         create_vector_spaces           => par_sparse_matrix_create_vector_spaces
         procedure, non_overridable, public :: get_sparse_matrix              => par_sparse_matrix_get_sparse_matrix
         procedure, non_overridable, public :: get_nnz                        => par_sparse_matrix_get_nnz
-        procedure, non_overridable, public :: get_sign                       => par_sparse_matrix_get_sign
+        procedure,                  public :: get_sign                       => par_sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                   => par_sparse_matrix_get_num_rows
         procedure, non_overridable, public :: get_num_cols                   => par_sparse_matrix_get_num_cols
         procedure, non_overridable, public :: get_symmetric_storage          => par_sparse_matrix_get_symmetric_storage 
