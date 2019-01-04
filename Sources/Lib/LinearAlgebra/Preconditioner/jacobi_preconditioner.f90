@@ -26,6 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!> summary: Software subsystem in charge of implementing the Jacobi 
+!> (a.k.a. diagonal scaling) preconditioner operator.
+
 module jacobi_preconditioner_names
  ! Tools
  use types_names
@@ -56,62 +59,64 @@ module jacobi_preconditioner_names
 # include "debug.i90"
  private
  
- integer(ip), parameter :: jacobi_preconditioner_STATE_START    = 0
- integer(ip), parameter :: jacobi_preconditioner_STATE_CREATED  = 1
- integer(ip), parameter :: jacobi_preconditioner_STATE_SYMBOLIC = 2 ! Symbolic data already computed
- integer(ip), parameter :: jacobi_preconditioner_STATE_NUMERIC  = 3 ! Numerical data already computed
+ integer(ip), parameter :: jacobi_preconditioner_STATE_START    = 0 !< Entity has no stored data
+ integer(ip), parameter :: jacobi_preconditioner_STATE_CREATED  = 1 !< Ready to build preconditioner
+ integer(ip), parameter :: jacobi_preconditioner_STATE_SYMBOLIC = 2 !< Symbolic data already computed
+ integer(ip), parameter :: jacobi_preconditioner_STATE_NUMERIC  = 3 !< Numerical data already computed
  
-  !-----------------------------------------------------------------
-  ! State transition diagram for type(jacobi_preconditioner_t)
-  !-----------------------------------------------------------------
-  ! Input State         | Action                | Output State 
-  !-----------------------------------------------------------------
-  ! Start               | create                | Created
-  ! Start               | free_clean            | Start
-  ! Start               | free_symbolic         | Start
-  ! Start               | free_numeric          | Start
-  ! Start               | update_matrix         | Start ! it does nothing
-
- 
-  ! Created             | symbolic_setup        | Symbolic         ! perform symbolic_setup()
-  ! Created             | numerical_setup       | Numeric          ! perform symbolic_setup()+numerical_setup()
-  ! Created             | apply                 | Numeric          ! perform symbolic_setup()+numerical_setup()
-  ! Created             | free_clean            | Start
-  ! Created             | free_symbolic         | Create           ! it does nothing
-  ! Created             | free_numeric          | Create           ! it does nothing
-  ! Created             | update_matrix         | Create           ! it does nothing
-
-  ! Symbolic            | symbolic_setup                        | Symbolic         ! it does nothing
-  ! Symbolic            | numerical_setup                       | Numeric          ! perform numerical_setup() 
-  ! Symbolic            | apply                                 | Numeric          ! perform numerical_setup()
-  ! Symbolic            | free_clean                            | Start
-  ! Symbolic            | free_symbolic                         | Created
-  ! Symbolic            | free_numeric                          | Symbolic         ! it does nothing
-  ! Symbolic            | update_matrix + same_nonzero_pattern  | Symbolic         ! it does nothing
-  ! Symbolic            | update_matrix + !same_nonzero_pattern | Symbolic         ! free_symbolic()+symbolic_setup()
-  
-  ! Numeric             | symbolic_setup                        | Numeric          ! it does nothing
-  ! Numeric             | numeric_setup                         | Numeric          ! it does nothing
-  ! Numeric             | apply                                 | Numeric          ! it does nothing
-  ! Numeric             | free_numeric                          | Symbolic
-  ! Numeric             | free_symbolic                         | Created
-  ! Numeric             | free_clean                            | Start
-  ! Numeric             | update_matrix + same_nonzero_pattern  | Numeric          ! free_numerical_setup()+numerical_setup()
-  ! Numeric             | update_matrix + !same_nonzero_pattern | Numeric          ! free_numerical_setup()+free_symbolic_setup()
-                                                                                   ! symbolic_setup()+numeric_setup()
- 
+  !> 
+  !> Write a brief description
+  !>
+  !> Write the basic usage (standard or with the create + limits)
+  !> 
+  !> @warning [[jacobi_preconditioner_t]] assumes the FE matrix is positive definite 
+  !> and has a single-block structure. Execution stops at run-time whenever any of 
+  !> these conditions is not verified.
+  !>
+  !> # State transition diagram for type [[jacobi_preconditioner_t]]
+  !> 
+  !> | Input state | Action | Output state | Comments |
+  !> | ----------- | :----: | :----------: | :------: |
+  !> | Start       | create                                | Created  | |
+  !> | Start       | free_clean                            | Start    | |
+  !> | Start       | free_symbolic                         | Start    | |
+  !> | Start       | free_numeric                          | Start    | |
+  !> | Start       | update_matrix                         | Start    | it does nothing |
+  !> | Created     | symbolic_setup                        | Symbolic | symbolic_setup() |
+  !> | Created     | numerical_setup                       | Numeric  | symbolic_setup()+numerical_setup() |
+  !> | Created     | apply                                 | Numeric  | symbolic_setup()+numerical_setup() |
+  !> | Created     | free_clean                            | Start    | |
+  !> | Created     | free_symbolic                         | Create   | it does nothing |
+  !> | Created     | free_numeric                          | Create   | it does nothing |
+  !> | Created     | update_matrix                         | Create   | it does nothing |
+  !> | Symbolic    | symbolic_setup                        | Symbolic | it does nothing |
+  !> | Symbolic    | numerical_setup                       | Numeric  | numerical_setup() |
+  !> | Symbolic    | apply                                 | Numeric  | numerical_setup() |
+  !> | Symbolic    | free_clean                            | Start    | |
+  !> | Symbolic    | free_symbolic                         | Created  | |
+  !> | Symbolic    | free_numeric                          | Symbolic | it does nothing |
+  !> | Symbolic    | update_matrix + same_nonzero_pattern  | Symbolic | it does nothing |
+  !> | Symbolic    | update_matrix + !same_nonzero_pattern | Symbolic | free_symbolic()+symbolic_setup() |
+  !> | Numeric     | symbolic_setup                        | Numeric  | it does nothing |
+  !> | Numeric     | numeric_setup                         | Numeric  | it does nothing |
+  !> | Numeric     | apply                                 | Numeric  | it does nothing |
+  !> | Numeric     | free_numeric                          | Symbolic | |
+  !> | Numeric     | free_symbolic                         | Created  | |
+  !> | Numeric     | free_clean                            | Start    | |
+  !> | Numeric     | update_matrix + same_nonzero_pattern  | Numeric  | free_numerical_setup()+numerical_setup() |
+  !> | Numeric     | update_matrix + !same_nonzero_pattern | Numeric  | free_numerical_setup()+free_symbolic_setup()+symbolic_setup()+numeric_setup()
+  !>
 type, extends(operator_t) :: jacobi_preconditioner_t
    private
-   integer(ip)                        :: state = jacobi_preconditioner_STATE_START   
-   class(environment_t) , pointer     :: environment                  => NULL()
-   ! Pointer to the fe_nonlinear_operator_t this jacobi_preconditioner_t instance has been created from
-   type(fe_operator_t)  , pointer     :: fe_nonlinear_operator        => NULL()
+   integer(ip)                        :: state = jacobi_preconditioner_STATE_START !< Refer to the state diagramme of [[jacobi_preconditioner_t]]
+   class(environment_t) , pointer     :: environment           => NULL()
+   type(fe_operator_t)  , pointer     :: fe_nonlinear_operator => NULL()           !< Pointer to the [[fe_operator_t]] this [[jacobi_preconditioner_t]] instance has been created from.
    class(vector_t)      , allocatable :: inverse_diagonal        
-   ! This pointer is set-up during jacobi_preconditioner_t%create() and re-used in the rest of stages.
-   ! Therefore, type(parameter_list_t) to which type(jacobi_preconditioner_t) points to MUST NOT BE
-   ! freed before type(jacobi_preconditioner_t).
-   type(parameterlist_t), pointer     :: jacobi_preconditioner_params => NULL()
-   
+   type(parameterlist_t), pointer     :: jacobi_preconditioner_params => NULL()    !< Pointer to a [[parameter_list_t]] to customize the preconditioner (e.g. set a relaxation parameter).
+   !< @warning The [[jacobi_preconditioner_t:jacobi_preconditioner_params]] pointer is set-up 
+   !< during [[jacobi_preconditioner_t:create]] and re-used in the rest of stages. Therefore,
+   !< [[parameter_list_t]] to which [[jacobi_preconditioner_t]] points to MUST NOT BE freed  
+   !< before [[jacobi_preconditioner_t]].
  contains
  
    ! Creational methods
@@ -176,6 +181,384 @@ end type jacobi_preconditioner_t
 
 contains
 
-#include "sbm_jacobi_preconditioner.i90"
+ subroutine jacobi_preconditioner_create_w_parameter_list ( this, fe_nonlinear_operator, jacobi_preconditioner_params )
+   implicit none
+   class(jacobi_preconditioner_t)        , intent(inout) :: this
+   class(fe_operator_t)          , target, intent(in)    :: fe_nonlinear_operator
+   type(parameterlist_t)         , target, intent(in)    :: jacobi_preconditioner_params
+   call this%create(fe_nonlinear_operator)
+   this%jacobi_preconditioner_params => jacobi_preconditioner_params
+ end subroutine jacobi_preconditioner_create_w_parameter_list
+
+ subroutine jacobi_preconditioner_create_wo_parameter_list ( this, fe_nonlinear_operator )
+   implicit none
+   class(jacobi_preconditioner_t)        , intent(inout) :: this
+   class(fe_operator_t)          , target, intent(in)    :: fe_nonlinear_operator
+   class(matrix_t)       , pointer :: fe_matrix
+   type(par_fe_space_t)  , pointer :: fe_space
+   class(triangulation_t), pointer :: triangulation
+   call this%free()
+   assert ( this%state_is_start() )
+   this%fe_nonlinear_operator => fe_nonlinear_operator
+   fe_space => this%get_par_fe_space()
+   triangulation => fe_space%get_triangulation()
+   massert ( fe_space%get_num_blocks() == 1, 'jacobi_preconditioner_create: FE matrix must have a single block' )
+   call this%set_par_environment(triangulation%get_environment())
+   if ( this%am_i_l1_task() ) then 
+     fe_matrix => this%fe_nonlinear_operator%get_matrix()
+     mcheck( fe_matrix%get_sign() == SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE, 'jacobi_preconditioner_create: FE matrix must be positive definite' )
+   end if
+   call this%create_vector_spaces()
+   call this%set_state_created()
+   nullify(this%jacobi_preconditioner_params)
+ end subroutine jacobi_preconditioner_create_wo_parameter_list
+
+ subroutine jacobi_preconditioner_create_vector_spaces (this)
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout)  :: this
+   type(vector_space_t), pointer :: fe_nonlinear_operator_domain_vector_space
+   type(vector_space_t), pointer :: fe_nonlinear_operator_range_vector_space
+   type(vector_space_t), pointer :: jacobi_preconditioner_domain_vector_space
+   type(vector_space_t), pointer :: jacobi_preconditioner_range_vector_space
+   fe_nonlinear_operator_domain_vector_space => this%fe_nonlinear_operator%get_domain_vector_space()
+   fe_nonlinear_operator_range_vector_space  => this%fe_nonlinear_operator%get_range_vector_space()
+   assert ( fe_nonlinear_operator_domain_vector_space%equal_to(fe_nonlinear_operator_range_vector_space) )
+   jacobi_preconditioner_domain_vector_space => this%get_domain_vector_space()
+   jacobi_preconditioner_range_vector_space  => this%get_range_vector_space()
+   call fe_nonlinear_operator_domain_vector_space%clone(jacobi_preconditioner_domain_vector_space)
+   call fe_nonlinear_operator_range_vector_space%clone(jacobi_preconditioner_range_vector_space)
+   !< @note The type [[fe_nonlineal_operator_t]] must have equal domain and   
+   !< range vector spaces. In other words, the FE matrix must be squared.
+ end subroutine jacobi_preconditioner_create_vector_spaces
+
+ subroutine jacobi_preconditioner_create_and_allocate_inverse_diagonal ( this ) 
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   call this%free_and_destroy_inverse_diagonal()
+   call this%create_domain_vector(this%inverse_diagonal)
+ end subroutine jacobi_preconditioner_create_and_allocate_inverse_diagonal 
+
+ subroutine jacobi_preconditioner_set_state_start(this)
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   this%state = jacobi_preconditioner_STATE_START
+ end subroutine jacobi_preconditioner_set_state_start
+
+ subroutine jacobi_preconditioner_set_state_created(this)
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   this%state = jacobi_preconditioner_STATE_CREATED
+ end subroutine jacobi_preconditioner_set_state_created
+
+ subroutine jacobi_preconditioner_set_state_symbolic(this)
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   this%state = jacobi_preconditioner_STATE_SYMBOLIC
+ end subroutine jacobi_preconditioner_set_state_symbolic
+
+ subroutine jacobi_preconditioner_set_state_numeric(this)
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   this%state = jacobi_preconditioner_STATE_NUMERIC
+ end subroutine jacobi_preconditioner_set_state_numeric
+
+ function jacobi_preconditioner_state_is_start(this) result(is_start)
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical                                 :: is_start
+   is_start = this%state == jacobi_preconditioner_STATE_START
+ end function jacobi_preconditioner_state_is_start
+
+ function jacobi_preconditioner_state_is_created(this) result(is_start)
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical                                 :: is_start
+   is_start = this%state == jacobi_preconditioner_STATE_CREATED
+ end function jacobi_preconditioner_state_is_created
+
+ function jacobi_preconditioner_state_is_symbolic(this) result(is_symbolic_setup)
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical                                 :: is_symbolic_setup
+   is_symbolic_setup = this%state == jacobi_preconditioner_STATE_SYMBOLIC
+ end function jacobi_preconditioner_state_is_symbolic
+
+ function jacobi_preconditioner_state_is_numeric(this) result(is_numerical_setup)
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical                                 :: is_numerical_setup
+   is_numerical_setup= this%state == jacobi_preconditioner_STATE_NUMERIC
+ end function jacobi_preconditioner_state_is_numeric
+
+ subroutine jacobi_preconditioner_symbolic_setup ( this )
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   type(environment_t), pointer :: par_environment  
+   par_environment => this%get_par_environment()
+   assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( this%state_is_created() ) then
+     call this%create_vector_spaces()
+     !< In the case the call to this subroutine is triggered by 
+     !< [[jacobi_preconditioner_t:update_matrix]] with 
+     !< 'same_nonzero_pattern=.false.' it might be necessary to 
+     !< re-generate vector spaces associated to this. Provided that 
+     !< we do not know who triggered this subroutine, and that the 
+     !< computational time spent here is not significant, we always 
+     !< regenerate vector spaces right before returning control
+     !< from a call to symbolic_setup.
+     call this%create_and_allocate_inverse_diagonal()
+     call this%set_state_symbolic()
+   end if
+ end subroutine jacobi_preconditioner_symbolic_setup
+
+ subroutine jacobi_preconditioner_numerical_setup ( this )
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout)   :: this
+   type(environment_t)        , pointer :: par_environment
+   class(matrix_t)            , pointer :: fe_matrix
+   type(serial_scalar_array_t), pointer :: serial_scalar_array
+   real(rp)                   , pointer :: id_entries(:)
+   assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( this%state_is_created() ) then
+     call this%symbolic_setup()
+   end if 
+   assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( this%state_is_symbolic() ) then
+     par_environment => this%get_par_environment()
+     if ( par_environment%am_i_l1_task() ) then
+       fe_matrix => this%fe_nonlinear_operator%get_matrix()
+       select type ( id_vector => this%inverse_diagonal )
+         class is (serial_scalar_array_t)
+           id_entries          => id_vector%get_entries()
+           call fe_matrix%extract_diagonal(id_entries)
+         class is (par_scalar_array_t)
+           serial_scalar_array => id_vector%get_serial_scalar_array()
+           id_entries          => serial_scalar_array%get_entries()
+           call fe_matrix%extract_diagonal(id_entries)
+         class default
+           check(.false.)
+       end select
+     end if
+     call this%inverse_diagonal%comm()
+     call this%inverse_diagonal%entrywise_invert()
+     call this%set_state_numeric()
+   end if
+ end subroutine jacobi_preconditioner_numerical_setup
+
+ subroutine jacobi_preconditioner_apply (this, x, y)
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   class(vector_t)               , intent(in)    :: x
+   class(vector_t)               , intent(inout) :: y
+   assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if (this%state_is_created() ) then
+     call this%symbolic_setup()
+   end if 
+   assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+   if (this%state_is_symbolic() ) then
+     call this%numerical_setup()
+   end if 
+   assert ( this%state_is_numeric() )
+   call this%abort_if_not_in_domain(x)
+   call this%abort_if_not_in_range(y)
+   call x%GuardTemp()
+   call y%entrywise_product(this%inverse_diagonal,x)
+   call x%CleanTemp()
+ end subroutine jacobi_preconditioner_apply
+
+ subroutine jacobi_preconditioner_apply_add(this, x, y)
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   class(vector_t)               , intent(in)    :: x
+   class(vector_t)               , intent(inout) :: y
+   class(vector_t)     , allocatable :: w
+   type(vector_space_t), pointer     :: range_vector_space
+   integer(ip)                       :: istat
+   call this%abort_if_not_in_domain(x)
+   call this%abort_if_not_in_range(y)
+   call x%GuardTemp()
+   range_vector_space => this%get_range_vector_space()
+   call range_vector_space%create_vector(w)
+   call this%apply(x,w)
+   call y%axpby(1.0, w, 1.0)
+   call x%CleanTemp()
+   call w%free()
+   deallocate(w, stat=istat); check(istat==0)
+ end subroutine jacobi_preconditioner_apply_add
+
+ subroutine jacobi_preconditioner_free(this)
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   call this%free_numerical_setup()
+   call this%free_symbolic_setup()
+   call this%free_clean()
+ end subroutine jacobi_preconditioner_free
+
+ subroutine jacobi_preconditioner_free_clean(this)
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( this%state_is_numeric() ) then
+     call this%free_numerical_setup() 
+   end if 
+   if ( this%state_is_symbolic() ) then
+     call this%free_symbolic_setup() 
+   end if
+   call this%nullify_operator()
+   call this%free_vector_spaces()
+   nullify(this%jacobi_preconditioner_params)
+   nullify(this%environment)
+   call this%set_state_start()
+ end subroutine jacobi_preconditioner_free_clean
+
+ subroutine jacobi_preconditioner_free_symbolic_setup(this)
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( this%state_is_numeric() ) then
+     call this%free_numerical_setup() 
+   end if
+   if ( this%state_is_symbolic() ) then 
+     call this%free_and_destroy_inverse_diagonal()
+     call this%set_state_created()
+   end if
+ end subroutine jacobi_preconditioner_free_symbolic_setup
+
+ subroutine jacobi_preconditioner_free_numerical_setup(this)
+   implicit none
+   class(jacobi_preconditioner_t)           , intent(inout) :: this
+   type(environment_t)   , pointer       :: par_environment
+   assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( this%state_is_numeric() ) then
+     call this%inverse_diagonal%init(0.0_rp)
+     call this%set_state_symbolic()
+   end if
+ end subroutine jacobi_preconditioner_free_numerical_setup
+
+ subroutine jacobi_preconditioner_free_and_destroy_inverse_diagonal ( this ) 
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   integer(ip) :: istat
+   if ( allocated(this%inverse_diagonal) ) then
+     call this%inverse_diagonal%free()
+     deallocate(this%inverse_diagonal, stat=istat); check(istat==0);
+   end if
+ end subroutine jacobi_preconditioner_free_and_destroy_inverse_diagonal 
+
+ function jacobi_preconditioner_get_par_environment(this)
+   implicit none
+   class(jacobi_preconditioner_t), target, intent(in) :: this
+   class(environment_t), pointer :: jacobi_preconditioner_get_par_environment
+   jacobi_preconditioner_get_par_environment => this%environment
+ end function jacobi_preconditioner_get_par_environment
+
+ subroutine jacobi_preconditioner_set_par_environment(this, environment)
+   implicit none
+   class(jacobi_preconditioner_t)        , intent(inout) :: this
+   class(environment_t)          , target, intent(in)    :: environment
+   this%environment => environment
+ end subroutine jacobi_preconditioner_set_par_environment
+
+ function jacobi_preconditioner_get_par_sparse_matrix(this)
+   !< Helper function that extracts a run-time polymorphic [[matrix_t]]
+   !< from the [[fe_operator_t]], and dynamically casts it into  
+   !< type [[par_sparse_matrix_t]]. If the dynamic cast cannot be performed, 
+   !< because class [[matrix_t]] is NOT of type [[par_sparse_matrix_t], then  
+   !< it aborts the execution of the program.
+   implicit none
+   class(jacobi_preconditioner_t), intent(in) :: this
+   type(par_sparse_matrix_t), pointer :: jacobi_preconditioner_get_par_sparse_matrix
+   class(matrix_t)          , pointer :: matrix
+   matrix => this%fe_nonlinear_operator%get_matrix()
+   select type( matrix )
+   type is ( par_sparse_matrix_t )
+      jacobi_preconditioner_get_par_sparse_matrix => matrix
+      class default
+      check(.false.)
+   end select
+ end function jacobi_preconditioner_get_par_sparse_matrix
+
+ function jacobi_preconditioner_get_fe_space(this)
+   implicit none
+   class(jacobi_preconditioner_t), intent(in) :: this
+   class(base_fe_space_t), pointer :: jacobi_preconditioner_get_fe_space
+   jacobi_preconditioner_get_fe_space => this%get_par_fe_space()
+ end function jacobi_preconditioner_get_fe_space
+
+ function jacobi_preconditioner_get_par_fe_space(this)
+  !< Helper function that extracts a run-time polymorphic [[serial_fe_space_t]]
+  !< from the [[fe_operator_t]], and dynamically casts it into  
+  !< type [[par_fe_space_t]]. If the dynamic cast cannot be performed,
+  !< because class [[serial_fe_space_t]] is NOT of type [[par_fe_space_t]],  
+  !< then it aborts the execution of the program.
+   implicit none
+   class(jacobi_preconditioner_t), intent(in) :: this
+   type(par_fe_space_t)    , pointer    :: jacobi_preconditioner_get_par_fe_space
+   class(serial_fe_space_t), pointer    :: fe_space
+   fe_space => this%fe_nonlinear_operator%get_fe_space()
+   select type(fe_space)
+   class is (par_fe_space_t)
+      jacobi_preconditioner_get_par_fe_space => fe_space
+      class default
+      check(.false.)
+   end select
+ end function jacobi_preconditioner_get_par_fe_space
+
+ function jacobi_preconditioner_am_i_l1_task(this)
+   implicit none
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical :: jacobi_preconditioner_am_i_l1_task
+   type(environment_t), pointer     :: par_environment
+   par_environment => this%get_par_environment()
+   jacobi_preconditioner_am_i_l1_task = par_environment%am_i_l1_task()
+ end function jacobi_preconditioner_am_i_l1_task
+
+ function jacobi_preconditioner_is_linear( this )
+   implicit none
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical :: jacobi_preconditioner_is_linear
+   jacobi_preconditioner_is_linear = .true.
+ end function jacobi_preconditioner_is_linear
+
+ function jacobi_preconditioner_is_operator_associated( this )
+   implicit none
+   class(jacobi_preconditioner_t), intent(in) :: this
+   logical :: jacobi_preconditioner_is_operator_associated
+   jacobi_preconditioner_is_operator_associated = associated(this%fe_nonlinear_operator)
+ end function jacobi_preconditioner_is_operator_associated
+
+ subroutine jacobi_preconditioner_nullify_operator ( this )
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   nullify(this%fe_nonlinear_operator)
+ end subroutine jacobi_preconditioner_nullify_operator 
+
+ subroutine jacobi_preconditioner_update_matrix(this, same_nonzero_pattern )
+   implicit none
+   class(jacobi_preconditioner_t), intent(inout) :: this
+   logical                       , intent(in)    :: same_nonzero_pattern
+   assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+   if ( same_nonzero_pattern ) then
+     if ( this%state_is_numeric() ) then
+       call this%free_numerical_setup()
+       call this%numerical_setup()
+     end if   
+   else
+     if ( this%state_is_numeric() ) then
+       call this%free_numerical_setup()
+       call this%free_symbolic_setup()
+       call this%symbolic_setup()
+       call this%numerical_setup()
+     else if ( this%state_is_symbolic() ) then
+       call this%free_symbolic_setup()
+       call this%symbolic_setup()
+     end if
+   end if 
+ end subroutine jacobi_preconditioner_update_matrix
+
+ !> summary: Creates a *temporary* instance of [[jacobi_preconditioner_t]]
+ !> from an instance of [[fe_operator_t]].
+ function create_jacobi_preconditioner(op) result (res)
+   implicit none
+   class(fe_operator_t)         , intent(in)  :: op
+   type(jacobi_preconditioner_t)              :: res
+   call op%GuardTemp()
+   call res%create(op)
+   call res%setTemp()
+   call op%CleanTemp()
+ end function create_jacobi_preconditioner
 
 end module jacobi_preconditioner_names
