@@ -395,6 +395,8 @@ contains
    call this%free_clean()
  end subroutine jacobi_preconditioner_free
 
+ !> summary: destroys all memory allocated by or pointers associated by the member 
+ !> variables of [[jacobi_preconditioner_t]]
  subroutine jacobi_preconditioner_free_clean(this)
    implicit none
    class(jacobi_preconditioner_t), intent(inout) :: this
@@ -487,11 +489,11 @@ contains
  end function jacobi_preconditioner_get_fe_space
 
  function jacobi_preconditioner_get_par_fe_space(this)
-  !< Helper function that extracts a run-time polymorphic [[serial_fe_space_t]]
-  !< from the [[fe_operator_t]], and dynamically casts it into  
-  !< type [[par_fe_space_t]]. If the dynamic cast cannot be performed,
-  !< because class [[serial_fe_space_t]] is NOT of type [[par_fe_space_t]],  
-  !< then it aborts the execution of the program.
+   !< Helper function that extracts a run-time polymorphic [[serial_fe_space_t]]
+   !< from the [[fe_operator_t]], and dynamically casts it into  
+   !< type [[par_fe_space_t]]. If the dynamic cast cannot be performed,
+   !< because class [[serial_fe_space_t]] is NOT of type [[par_fe_space_t]],  
+   !< then it aborts the execution of the program.
    implicit none
    class(jacobi_preconditioner_t), intent(in) :: this
    type(par_fe_space_t)    , pointer    :: jacobi_preconditioner_get_par_fe_space
@@ -534,7 +536,15 @@ contains
    nullify(this%fe_nonlinear_operator)
  end subroutine jacobi_preconditioner_nullify_operator 
 
+ !> summary: Updates the [[jacobi_preconditioner_t]] instance, specifically, the 
+ !> entries of the inverted diagonal of the FE matrix, whenever FE matrix has been updated.
  subroutine jacobi_preconditioner_update_matrix(this, same_nonzero_pattern )
+   !< This TBP should be (generally) called right after the FE matrix has been updated.
+   !< It is in charge of updating the [[jacobi_preconditioner_t:inverse_diagonal]] s.t.
+   !< it matches the new modified FE matrix. If the FE matrix preserves its nonzero pattern,
+   !< numerical setup is performed. Ow, symbolic setup is also performed. Actually, symbolic 
+   !< setup is only necessary when the num rows (= num columns) changes, but this optimization
+   !< would probably not lead to significant performance improvement.
    implicit none
    class(jacobi_preconditioner_t), intent(inout) :: this
    logical                       , intent(in)    :: same_nonzero_pattern
