@@ -173,9 +173,17 @@ type, extends(operator_t) :: jacobi_preconditioner_t
    procedure                           :: update_matrix          => jacobi_preconditioner_update_matrix
 end type jacobi_preconditioner_t
 
- interface jacobi_preconditioner_t
-   module procedure create_jacobi_preconditioner
- end interface jacobi_preconditioner_t
+ ! See issue #270 (open as of Jan 11th 2019)
+ ! Cannot use constructor s.t. instead of following the basic usage, i.e. jp%create(), 
+ ! jp%symbolic_setup(), ..., ils%set_operators(fe_op,jp), we straighforwardly set the 
+ ! operators with a constructor, i.e. ils%set_operators(fe_op,jp_t(fe_op)), because the 
+ ! jp instance must be temporal and assigned to an [[l_value_operator_t]]. At the current 
+ ! design of [[l_value_operator_t]] (commit ID 11170497), both requirements are incompatible 
+ ! because [[l_value_operator_t]] can only assign a permanent polymorphic instance of 
+ ! [[fe_operator_t]].
+ !interface jacobi_preconditioner_t
+ !  module procedure create_jacobi_preconditioner
+ !end interface jacobi_preconditioner_t
  
  public :: jacobi_preconditioner_t
 
