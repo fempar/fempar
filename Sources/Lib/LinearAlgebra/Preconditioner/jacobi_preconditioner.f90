@@ -65,9 +65,36 @@ module jacobi_preconditioner_names
  integer(ip), parameter :: jacobi_preconditioner_STATE_NUMERIC  = 3 !< Numerical data already computed
  
   !> 
-  !> Write a brief description
+  !> This module contains the software subsystem in charge of implementing the Jacobi 
+  !> (a.k.a. diagonal scaling) preconditioner operator. If one aims to solve the linear system 
+  !> A x = f at hand of the simplest iterative method, i.e. Richardsond, a Jacobi-preconditioned 
+  !> iteration looks like x^{k+1} = x^k + inv(D) * ( A x^k - f ). Here, M = D = diag(A) is the 
+  !> preconditioner.
   !>
-  !> Write the basic usage (standard or with the create + limits)
+  !> # Basic usage at the driver level
+  !>
+  !> ```fortran
+  !> ...
+  !>    type(jacobi_preconditioner_t) :: jp ! Declaration in the preamble
+  !> ...
+  !>    ! Setup preconditioner after assembly of linear system
+  !>    call jp%create(fe_affine_operator) ! Or jp%create(fe_affine_operator,parameter_list)
+  !>    call jp%symbolic_setup()
+  !>    call jp%numerical_setup()
+  !> ...
+  !>    call iterative_linear_solver%set_operators(fe_affine_operator%get_tangent(),jp)
+  !> ...
+  !>    call jp%free()
+  !> ...
+  !> ```
+  !>
+  !> @note To save memory usage, the inverse of the diagonal matrix of the FE matrix, i.e. 
+  !> inv(D) is actually not stored. As the only nontrivial entries of inv(D) are, precisely, 
+  !> the diagonal ones, only these are computed and stored in the [[jacobi_preconditioner_t:inverse_diagonal]]
+  !> polymorphic [[vector_t]] instance with size equal to the local FE matrix size (n). 
+  !> In other words, instead of inv(D), we actually compute and store {inv(D)_ii}, i = 1,...,n. 
+  !> Matrix-vector product is then performed as an entrywise product, i.e. y = inv(D) * x is 
+  !> computed entry by entry as y_i = inv(D)_{ii} * x_i, i = 1,...,n.
   !> 
   !> @warning [[jacobi_preconditioner_t]] assumes the FE matrix is positive definite 
   !> and has a single-block structure. Execution stops at run-time whenever any of 
@@ -177,9 +204,9 @@ end type jacobi_preconditioner_t
  ! Cannot use constructor s.t. instead of following the basic usage, i.e. jp%create(), 
  ! jp%symbolic_setup(), ..., ils%set_operators(fe_op,jp), we straighforwardly set the 
  ! operators with a constructor, i.e. ils%set_operators(fe_op,jp_t(fe_op)), because the 
- ! jp instance must be temporal and assigned to an [[l_value_operator_t]]. At the current 
- ! design of [[l_value_operator_t]] (commit ID 11170497), both requirements are incompatible 
- ! because [[l_value_operator_t]] can only assign a permanent polymorphic instance of 
+ ! jp instance must be temporal and assigned to an [[lvalue_operator_t]]. At the current 
+ ! design of [[lvalue_operator_t]] (commit ID 11170497), both requirements are incompatible 
+ ! because [[lvalue_operator_t]] can only assign a permanent polymorphic instance of 
  ! [[fe_operator_t]].
  !interface jacobi_preconditioner_t
  !  module procedure create_jacobi_preconditioner
@@ -239,12 +266,21 @@ contains
    !< range vector spaces. In other words, the FE matrix must be squared.
  end subroutine jacobi_preconditioner_create_vector_spaces
 
+ !> summary: Creates [[jacobi_preconditioner:inverse_diagonal]]
+ !> with memory space for the diagonal entries of inv(D) .
  subroutine jacobi_preconditioner_create_and_allocate_inverse_diagonal ( this ) 
    implicit none
    class(jacobi_preconditioner_t), intent(inout) :: this
    assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
    call this%free_and_destroy_inverse_diagonal()
    call this%create_domain_vector(this%inverse_diagonal)
+   !< [[jacobi_preconditioner_t:inverse_diagonal]] is a polymorphic [[vector_t]] 
+   !< instance with size equal to the local FE matrix size (n). To save memory usage,
+   !< [[jacobi_preconditioner_t:inverse_diagonal]] only stores the diagonal entries 
+   !< of inv(D). Since D is a diagonal matrix (D_{ij} = 0, i != j), the matrix-vector product   
+   !< inv(D)*x, with x a given vector in the FE nonlinear operator domain=range space, 
+   !< can be reformulated as an entrywise vector product between the diagonal entries of 
+   !< inv(D) and x, i.e. y = inv(D)*x satisfies y_i = inv(D)_{ii} * x_i, i = 1,...,n.
  end subroutine jacobi_preconditioner_create_and_allocate_inverse_diagonal 
 
  subroutine jacobi_preconditioner_set_state_start(this)
@@ -291,6 +327,8 @@ contains
    is_numerical_setup= this%state == jacobi_preconditioner_STATE_NUMERIC
  end function jacobi_preconditioner_state_is_numeric
 
+ !> summary: Setup phase in charge of creating and allocating [[jacobi_preconditioner:inverse_diagonal]].
+ !> See also its main called TBP [[jacobi_preconditioner:create_and_allocate_inverse_diagonal]].
  subroutine jacobi_preconditioner_symbolic_setup ( this )
    implicit none
    class(jacobi_preconditioner_t), intent(inout) :: this
@@ -312,6 +350,8 @@ contains
    end if
  end subroutine jacobi_preconditioner_symbolic_setup
 
+ !> summary: Setup phase in charge of filling the *globally-assembled*
+ !> entries of [[jacobi_preconditioner:inverse_diagonal]].
  subroutine jacobi_preconditioner_numerical_setup ( this )
    implicit none
    class(jacobi_preconditioner_t), intent(inout)   :: this
@@ -346,6 +386,7 @@ contains
    end if
  end subroutine jacobi_preconditioner_numerical_setup
 
+ !> summary: Apply matrix-vector product y = inv(D)*x
  subroutine jacobi_preconditioner_apply (this, x, y)
    implicit none
    class(jacobi_preconditioner_t), intent(inout) :: this
@@ -364,9 +405,12 @@ contains
    call this%abort_if_not_in_range(y)
    call x%GuardTemp()
    call y%entrywise_product(this%inverse_diagonal,x)
+   !< y = inv(D)*x satisfies y_i = inv(D)_{ii} * x_i, i = 1,...,n, because D_{ij} = 0, i != j.
+   !< See also [[jacobi_preconditioner:create_and_allocate_inverse_diagonal]].
    call x%CleanTemp()
  end subroutine jacobi_preconditioner_apply
 
+ !> summary: Apply matrix-vector product y = inv(D)*x + y
  subroutine jacobi_preconditioner_apply_add(this, x, y)
    implicit none
    class(jacobi_preconditioner_t), intent(inout) :: this
