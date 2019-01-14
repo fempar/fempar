@@ -19,6 +19,7 @@ then
      #test 1
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc -use-vertices .false. -use-edges .false. -use-faces .true. -is_a_beam .false. -integration heterogeneous"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc -use-vertices .false. -use-edges .false. -use-faces .true. -is_a_beam .false. -integration heterogeneous > tmp_output
+
      # Number of iterations
      exit_code1=0
      n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
@@ -28,8 +29,6 @@ then
        exit_code1=1
      fi
      echo $exit_code1
-
-
      # Last iteration error
      exit_code2=0
      E1=$(grep "Last iteration error estimate:" tmp_output |sed s/" "" "*/"#"/g|cut -f5 -d#)
@@ -44,7 +43,6 @@ then
         exit_code2=1
      fi
      echo $exit_code2
-
      if [ $exit_code1 -eq 1 ]; then
         if [ $exit_code2 -eq 1 ]; then
            final_exit_code=1

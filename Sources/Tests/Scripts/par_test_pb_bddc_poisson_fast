@@ -19,25 +19,63 @@ then
      #test 1
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 18 18 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false. > tmp_output"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 18 18 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false. > tmp_output
-     grep "CG:" tmp_output  >  tmp_convergence
-     grep "CG converged to" tmp_output >> tmp_convergence 
-     grep "Last iteration error estimate:" tmp_output >> tmp_convergence 
-     diff -q tmp_convergence $TEST_INPUT_DATA_PATH/test1_convergence_fast 
-     if [ $? -ne 0 ] 
-     then
-      final_exit_code=1
+     # Number of iterations
+     exit_code1=0
+     n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test1_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     #if [ $(echo "$n1!=$n2"|bc -l) -eq 1 ]; then
+     if [ $n1 != $n2 ]; then
+       exit_code1=1
      fi
-     #rm tmp_output tmp_convergence
-     #test 2
+     echo $exit_code1
+     # Last iteration error
+     exit_code2=0
+     E1=$(grep "Last iteration error estimate:" tmp_output |sed s/" "" "*/"#"/g|cut -f5 -d#)
+     E2=$(grep "Last iteration error estimate:" $TEST_INPUT_DATA_PATH/test1_convergence |sed s/" "" "*/"#"/g|cut -f5 -d#)
+     e1=`printf "%f" $E1`
+     e2=`printf "%f" $E2`
+     error=$(echo "$e1-$e2"|bc -l)
+     if [ $(echo "$error>0.000000001"|bc -l) -eq 1 ]; then
+        exit_code2=1
+     fi
+     if [ $(echo "$error<-0.000000001"|bc -l) -eq 1 ]; then
+        exit_code2=1
+     fi
+     echo $exit_code2
+     if [ $exit_code1 -eq 1 ]; then
+        if [ $exit_code2 -eq 1 ]; then
+           final_exit_code=1
+	fi
+     fi
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true."
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true. > tmp_output
-     grep "CG:" tmp_output  >  tmp_convergence
-     grep "CG converged to" tmp_output >> tmp_convergence 
-     grep "Last iteration error estimate:" tmp_output >> tmp_convergence 
-     diff -q tmp_convergence $TEST_INPUT_DATA_PATH/test2_convergence 
-     if [ $? -ne 0 ] 
-     then
-      final_exit_code=1
+     # Number of iterations
+     exit_code1=0
+     n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test1_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     #if [ $(echo "$n1!=$n2"|bc -l) -eq 1 ]; then
+     if [ $n1 != $n2 ]; then
+       exit_code1=1
+     fi
+     echo $exit_code1
+     # Last iteration error
+     exit_code2=0
+     E1=$(grep "Last iteration error estimate:" tmp_output |sed s/" "" "*/"#"/g|cut -f5 -d#)
+     E2=$(grep "Last iteration error estimate:" $TEST_INPUT_DATA_PATH/test1_convergence |sed s/" "" "*/"#"/g|cut -f5 -d#)
+     e1=`printf "%f" $E1`
+     e2=`printf "%f" $E2`
+     error=$(echo "$e1-$e2"|bc -l)
+     if [ $(echo "$error>0.000000001"|bc -l) -eq 1 ]; then
+        exit_code2=1
+     fi
+     if [ $(echo "$error<-0.000000001"|bc -l) -eq 1 ]; then
+        exit_code2=1
+     fi
+     echo $exit_code2
+     if [ $exit_code1 -eq 1 ]; then
+        if [ $exit_code2 -eq 1 ]; then
+           final_exit_code=1
+	fi
      fi
 
    else
