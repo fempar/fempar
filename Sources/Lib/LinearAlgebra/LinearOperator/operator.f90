@@ -166,9 +166,10 @@ module operator_names
     
   type, extends(unary_operator_t) :: identity_operator_t
   contains
-     procedure :: apply     => identity_operator_apply
-     procedure :: apply_add => identity_operator_apply_add
-     procedure :: is_linear => identity_operator_is_linear
+     procedure :: apply         => identity_operator_apply
+     procedure :: apply_add     => identity_operator_apply_add
+     procedure :: is_linear     => identity_operator_is_linear
+     procedure :: update_matrix => identity_operator_update_matrix
   end type
 
   abstract interface
@@ -753,6 +754,13 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine identity_operator_apply
+  
+  
+ subroutine identity_operator_update_matrix( this, same_nonzero_pattern )
+    implicit none
+    class(identity_operator_t),  intent(inout) :: this
+    logical          ,  intent(in)    :: same_nonzero_pattern
+  end subroutine identity_operator_update_matrix
   
   recursive subroutine sum_operator_apply(this,x,y)
     implicit none
