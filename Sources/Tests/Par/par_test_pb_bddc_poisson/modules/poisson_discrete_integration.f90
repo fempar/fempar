@@ -102,6 +102,7 @@ contains
     
     call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
+     if ( fe%is_local() ) then
        
        ! Update FE-integration related data structures
        call fe%update_integration()
@@ -114,7 +115,7 @@ contains
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe%get_quadrature_points_coordinates()
 
-! Get subset_id
+          ! Get subset_id
           if ( fe%get_set_id() <= 1 ) then
              viscosity = 1.0_rp
           else 
@@ -146,7 +147,7 @@ contains
        end do
           
           call fe%assembly( this%fe_function, elmat, elvec, assembler )
-       !end if
+       end if
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
