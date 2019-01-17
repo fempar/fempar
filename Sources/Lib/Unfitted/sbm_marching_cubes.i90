@@ -334,7 +334,7 @@ end function marching_cubes_get_num_mc_cases
 subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   implicit none
   class(marching_cubes_t), target, intent(inout) :: this
-  type(unfitted_cell_iterator_t),  intent(inout) :: cell_iterator
+  class(unfitted_cell_iterator_t),  intent(inout) :: cell_iterator
   integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2, mc_case, num_dim
   integer(ip) :: ipo, idi, subcell, subfacet
   type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords, coordinates
