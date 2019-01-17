@@ -168,8 +168,8 @@ module operator_names
   contains
      procedure :: apply         => identity_operator_apply
      procedure :: apply_add     => identity_operator_apply_add
-     procedure :: is_linear     => identity_operator_is_linear
      procedure :: update_matrix => identity_operator_update_matrix
+     procedure :: is_linear     => identity_operator_is_linear
   end type
 
   abstract interface
@@ -421,14 +421,6 @@ contains
     end select
   end subroutine binary_operator_assign
   
-  subroutine binary_operator_update_matrix(this, same_nonzero_pattern)
-    implicit none
-    class(binary_operator_t), intent(inout)    :: this
-    logical                 , intent(in)       :: same_nonzero_pattern
-    call this%op1%update_matrix(same_nonzero_pattern)
-    call this%op2%update_matrix(same_nonzero_pattern)
-  end subroutine binary_operator_update_matrix
-  
   subroutine unary_operator_default_init(this)
     implicit none
     class(unary_operator_t), intent(inout) :: this
@@ -495,13 +487,6 @@ contains
     call op%CleanTemp()
   end subroutine unary_operator_create
   
-  subroutine unary_operator_update_matrix(this, same_nonzero_pattern)
-    implicit none
-    class(unary_operator_t), intent(inout)    :: this
-    logical                 , intent(in)       :: same_nonzero_pattern
-    call this%op%update_matrix(same_nonzero_pattern)
-  end subroutine unary_operator_update_matrix
-
   subroutine lvalue_operator_default_init(this)
     implicit none
     class(lvalue_operator_t), intent(inout) :: this
@@ -611,6 +596,7 @@ contains
     
   end function identity_operator_create
 
+  
 !!$  !--------------------------------------------------------------------!
 !!$  ! Construction and deallocation functions/subroutines of the nodes of! 
 !!$  ! the tree that represents an expression among matrix operators      !
@@ -754,14 +740,7 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine identity_operator_apply
-  
-  
- subroutine identity_operator_update_matrix( this, same_nonzero_pattern )
-    implicit none
-    class(identity_operator_t),  intent(inout) :: this
-    logical          ,  intent(in)    :: same_nonzero_pattern
-  end subroutine identity_operator_update_matrix
-  
+    
   recursive subroutine sum_operator_apply(this,x,y)
     implicit none
     class(sum_operator_t), intent(inout)    :: this
@@ -1007,21 +986,6 @@ contains
     call this%CleanTemp()
   end subroutine lvalue_operator_apply_add  
   
-  subroutine lvalue_operator_update_matrix(this, same_nonzero_pattern)
-    implicit none
-    class(lvalue_operator_t), intent(inout)    :: this
-    logical                 , intent(in)       :: same_nonzero_pattern
-    if(associated(this%op_stored)) then
-       assert(.not. associated(this%op_referenced))
-       call this%op_stored%update_matrix(same_nonzero_pattern)
-    else if(associated(this%op_referenced)) then
-       assert(.not. associated(this%op_stored))
-       call this%op_referenced%update_matrix(same_nonzero_pattern)
-    else
-       check(1==0)
-    end if
-  end subroutine lvalue_operator_update_matrix
-  
   !-------------------------------------!
   ! is_linear implementations           !
   !-------------------------------------!
@@ -1074,4 +1038,43 @@ contains
     lvalue_operator_is_linear = .false.
   end function lvalue_operator_is_linear
   
+  !-------------------------------------!
+  ! update_matrix implementations       !
+  !-------------------------------------!
+  subroutine binary_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(binary_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    call this%op1%update_matrix(same_nonzero_pattern)
+    call this%op2%update_matrix(same_nonzero_pattern)
+  end subroutine binary_operator_update_matrix
+  
+  subroutine unary_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(unary_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    call this%op%update_matrix(same_nonzero_pattern)
+  end subroutine unary_operator_update_matrix
+  
+  subroutine identity_operator_update_matrix( this, same_nonzero_pattern )
+    implicit none
+    class(identity_operator_t),  intent(inout) :: this
+    logical          ,  intent(in)    :: same_nonzero_pattern
+  end subroutine identity_operator_update_matrix
+  
+  subroutine lvalue_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(lvalue_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       call this%op_stored%update_matrix(same_nonzero_pattern)
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       call this%op_referenced%update_matrix(same_nonzero_pattern)
+    else
+       check(1==0)
+    end if
+  end subroutine lvalue_operator_update_matrix
+   
 end module operator_names
