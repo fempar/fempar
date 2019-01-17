@@ -329,6 +329,139 @@ function marching_cubes_get_num_mc_cases(this) result (mc_cases)
   mc_cases = this%mc_table_num_cases
 end function marching_cubes_get_num_mc_cases
 
+
+!========================================================================================
+subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
+  implicit none
+  class(marching_cubes_t), target, intent(inout) :: this
+  type(unfitted_cell_iterator_t),  intent(inout) :: cell_iterator
+  integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2, mc_case, num_dim
+  integer(ip) :: ipo, idi, subcell, subfacet
+  type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords, coordinates
+  type(quadrature_t), pointer :: quadrature
+  real(rp), pointer :: points_in_quadrature(:,:)
+  type(point_t),  pointer :: phys_cell_coords(:)
+  type(cell_map_t), pointer :: cell_map
+  class(reference_fe_t), pointer :: reference_fe_geo
+  integer(ip) :: subcell_nodes(4)
+  integer(ip) :: subfacet_nodes(3)
+  type(quadrature_t), pointer :: nodal_quadrature
+  integer(ip) :: facet
+  logical :: is_valid_submesh
+  logical :: has_inverted_subcells
+
+  assert(cell_iterator%is_local())
+
+  if ( .not. cell_iterator%is_cut() ) return
+
+  assert(this%mc_runtime_init)
+  assert(this%mc_cell_info_init)
+  num_subnodes = cell_iterator%get_num_subnodes() !@pmartorell: non depending on cell_iterator
+  num_nodes = cell_iterator%get_num_nodes()
+  num_dim = this%triangulation%get_num_dims()
+  num_intersections = num_subnodes - num_nodes
+  assert(num_subnodes > num_nodes)
+
+  ! Recover the sub-points coordinates on the ref space
+  reference_fe_geo => cell_iterator%get_reference_fe()
+  coordinates => this%subnodes_ref_coords
+  assert( num_subnodes <= size(coordinates) )
+  node_coords => coordinates(1:num_nodes)
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  call nodal_quadrature%get_coordinates_as_points( node_coords )
+  intersec_coords => coordinates(num_nodes+1:num_subnodes)
+  i1 = this%mc_ptr_to_intersections(cell_iterator%get_gid())
+  i2 = this%mc_ptr_to_intersections(cell_iterator%get_gid()+1)-1
+  intersec_coords(:) = this%mc_intersection_points(i1:i2)
+
+  ! Recover connectivities of the sub-cells
+  mc_case = this%mc_case_x_cell(cell_iterator%get_gid())
+  this%num_subcells = this%mc_table_num_sub_cells_x_case(mc_case)
+  this%sub_cells_node_ids(:,:) = 0
+  do subcell=1,this%num_subcells
+    this%sub_cells_node_ids(:,subcell) = &
+    this%mc_table_sub_cells_node_ids_x_case(:,subcell,mc_case)
+  end do
+
+  ! Recover connectivities of the sub-faces
+  this%unfitted_sub_facets_node_ids(:,:) = 0
+  this%num_subfacets = this%mc_table_num_unfitted_sub_facets_x_case(mc_case)
+  do subfacet=1,this%num_subfacets
+    this%unfitted_sub_facets_node_ids(:,subfacet) = &
+    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,subfacet,mc_case)
+  end do
+
+  ! Recover the status of the sub-cells
+  this%subcells_status(:) = 0_ip
+  this%subcells_status(1:this%num_subcells) = this%mc_table_sub_cells_status_x_case(1:this%num_subcells, mc_case)
+
+  ! Recover connectivities of the fitted sub facets at each facet
+  this%fitted_sub_facets_node_ids_x_facet(:,:,:) = 0
+  do subfacet=1,this%mc_table_max_num_fitted_sub_facets_in_facet
+    do facet=1,this%mc_table_num_facets
+      this%fitted_sub_facets_node_ids_x_facet(:,subfacet,facet) = &
+      this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,subfacet,facet,mc_case)
+    end do
+  end do
+
+  ! Fix non-valid sub-cells and inverted sub-cells and sub-faces (only in 3D HEXAHEDRA)
+  if (this%triangulation%get_num_dims()== 3 ) then
+    if ( reference_fe_geo%get_topology() == topology_hex ) then
+       ! Check valid sub-triangulation 
+       is_valid_submesh = cell_iterator%is_valid_submesh() !@pmartorell: non depending on cell_iterator
+
+       ! If not valid: redo Delaunay triangulation
+       if ( .not. is_valid_submesh ) then
+         call cell_iterator%generate_subcells()     !@pmartorell: non depending on cell_iterator
+         call cell_iterator%generate_subcells_status() !@pmartorell: non depending on cell_iterator
+       end if
+       
+       ! Search for inverted sub-cells and reorient them
+       this%sub_cell_has_been_reoriented(:)=.false.
+       has_inverted_subcells = .false.
+       do subcell=1,this%num_subcells
+         if (cell_iterator%is_inverted_subcell(subcell)) then
+           has_inverted_subcells = .true.
+           this%sub_cell_has_been_reoriented(subcell)=.true.
+           subcell_nodes(:) = this%sub_cells_node_ids(:,subcell)
+           this%sub_cells_node_ids(:,subcell) = subcell_nodes([1,3,2,4])
+           assert(.not. cell_iterator%is_inverted_subcell(subcell))  !@pmartorell: non depending on cell_iterator
+         end if
+       end do
+
+       ! If any inverted sub-cell found or the sub-triangulation was invalid:
+       ! find again the boundary faces
+       if (has_inverted_subcells .or. (.not. is_valid_submesh)) then 
+         call cell_iterator%generate_boundary_subfacets()  !@pmartorell: non depending on cell_iterator
+       end if
+    end if
+    massert(cell_iterator%is_valid_submesh(), 'unfitted_cell_iterator::update_sub_triangulation: Non-valid cut cell sub-triangulation') !@pmartorell: non depending on cell_iterator
+  end if
+
+  ! Update the quadrature
+  quadrature => this%sub_nodes_nodal_quadratures(mc_case)
+  assert(num_dim == quadrature%get_num_dims())
+  assert(num_subnodes == quadrature%get_num_quadrature_points())
+  points_in_quadrature => quadrature%get_coordinates()
+  do ipo = 1, num_subnodes
+    do idi = 1, num_dim
+      points_in_quadrature(idi,ipo) = coordinates(ipo)%get(idi)
+    end do
+  end do
+
+  ! Prepare the fe map
+  cell_map => this%sub_nodes_cell_maps(mc_case)
+  call cell_map%update_interpolation( quadrature, reference_fe_geo )
+  phys_cell_coords => cell_map%get_coordinates()
+  call cell_iterator%get_nodes_coordinates(phys_cell_coords)
+  call cell_map%compute_quadrature_points_coordinates()
+
+  this%current_cell_gid = cell_iterator%get_gid()
+  ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
+
+end subroutine marching_cubes_update_sub_triangulation
+
+
 !========================================================================================
 subroutine marching_cubes_print ( this )
 
