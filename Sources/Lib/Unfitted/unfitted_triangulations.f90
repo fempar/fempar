@@ -241,11 +241,9 @@ module unfitted_triangulations_names
     !procedure(unfitted_boundary_cutter_get_max_num_subcells_in_cell_interface)   , deferred :: get_max_num_subcells_in_cell
     !procedure(unfitted_boundary_cutter_get_max_num_nodes_in_subcell_interface)   , deferred :: get_max_num_nodes_in_subcell
     !procedure(unfitted_boundary_cutter_get_total_num_subcells_interface)         , deferred :: get_total_num_subcells
-    !procedure(unfitted_boundary_cutter_get_max_num_subfacets_in_cell_interface)  , deferred :: get_max_num_subfacets_in_cell
     !procedure(unfitted_boundary_cutter_get_max_num_nodes_in_subfacet_interface)  , deferred :: get_max_num_nodes_in_subfacet
     !procedure(unfitted_boundary_cutter_get_total_num_subfacets_interface)        , deferred :: get_total_num_subfacets
     !procedure(unfitted_boundary_cutter_get_total_num_fitted_sub_facets_interface), deferred :: get_total_num_fitted_sub_facets
-    !procedure(unfitted_boundary_cutter_get_max_num_subnodes_in_cell_interface)   , deferred :: get_max_num_subnodes_in_cell
     !procedure(unfitted_boundary_cutter_update_sub_triangulation_interface)       , deferred :: update_sub_triangulation
     !procedure(unfitted_boundary_cutter_get_num_subcells_interface)               , deferred :: get_num_subcells
     !procedure(unfitted_boundary_cutter_get_num_subcell_nodes_interface)          , deferred :: get_num_subcell_nodes
@@ -453,14 +451,12 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_cut_cells             => sut_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => sut_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => sut_get_num_exterior_cells
-      procedure, non_overridable :: get_max_num_subcells_in_cell  => sut_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => sut_get_max_num_nodes_in_subcell
       procedure, non_overridable :: get_total_num_subcells     => sut_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfacets_in_cell  => sut_get_max_num_subfacets_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => sut_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets     => sut_get_total_num_subfacets
       procedure, non_overridable :: get_total_num_fitted_sub_facets  => sut_get_total_num_fitted_sub_facets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell  => sut_get_max_num_subnodes_in_cell
 
       ! Printers
       procedure :: print                     => sut_print
@@ -488,14 +484,12 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_cut_cells             => upst_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => upst_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => upst_get_num_exterior_cells
-      procedure, non_overridable :: get_max_num_subcells_in_cell  => upst_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => upst_get_max_num_nodes_in_subcell
       procedure, non_overridable :: get_total_num_subcells     => upst_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfacets_in_cell  => upst_get_max_num_subfacets_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => upst_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets        => upst_get_total_num_subfacets
       procedure, non_overridable :: get_total_num_fitted_sub_facets=> upst_get_total_num_fitted_sub_facets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell   => upst_get_max_num_subnodes_in_cell
 
       ! Printers
       procedure :: print                     => upst_print
@@ -522,13 +516,11 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_cut_cells             => put_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => put_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => put_get_num_exterior_cells
-      procedure, non_overridable :: get_max_num_subcells_in_cell  => put_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => put_get_max_num_nodes_in_subcell
       procedure, non_overridable :: get_total_num_subcells     => put_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfacets_in_cell  => put_get_max_num_subfacets_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => put_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets     => put_get_total_num_subfacets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell  => put_get_max_num_subnodes_in_cell
 
       ! Printers
       procedure :: print                     => put_print
