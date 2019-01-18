@@ -245,14 +245,14 @@ module unfitted_triangulations_names
     !procedure(unfitted_boundary_cutter_get_total_num_subfacets_interface)        , deferred :: get_total_num_subfacets
     !procedure(unfitted_boundary_cutter_get_total_num_fitted_sub_facets_interface), deferred :: get_total_num_fitted_sub_facets
     !procedure(unfitted_boundary_cutter_update_sub_triangulation_interface)       , deferred :: update_sub_triangulation
-    !procedure(unfitted_boundary_cutter_get_num_subcells_interface)               , deferred :: get_num_subcells
-    !procedure(unfitted_boundary_cutter_get_num_subcell_nodes_interface)          , deferred :: get_num_subcell_nodes
-    !procedure(unfitted_boundary_cutter_get_phys_coords_of_subcell_interface)     , deferred :: get_phys_coords_of_subcell
-    !procedure(unfitted_boundary_cutter_get_ref_coords_of_subcell_interface)      , deferred :: get_ref_coords_of_subcell
-    !procedure(unfitted_boundary_cutter_get_num_subfacets_interface)              , deferred :: get_num_subfacets
-    !procedure(unfitted_boundary_cutter_get_num_subfacet_nodes_interface)         , deferred :: get_num_subfacet_nodes
-    !procedure(unfitted_boundary_cutter_get_phys_coords_of_subfacet_interface)    , deferred :: get_phys_coords_of_subfacet
-    !procedure(unfitted_boundary_cutter_get_ref_coords_of_subfacet_interface)     , deferred :: get_ref_coords_of_subfacet
+    procedure(unfitted_boundary_cutter_get_num_subcells_interface)               , deferred :: get_num_subcells
+    procedure(unfitted_boundary_cutter_get_num_subcell_nodes_interface)          , deferred :: get_num_subcell_nodes
+    procedure(unfitted_boundary_cutter_get_phys_coords_of_subcell_interface)     , deferred :: get_phys_coords_of_subcell
+    procedure(unfitted_boundary_cutter_get_ref_coords_of_subcell_interface)      , deferred :: get_ref_coords_of_subcell
+    procedure(unfitted_boundary_cutter_get_num_subfacets_interface)              , deferred :: get_num_subfacets
+    procedure(unfitted_boundary_cutter_get_num_subfacet_nodes_interface)         , deferred :: get_num_subfacet_nodes
+    procedure(unfitted_boundary_cutter_get_phys_coords_of_subfacet_interface)    , deferred :: get_phys_coords_of_subfacet
+    procedure(unfitted_boundary_cutter_get_ref_coords_of_subfacet_interface)     , deferred :: get_ref_coords_of_subfacet
     procedure(unfitted_boundary_cutter_is_cut_interface)                         , deferred :: is_cut
     procedure(unfitted_boundary_cutter_is_interior_interface)                    , deferred :: is_interior
     procedure(unfitted_boundary_cutter_is_exterior_interface)                    , deferred :: is_exterior
@@ -292,7 +292,59 @@ module unfitted_triangulations_names
       integer(ip) :: num_exterior_cells
     end function unfitted_boundary_cutter_get_num_exterior_cells_interface
     
-    ! More interfaces here
+    ! MORE INTERFACES HERE
+    
+    function unfitted_boundary_cutter_get_num_subcells_interface ( this ) result( num_subcells )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_subcells
+    end function unfitted_boundary_cutter_get_num_subcells_interface
+      
+    function unfitted_boundary_cutter_get_num_subcell_nodes_interface ( this ) result( num_subcell_nodes )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_subcell_nodes
+    end function unfitted_boundary_cutter_get_num_subcell_nodes_interface
+        
+    subroutine unfitted_boundary_cutter_get_phys_coords_of_subcell_interface ( this, subcell, points )
+      import :: unfitted_boundary_cutter_t, point_t, ip
+      class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+      integer(ip),                               intent(in)    :: subcell
+      type(point_t),                             intent(inout) :: points(:)
+    end subroutine unfitted_boundary_cutter_get_phys_coords_of_subcell_interface
+    
+    subroutine unfitted_boundary_cutter_get_ref_coords_of_subcell_interface ( this, subcell, points )
+      import :: unfitted_boundary_cutter_t, point_t, ip
+      class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+      integer(ip),                               intent(in)    :: subcell
+      type(point_t),                             intent(inout) :: points(:)
+    end subroutine unfitted_boundary_cutter_get_ref_coords_of_subcell_interface
+    
+    function unfitted_boundary_cutter_get_num_subfacets_interface ( this ) result( num_subfacets )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_subfacets
+    end function unfitted_boundary_cutter_get_num_subfacets_interface
+    
+    function unfitted_boundary_cutter_get_num_subfacet_nodes_interface ( this ) result( num_subfacet_nodes )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_subfacet_nodes
+    end function unfitted_boundary_cutter_get_num_subfacet_nodes_interface
+    
+    subroutine unfitted_boundary_cutter_get_phys_coords_of_subfacet_interface ( this, subfacet, points )
+      import :: unfitted_boundary_cutter_t, point_t, ip
+      class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+      integer(ip),                               intent(in)    :: subfacet
+      type(point_t),                             intent(inout) :: points(:)
+    end subroutine unfitted_boundary_cutter_get_phys_coords_of_subfacet_interface
+    
+    subroutine unfitted_boundary_cutter_get_ref_coords_of_subfacet_interface ( this, subfacet, points )
+      import :: unfitted_boundary_cutter_t, point_t, ip
+      class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+      integer(ip),                               intent(in)    :: subfacet
+      type(point_t),                             intent(inout) :: points(:)
+    end subroutine unfitted_boundary_cutter_get_ref_coords_of_subfacet_interface
     
     function unfitted_boundary_cutter_is_cut_interface ( this, gid ) result( is_cut )
       import :: unfitted_boundary_cutter_t, ip
@@ -332,9 +384,6 @@ module unfitted_triangulations_names
   
   type, extends(unfitted_boundary_cutter_t) :: marching_cubes_t
     private
-
-    ! The underlying triangulation
-    !class(triangulation_t),      pointer :: triangulation      => null()
 
     ! The level set funciton
     class(level_set_function_t), pointer :: level_set_function => null()
