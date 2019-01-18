@@ -253,10 +253,11 @@ module unfitted_triangulations_names
     !procedure(unfitted_boundary_cutter_get_num_subfacet_nodes_interface)         , deferred :: get_num_subfacet_nodes
     !procedure(unfitted_boundary_cutter_get_phys_coords_of_subfacet_interface)    , deferred :: get_phys_coords_of_subfacet
     !procedure(unfitted_boundary_cutter_get_ref_coords_of_subfacet_interface)     , deferred :: get_ref_coords_of_subfacet
-    !procedure(unfitted_boundary_cutter_is_cut_interface)                         , deferred :: is_cut
-    !procedure(unfitted_boundary_cutter_is_interior_interface)                    , deferred :: is_interior
-    !procedure(unfitted_boundary_cutter_is_exterior_interface)                    , deferred :: is_exterior
-    !procedure(unfitted_boundary_cutter_is_interior_subcell_interface)            , deferred :: is_interior_subcell
+    procedure(unfitted_boundary_cutter_is_cut_interface)                         , deferred :: is_cut
+    procedure(unfitted_boundary_cutter_is_interior_interface)                    , deferred :: is_interior
+    procedure(unfitted_boundary_cutter_is_exterior_interface)                    , deferred :: is_exterior
+    procedure(unfitted_boundary_cutter_is_interior_subcell_interface)            , deferred :: is_interior_subcell
+    procedure(unfitted_boundary_cutter_is_exterior_subcell_interface)            , deferred :: is_exterior_subcell
 
   end type unfitted_boundary_cutter_t
   
@@ -291,9 +292,42 @@ module unfitted_triangulations_names
       integer(ip) :: num_exterior_cells
     end function unfitted_boundary_cutter_get_num_exterior_cells_interface
     
+    ! More interfaces here
     
+    function unfitted_boundary_cutter_is_cut_interface ( this, gid ) result( is_cut )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip),                       intent(in)    :: gid
+      logical :: is_cut
+    end function unfitted_boundary_cutter_is_cut_interface
     
+    function unfitted_boundary_cutter_is_interior_interface ( this, gid ) result( is_interior )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip),                       intent(in)    :: gid
+      logical :: is_interior
+    end function unfitted_boundary_cutter_is_interior_interface
     
+    function unfitted_boundary_cutter_is_exterior_interface ( this, gid ) result( is_exterior )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip),                       intent(in)    :: gid
+      logical :: is_exterior
+    end function unfitted_boundary_cutter_is_exterior_interface
+    
+    function unfitted_boundary_cutter_is_interior_subcell_interface ( this, subcell ) result( is_interior_subcell )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip),                       intent(in)    :: subcell
+      logical :: is_interior_subcell
+    end function unfitted_boundary_cutter_is_interior_subcell_interface
+    
+    function unfitted_boundary_cutter_is_exterior_subcell_interface ( this, subcell ) result( is_exterior_subcell )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip),                       intent(in)    :: subcell
+      logical :: is_exterior_subcell
+    end function unfitted_boundary_cutter_is_exterior_subcell_interface
   end interface
   
   type, extends(unfitted_boundary_cutter_t) :: marching_cubes_t
