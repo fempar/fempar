@@ -358,14 +358,16 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   logical :: is_valid_submesh
   logical :: has_inverted_subcells
 
-  if ( .not. cell_iterator%is_cut() ) return
+  if ( .not. this%is_cut( cell_iterator%get_gid() ) ) return
   this%current_cell_gid = cell_iterator%get_gid()
 
-  assert(this%mc_runtime_init)
-  assert(this%mc_cell_info_init)
-  num_subnodes = cell_iterator%get_num_subnodes() !@pmartorell: non depending on cell_iterator
-  num_nodes = cell_iterator%get_num_nodes()
-  num_dim = this%triangulation%get_num_dims()
+  assert( this%mc_runtime_init )
+  assert( this%mc_cell_info_init )
+  
+  
+  num_nodes    = cell_iterator%get_num_nodes()
+  num_subnodes = this%get_num_subnodes( num_nodes )
+  num_dim      = this%triangulation%get_num_dims()
   num_intersections = num_subnodes - num_nodes
   assert(num_subnodes > num_nodes)
 
@@ -632,13 +634,79 @@ function marching_cubes_is_cut( this, gid ) result ( is_cut )
   integer(ip),             intent(in)    :: gid
   logical :: is_cut
   integer(ip) :: mc_case, num_mc_cases
-  
   assert( this%mc_runtime_init )
   mc_case = this%mc_case_x_cell( gid )
   num_mc_cases = this%mc_table_num_cases
   is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
-  
 end function marching_cubes_is_cut
+
+!========================================================================================
+function marching_cubes_is_interior( this, gid ) result ( is_interior )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  integer(ip),             intent(in)  :: gid
+  logical :: is_interior
+  integer(ip) :: mc_case, num_mc_cases
+  assert(this%mc_runtime_init)
+  mc_case = this%mc_case_x_cell( gid )
+  num_mc_cases = this%mc_table_num_cases
+  is_interior = ( mc_case == num_mc_cases )
+end function marching_cubes_is_interior
+
+!========================================================================================
+function marching_cubes_is_exterior( this, gid ) result ( is_exterior )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  integer(ip),             intent(in)  :: gid
+  logical :: is_exterior
+  integer(ip) :: mc_case
+  assert(this%mc_runtime_init)
+  mc_case = this%mc_case_x_cell( gid )
+  is_exterior = ( mc_case == 1_ip )
+end function marching_cubes_is_exterior
+
+!========================================================================================
+function marching_cubes_is_interior_subcell( this, subcell ) result ( is_in )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_in
+  integer(ip) :: num_subcells, pos
+  assert( this%mc_runtime_init )
+  assert( this%is_cut( this%current_cell_gid ) )
+  num_subcells = this%num_subcells
+  assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
+  pos = this%subcells_status(subcell)
+  is_in = ( pos == -1_ip )
+end function marching_cubes_is_interior_subcell
+
+!========================================================================================
+function marching_cubes_is_exterior_subcell( this, subcell ) result ( is_out )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_out
+  integer(ip) :: num_subcells, pos
+  assert( this%mc_runtime_init )
+  assert( this%is_cut( this%current_cell_gid ) )
+  num_subcells = this%get_num_subcells()
+  assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
+  pos = this%subcells_status( subcell )
+  is_out = ( pos == 1_ip )
+end function marching_cubes_is_exterior_subcell
+
+!========================================================================================
+function marching_cubes_get_num_subnodes( this, initial_num_nodes ) result (num_subnodes)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip),             intent(in) :: initial_num_nodes
+  integer(ip) :: num_subnodes
+  integer(ip) :: mc_case
+  assert(this%mc_tables_init)
+  assert( initial_num_nodes > 0 )
+  mc_case      = this%mc_case_x_cell( this%current_cell_gid )
+  num_subnodes = this%mc_table_num_cut_edges_x_case(mc_case) + initial_num_nodes
+end function marching_cubes_get_num_subnodes
 
 
 !========================================================================================

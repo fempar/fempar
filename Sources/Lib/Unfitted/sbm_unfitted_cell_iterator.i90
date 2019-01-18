@@ -172,7 +172,6 @@ function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
   logical :: is_cut
-  integer(ip) :: mc_case, num_mc_cases
   assert( this%is_local() )
   is_cut = this%marching_cubes%is_cut( this%get_gid() )
 end function unfitted_cell_iterator_is_cut
@@ -182,12 +181,8 @@ function unfitted_cell_iterator_is_interior( this ) result ( is_interior )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)  :: this
   logical :: is_interior
-  integer(ip) :: mc_case, num_mc_cases
   assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
-  num_mc_cases = this%marching_cubes%mc_table_num_cases
-  is_interior = ( mc_case == num_mc_cases )
+  is_interior = this%marching_cubes%is_interior( this%get_gid() )
 end function unfitted_cell_iterator_is_interior
 
 !========================================================================================
@@ -195,11 +190,8 @@ function unfitted_cell_iterator_is_exterior( this ) result ( is_exterior )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)  :: this
   logical :: is_exterior
-  integer(ip) :: mc_case
   assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
-  is_exterior = ( mc_case == 1_ip )
+  is_exterior = this%marching_cubes%is_exterior( this%get_gid() )
 end function unfitted_cell_iterator_is_exterior
 
 !========================================================================================
@@ -208,15 +200,9 @@ function unfitted_cell_iterator_is_interior_subcell( this, subcell ) result ( is
   class(unfitted_cell_iterator_t), intent(in)  :: this
   integer(ip), intent(in) :: subcell
   logical :: is_in
-  integer(ip) :: num_subcells, pos
-  assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  assert(this%is_cut())
-  assert(this%marching_cubes%current_cell_gid == this%get_gid())
-  num_subcells = this%marching_cubes%num_subcells
-  assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
-  pos = this%marching_cubes%subcells_status(subcell)
-  is_in = ( pos == -1_ip )
+  assert( this%is_local() )
+  assert( this%marching_cubes%get_cell_gid() == this%get_gid() )
+  is_in = this%marching_cubes%is_interior_subcell( subcell )
 end function unfitted_cell_iterator_is_interior_subcell
 
 !========================================================================================
@@ -225,15 +211,9 @@ function unfitted_cell_iterator_is_exterior_subcell( this, subcell ) result ( is
   class(unfitted_cell_iterator_t), intent(in)  :: this
   integer(ip), intent(in) :: subcell
   logical :: is_out
-  integer(ip) :: num_subcells, pos
   assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  assert(this%is_cut())
-  assert(this%marching_cubes%current_cell_gid == this%get_gid())
-  num_subcells = this%get_num_subcells()
-  assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
-  pos = this%marching_cubes%subcells_status(subcell)
-  is_out = ( pos == 1_ip )
+  assert( this%marching_cubes%get_cell_gid() == this%get_gid() )
+  is_out = this%marching_cubes%is_exterior_subcell( subcell )
 end function unfitted_cell_iterator_is_exterior_subcell
 
 !========================================================================================
@@ -241,11 +221,9 @@ function unfitted_cell_iterator_get_num_subnodes( this ) result (num_subnodes)
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
   integer(ip) :: num_subnodes
-  integer(ip) :: mc_case
   assert(this%is_local())
-  assert(this%marching_cubes%mc_tables_init)
-  mc_case      = this%marching_cubes%mc_case_x_cell(this%get_gid())
-  num_subnodes = this%get_num_nodes() + this%marching_cubes%mc_table_num_cut_edges_x_case(mc_case)
+  assert( this%marching_cubes%get_cell_gid() == this%get_gid() )
+  num_subnodes = this%marching_cubes%get_num_subnodes( this%get_num_nodes() )
 end function unfitted_cell_iterator_get_num_subnodes
 
 !========================================================================================
