@@ -310,6 +310,7 @@ module unfitted_triangulations_names
     procedure                  :: free                          => marching_cubes_free
 
     ! Getters (Implementation of the public interfaces of the unfitted triangulations)
+    procedure, non_overridable :: get_cell_gid                     => marching_cubes_get_cell_gid
     procedure, non_overridable :: get_num_cut_cells                => marching_cubes_get_num_cut_cells
     procedure, non_overridable :: get_num_interior_cells           => marching_cubes_get_num_interior_cells
     procedure, non_overridable :: get_num_exterior_cells           => marching_cubes_get_num_exterior_cells
@@ -330,6 +331,7 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_num_subfacet_nodes           => marching_cubes_get_num_subfacet_nodes
     procedure, non_overridable :: get_phys_coords_of_subfacet      => marching_cubes_get_phys_coords_of_subfacet
     procedure, non_overridable :: get_ref_coords_of_subfacet       => marching_cubes_get_ref_coords_of_subfacet
+    procedure, non_overridable :: is_cut                           => marching_cubes_is_cut
    
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases

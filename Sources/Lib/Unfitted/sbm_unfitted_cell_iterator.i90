@@ -150,11 +150,8 @@ function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
   class(unfitted_cell_iterator_t), intent(in)    :: this
   logical :: is_cut
   integer(ip) :: mc_case, num_mc_cases
-  assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
-  num_mc_cases = this%marching_cubes%mc_table_num_cases
-  is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
+  assert( this%is_local() )
+  is_cut = this%marching_cubes%is_cut( this%get_gid() )
 end function unfitted_cell_iterator_is_cut
 
 !========================================================================================

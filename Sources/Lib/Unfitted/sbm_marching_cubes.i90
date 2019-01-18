@@ -124,6 +124,14 @@ subroutine marching_cubes_free(this)
 end subroutine marching_cubes_free
 
 !========================================================================================
+function marching_cubes_get_cell_gid ( this ) result ( gid )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: gid
+  gid = this%current_cell_gid
+end function marching_cubes_get_cell_gid
+
+!========================================================================================
 function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
 
   implicit none
@@ -655,6 +663,22 @@ subroutine marching_cubes_get_ref_coords_of_subfacet( this, cell_iterator, subfa
   points(:) = subnodes_ref_coords(subfacet_node_ids(:))
 
 end subroutine marching_cubes_get_ref_coords_of_subfacet
+
+!========================================================================================
+function marching_cubes_is_cut( this, gid ) result ( is_cut )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip),             intent(in)    :: gid
+  logical :: is_cut
+  integer(ip) :: mc_case, num_mc_cases
+  
+  assert( this%mc_runtime_init )
+  mc_case = this%mc_case_x_cell( gid )
+  num_mc_cases = this%mc_table_num_cases
+  is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
+  
+end function marching_cubes_is_cut
+
 
 !========================================================================================
 subroutine marching_cubes_print ( this )
