@@ -225,12 +225,84 @@ module unfitted_triangulations_names
       procedure :: get_components_code    => mc_dummy_conditions_get_components_code
       procedure :: get_function           => mc_dummy_conditions_get_function
   end type mc_dummy_conditions_t
+  
+  type, abstract :: unfitted_boundary_cutter_t
+    private
+    class(triangulation_t) , pointer :: triangulation => null()
+  contains
+    procedure :: create_from_level_set    => unfitted_boundary_cutter_create_from_level_set
+    generic   :: create                   => create_from_level_set
+    
+    procedure(unfitted_boundary_cutter_free_interface),                            deferred :: free
+    procedure(unfitted_boundary_cutter_get_cell_gid_interface)                   , deferred :: get_cell_gid
+    procedure(unfitted_boundary_cutter_get_num_cut_cells_interface)              , deferred :: get_num_cut_cells
+    procedure(unfitted_boundary_cutter_get_num_interior_cells_interface)         , deferred :: get_num_interior_cells
+    procedure(unfitted_boundary_cutter_get_num_exterior_cells_interface)         , deferred :: get_num_exterior_cells
+    !procedure(unfitted_boundary_cutter_get_max_num_subcells_in_cell_interface)   , deferred :: get_max_num_subcells_in_cell
+    !procedure(unfitted_boundary_cutter_get_max_num_nodes_in_subcell_interface)   , deferred :: get_max_num_nodes_in_subcell
+    !procedure(unfitted_boundary_cutter_get_total_num_subcells_interface)         , deferred :: get_total_num_subcells
+    !procedure(unfitted_boundary_cutter_get_max_num_subfacets_in_cell_interface)  , deferred :: get_max_num_subfacets_in_cell
+    !procedure(unfitted_boundary_cutter_get_max_num_nodes_in_subfacet_interface)  , deferred :: get_max_num_nodes_in_subfacet
+    !procedure(unfitted_boundary_cutter_get_total_num_subfacets_interface)        , deferred :: get_total_num_subfacets
+    !procedure(unfitted_boundary_cutter_get_total_num_fitted_sub_facets_interface), deferred :: get_total_num_fitted_sub_facets
+    !procedure(unfitted_boundary_cutter_get_max_num_subnodes_in_cell_interface)   , deferred :: get_max_num_subnodes_in_cell
+    !procedure(unfitted_boundary_cutter_update_sub_triangulation_interface)       , deferred :: update_sub_triangulation
+    !procedure(unfitted_boundary_cutter_get_num_subcells_interface)               , deferred :: get_num_subcells
+    !procedure(unfitted_boundary_cutter_get_num_subcell_nodes_interface)          , deferred :: get_num_subcell_nodes
+    !procedure(unfitted_boundary_cutter_get_phys_coords_of_subcell_interface)     , deferred :: get_phys_coords_of_subcell
+    !procedure(unfitted_boundary_cutter_get_ref_coords_of_subcell_interface)      , deferred :: get_ref_coords_of_subcell
+    !procedure(unfitted_boundary_cutter_get_num_subfacets_interface)              , deferred :: get_num_subfacets
+    !procedure(unfitted_boundary_cutter_get_num_subfacet_nodes_interface)         , deferred :: get_num_subfacet_nodes
+    !procedure(unfitted_boundary_cutter_get_phys_coords_of_subfacet_interface)    , deferred :: get_phys_coords_of_subfacet
+    !procedure(unfitted_boundary_cutter_get_ref_coords_of_subfacet_interface)     , deferred :: get_ref_coords_of_subfacet
+    !procedure(unfitted_boundary_cutter_is_cut_interface)                         , deferred :: is_cut
+    !procedure(unfitted_boundary_cutter_is_interior_interface)                    , deferred :: is_interior
+    !procedure(unfitted_boundary_cutter_is_exterior_interface)                    , deferred :: is_exterior
+    !procedure(unfitted_boundary_cutter_is_interior_subcell_interface)            , deferred :: is_interior_subcell
 
-  type :: marching_cubes_t
+  end type unfitted_boundary_cutter_t
+  
+  abstract interface
+  
+    subroutine unfitted_boundary_cutter_free_interface ( this )
+      import :: unfitted_boundary_cutter_t
+      class(unfitted_boundary_cutter_t), target, intent(inout) :: this
+    end subroutine unfitted_boundary_cutter_free_interface
+    
+    function unfitted_boundary_cutter_get_cell_gid_interface ( this ) result( gid )
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+     integer(ip) :: gid
+    end function unfitted_boundary_cutter_get_cell_gid_interface
+    
+    function unfitted_boundary_cutter_get_num_cut_cells_interface ( this ) result( num_cut_cells )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_cut_cells
+    end function unfitted_boundary_cutter_get_num_cut_cells_interface
+    
+    function unfitted_boundary_cutter_get_num_interior_cells_interface ( this ) result( num_interior_cells )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_interior_cells
+    end function unfitted_boundary_cutter_get_num_interior_cells_interface 
+    
+    function unfitted_boundary_cutter_get_num_exterior_cells_interface ( this ) result( num_exterior_cells )
+      import :: unfitted_boundary_cutter_t, ip
+      class(unfitted_boundary_cutter_t), intent(in)    :: this
+      integer(ip) :: num_exterior_cells
+    end function unfitted_boundary_cutter_get_num_exterior_cells_interface
+    
+    
+    
+    
+  end interface
+  
+  type, extends(unfitted_boundary_cutter_t) :: marching_cubes_t
     private
 
     ! The underlying triangulation
-    class(triangulation_t),      pointer :: triangulation      => null()
+    !class(triangulation_t),      pointer :: triangulation      => null()
 
     ! The level set funciton
     class(level_set_function_t), pointer :: level_set_function => null()
@@ -301,7 +373,7 @@ module unfitted_triangulations_names
   contains
 
     ! Creation / deletion methods
-    procedure                  :: create                        => marching_cubes_create
+    procedure                  :: create_from_level_set         => marching_cubes_create
     procedure                  :: free                          => marching_cubes_free
 
     ! Getters (Implementation of the public interfaces of the unfitted triangulations)
@@ -476,6 +548,7 @@ contains
 #include "sbm_unfitted_vef_iterator.i90"
 #include "sbm_unfitted_p4est_cell_iterator.i90"
 #include "sbm_unfitted_p4est_vef_iterator.i90"
+#include "sbm_unfitted_boundary_cutter.i90"
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
 #include "sbm_unfitted_p4est_serial_triangulation.i90"

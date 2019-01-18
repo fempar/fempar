@@ -136,8 +136,8 @@ function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
 
   implicit none
   class(marching_cubes_t), intent(in)    :: this
-
   integer(ip) :: num_cut_cells
+
   class(cell_iterator_t), allocatable  :: cell
 
   num_cut_cells = 0_ip
