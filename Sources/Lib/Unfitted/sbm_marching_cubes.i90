@@ -350,8 +350,6 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   logical :: is_valid_submesh
   logical :: has_inverted_subcells
 
-  assert(cell_iterator%is_local())
-
   if ( .not. cell_iterator%is_cut() ) return
 
   assert(this%mc_runtime_init)
@@ -461,6 +459,44 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
 
 end subroutine marching_cubes_update_sub_triangulation
 
+
+!========================================================================================
+function marching_cubes_get_num_subcells( this, cell_iterator ) result ( num_subcells )
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  class(unfitted_cell_iterator_t), intent(in) :: cell_iterator !maybe not needed
+  integer(ip) :: num_subcells
+
+  assert(this%mc_tables_init)
+  assert(this%mc_cell_info_init)
+
+  if (cell_iterator%is_cut()) then !@pmartorell: depending only on marching cubes
+    assert(this%current_cell_gid == cell_iterator%get_gid())
+    num_subcells = this%num_subcells
+  else
+    num_subcells = 0
+  end if
+
+end function marching_cubes_get_num_subcells
+
+
+!========================================================================================
+function marching_cubes_get_num_subcell_nodes( this, cell_iterator ) result ( num_nodes_subcell )
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  class(unfitted_cell_iterator_t), intent(in) :: cell_iterator !maybe not needed
+  integer(ip) :: num_nodes_subcell
+
+  assert(this%mc_tables_init)
+  assert(this%mc_cell_info_init)
+
+  if (cell_iterator%is_cut()) then
+    num_nodes_subcell = this%mc_table_num_nodes_in_sub_cell
+  else
+    num_nodes_subcell = 0
+  end if
+
+end function marching_cubes_get_num_subcell_nodes
 
 !========================================================================================
 subroutine marching_cubes_print ( this )

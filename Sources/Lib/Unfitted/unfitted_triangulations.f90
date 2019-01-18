@@ -322,6 +322,8 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_total_num_fitted_sub_facets  => marching_cubes_get_total_num_fitted_sub_facets
     procedure, non_overridable :: get_max_num_subnodes_in_cell     => marching_cubes_get_max_num_subnodes_in_cell
     procedure, non_overridable :: update_sub_triangulation         => marching_cubes_update_sub_triangulation
+    procedure, non_overridable :: get_num_subcells                 => marching_cubes_get_num_subcells
+    procedure, non_overridable :: get_num_subcell_nodes            => marching_cubes_get_num_subcell_nodes
    
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases
