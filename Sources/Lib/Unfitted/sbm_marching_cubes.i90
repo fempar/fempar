@@ -359,6 +359,7 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   logical :: has_inverted_subcells
 
   if ( .not. cell_iterator%is_cut() ) return
+  this%current_cell_gid = cell_iterator%get_gid()
 
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
@@ -462,57 +463,40 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   call cell_iterator%get_nodes_coordinates(phys_cell_coords)
   call cell_map%compute_quadrature_points_coordinates()
 
-  this%current_cell_gid = cell_iterator%get_gid()
   ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
 
 end subroutine marching_cubes_update_sub_triangulation
 
 
 !========================================================================================
-function marching_cubes_get_num_subcells( this, cell_iterator ) result ( num_subcells )
+function marching_cubes_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(marching_cubes_t), intent(in) :: this
-  class(unfitted_cell_iterator_t), intent(in) :: cell_iterator !maybe not needed
   integer(ip) :: num_subcells
-
-  assert(this%mc_tables_init)
-  assert(this%mc_cell_info_init)
-
-  if (cell_iterator%is_cut()) then !@pmartorell: depending only on marching cubes
-    assert(this%current_cell_gid == cell_iterator%get_gid())
-    num_subcells = this%num_subcells
-  else
-    num_subcells = 0
-  end if
-
+  assert( this%mc_tables_init )
+  assert( this%mc_cell_info_init )
+  assert( this%is_cut( this%current_cell_gid ) )
+  num_subcells = this%num_subcells
 end function marching_cubes_get_num_subcells
 
 
 !========================================================================================
-function marching_cubes_get_num_subcell_nodes( this, cell_iterator ) result ( num_nodes_subcell )
+function marching_cubes_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
   implicit none
   class(marching_cubes_t), intent(in) :: this
-  class(unfitted_cell_iterator_t), intent(in) :: cell_iterator !maybe not needed
   integer(ip) :: num_nodes_subcell
-
   assert(this%mc_tables_init)
   assert(this%mc_cell_info_init)
-
-  if (cell_iterator%is_cut()) then
-    num_nodes_subcell = this%mc_table_num_nodes_in_sub_cell
-  else
-    num_nodes_subcell = 0
-  end if
-
+  assert( this%is_cut( this%current_cell_gid ) )
+  num_nodes_subcell = this%mc_table_num_nodes_in_sub_cell
 end function marching_cubes_get_num_subcell_nodes
 
 
 !========================================================================================
-subroutine marching_cubes_get_phys_coords_of_subcell( this, cell_iterator, subcell, points)
+subroutine marching_cubes_get_phys_coords_of_subcell( this, subcell, points)
 
   implicit none
   class(marching_cubes_t), target, intent(in)    :: this
-  class(unfitted_cell_iterator_t), intent(in) :: cell_iterator !maybe not needed
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
 
@@ -523,14 +507,13 @@ subroutine marching_cubes_get_phys_coords_of_subcell( this, cell_iterator, subce
 
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert(this%current_cell_gid == cell_iterator%get_gid()) !
 
-  num_nodes_subcell = this%get_num_subcell_nodes( cell_iterator )
+  num_nodes_subcell = this%get_num_subcell_nodes()
   assert( size(points) == num_nodes_subcell)
-  assert(cell_iterator%is_cut())
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells(cell_iterator))  )
+  assert( this%is_cut( this%current_cell_gid ) )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
 
-  mc_case = this%mc_case_x_cell(cell_iterator%get_gid()) ! information already in this
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
   cell_map => this%sub_nodes_cell_maps(mc_case)
   subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
   subcell_node_ids =>  this%sub_cells_node_ids(:,subcell)
@@ -540,10 +523,9 @@ end subroutine marching_cubes_get_phys_coords_of_subcell
 
 
 !========================================================================================
-subroutine marching_cubes_get_ref_coords_of_subcell( this, cell_iterator, subcell, points)
+subroutine marching_cubes_get_ref_coords_of_subcell( this, subcell, points)
   implicit none
   class(marching_cubes_t), target, intent(in)    :: this
-  class(unfitted_cell_iterator_t), intent(in)    :: cell_iterator !maybe not needed
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
 
@@ -553,12 +535,11 @@ subroutine marching_cubes_get_ref_coords_of_subcell( this, cell_iterator, subcel
 
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert(this%current_cell_gid == cell_iterator%get_gid())
 
-  num_nodes_subcell = this%get_num_subcell_nodes( cell_iterator )
+  num_nodes_subcell = this%get_num_subcell_nodes()
   assert( size(points) == num_nodes_subcell)
-  assert( cell_iterator%is_cut() )
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells( cell_iterator ) ) )
+  assert( this%is_cut( this%current_cell_gid ) )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells() ) )
 
   subnodes_ref_coords => this%subnodes_ref_coords
   subcell_node_ids =>  this%sub_cells_node_ids(:,subcell)
@@ -568,48 +549,31 @@ end subroutine marching_cubes_get_ref_coords_of_subcell
 
 
 !========================================================================================
-function marching_cubes_get_num_subfacets( this, cell_iterator ) result ( num_subfacets )
+function marching_cubes_get_num_subfacets( this ) result ( num_subfacets )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
-  class(unfitted_cell_iterator_t), intent(in) :: cell_iterator !maybe not needed
   integer(ip) :: num_subfacets
-  integer(ip) :: mc_case
-
   assert(this%mc_tables_init)
   assert(this%mc_cell_info_init)
-
-  if (cell_iterator%is_cut()) then
-    assert(this%current_cell_gid == cell_iterator%get_gid())
-    num_subfacets = this%num_subfacets
-  else
-    num_subfacets = 0
-  end if
-
+  assert( this%is_cut( this%current_cell_gid ) )
+  num_subfacets = this%num_subfacets
 end function marching_cubes_get_num_subfacets
 
 !========================================================================================
-function marching_cubes_get_num_subfacet_nodes( this, cell_iterator ) result ( num_nodes_subfacet )
+function marching_cubes_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
-  class(unfitted_cell_iterator_t), intent(in)  :: cell_iterator !maybe not needed
   integer(ip) :: num_nodes_subfacet
-
-  assert(this%mc_tables_init)
-  assert(this%mc_cell_info_init)
-
-  if (cell_iterator%is_cut()) then
-    num_nodes_subfacet = this%mc_table_num_nodes_in_sub_facet
-  else
-    num_nodes_subfacet = 0
-  end if
-
+  assert( this%mc_tables_init )
+  assert( this%mc_cell_info_init )
+  assert( this%is_cut( this%current_cell_gid ) )
+  num_nodes_subfacet = this%mc_table_num_nodes_in_sub_facet
 end function marching_cubes_get_num_subfacet_nodes
 
 !========================================================================================
-subroutine marching_cubes_get_phys_coords_of_subfacet( this, cell_iterator, subfacet, points )
+subroutine marching_cubes_get_phys_coords_of_subfacet( this, subfacet, points )
   implicit none
   class(marching_cubes_t), target, intent(in)    :: this
-  class(unfitted_cell_iterator_t), intent(in)    :: cell_iterator !maybe not needed
   integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
 
@@ -620,14 +584,13 @@ subroutine marching_cubes_get_phys_coords_of_subfacet( this, cell_iterator, subf
 
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert(this%current_cell_gid == cell_iterator%get_gid())
 
-  num_nodes_subfacet = this%get_num_subfacet_nodes( cell_iterator )
+  num_nodes_subfacet = this%get_num_subfacet_nodes()
   assert( size(points) == num_nodes_subfacet)
-  assert(cell_iterator%is_cut())
-  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets( cell_iterator ))  )
+  assert( this%is_cut( this%current_cell_gid ) )
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets() ) )
 
-  mc_case = this%mc_case_x_cell(cell_iterator%get_gid())
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
   cell_map => this%sub_nodes_cell_maps(mc_case)
   subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
   subfacet_node_ids =>  this%unfitted_sub_facets_node_ids(:,subfacet)
@@ -636,11 +599,10 @@ subroutine marching_cubes_get_phys_coords_of_subfacet( this, cell_iterator, subf
 end subroutine marching_cubes_get_phys_coords_of_subfacet
 
 !========================================================================================
-subroutine marching_cubes_get_ref_coords_of_subfacet( this, cell_iterator, subfacet, points )
+subroutine marching_cubes_get_ref_coords_of_subfacet( this, subfacet, points )
 
   implicit none
   class(marching_cubes_t), target, intent(in)    :: this
-  class(unfitted_cell_iterator_t), intent(in)    :: cell_iterator !maybe not needed
   integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
 
@@ -650,15 +612,14 @@ subroutine marching_cubes_get_ref_coords_of_subfacet( this, cell_iterator, subfa
 
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert(this%current_cell_gid == cell_iterator%get_gid())
 
-  num_nodes_subfacet = this%get_num_subfacet_nodes( cell_iterator )
+  num_nodes_subfacet = this%get_num_subfacet_nodes()
   assert( size(points) == num_nodes_subfacet)
-  assert(cell_iterator%is_cut())
-  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets( cell_iterator ) ) )
+  assert( this%is_cut( this%current_cell_gid ) )
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets() ) )
 
   subnodes_ref_coords => this%subnodes_ref_coords
-  mc_case = this%mc_case_x_cell( cell_iterator%get_gid() )
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
   subfacet_node_ids =>  this%unfitted_sub_facets_node_ids(:,subfacet)
   points(:) = subnodes_ref_coords(subfacet_node_ids(:))
 

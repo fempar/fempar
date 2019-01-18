@@ -74,7 +74,12 @@ function unfitted_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   class(unfitted_cell_iterator_t), intent(in) :: this
   integer(ip) :: num_subcells
   assert(this%is_local())
-  num_subcells = this%marching_cubes%get_num_subcells( this )
+  if ( this%is_cut() ) then
+    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+    num_subcells = this%marching_cubes%get_num_subcells()
+  else 
+    num_subcells = 0
+  end if
 end function unfitted_cell_iterator_get_num_subcells
 
 !========================================================================================
@@ -83,7 +88,12 @@ function unfitted_cell_iterator_get_num_subcell_nodes( this ) result ( num_nodes
   class(unfitted_cell_iterator_t), intent(in) :: this
   integer(ip) :: num_nodes_subcell
   assert(this%is_local())
-  num_nodes_subcell = this%marching_cubes%get_num_subcell_nodes( this )
+  if ( this%is_cut() ) then
+    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+    num_nodes_subcell = this%marching_cubes%get_num_subcell_nodes()
+  else
+    num_nodes_subcell = 0
+  end if
 end function unfitted_cell_iterator_get_num_subcell_nodes
 
 !========================================================================================
@@ -93,7 +103,8 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, poi
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  call this%marching_cubes%get_phys_coords_of_subcell( this, subcell, points )
+  assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+  call this%marching_cubes%get_phys_coords_of_subcell( subcell, points )
 end subroutine unfitted_cell_iterator_get_phys_coords_of_subcell
 
 !========================================================================================
@@ -103,7 +114,8 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subcell( this, subcell, poin
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  call this%marching_cubes%get_ref_coords_of_subcell( this, subcell, points)
+  assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+  call this%marching_cubes%get_ref_coords_of_subcell( subcell, points)
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subcell
 
 !========================================================================================
@@ -112,7 +124,12 @@ function unfitted_cell_iterator_get_num_subfacets( this ) result ( num_subfacets
   class(unfitted_cell_iterator_t), intent(in)    :: this
   integer(ip) :: num_subfacets
   assert(this%is_local())
-  num_subfacets = this%marching_cubes%get_num_subfacets( this )
+  if ( this%is_cut() ) then
+    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+    num_subfacets = this%marching_cubes%get_num_subfacets()
+  else
+    num_subfacets = 0
+  end if
 end function unfitted_cell_iterator_get_num_subfacets
 
 !========================================================================================
@@ -121,7 +138,12 @@ function unfitted_cell_iterator_get_num_subfacet_nodes( this ) result ( num_node
   class(unfitted_cell_iterator_t), intent(in)    :: this
   integer(ip) :: num_nodes_subfacet
   assert(this%is_local())
-  num_nodes_subfacet = this%marching_cubes%get_num_subfacet_nodes( this )
+  if ( this%is_cut() ) then
+    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+    num_nodes_subfacet = this%marching_cubes%get_num_subfacet_nodes()
+  else
+    num_nodes_subfacet = 0
+  end if
 end function unfitted_cell_iterator_get_num_subfacet_nodes
 
 !========================================================================================
@@ -131,7 +153,7 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, p
   integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  call this%marching_cubes%get_phys_coords_of_subfacet( this, subfacet, points )
+  call this%marching_cubes%get_phys_coords_of_subfacet(subfacet, points )
 end subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet
 
 !========================================================================================
@@ -141,7 +163,8 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, po
   integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  call this%marching_cubes%get_ref_coords_of_subfacet( this, subfacet, points )
+  assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
+  call this%marching_cubes%get_ref_coords_of_subfacet( subfacet, points )
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet
 
 !========================================================================================
