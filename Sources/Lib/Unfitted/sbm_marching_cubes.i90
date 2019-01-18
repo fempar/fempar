@@ -530,6 +530,34 @@ subroutine marching_cubes_get_phys_coords_of_subcell( this, cell_iterator, subce
 
 end subroutine marching_cubes_get_phys_coords_of_subcell
 
+
+!========================================================================================
+subroutine marching_cubes_get_ref_coords_of_subcell( this, cell_iterator, subcell, points)
+  implicit none
+  class(marching_cubes_t), target, intent(in)    :: this
+  class(unfitted_cell_iterator_t), intent(in)    :: cell_iterator !maybe not needed
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+
+  integer(ip) :: num_nodes_subcell
+  type(point_t), pointer :: subnodes_ref_coords(:)
+  integer(ip), pointer ::  subcell_node_ids(:)
+
+  assert(this%mc_runtime_init)
+  assert(this%mc_cell_info_init)
+  assert(this%current_cell_gid == cell_iterator%get_gid())
+
+  num_nodes_subcell = this%get_num_subcell_nodes( cell_iterator )
+  assert( size(points) == num_nodes_subcell)
+  assert( cell_iterator%is_cut() )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells( cell_iterator ) ) )
+
+  subnodes_ref_coords => this%subnodes_ref_coords
+  subcell_node_ids =>  this%sub_cells_node_ids(:,subcell)
+  points(:) = subnodes_ref_coords(subcell_node_ids(:))
+
+end subroutine marching_cubes_get_ref_coords_of_subcell
+
 !========================================================================================
 subroutine marching_cubes_print ( this )
 

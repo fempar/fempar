@@ -325,6 +325,7 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_num_subcells                 => marching_cubes_get_num_subcells
     procedure, non_overridable :: get_num_subcell_nodes            => marching_cubes_get_num_subcell_nodes
     procedure, non_overridable :: get_phys_coords_of_subcell       => marching_cubes_get_phys_coords_of_subcell
+    procedure, non_overridable :: get_ref_coords_of_subcell        => marching_cubes_get_ref_coords_of_subcell
    
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases
