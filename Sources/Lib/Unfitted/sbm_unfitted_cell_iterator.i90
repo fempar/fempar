@@ -88,33 +88,12 @@ end function unfitted_cell_iterator_get_num_subcell_nodes
 
 !========================================================================================
 subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, points)
-
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip) :: num_nodes_subcell, mc_case
-  type(point_t), pointer :: subnodes_phys_coords(:)
-  type(cell_map_t), pointer :: cell_map
-  integer(ip), pointer ::  subcell_node_ids(:)
-
   assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  assert(this%marching_cubes%mc_cell_info_init)
-  assert(this%marching_cubes%current_cell_gid == this%get_gid())
-
-  num_nodes_subcell = this%get_num_subcell_nodes()
-  assert( size(points) == num_nodes_subcell)
-  assert(this%is_cut())
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
-  cell_map => this%marching_cubes%sub_nodes_cell_maps(mc_case)
-  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
-  subcell_node_ids =>  this%marching_cubes%sub_cells_node_ids(:,subcell)
-  points(:) = subnodes_phys_coords(subcell_node_ids(:))
-
+  call this%marching_cubes%get_phys_coords_of_subcell( this, subcell, points )
 end subroutine unfitted_cell_iterator_get_phys_coords_of_subcell
 
 !========================================================================================
