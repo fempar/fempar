@@ -519,6 +519,15 @@ module unfitted_triangulations_names
     procedure, non_overridable :: is_exterior                      => marching_cubes_is_exterior
     procedure, non_overridable :: is_interior_subcell              => marching_cubes_is_interior_subcell
     procedure, non_overridable :: is_exterior_subcell              => marching_cubes_is_exterior_subcell
+    procedure, non_overridable :: get_num_fitted_subfacets         => marching_cubes_get_num_fitted_subfacets
+    procedure, non_overridable :: get_phys_coords_of_subvef        => marching_cubes_get_phys_coords_of_subvef
+    procedure, non_overridable :: get_ref_coords_of_subvef         => marching_cubes_get_ref_coords_of_subvef
+    procedure, non_overridable :: is_cut_facet                     => marching_cubes_is_cut_facet
+    procedure, non_overridable :: is_interior_facet                => marching_cubes_is_interior_facet
+    procedure, non_overridable :: is_exterior_facet                => marching_cubes_is_exterior_facet
+    procedure, non_overridable :: is_interior_subfacet             => marching_cubes_is_interior_subfacet
+    procedure, non_overridable :: is_exterior_subfacet             => marching_cubes_is_exterior_subfacet
+
    
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases

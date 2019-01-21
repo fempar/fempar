@@ -726,6 +726,199 @@ end function marching_cubes_get_num_subnodes
 
 
 !========================================================================================
+function marching_cubes_get_num_fitted_subfacets ( this, gid, facet_lid ) result (num_fitted_subfacets)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip),             intent(in) :: gid
+  integer(ip),             intent(in) :: facet_lid
+  integer(ip) :: num_fitted_subfacets
+  integer(ip) :: mc_case
+  mc_case              = this%mc_case_x_cell( gid )
+  num_fitted_subfacets = this%mc_table_num_fitted_sub_facets_x_case_and_facet( facet_lid, mc_case )
+end function marching_cubes_get_num_fitted_subfacets
+
+!========================================================================================
+subroutine marching_cubes_get_phys_coords_of_subvef ( this, gid, facet_lid, subvef, points )
+  implicit none
+  class(marching_cubes_t), target, intent(in)    :: this
+  integer(ip),                     intent(in)    :: gid
+  integer(ip),                     intent(in)    :: facet_lid
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+  
+  integer(ip)               :: mc_case
+  type(point_t),    pointer :: subnodes_phys_coords(:)
+  type(cell_map_t), pointer :: cell_map
+  integer(ip),      pointer ::  subfacet_node_ids(:)
+  
+  assert(this%mc_runtime_init)
+  
+  
+  mc_case = this%mc_case_x_cell( gid )
+  cell_map => this%sub_nodes_cell_maps(mc_case)
+  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
+  subfacet_node_ids =>  this%fitted_sub_facets_node_ids_x_facet(:, subvef, facet_lid )
+  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
+
+end subroutine marching_cubes_get_phys_coords_of_subvef
+
+!========================================================================================
+subroutine marching_cubes_get_ref_coords_of_subvef ( this, gid, facet_lid, subvef, points )
+  implicit none
+  class(marching_cubes_t), target, intent(in)    :: this
+  integer(ip),                     intent(in)    :: gid
+  integer(ip),                     intent(in)    :: facet_lid
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+
+  integer(ip)                    :: num_nodes_subfacet
+  integer(ip)                    :: mc_case
+  type(point_t),         pointer :: subnodes_ref_coords(:)
+  type(cell_map_t),      pointer :: cell_map
+  integer(ip),           pointer ::  subfacet_node_ids(:)
+  integer(ip)                    :: num_dims
+  integer(ip)                    :: dime1
+  integer(ip)                    :: dime2
+  integer(ip)                    :: ipoint
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip)                    :: cell_to_facet_coords_2d(4)
+  integer(ip)                    :: cell_to_facet_coords_3d(2,6)
+  
+  assert(this%mc_runtime_init)
+  mc_case = this%mc_case_x_cell( gid )
+  subnodes_ref_coords => this%subnodes_ref_coords
+  subfacet_node_ids =>  this%fitted_sub_facets_node_ids_x_facet( :, subvef, facet_lid )
+  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
+  num_dims = this%triangulation%get_num_dims()
+
+  reference_fe => this%reference_fe_geo
+  
+  select case (reference_fe%get_topology())
+    case ( topology_tet )
+     cell_to_facet_coords_2d(1:3) = [1,2,1]
+     cell_to_facet_coords_3d(:,1:4) = reshape(&
+                                                           [1,2,&
+                                                            1,3,&
+                                                            2,3,&
+                                                            1,2],[2,4])
+    case ( topology_hex )
+     cell_to_facet_coords_2d(:) = [1,1,2,2]
+     cell_to_facet_coords_3d(:,:) = reshape(&
+                                                           [1,2,&
+                                                            1,2,&
+                                                            1,3,&
+                                                            1,3,&
+                                                            2,3,&
+                                                            2,3],[2,6])
+   case DEFAULT
+     mcheck(.false., 'get_ref_coords_of_subvef::unfitted_vef_iterator: Only hex and tet lagrangian reference FE' )
+   end select
+  
+  if (num_dims == 2) then
+    dime1 = cell_to_facet_coords_2d(facet_lid)
+    do ipoint = 1, size(points)
+      call points(ipoint)%set(1, points(ipoint)%get(dime1))
+      call points(ipoint)%set(2, 0.0_rp)
+      call points(ipoint)%set(3, 0.0_rp)
+    end do
+  else if (num_dims == 3) then
+    dime1 = cell_to_facet_coords_3d(1,facet_lid)
+    dime2 = cell_to_facet_coords_3d(2,facet_lid)
+    do ipoint = 1, size(points)
+      call points(ipoint)%set(1, points(ipoint)%get(dime1))
+      call points(ipoint)%set(2, points(ipoint)%get(dime2))
+      call points(ipoint)%set(3, 0.0_rp)
+    end do
+  else
+    mcheck(.false.,'get_ref_coords_of_subvef::unfitted_vef_iterator: Only for 2D and 3D')
+  end if
+  
+end subroutine marching_cubes_get_ref_coords_of_subvef
+
+!========================================================================================
+function marching_cubes_is_cut_facet ( this, gid, facet_lid ) result ( is_cut )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip),             intent(in)    :: gid
+  integer(ip),             intent(in)    :: facet_lid
+  logical :: is_cut
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  
+  mc_case = this%mc_case_x_cell( gid )
+  istat   = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
+  is_cut  = (istat == 0_ip)
+  
+end function marching_cubes_is_cut_facet
+
+
+!========================================================================================
+function marching_cubes_is_interior_facet ( this, gid, facet_lid ) result ( is_interior )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip),             intent(in)    :: gid
+  integer(ip),             intent(in)    :: facet_lid
+  logical :: is_interior
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  
+  mc_case     = this%mc_case_x_cell( gid )
+  istat       = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
+  is_interior = (istat == -1_ip)
+  
+end function marching_cubes_is_interior_facet
+
+!========================================================================================
+function marching_cubes_is_exterior_facet ( this, gid, facet_lid ) result ( is_exterior )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip),             intent(in)    :: gid
+  integer(ip),             intent(in)    :: facet_lid
+  logical :: is_exterior
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  
+  mc_case     = this%mc_case_x_cell( gid )
+  istat       = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
+  is_exterior = (istat == 1_ip)
+  
+end function marching_cubes_is_exterior_facet
+
+!========================================================================================
+function marching_cubes_is_interior_subfacet ( this, gid, facet_lid, subvef ) result ( is_in)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip),             intent(in)    :: gid
+  integer(ip),             intent(in)    :: facet_lid
+  integer(ip),             intent(in)    :: subvef
+  logical :: is_in
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  
+  mc_case = this%mc_case_x_cell( gid )
+  istat   = this%mc_table_fitted_sub_facets_status_x_case_and_facet( subvef, facet_lid, mc_case )
+  is_in   = (istat == -1_ip)
+
+end function marching_cubes_is_interior_subfacet
+
+!========================================================================================
+function marching_cubes_is_exterior_subfacet ( this, gid, facet_lid, subvef ) result ( is_out )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip),             intent(in)    :: gid
+  integer(ip),             intent(in)    :: facet_lid
+  integer(ip),             intent(in)    :: subvef
+  logical :: is_out
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+
+  mc_case = this%mc_case_x_cell( gid )
+  istat   = this%mc_table_fitted_sub_facets_status_x_case_and_facet( subvef, facet_lid, mc_case )
+  is_out  = (istat == 1_ip)
+
+end function marching_cubes_is_exterior_subfacet
+
+!========================================================================================
 subroutine marching_cubes_print ( this )
 
   implicit none
