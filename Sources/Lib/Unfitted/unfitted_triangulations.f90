@@ -63,7 +63,7 @@ module unfitted_triangulations_names
   
   type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
-    class(marching_cubes_t), pointer :: marching_cubes => NULL()
+    class(unfitted_boundary_cutter_t), pointer :: marching_cubes => NULL()
   contains
   
     ! Creation / deletion methods
@@ -97,7 +97,7 @@ module unfitted_triangulations_names
 
   type, extends(bst_vef_iterator_t) :: unfitted_vef_iterator_t
     private
-    class(marching_cubes_t),     pointer :: marching_cubes => NULL()
+    class(unfitted_boundary_cutter_t),     pointer :: marching_cubes => NULL()
     class(cell_iterator_t),  allocatable :: unfitted_cell
     integer(ip) :: facet_lid
   contains
@@ -258,7 +258,16 @@ module unfitted_triangulations_names
     procedure(unfitted_boundary_cutter_is_exterior_interface)                    , deferred :: is_exterior
     procedure(unfitted_boundary_cutter_is_interior_subcell_interface)            , deferred :: is_interior_subcell
     procedure(unfitted_boundary_cutter_is_exterior_subcell_interface)            , deferred :: is_exterior_subcell
-
+    procedure(unfitted_boundary_cutter_get_num_fitted_subfacets_interface)       , deferred :: get_num_fitted_subfacets
+    procedure(unfitted_boundary_cutter_get_phys_coords_of_subvef_interface)      , deferred :: get_phys_coords_of_subvef
+    procedure(unfitted_boundary_cutter_get_ref_coords_of_subvef_interface)       , deferred :: get_ref_coords_of_subvef
+    procedure(unfitted_boundary_cutter_is_cut_facet_interface)                   , deferred :: is_cut_facet
+    procedure(unfitted_boundary_cutter_is_interior_facet_interface)              , deferred :: is_interior_facet
+    procedure(unfitted_boundary_cutter_is_exterior_facet_interface)              , deferred :: is_exterior_facet
+    procedure(unfitted_boundary_cutter_is_interior_subfacet_interface)           , deferred :: is_interior_subfacet
+    procedure(unfitted_boundary_cutter_is_exterior_subfacet_interface)           , deferred :: is_exterior_subfacet
+    procedure(unfitted_boundary_cutter_print_interface)                          , deferred :: print
+  
   end type unfitted_boundary_cutter_t
   
   abstract interface
@@ -415,7 +424,81 @@ module unfitted_triangulations_names
       integer(ip),                       intent(in)    :: subcell
       logical :: is_exterior_subcell
     end function unfitted_boundary_cutter_is_exterior_subcell_interface
-  end interface
+ 
+   function unfitted_boundary_cutter_get_num_fitted_subfacets_interface ( this, gid, facet_lid ) result (num_fitted_subfacets)
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in) :: this
+     integer(ip),                       intent(in) :: gid
+     integer(ip),                       intent(in) :: facet_lid
+     integer(ip) :: num_fitted_subfacets
+    end function unfitted_boundary_cutter_get_num_fitted_subfacets_interface
+    
+   subroutine unfitted_boundary_cutter_get_phys_coords_of_subvef_interface ( this, gid, facet_lid, subvef, points )
+     import :: unfitted_boundary_cutter_t, point_t, ip
+     class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+     integer(ip),                               intent(in)    :: gid
+     integer(ip),                               intent(in)    :: facet_lid
+     integer(ip),                               intent(in)    :: subvef
+     type(point_t),                             intent(inout) :: points(:)
+   end subroutine unfitted_boundary_cutter_get_phys_coords_of_subvef_interface
+    
+   subroutine unfitted_boundary_cutter_get_ref_coords_of_subvef_interface ( this, gid, facet_lid, subvef, points )
+     import :: unfitted_boundary_cutter_t, point_t, ip
+     class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+     integer(ip),                               intent(in)    :: gid
+     integer(ip),                               intent(in)    :: facet_lid
+     integer(ip),                               intent(in)    :: subvef
+     type(point_t),                             intent(inout) :: points(:)
+   end subroutine unfitted_boundary_cutter_get_ref_coords_of_subvef_interface
+  
+   function unfitted_boundary_cutter_is_cut_facet_interface ( this, gid, facet_lid ) result ( is_cut )
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+     integer(ip),                       intent(in)    :: gid
+     integer(ip),                       intent(in)    :: facet_lid
+     logical :: is_cut 
+   end function unfitted_boundary_cutter_is_cut_facet_interface
+   
+   function unfitted_boundary_cutter_is_interior_facet_interface ( this, gid, facet_lid ) result ( is_interior )
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+     integer(ip),                       intent(in)    :: gid
+     integer(ip),                       intent(in)    :: facet_lid
+     logical :: is_interior 
+   end function unfitted_boundary_cutter_is_interior_facet_interface
+   
+   function unfitted_boundary_cutter_is_exterior_facet_interface ( this, gid, facet_lid ) result ( is_exterior )
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+     integer(ip),                       intent(in)    :: gid
+     integer(ip),                       intent(in)    :: facet_lid
+     logical :: is_exterior 
+   end function unfitted_boundary_cutter_is_exterior_facet_interface
+   
+   function unfitted_boundary_cutter_is_interior_subfacet_interface ( this, gid, facet_lid, subvef ) result ( is_in )
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+     integer(ip),                       intent(in)    :: gid
+     integer(ip),                       intent(in)    :: facet_lid
+     integer(ip),                       intent(in)    :: subvef
+     logical :: is_in
+   end function unfitted_boundary_cutter_is_interior_subfacet_interface
+      
+   function unfitted_boundary_cutter_is_exterior_subfacet_interface ( this, gid, facet_lid, subvef ) result ( is_out )
+     import :: unfitted_boundary_cutter_t, ip
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+     integer(ip),                       intent(in)    :: gid
+     integer(ip),                       intent(in)    :: facet_lid
+     integer(ip),                       intent(in)    :: subvef
+     logical :: is_out
+   end function unfitted_boundary_cutter_is_exterior_subfacet_interface
+   
+   subroutine unfitted_boundary_cutter_print_interface ( this )
+     import :: unfitted_boundary_cutter_t,
+     class(unfitted_boundary_cutter_t), intent(in)    :: this
+   end subroutine unfitted_boundary_cutter_print_interface
+   
+ end interface
   
   type, extends(unfitted_boundary_cutter_t) :: marching_cubes_t
     private

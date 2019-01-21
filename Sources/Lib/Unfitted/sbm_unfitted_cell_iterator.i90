@@ -33,7 +33,7 @@ subroutine unfitted_cell_iterator_create ( this, triangulation )
   class(unfitted_cell_iterator_t)           , intent(inout) :: this
   class(triangulation_t)            , target, intent(in)    :: triangulation
 
-  class(marching_cubes_t), pointer :: marching_cubes
+  class(unfitted_boundary_cutter_t), pointer :: marching_cubes
   call this%free()
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)

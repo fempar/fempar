@@ -90,7 +90,7 @@ end subroutine upst_create_vef_iterator
 function upst_get_marching_cubes(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(in)    :: this
-  class(marching_cubes_t), pointer :: val
+  class(unfitted_boundary_cutter_t), pointer :: val
   val => this%marching_cubes
 end function upst_get_marching_cubes
 
