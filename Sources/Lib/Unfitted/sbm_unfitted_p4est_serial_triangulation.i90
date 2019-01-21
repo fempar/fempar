@@ -135,14 +135,6 @@ function upst_get_total_num_subcells(this) result (val)
 end function upst_get_total_num_subcells
 
 !========================================================================================
-function upst_get_max_num_subfacets_in_cell(this) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_max_num_subfacets_in_cell()
-end function upst_get_max_num_subfacets_in_cell
-
-!========================================================================================
 function upst_get_max_num_nodes_in_subfacet(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this

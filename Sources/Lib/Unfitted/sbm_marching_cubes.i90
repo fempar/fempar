@@ -342,7 +342,7 @@ end function marching_cubes_get_num_mc_cases
 subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   implicit none
   class(marching_cubes_t), target, intent(inout) :: this
-  class(unfitted_cell_iterator_t), intent(inout) :: cell_iterator ! Check if is needed, rethink ...
+  class(cell_iterator_t),          intent(in)    :: cell_iterator ! Check if is needed, rethink ...
   
   integer(ip)                 :: num_subnodes
   integer(ip)                 :: num_nodes
@@ -474,7 +474,7 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   cell_map => this%sub_nodes_cell_maps( mc_case )
   call cell_map%update_interpolation( quadrature, this%reference_fe_geo )
   phys_cell_coords => cell_map%get_coordinates()
-  call cell_iterator%get_nodes_coordinates( phys_cell_coords )
+  call cell_iterator%get_nodes_coordinates( phys_cell_coords ) ! phys_cell_coords as a memeber variable of this to reduce the interface with cell_iterator
   call cell_map%compute_quadrature_points_coordinates()
 
   ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
