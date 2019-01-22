@@ -172,7 +172,7 @@ subroutine unfitted_vef_iterator_get_ref_coords_of_subvef( this, subvef, points 
   assert(this%is_cut())
   assert((1_ip <= subvef) .and. (subvef <= this%get_num_subvefs()))
   
-  call this%marching_cubes%get_ref_coords_of_subvef ( this%unfitted_cell%get_gid(), this%facet_lid, subvef, points )
+  call this%marching_cubes%get_ref_coords_of_subvef ( this%unfitted_cell%get_reference_fe(), this%unfitted_cell%get_gid(), this%facet_lid, subvef, points )
 
 end subroutine unfitted_vef_iterator_get_ref_coords_of_subvef
 

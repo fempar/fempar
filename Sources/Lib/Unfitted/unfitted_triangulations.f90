@@ -230,10 +230,7 @@ module unfitted_triangulations_names
     private
     class(triangulation_t) , pointer :: triangulation => null()
   contains
-    procedure :: create_from_level_set    => unfitted_boundary_cutter_create_from_level_set
-    generic   :: create                   => create_from_level_set
-    
-    ! Missing compute TBP
+
     procedure(unfitted_boundary_cutter_free_interface),                            deferred :: free
     procedure(unfitted_boundary_cutter_get_cell_gid_interface)                   , deferred :: get_cell_gid
     procedure(unfitted_boundary_cutter_get_num_cut_cells_interface)              , deferred :: get_num_cut_cells
@@ -442,9 +439,10 @@ module unfitted_triangulations_names
      type(point_t),                             intent(inout) :: points(:)
    end subroutine unfitted_boundary_cutter_get_phys_coords_of_subvef_interface
     
-   subroutine unfitted_boundary_cutter_get_ref_coords_of_subvef_interface ( this, gid, facet_lid, subvef, points )
-     import :: unfitted_boundary_cutter_t, point_t, ip
+   subroutine unfitted_boundary_cutter_get_ref_coords_of_subvef_interface ( this, reference_fe, gid, facet_lid, subvef, points )
+     import :: unfitted_boundary_cutter_t, point_t, reference_fe_t, ip
      class(unfitted_boundary_cutter_t), target, intent(in)    :: this
+     class(reference_fe_t),                     intent(in)    :: reference_fe
      integer(ip),                               intent(in)    :: gid
      integer(ip),                               intent(in)    :: facet_lid
      integer(ip),                               intent(in)    :: subvef
@@ -494,7 +492,7 @@ module unfitted_triangulations_names
    end function unfitted_boundary_cutter_is_exterior_subfacet_interface
    
    subroutine unfitted_boundary_cutter_print_interface ( this )
-     import :: unfitted_boundary_cutter_t,
+     import :: unfitted_boundary_cutter_t, ip
      class(unfitted_boundary_cutter_t), intent(in)    :: this
    end subroutine unfitted_boundary_cutter_print_interface
    
@@ -644,7 +642,7 @@ module unfitted_triangulations_names
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
-      type(marching_cubes_t) :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: marching_cubes
     contains
       ! Creation / deletion methods
       generic             :: create                       => sut_create
@@ -674,7 +672,7 @@ module unfitted_triangulations_names
 
   type, extends(p4est_serial_triangulation_t) :: unfitted_p4est_serial_triangulation_t
     private
-      type(marching_cubes_t) :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: marching_cubes
     contains
 
       ! Creation / deletion methods
@@ -706,7 +704,7 @@ module unfitted_triangulations_names
 
   type, extends(par_triangulation_t) :: par_unfitted_triangulation_t
     private
-      type(marching_cubes_t) :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: marching_cubes
     contains
 
       ! Creation / deletion methods
@@ -747,7 +745,6 @@ contains
 #include "sbm_unfitted_vef_iterator.i90"
 #include "sbm_unfitted_p4est_cell_iterator.i90"
 #include "sbm_unfitted_p4est_vef_iterator.i90"
-#include "sbm_unfitted_boundary_cutter.i90"
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
 #include "sbm_unfitted_p4est_serial_triangulation.i90"

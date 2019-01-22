@@ -36,14 +36,25 @@ subroutine put_create(this, parameters, level_set_function, par_environment)
   type(environment_t) ,                target, intent(in)    :: par_environment
   call this%free()
   call this%par_triangulation_t%create(par_environment,parameters)
-  call this%marching_cubes%create(this, level_set_function)
+  
+  allocate( marching_cubes_t :: this%marching_cubes )
+  select type ( cutter => this%marching_cubes )
+    type is ( marching_cubes_t )
+      call cutter%create_from_level_set(this, level_set_function)
+    class DEFAULT
+      check( .false. )
+  end select
+  
 end subroutine put_create
 
 !========================================================================================
 subroutine put_free(this)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
-  call this%marching_cubes%free()
+  if( allocated( this%marching_cubes ) ) then
+    call this%marching_cubes%free()
+    deallocate( this%marching_cubes )
+  end if
   call this%par_triangulation_t%free()
 end subroutine put_free
 

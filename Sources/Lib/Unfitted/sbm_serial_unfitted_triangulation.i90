@@ -35,7 +35,15 @@ subroutine sut_create(this, parameters, level_set_function, environment)
   class(level_set_function_t)           , target, intent(in)    :: level_set_function
   call this%free()
   call this%serial_triangulation_t%create(environment,parameters)
-  call this%marching_cubes%create(this, level_set_function)
+  
+  allocate( marching_cubes_t :: this%marching_cubes )
+  select type ( cutter => this%marching_cubes )
+    type is ( marching_cubes_t )
+      call cutter%create_from_level_set(this, level_set_function)
+    class DEFAULT
+      check( .false. )
+  end select
+  
 end subroutine sut_create
 
 !========================================================================================
@@ -43,7 +51,12 @@ subroutine sut_free(this)
   implicit none
   class(serial_unfitted_triangulation_t), target, intent(inout) :: this
   call this%serial_triangulation_t%free()
-  call this%marching_cubes%free()
+  
+  if( allocated( this%marching_cubes) ) then 
+    call this%marching_cubes%free()
+    deallocate( this%marching_cubes )
+  end if
+  
 end subroutine sut_free
 
 !========================================================================================

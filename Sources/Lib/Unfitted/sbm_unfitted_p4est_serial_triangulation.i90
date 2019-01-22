@@ -35,7 +35,15 @@ subroutine upst_create(this, parameters, level_set_function, environment)
   type(environment_t)                   , target, intent(in)    :: environment
   call this%free()
   call this%p4est_serial_triangulation_t%create(environment,parameters)
-  call this%marching_cubes%create(this, level_set_function)
+  
+  allocate( marching_cubes_t :: this%marching_cubes )
+  select type ( cutter => this%marching_cubes )
+    type is ( marching_cubes_t )
+      call cutter%create_from_level_set(this, level_set_function)
+    class DEFAULT
+      check( .false. )
+  end select
+  
 end subroutine upst_create
 
 !========================================================================================
@@ -43,7 +51,12 @@ subroutine upst_free(this)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(inout) :: this
   call this%p4est_serial_triangulation_t%free()
-  call this%marching_cubes%free()
+  
+  if( allocated( this%marching_cubes) ) then 
+    call this%marching_cubes%free()
+    deallocate( this%marching_cubes )
+  end if
+  
 end subroutine upst_free
 
 !========================================================================================
@@ -51,8 +64,20 @@ subroutine upst_update_cut_cells(this, level_set_function)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(inout) :: this
   class(level_set_function_t),            target, intent(in)    :: level_set_function
-  call this%marching_cubes%free()
-  call this%marching_cubes%create(this, level_set_function)
+  
+  if( allocated( this%marching_cubes) ) then
+    call this%marching_cubes%free()
+    deallocate( this%marching_cubes )
+  end if
+  
+  allocate( marching_cubes_t :: this%marching_cubes )
+  select type ( cutter => this%marching_cubes )
+    type is ( marching_cubes_t )
+      call cutter%create_from_level_set(this, level_set_function)
+    class DEFAULT
+      check( .false. )
+  end select
+  
 end subroutine upst_update_cut_cells
 
 !========================================================================================

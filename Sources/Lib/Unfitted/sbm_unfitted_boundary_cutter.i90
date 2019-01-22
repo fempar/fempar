@@ -1,7 +1,0 @@
-subroutine unfitted_boundary_cutter_create_from_level_set ( this, triangulation, level_set_function )
-  implicit none
-  class(unfitted_boundary_cutter_t),  target,  intent(inout)  :: this
-  class(triangulation_t)            , target,  intent(in)     :: triangulation
-  class(level_set_function_t),        target,  intent(in)     :: level_set_function
-  check( .false. )
-end subroutine unfitted_boundary_cutter_create_from_level_set
