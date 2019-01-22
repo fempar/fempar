@@ -63,7 +63,7 @@ module unfitted_triangulations_names
   
   type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
-    class(unfitted_boundary_cutter_t), pointer :: marching_cubes => NULL()
+    class(unfitted_boundary_cutter_t), pointer :: boundary_cutter => NULL()
   contains
   
     ! Creation / deletion methods
@@ -97,9 +97,9 @@ module unfitted_triangulations_names
 
   type, extends(bst_vef_iterator_t) :: unfitted_vef_iterator_t
     private
-    class(unfitted_boundary_cutter_t),     pointer :: marching_cubes => NULL()
-    class(cell_iterator_t),  allocatable :: unfitted_cell
-    integer(ip) :: facet_lid
+    class(unfitted_boundary_cutter_t),     pointer :: boundary_cutter => NULL()
+    class(cell_iterator_t),            allocatable :: unfitted_cell
+    integer(ip)                                    :: facet_lid
   contains
 
     ! Creation / deletion methods
@@ -642,7 +642,7 @@ module unfitted_triangulations_names
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
-      class(unfitted_boundary_cutter_t), allocatable :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: boundary_cutter
     contains
       ! Creation / deletion methods
       generic             :: create                       => sut_create
@@ -672,7 +672,7 @@ module unfitted_triangulations_names
 
   type, extends(p4est_serial_triangulation_t) :: unfitted_p4est_serial_triangulation_t
     private
-      class(unfitted_boundary_cutter_t), allocatable :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: boundary_cutter
     contains
 
       ! Creation / deletion methods
@@ -704,7 +704,7 @@ module unfitted_triangulations_names
 
   type, extends(par_triangulation_t) :: par_unfitted_triangulation_t
     private
-      class(unfitted_boundary_cutter_t), allocatable :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: boundary_cutter
     contains
 
       ! Creation / deletion methods

@@ -37,8 +37,8 @@ subroutine put_create(this, parameters, level_set_function, par_environment)
   call this%free()
   call this%par_triangulation_t%create(par_environment,parameters)
   
-  allocate( marching_cubes_t :: this%marching_cubes )
-  select type ( cutter => this%marching_cubes )
+  allocate( marching_cubes_t :: this%boundary_cutter )
+  select type ( cutter => this%boundary_cutter )
     type is ( marching_cubes_t )
       call cutter%create_from_level_set(this, level_set_function)
     class DEFAULT
@@ -51,9 +51,9 @@ end subroutine put_create
 subroutine put_free(this)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
-  if( allocated( this%marching_cubes ) ) then
-    call this%marching_cubes%free()
-    deallocate( this%marching_cubes )
+  if( allocated( this%boundary_cutter ) ) then
+    call this%boundary_cutter%free()
+    deallocate( this%boundary_cutter )
   end if
   call this%par_triangulation_t%free()
 end subroutine put_free
@@ -94,7 +94,7 @@ function put_get_marching_cubes(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(in)    :: this
   class(unfitted_boundary_cutter_t), pointer :: val
-  val => this%marching_cubes
+  val => this%boundary_cutter
 end function put_get_marching_cubes
 
 !========================================================================================
@@ -102,7 +102,7 @@ function put_get_num_cut_cells(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_num_cut_cells()
+  val = this%boundary_cutter%get_num_cut_cells()
 end function put_get_num_cut_cells
 
 !========================================================================================
@@ -110,7 +110,7 @@ function put_get_num_interior_cells(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_num_interior_cells()
+  val = this%boundary_cutter%get_num_interior_cells()
 end function put_get_num_interior_cells
 
 !========================================================================================
@@ -118,7 +118,7 @@ function put_get_num_exterior_cells(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_num_exterior_cells()
+  val = this%boundary_cutter%get_num_exterior_cells()
 end function put_get_num_exterior_cells
 
 !========================================================================================
@@ -126,7 +126,7 @@ function put_get_max_num_nodes_in_subcell(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_max_num_nodes_in_subcell()
+  val = this%boundary_cutter%get_max_num_nodes_in_subcell()
 end function put_get_max_num_nodes_in_subcell
 
 !========================================================================================
@@ -134,7 +134,7 @@ function put_get_total_num_subcells(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_subcells()
+  val = this%boundary_cutter%get_total_num_subcells()
 end function put_get_total_num_subcells
 
 !========================================================================================
@@ -142,7 +142,7 @@ function put_get_max_num_nodes_in_subfacet(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_max_num_nodes_in_subfacet()
+  val = this%boundary_cutter%get_max_num_nodes_in_subfacet()
 end function put_get_max_num_nodes_in_subfacet
 
 !========================================================================================
@@ -150,13 +150,13 @@ function put_get_total_num_subfacets(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_subfacets()
+  val = this%boundary_cutter%get_total_num_subfacets()
 end function put_get_total_num_subfacets
 
 !========================================================================================
 subroutine put_print(this)
   implicit none
   class(par_unfitted_triangulation_t), intent(in)    :: this
-  call this%marching_cubes%print()
+  call this%boundary_cutter%print()
 end subroutine put_print
 

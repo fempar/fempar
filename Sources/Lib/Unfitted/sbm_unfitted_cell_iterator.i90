@@ -33,23 +33,23 @@ subroutine unfitted_cell_iterator_create ( this, triangulation )
   class(unfitted_cell_iterator_t)           , intent(inout) :: this
   class(triangulation_t)            , target, intent(in)    :: triangulation
 
-  class(unfitted_boundary_cutter_t), pointer :: marching_cubes
+  class(unfitted_boundary_cutter_t), pointer :: boundary_cutter
   call this%free()
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)
-    marching_cubes => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_marching_cubes()
     call this%bst_cell_iterator_t%create(triangulation)
   class is (unfitted_p4est_serial_triangulation_t)
-    marching_cubes => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_marching_cubes()
     call cell_iterator_create(this,triangulation)
   class is (par_unfitted_triangulation_t)
-    marching_cubes => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_marching_cubes()
     call this%bst_cell_iterator_t%create(triangulation)
   class default
     check(.false.)
   end select
-  assert(associated(marching_cubes%triangulation))
-  this%marching_cubes => marching_cubes
+  assert(associated(boundary_cutter%triangulation))
+  this%boundary_cutter => boundary_cutter
 end subroutine unfitted_cell_iterator_create
 
 !========================================================================================
@@ -57,7 +57,7 @@ subroutine unfitted_cell_iterator_free ( this )
   implicit none
   class(unfitted_cell_iterator_t), intent(inout) :: this
   call this%bst_cell_iterator_t%free()
-  this%marching_cubes => null()
+  this%boundary_cutter => null()
 end subroutine unfitted_cell_iterator_free
 
 !========================================================================================
@@ -66,7 +66,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   class(unfitted_cell_iterator_t), intent(inout) :: this
   assert(this%is_local())
   if ( this%is_cut() ) then
-    call this%marching_cubes%update_sub_triangulation( this )
+    call this%boundary_cutter%update_sub_triangulation( this )
   end if
 end subroutine unfitted_cell_iterator_update_sub_triangulation
 
@@ -77,8 +77,8 @@ function unfitted_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   integer(ip) :: num_subcells
   assert(this%is_local())
   if ( this%is_cut() ) then
-    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-    num_subcells = this%marching_cubes%get_num_subcells()
+    assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+    num_subcells = this%boundary_cutter%get_num_subcells()
   else 
     num_subcells = 0
   end if
@@ -91,8 +91,8 @@ function unfitted_cell_iterator_get_num_subcell_nodes( this ) result ( num_nodes
   integer(ip) :: num_nodes_subcell
   assert(this%is_local())
   if ( this%is_cut() ) then
-    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-    num_nodes_subcell = this%marching_cubes%get_num_subcell_nodes()
+    assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+    num_nodes_subcell = this%boundary_cutter%get_num_subcell_nodes()
   else
     num_nodes_subcell = 0
   end if
@@ -105,8 +105,8 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, poi
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-  call this%marching_cubes%get_phys_coords_of_subcell( subcell, points )
+  assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+  call this%boundary_cutter%get_phys_coords_of_subcell( subcell, points )
 end subroutine unfitted_cell_iterator_get_phys_coords_of_subcell
 
 !========================================================================================
@@ -116,8 +116,8 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subcell( this, subcell, poin
   integer(ip),                     intent(in)    :: subcell
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-  call this%marching_cubes%get_ref_coords_of_subcell( subcell, points)
+  assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+  call this%boundary_cutter%get_ref_coords_of_subcell( subcell, points)
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subcell
 
 !========================================================================================
@@ -127,8 +127,8 @@ function unfitted_cell_iterator_get_num_subfacets( this ) result ( num_subfacets
   integer(ip) :: num_subfacets
   assert(this%is_local())
   if ( this%is_cut() ) then
-    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-    num_subfacets = this%marching_cubes%get_num_subfacets()
+    assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+    num_subfacets = this%boundary_cutter%get_num_subfacets()
   else
     num_subfacets = 0
   end if
@@ -141,8 +141,8 @@ function unfitted_cell_iterator_get_num_subfacet_nodes( this ) result ( num_node
   integer(ip) :: num_nodes_subfacet
   assert(this%is_local())
   if ( this%is_cut() ) then
-    assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-    num_nodes_subfacet = this%marching_cubes%get_num_subfacet_nodes()
+    assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+    num_nodes_subfacet = this%boundary_cutter%get_num_subfacet_nodes()
   else
     num_nodes_subfacet = 0
   end if
@@ -155,7 +155,7 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, p
   integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  call this%marching_cubes%get_phys_coords_of_subfacet(subfacet, points )
+  call this%boundary_cutter%get_phys_coords_of_subfacet(subfacet, points )
 end subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet
 
 !========================================================================================
@@ -165,8 +165,8 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, po
   integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
   assert(this%is_local())
-  assert( this%get_gid() == this%marching_cubes%get_cell_gid() )
-  call this%marching_cubes%get_ref_coords_of_subfacet( subfacet, points )
+  assert( this%get_gid() == this%boundary_cutter%get_cell_gid() )
+  call this%boundary_cutter%get_ref_coords_of_subfacet( subfacet, points )
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet
 
 !========================================================================================
@@ -175,7 +175,7 @@ function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
   class(unfitted_cell_iterator_t), intent(in)    :: this
   logical :: is_cut
   assert( this%is_local() )
-  is_cut = this%marching_cubes%is_cut( this%get_gid() )
+  is_cut = this%boundary_cutter%is_cut( this%get_gid() )
 end function unfitted_cell_iterator_is_cut
 
 !========================================================================================
@@ -184,7 +184,7 @@ function unfitted_cell_iterator_is_interior( this ) result ( is_interior )
   class(unfitted_cell_iterator_t), intent(in)  :: this
   logical :: is_interior
   assert(this%is_local())
-  is_interior = this%marching_cubes%is_interior( this%get_gid() )
+  is_interior = this%boundary_cutter%is_interior( this%get_gid() )
 end function unfitted_cell_iterator_is_interior
 
 !========================================================================================
@@ -193,7 +193,7 @@ function unfitted_cell_iterator_is_exterior( this ) result ( is_exterior )
   class(unfitted_cell_iterator_t), intent(in)  :: this
   logical :: is_exterior
   assert(this%is_local())
-  is_exterior = this%marching_cubes%is_exterior( this%get_gid() )
+  is_exterior = this%boundary_cutter%is_exterior( this%get_gid() )
 end function unfitted_cell_iterator_is_exterior
 
 !========================================================================================
@@ -203,8 +203,8 @@ function unfitted_cell_iterator_is_interior_subcell( this, subcell ) result ( is
   integer(ip), intent(in) :: subcell
   logical :: is_in
   assert( this%is_local() )
-  assert( this%marching_cubes%get_cell_gid() == this%get_gid() )
-  is_in = this%marching_cubes%is_interior_subcell( subcell )
+  assert( this%boundary_cutter%get_cell_gid() == this%get_gid() )
+  is_in = this%boundary_cutter%is_interior_subcell( subcell )
 end function unfitted_cell_iterator_is_interior_subcell
 
 !========================================================================================
@@ -214,6 +214,6 @@ function unfitted_cell_iterator_is_exterior_subcell( this, subcell ) result ( is
   integer(ip), intent(in) :: subcell
   logical :: is_out
   assert(this%is_local())
-  assert( this%marching_cubes%get_cell_gid() == this%get_gid() )
-  is_out = this%marching_cubes%is_exterior_subcell( subcell )
+  assert( this%boundary_cutter%get_cell_gid() == this%get_gid() )
+  is_out = this%boundary_cutter%is_exterior_subcell( subcell )
 end function unfitted_cell_iterator_is_exterior_subcell
