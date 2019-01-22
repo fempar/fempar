@@ -290,7 +290,7 @@ contains
        end do
           ! Init cell iterator 
           call cell%first() 
-         
+       
           ! Number of subsets that will arise 
           contrast = resistivity_max / resistivity_min 
           num_resistivity_set_ids = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) ) + 1
@@ -347,16 +347,13 @@ contains
              end do
              
              massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
-             contrast=(resistivity_max)/(resistivity_min)
+             contrast= resistivity_max/resistivity_min
              resistivity_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
              
-             contrast= permeability_max / permeability_min 
+             contrast= permeability_max/permeability_min 
              permeability_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
                 
              ! Transfer global to local info 
-             ! PB - partition 
-             ! this%cells_set_id(cell%get_gid()) = this%par_environment%get_l1_rank() + ( resistivity_set_id + permeability_set_id * num_resistivity_set_ids)* & 
-             ! (this%par_environment%get_l1_size() )
              global_subset_id = resistivity_set_id + permeability_set_id * num_resistivity_set_ids
              
              call g2l_subset_id%get( key = global_subset_id, val = local_subset_id, stat=istat) 
@@ -367,7 +364,7 @@ contains
              this%cells_set_id(cell%get_gid()) =  num_subsets_id 
              num_subsets_id = num_subsets_id + 1
              end if 
-
+    
           case ( radial ) 
            call cell%get_nodes_coordinates(cell_coordinates)
              grav_center = 0
@@ -603,7 +600,11 @@ contains
        FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
+       
+       FPLError = neumann%set(key = ils_rtol, value = 1.0e-12_rp); assert(FPLError == 0)
+       FPLError = neumann%set(key = ils_output_frequency, value = 1); assert(FPLError == 0)
+       FPLError = neumann%set(key = ils_max_num_iterations, value = 5000); assert(FPLError == 0)
+       
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
