@@ -38,11 +38,9 @@ module poisson_unfitted_analytical_functions_names
   real(rp), parameter :: val_k    = 4.0*PI
 
   type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims = -1  
     logical     :: in_fe_space = .true.
     integer(ip) :: degree = 1
   contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims 
     procedure :: set_is_in_fe_space    => base_scalar_function_set_is_in_fe_space
     procedure :: set_degree            => base_scalar_function_set_degree
     procedure :: is_in_fe_space        => base_scalar_function_is_in_fe_space
@@ -135,6 +133,7 @@ contains
     real(rp),      intent(inout) :: val
     integer(ip),   intent(in)    :: degree
     real(rp) :: x1, x2, x3
+    assert ( degree >= 0 ) 
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
@@ -148,15 +147,22 @@ contains
     type(vector_field_t), intent(inout) :: val
     integer(ip),          intent(in)    :: degree
     real(rp) :: x1, x2, x3, g1, g2, g3
+    assert ( degree >= 0 ) 
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
-    g1 = degree*x1**(degree-1)
-    g2 = degree*x2**(degree-1)
-    g3 = degree*x3**(degree-1)
-    call val%set(1,g1)
-    call val%set(2,g2)
-    call val%set(3,g3)
+    if ( degree >= 1 ) then 
+       g1 = degree*x1**(degree-1)
+       g2 = degree*x2**(degree-1)
+       g3 = degree*x3**(degree-1)
+       call val%set(1,g1)
+       call val%set(2,g2)
+       call val%set(3,g3)
+    else
+       call val%set( 1 , 0.0_rp )
+       call val%set( 2 , 0.0_rp )
+       call val%set( 3 , 0.0_rp )
+    end if
   end subroutine sol_ex001_3d_grad_u
 
   !==============================================================================================
@@ -166,10 +172,15 @@ contains
     real(rp),      intent(inout) :: val
     integer(ip),   intent(in)    :: degree
     real(rp) :: x1, x2, x3
+    assert ( degree >= 0 )  
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
-    val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
+    if ( degree >= 2 ) then 
+      val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
+    else 
+      val = 0.0_rp
+    end if
   end subroutine sol_ex001_3d_lapl_u
 
   !==============================================================================================
@@ -263,14 +274,6 @@ contains
   end subroutine sol_ex002_3d_lapl_u
 
   !===============================================================================================
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
-
-  !===============================================================================================
   subroutine base_scalar_function_set_is_in_fe_space(this,val)
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -300,8 +303,8 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_lapl_u(point,result,this%degree)
         result = -1.0*result
@@ -309,7 +312,7 @@ contains
         call sol_ex002_2d_lapl_u(point,result)
         result = -1.0*result
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_lapl_u(point,result,this%degree)
         result = -1.0*result
@@ -326,14 +329,14 @@ contains
     class(boundary_function_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
         call sol_ex002_2d_u(point,result)
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_u(point,result,this%degree)
       else
@@ -348,14 +351,14 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
         call sol_ex002_2d_u(point,result)
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_u(point,result,this%degree)
       else
@@ -370,14 +373,14 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_2d_grad_u(point,result,this%degree)
       else
         call sol_ex002_2d_grad_u(point,result)
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%is_in_fe_space()) then
         call sol_ex001_3d_grad_u(point,result,this%degree)
       else

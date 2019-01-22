@@ -103,7 +103,7 @@ subroutine Hcurl_l1_setup_direct_solvers( this )
   iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
   call parameter_list%init()
-  FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+  FPLError =            parameter_list%set(key = dls_type_key           ,   value = pardiso_mkl)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
@@ -115,7 +115,7 @@ subroutine Hcurl_l1_setup_direct_solvers( this )
   iparm(12)  = 2 ! Solve transposed system 
 
   call parameter_list%init()
-  FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+  FPLError =            parameter_list%set(key = dls_type_key           ,   value = pardiso_mkl)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  

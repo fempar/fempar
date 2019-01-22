@@ -179,7 +179,7 @@ contains
     
     call parameter_list%init()
 #ifdef ENABLE_MKL    
-    FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+    FPLError =            parameter_list%set(key = dls_type_key     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -197,8 +197,8 @@ contains
        assert(.false.) 
     end select
 #else
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
-    FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-10_rp)
+    FPLError = FPLError + parameter_list%set(key = ils_output_frequency_key, value = 30)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(minres_name)

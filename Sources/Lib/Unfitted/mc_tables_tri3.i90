@@ -1,0 +1,133 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package
+! and/or the HSL Mathematical Software Library (or a modified version of them),
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the
+! resulting work.
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Look up tables for TRI3
+! This file has been automatically generated in Matlab using the script:
+! /do_tables.sh
+! Do not modify this file by hand! Modify and use the script!
+
+integer(ip), parameter :: MC_TRI3_NUM_CASES = 8
+integer(ip), parameter :: MC_TRI3_MAX_NUM_SUBCELLS = 3
+integer(ip), parameter :: MC_TRI3_MAX_NUM_SUBFACES = 1
+integer(ip), parameter :: MC_TRI3_NUM_FACETS = 3
+integer(ip), parameter :: MC_TRI3_MAX_NUM_FITTED_SUB_FACETS_IN_FACET = 2
+integer(ip), parameter :: MC_TRI3_MAX_NUM_CUT_EDGES = 2
+integer(ip), parameter :: MC_TRI3_NUM_NODES_PER_SUBCELL = 3
+integer(ip), parameter :: MC_TRI3_NUM_NODES_PER_SUBFACE = 2
+integer(ip), parameter :: MC_TRI3_NUM_SUBCELLS_PER_CASE(8) = [ 0, 3, 3, 3, &
+  3, 3, 3, 0 ]
+integer(ip), parameter :: MC_TRI3_NUM_SUBFACES_PER_CASE(8) = [ 0, 1, 1, 1, &
+  1, 1, 1, 0 ]
+integer(ip), parameter :: MC_TRI3_NUM_SUB_FACETS_PER_CASE_AND_FACET(3,8) = &
+reshape( [ 0, 0, 0, &
+           2, 2, 0, &
+           2, 0, 2, &
+           0, 2, 2, &
+           0, 2, 2, &
+           2, 0, 2, &
+           2, 2, 0, &
+           0, 0, 0 ] , [3,8] )
+integer(ip), parameter :: MC_TRI3_FACET_TYPE_PER_CASE_AND_FACET(3,8) = &
+reshape( [ 1, 1, 1, &
+           0, 0, 1, &
+           0, 1, 0, &
+          -1, 0, 0, &
+           1, 0, 0, &
+           0,-1, 0, &
+           0, 0,-1, &
+          -1,-1,-1 ] , [3,8] )
+integer(ip), parameter :: MC_TRI3_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET(2,3,8) = &
+reshape( [ 0, 0, 0, 0, &
+           0, 0, 1,-1, &
+          -1, 1, 0, 0, &
+           1,-1, 0, 0, &
+           1,-1, 0, 0, &
+          -1, 1, 1,-1, &
+           0, 0, 1,-1, &
+          -1, 1,-1, 1, &
+           0, 0,-1, 1, &
+          -1, 1, 1,-1, &
+           0, 0, 0, 0, &
+           0, 0, 0, 0 ] , [2,3,8] )
+integer(ip), parameter :: MC_TRI3_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(2,2,3,8) = &
+reshape( [ 0, 0, 0, 0, &
+           0, 0, 0, 0, &
+           0, 0, 0, 0, &
+           4, 2, 1, 4, &
+           5, 1, 3, 5, &
+           0, 0, 0, 0, &
+           1, 4, 4, 2, &
+           0, 0, 0, 0, &
+           5, 3, 2, 5, &
+           0, 0, 0, 0, &
+           4, 1, 3, 4, &
+           5, 3, 2, 5, &
+           0, 0, 0, 0, &
+           4, 1, 3, 4, &
+           5, 3, 2, 5, &
+           1, 4, 4, 2, &
+           0, 0, 0, 0, &
+           5, 3, 2, 5, &
+           4, 2, 1, 4, &
+           5, 1, 3, 5, &
+           0, 0, 0, 0, &
+           0, 0, 0, 0, &
+           0, 0, 0, 0, &
+           0, 0, 0, 0 ] , [2,2,3,8] )
+integer(ip), parameter :: MC_TRI3_NUM_CUT_EDGES_PER_CASE(8) = [ 0, 2, 2, 2, &
+  2, 2, 2, 0 ]
+integer(ip), parameter :: MC_TRI3_SUBCELL_NODE_IDS_PER_CASE(3,3,8) = &
+reshape( [ 0, 0, 0, 0, 0, &
+           0, 0, 0, 0, 2, &
+           3, 4, 5, 1, 4, &
+           3, 5, 4, 3, 1, &
+           5, 1, 4, 5, 4, &
+           2, 5, 4, 1, 5, &
+           3, 4, 5, 1, 2, &
+           5, 4, 1, 5, 3, &
+           4, 5, 1, 2, 5, &
+           3, 1, 5, 1, 4, &
+           5, 4, 2, 5, 2, &
+           3, 4, 5, 1, 4, &
+           3, 5, 4, 0, 0, &
+           0, 0, 0, 0, 0, &
+           0, 0 ] , [3,3,8] )
+integer(ip), parameter :: MC_TRI3_INOUT_SUBCELLS_PER_CASE(3,8) = &
+reshape( [ 0, 0, 0, &
+           1,-1, 1, &
+           1, 1,-1, &
+          -1, 1,-1, &
+           1,-1, 1, &
+          -1,-1, 1, &
+          -1, 1,-1, &
+           0, 0, 0 ] , [3,8] )
+integer(ip), parameter :: MC_TRI3_SUBFACE_NODE_IDS_PER_CASE(2,1,8) = &
+reshape( [ 0, 0, 4, 5, 5, &
+           4, 5, 4, 4, 5, &
+           4, 5, 5, 4, 0, &
+           0 ] , [2,1,8] )

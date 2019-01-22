@@ -31,14 +31,9 @@ subroutine tet_nedelec_reference_fe_free ( this )
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: i
 
-  ! Free member variables of nedelec_reference_fe_t
-  if ( allocated(this%change_basis_matrix) ) &
-       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
-
   if ( allocated(this%basis_Sk_indices) ) &
        call memfree ( this%basis_Sk_indices, __FILE__, __LINE__ )  
 
-  this%basis_changed  = .false. 
   do i=1, size(this%node_array_vector)
      call this%node_array_vector(i)%free()
   end do
@@ -107,8 +102,8 @@ subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, quadrature,
   ndime      = quadrature%get_num_dims()
   n_q_points = quadrature%get_num_quadrature_points()
 
-  call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
-       &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
+  call qpoints_perm%create(n_q_points, &    ! Number of quadrature points
+       &                ndime*2**ndime)  ! Number of possible permutations x possible rotations
   forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
 
 end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations

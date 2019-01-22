@@ -361,16 +361,16 @@ contains
     istat = 0
     istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
     istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
-    istat = istat + parameter_list%set(key = geometry_interpolation_order_key  , value = this%reference_fe_geo_order)
+    istat = istat + parameter_list%set(key = triang_geometric_interpolation_order_key  , value = this%reference_fe_geo_order)
     check(istat==0)
 
     if(trim(this%triangulation_type)=='unstructured') then
-       istat = parameter_list%set(key = triangulation_generate_key, value = triangulation_generate_from_mesh)
+       istat = parameter_list%set(key = triang_generate_key, value = triangulation_generate_from_mesh)
     else if(trim(this%triangulation_type)=='structured') then
-       istat = parameter_list%set(key = triangulation_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = num_cells_x_dir_key, value = this%num_of_cells_x_dir)
-       istat = istat + parameter_list%set(key = is_dir_periodic_key        , value = this%is_dir_periodic)
+       istat = parameter_list%set(key = triang_generate_key         , value = triangulation_generate_structured)
+       istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key   , value = this%num_dims)
+       istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = this%num_of_cells_x_dir)
+       istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key        , value = this%is_dir_periodic)
     end if
     check(istat==0)
   end subroutine stokes_parse  

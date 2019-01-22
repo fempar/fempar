@@ -335,6 +335,19 @@ module lapack77_interfaces_names
        !       .. Array Arguments ..
        REAL(DP) , INTENT(INOUT)  :: A( LDA, * ) 
      END SUBROUTINE DPOTRF
+     
+     SUBROUTINE DPOTRS( UPLO, N, NRHS, A, LDA, B, LDB, INFO )
+       use blas77_precision_names
+       implicit none  
+       ! .. Scalar Arguments ..
+       CHARACTER, INTENT(IN)     :: UPLO
+       INTEGER  , INTENT(IN)     :: LDA, LDB, N, NRHS
+       INTEGER  , INTENT(OUT)    :: INFO
+       ! *     ..
+       !       .. Array Arguments ..
+       REAL(DP) , INTENT(IN)     :: A( LDA, * ) 
+       REAL(DP) , INTENT(INOUT)  :: B( LDB, * ) 
+     END SUBROUTINE DPOTRS
 
      INTEGER FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
        use blas77_precision_names

@@ -25,6 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine tensor_function_set_num_dims ( this, num_dims )
+  implicit none
+  class(tensor_function_t), intent(inout)    :: this
+  integer(ip)             , intent(in)       ::  num_dims
+  this%num_dims = num_dims
+end subroutine tensor_function_set_num_dims
+
+function tensor_function_get_num_dims ( this )
+  implicit none
+  class(tensor_function_t), intent(in)    :: this
+  integer(ip)  ::  tensor_function_get_num_dims
+  tensor_function_get_num_dims = this%num_dims
+end function tensor_function_get_num_dims
+
 subroutine tensor_function_get_value_space( this, point, result )
   !import :: point_t, rp
   class(tensor_function_t), intent(in) :: this

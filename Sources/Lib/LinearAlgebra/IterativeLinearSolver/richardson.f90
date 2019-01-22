@@ -43,9 +43,6 @@ module richardson_names
 # include "debug.i90"
   private
 
-  integer (ip), parameter :: default_richardson_stopping_criteria = res_res
-  real (rp),    parameter :: default_richardson_relaxation        = 1.0_rp
-
   type, extends(base_iterative_linear_solver_t) :: richardson_t
     ! Working space vectors for type(richardson_t)
     class(vector_t), allocatable :: r
@@ -94,9 +91,9 @@ contains
    integer(ip)                          :: FPLError
    call this%base_iterative_linear_solver_set_parameters_from_pl(parameter_list)
    ! Relaxation
-   if(parameter_list%isPresent(ils_relaxation)) then
-       assert(parameter_list%isAssignable(ils_relaxation, this%relaxation))
-       FPLError   = parameter_list%Get(Key=ils_relaxation, Value=this%relaxation)
+   if(parameter_list%isPresent(ils_relaxation_key)) then
+       assert(parameter_list%isAssignable(ils_relaxation_key, this%relaxation))
+       FPLError   = parameter_list%Get(Key=ils_relaxation_key, Value=this%relaxation)
        assert(FPLError == 0)
    endif
   end subroutine richardson_set_parameters_from_pl

@@ -155,9 +155,9 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent   (key = struct_hex_triang_num_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
@@ -591,7 +591,7 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -609,9 +609,9 @@ contains
        assert(.false.) 
     end select
 #else    
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)

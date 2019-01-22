@@ -45,19 +45,6 @@ module base_iterative_linear_solver_names
   integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
   integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
   integer(ip), parameter :: workspace_allocated = 2  ! All workspace required by solve TBP available 
-
-  !-------------------------------------------------------------------
-  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
-  ! A default value for stopping criteria is not declared here as the set of
-  ! supported stopping criteria is highly dependent on the particular implementor
-  ! of class(base_iterative_linear_solver_t)
-  !-------------------------------------------------------------------
-  integer (ip), parameter :: default_luout                      = 6
-  real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
-  real    (rp), parameter :: default_atol                       = 0.0_rp
-  integer (ip), parameter :: default_output_frequency           = 1 
-  integer (ip), parameter :: default_max_num_iterations         = 1000
-  logical,      parameter :: default_track_convergence_history  = .false.
   
   ! State transition diagram for type(base_iterative_linear_solver_t)
   ! -----------------------------------------------------------
@@ -90,7 +77,7 @@ module base_iterative_linear_solver_names
     class(vector_t), allocatable :: initial_solution
   
     ! Parameters
-    real(rp)      :: luout                     ! Logical Unit Output
+    integer(ip)   :: luout                     ! Logical Unit Output
     real(rp)      :: rtol                      ! Relative tolerance
     real(rp)      :: atol                      ! Absolute tolerance
     integer(ip)   :: stopping_criteria         ! Stopping criteria
@@ -704,39 +691,45 @@ contains
       type(ParameterList_t),                 intent(in)    :: parameter_list
       integer(ip)                                          :: FPLError
       ! Rtol
-      if(parameter_list%isPresent(ils_rtol)) then
-          assert(parameter_list%isAssignable(ils_rtol, this%rtol))
-          FPLError   = parameter_list%Get(Key=ils_rtol, Value=this%rtol)
+      if(parameter_list%isPresent(ils_rtol_key)) then
+          assert(parameter_list%isAssignable(ils_rtol_key, this%rtol))
+          FPLError   = parameter_list%Get(Key=ils_rtol_key, Value=this%rtol)
           assert(FPLError == 0)
       endif
       ! Atol
-      if(parameter_list%isPresent(ils_atol)) then
-          assert(parameter_list%isAssignable(ils_atol, this%atol))
-          FPLError   = parameter_list%Get(Key=ils_atol, Value=this%atol)
+      if(parameter_list%isPresent(ils_atol_key)) then
+          assert(parameter_list%isAssignable(ils_atol_key, this%atol))
+          FPLError   = parameter_list%Get(Key=ils_atol_key, Value=this%atol)
           assert(FPLError == 0)
       endif
       ! Stopping criterias
-      if(parameter_list%isPresent(ils_stopping_criteria)) then
-          assert(parameter_list%isAssignable(ils_stopping_criteria, this%stopping_criteria))
-          FPLError   = parameter_list%Get(Key=ils_stopping_criteria, Value=this%stopping_criteria)
+      if(parameter_list%isPresent(ils_stopping_criterium_key)) then
+          assert(parameter_list%isAssignable(ils_stopping_criterium_key, this%stopping_criteria))
+          FPLError   = parameter_list%Get(Key=ils_stopping_criterium_key, Value=this%stopping_criteria)
           assert(FPLError == 0)
       endif
       ! Output frequency
-      if(parameter_list%isPresent(ils_output_frequency)) then
-          assert(parameter_list%isAssignable(ils_output_frequency, this%output_frequency))
-          FPLError   = parameter_list%Get(Key=ils_output_frequency, Value=this%output_frequency)
+      if(parameter_list%isPresent(ils_output_frequency_key)) then
+          assert(parameter_list%isAssignable(ils_output_frequency_key, this%output_frequency))
+          FPLError   = parameter_list%Get(Key=ils_output_frequency_key, Value=this%output_frequency)
           assert(FPLError == 0)
       endif
       ! Max num iterations
-      if(parameter_list%isPresent(ils_max_num_iterations)) then
-          assert(parameter_list%isAssignable(ils_max_num_iterations, this%max_num_iterations))
-          FPLError   = parameter_list%Get(Key=ils_max_num_iterations, Value=this%max_num_iterations)
+      if(parameter_list%isPresent(ils_max_num_iterations_key)) then
+          assert(parameter_list%isAssignable(ils_max_num_iterations_key, this%max_num_iterations))
+          FPLError   = parameter_list%Get(Key=ils_max_num_iterations_key, Value=this%max_num_iterations)
           assert(FPLError == 0)
       endif
       ! Track convergence history
-      if(parameter_list%isPresent(ils_track_convergence_history)) then
-          assert(parameter_list%isAssignable(ils_track_convergence_history, this%track_convergence_history))
-          FPLError   = parameter_list%Get(Key=ils_track_convergence_history, Value=this%track_convergence_history)
+      if(parameter_list%isPresent(ils_track_convergence_history_key)) then
+          assert(parameter_list%isAssignable(ils_track_convergence_history_key, this%track_convergence_history))
+          FPLError   = parameter_list%Get(Key=ils_track_convergence_history_key, Value=this%track_convergence_history)
+          assert(FPLError == 0)
+      endif
+      ! Track convergence history
+      if(parameter_list%isPresent(ils_luout_key)) then
+          assert(parameter_list%isAssignable(ils_luout_key, this%luout))
+          FPLError   = parameter_list%Get(Key=ils_luout_key, Value=this%luout)
           assert(FPLError == 0)
       endif
     end subroutine base_iterative_linear_solver_set_parameters_from_pl

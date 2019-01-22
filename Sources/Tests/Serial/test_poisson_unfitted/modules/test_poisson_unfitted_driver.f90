@@ -143,15 +143,19 @@ contains
     implicit none
     class(test_poisson_unfitted_driver_t ), target, intent(inout) :: this
 
-    integer(ip) :: num_dime
+    integer(ip) :: num_dims
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = num_dims_key) )
-    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
+    if ( this%test_params%get_triangulation_type() == 'structured' ) then
+      assert( this%parameter_list%isPresent    (key = struct_hex_triang_num_dims_key) )
+      assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dims) )
+      istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dims); check(istat==0)
+    else
+      num_dims = this%test_params%get_num_dims()
+    end if
 
     !TODO we assume it is a sphere
     select case ('sphere')
@@ -179,15 +183,15 @@ contains
     !call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dims(num_dime)
+    call this%level_set_function%set_num_dims(num_dims)
     call this%level_set_function%set_tolerance(1.0e-6)
 
     ! Set options of the derived classes
     levset => this%level_set_function
     select type ( levset )
       class is (level_set_sphere_t)
-        call levset%set_radius(0.9)!0.625_rp)
-        call levset%set_center([0.0,0.0,0.0])
+        call levset%set_radius( 0.9_rp )
+        call levset%set_center([0.0_rp,0.0_rp,0.0_rp])
       class default
         check(.false.)
     end select
@@ -197,19 +201,16 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
+
     class(vef_iterator_t), allocatable  :: vef
-    integer(ip) :: istat
-    real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
-
     class(cell_iterator_t), allocatable :: cell
+    type(point_t), allocatable :: cell_coords(:)
+    integer(ip) :: istat
     integer(ip) :: set_id
+    real(rp) :: x, y
+    integer(ip) :: num_void_neigs
 
-    ! Create a structured mesh with a custom domain
-    !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
-
-    ! New call for unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
-    !if ( this%triangulation%get_num_cells() <= 100 ) call this%triangulation%print()
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
@@ -225,9 +226,8 @@ contains
     end do
     call this%triangulation%fill_cells_set(this%cell_set_ids)
     call this%triangulation%free_cell_iterator(cell)
-
-    ! Impose Dirichlet in the boundary of the background mesh
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    
+    !if ( this%test_params%get_triangulation_type() == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -238,7 +238,7 @@ contains
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
-    end if
+    !end if
 
   end subroutine setup_triangulation
 
@@ -369,7 +369,7 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -387,9 +387,9 @@ contains
        assert(.false.)
     end select
 #else
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
@@ -611,6 +611,10 @@ contains
       call vtk_writer%attach_fitted_faces(this%triangulation)
       call vtk_writer%write_to_vtk_file('out_mesh_facets.vtu')
       call vtk_writer%free()
+
+      call vtk_writer%attach_vefs(this%triangulation)
+      call vtk_writer%write_to_vtk_file('out_mesh_vefs.vtu')
+      call vtk_writer%free()
       
       call vtk_writer%attach_facets_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_fitted_facets_boundary_normals.vtu')
@@ -732,24 +736,24 @@ subroutine compute_domain_surface( this )
 
     surface = 0.0_rp
     do while ( .not. fe%has_finished() )
+       if ( fe%is_cut() ) then
+          ! Update FE-integration related data structures
+          call fe%update_boundary_integration()
 
-       ! Update FE-integration related data structures
-       call fe%update_boundary_integration()
+          ! As the quadrature changes elem by elem, this has to be inside the loop
+          quadrature => fe%get_boundary_quadrature()
+          num_quad_points = quadrature%get_num_quadrature_points()
+          cell_map => fe%get_boundary_piecewise_cell_map()
 
-       ! As the quadrature changes elem by elem, this has to be inside the loop
-       quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_num_quadrature_points()
-       cell_map => fe%get_boundary_piecewise_cell_map()
+          ! Physical coordinates of the quadrature points
+          quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
 
-       ! Physical coordinates of the quadrature points
-       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
-
-       ! Integrate!
-       do qpoint = 1, num_quad_points
-         dS = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-         surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
-       end do
-
+          ! Integrate!
+          do qpoint = 1, num_quad_points
+            dS = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+            surface = surface + dS !quadrature_points_coordinates(qpoint)%get(1)*quadrature_points_coordinates(qpoint)%get(2)*dS
+          end do
+       end if
        call fe%next()
     end do
 

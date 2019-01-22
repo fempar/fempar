@@ -28,6 +28,7 @@
 module parameter_handler_names
   use types_names
   use flap, only : Command_Line_Interface
+  use flap_utils_m
   use FPL
 # include "debug.i90"
   implicit none
@@ -51,21 +52,25 @@ module parameter_handler_names
    contains
      procedure                                  :: create                   => parameter_handler_create
      procedure(define_parameters_interface), deferred :: define_parameters 
-     procedure, non_overridable, private        :: assert_lists_consistency => parameter_handler_assert_lists_consistency
-     procedure, non_overridable, private        :: add_to_cli               => parameter_handler_add_to_cli
+     procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
+     procedure, non_overridable                 :: add_to_cli               => parameter_handler_add_to_cli
      procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
-     procedure, non_overridable, private        :: parse                    => parameter_handler_parse
+     procedure, non_overridable                 :: init_cli                 => parameter_handler_init_cli
+     procedure, non_overridable                 :: parse                    => parameter_handler_parse
      procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
-     procedure, non_overridable                 :: free                     => parameter_handler_free
+     procedure                                  :: free                     => parameter_handler_free
      procedure, non_overridable                 :: get_values               => parameter_handler_get_values 
      procedure, non_overridable                 :: get_switches             => parameter_handler_get_switches   
      procedure, non_overridable                 :: get_switches_ab          => parameter_handler_get_switches_ab
      procedure, non_overridable                 :: get_helpers              => parameter_handler_get_helpers    
      procedure, non_overridable                 :: get_required             => parameter_handler_get_required   
-     procedure, non_overridable, private        :: initialize_lists         => parameter_handler_initialize_lists  
+     procedure, non_overridable                 :: initialize_lists         => parameter_handler_initialize_lists  
   end type parameter_handler_t
 
   public :: parameter_handler_t
+  public :: parameter_handler_free
+  public :: count_tokens_cla_string_list 
+  public :: process_tokens_cla_string_list
   
   
   abstract interface
@@ -85,11 +90,12 @@ module parameter_handler_names
 
 contains
 
-  subroutine parameter_handler_create(this, progname, version, help, description, &
+  subroutine parameter_handler_create(this, parse_cla, progname, version, help, description, &
                                         license, authors, examples, epilog, disable_hv, &
                                         usage_lun, error_lun, version_lun)
     implicit none
     class(parameter_handler_t), intent(inout) :: this
+    logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
     character(*),       optional, intent(in)    :: progname          !< Program name.
     character(*),       optional, intent(in)    :: version           !< Program version.
     character(*),       optional, intent(in)    :: help              !< Help message introducing the CLI usage.
@@ -103,19 +109,28 @@ contains
     integer(ip),        optional, intent(in)    :: version_lun       !< Unit number to print version/license info
     integer(ip),        optional, intent(in)    :: error_lun         !< Unit number to print error info
     
+    logical :: parse_cla_
+    parse_cla_ = .true.
+    if ( present(parse_cla) ) parse_cla_ = parse_cla
+
     call this%free()
 
-    call this%cli%init(progname, version, help, description, &
-                       license, authors, examples, epilog, disable_hv, &
-                       usage_lun, error_lun, version_lun)
+    if ( parse_cla_ ) then
+      call this%cli%init(progname, version, help, description, &
+                         license, authors, examples, epilog, disable_hv, &
+                         usage_lun, error_lun, version_lun)
+    end if
     
     call this%initialize_lists()
     call this%define_parameters()
+    
 #ifdef DEBUG
     call this%assert_lists_consistency()
 #endif
-    call this%add_to_cli()
-    call this%parse()
+    if ( parse_cla_ ) then 
+      call this%add_to_cli()
+      call this%parse()
+    end if
   end subroutine parameter_handler_create
 
   !==================================================================================================
@@ -182,17 +197,17 @@ contains
      type(ParameterList_t), pointer :: required_sublist
      type(ParameterList_t), pointer :: values_sublist
      
-     assert(this%switches%length() == this%switches_ab%length())
+!     assert(this%switches%length() == this%switches_ab%length())
      assert(this%switches%length() == this%helpers%length())
-     assert(this%switches%length() == this%required%length())
+!     assert(this%switches%length() == this%required%length())
 !     assert(this%switches%length() == this%values%length())
      
      Iterator = this%switches%GetIterator()
      do while (.not. Iterator%HasFinished())
           key = Iterator%GetKey()
-          assert(this%switches_ab%isPresent(key))
+          !assert(this%switches_ab%isPresent(key))
           assert(this%helpers%isPresent(key))
-          assert(this%required%isPresent(key))
+          !assert(this%required%isPresent(key))
           assert(this%values%isPresent(key))
           if (Iterator%isSubList()) then
             assert(Iterator%GetSublist(switches_sublist)==0)
@@ -293,16 +308,29 @@ contains
        endif
        key = Iterator%GetKey()
        error = error + Iterator%GetAsString   (switch)
-       error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       if ( switches_ab%isPresent(key = key) ) then
+         error = error + switches_ab%GetAsString(key = key , String = switch_ab)
+       end if
        error = error + helpers%GetAsString    (key = key , String = help)
-       error = error + required%Get           (key = key , value = is_required)
+       !error = error + required%Get           (key = key , value = is_required)
+       is_required = .false.
        error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
        if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
-        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-           &               required=is_required,act='store',def=cvalue,error=error)
+         if ( switches_ab%isPresent(key = key) ) then
+           call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error)
+         else 
+           call this%cli%add(group=group,switch=switch,help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error)
+         end if  
        else if(values%GetDimensions(Key=Iterator%GetKey()) == 1) then 
-         call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-            &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         if ( switches_ab%isPresent(key = key) ) then
+           call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         else 
+           call this%cli%add(group=group,switch=switch, help=help, &
+             &               required=is_required,act='store',def=cvalue,error=error,nargs='+')
+         end if
        else
           write(*,*) 'Rank >1 arrays not supported by CLI'
           assert(.false.)
@@ -311,7 +339,7 @@ contains
        call Iterator%Next()
     end do
   end subroutine parameter_handler_add_to_cli_group
-
+  
   !==================================================================================================
   subroutine parameter_handler_parse(this)
     implicit none
@@ -343,6 +371,13 @@ contains
     enddo
 
   end subroutine parameter_handler_parse  
+  
+  !==================================================================================================
+  subroutine parameter_handler_init_cli(this)
+    implicit none
+    class(parameter_handler_t), intent(inout) :: this
+    call this%cli%init()
+  end subroutine parameter_handler_init_cli  
 
   
   subroutine parameter_handler_parse_group(this,switches,values,group)
@@ -410,5 +445,29 @@ contains
     call this%helpers%init()
     call this%required%init()
   end subroutine parameter_handler_initialize_lists
+  
+  function count_tokens_cla_string_list (string_list) 
+    implicit none
+    character(*)       , intent(in) :: string_list
+    integer(ip) :: count_tokens_cla_string_list
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=count_tokens_cla_string_list)
+    deallocate(vals)
+  end function count_tokens_cla_string_list
+  
+  subroutine process_tokens_cla_string_list ( string_list, values ) 
+    implicit none 
+    character(*)       , intent(in)    :: string_list
+    character(*)       , intent(inout) :: values(:)
+    character(len=len(string_list)), allocatable :: vals(:) !< String array of values based on buffer value.
+    integer(ip) :: Nt, i
+    call tokenize(strin=string_list, delimiter=' ', toks=vals, Nt=Nt)
+    assert ( size(values) == Nt) 
+    do i=1, size(vals) 
+      values(i)=vals(i)
+    end do 
+    deallocate(vals)
+  end subroutine process_tokens_cla_string_list
+  
 
 end module parameter_handler_names 

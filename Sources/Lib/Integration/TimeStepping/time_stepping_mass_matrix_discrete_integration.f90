@@ -37,8 +37,9 @@ module time_stepping_mass_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: mass_discrete_integration_t
-     type(fe_function_t) :: fe_function 
+  type, extends(discrete_integration_t) :: mass_discrete_integration_t 
+  !< Mass matrix discrete integration associated with the `mass_op` in the `time_stepping_operator_t`
+     type(fe_function_t) :: fe_function !< This FE function represents the values of the temporal derivative
    contains
      procedure :: integrate_galerkin
      procedure :: set_evaluation_point
@@ -56,6 +57,10 @@ contains
     call this%fe_function%free()
   end subroutine free
   
+  !> As the mass operator is supposed to be `type(fe_affine_operator_t)` only integrate galerkin is needed to
+  !> integrate the mass matrix and the restricted BC's.
+  !> @note
+  !> The force term is not evaluated for integrating the mass matrix, and `elvec` is kept to 0.0
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(mass_discrete_integration_t), intent(in)    :: this
@@ -120,6 +125,8 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
+  !> The `fe_function_t` associated have a composition relationship with `mass_discrete_integration_t`, 
+  !> i.e., is created and freed within the scope of this module.
   subroutine create_fe_function ( this, fe_space ) 
      implicit none
      class(mass_discrete_integration_t), intent(inout)  :: this
@@ -134,6 +141,9 @@ contains
     call this%fe_function%set_free_dof_values(evaluation_point)
   end subroutine set_evaluation_point
   
+  !> This subroutine evaluates the temporal derivative at the Dirichlet Boundary for current time
+  !> @todo
+  !> The name may not be well chosen
   subroutine set_current_time (this, fe_space, current_time)
    implicit none
    class(mass_discrete_integration_t), intent(inout) :: this

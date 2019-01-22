@@ -32,14 +32,8 @@ module par_pb_bddc_maxwell_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
-
-  ! Scalar functions 
-  type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-  end type base_scalar_function_t
     
-  type, extends(base_scalar_function_t) :: resistivity_function_t
+  type, extends(scalar_function_t) :: resistivity_function_t
    private 
     character(len=:), allocatable :: coefficient_case 
     real(rp)                      :: default_value 
@@ -66,7 +60,7 @@ module par_pb_bddc_maxwell_analytical_functions_names
      procedure :: get_value_space    => resistivity_function_black_get_value_space
   end type resistivity_function_black_t 
   
-  type, extends(base_scalar_function_t) :: permeability_function_t
+  type, extends(scalar_function_t) :: permeability_function_t
    private 
     character(len=:), allocatable :: coefficient_case
     real(rp)                      :: default_value 
@@ -94,39 +88,33 @@ module par_pb_bddc_maxwell_analytical_functions_names
   end type permeability_function_black_t 
   
   ! Boundary scalar functions definition 
-    type, extends(base_scalar_function_t) :: boundary_function_Hx_t
+    type, extends(scalar_function_t) :: boundary_function_Hx_t
     private 
    contains
      procedure :: get_value_space    => boundary_function_Hx_get_value_space
   end type boundary_function_Hx_t 
   
-    type, extends(base_scalar_function_t) :: boundary_function_Hy_t
+    type, extends(scalar_function_t) :: boundary_function_Hy_t
     private 
    contains
      procedure :: get_value_space    => boundary_function_Hy_get_value_space
   end type boundary_function_Hy_t 
   
-   type, extends(base_scalar_function_t) :: boundary_function_Hz_t
+   type, extends(scalar_function_t) :: boundary_function_Hz_t
     private 
    contains
      procedure :: get_value_space    => boundary_function_Hz_get_value_space
   end type boundary_function_Hz_t 
   
   ! Vector functions 
-   type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_vector_function_set_num_dims
-  end type base_vector_function_t
-  
-    type, extends(base_vector_function_t) :: source_term_t
+    type, extends(vector_function_t) :: source_term_t
      real(rp) :: permeability 
      real(rp) :: resistivity 
    contains
      procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
 
-   type, extends(base_vector_function_t) :: solution_t
+   type, extends(vector_function_t) :: solution_t
    contains
      procedure :: get_value_space    => solution_get_value_space
      procedure :: get_gradient_space => solution_get_gradient_space
@@ -207,15 +195,7 @@ contains
     real(rp), intent(in) ::  default_value
     this%default_value = default_value
   end subroutine permeability_function_set_default_value
-  
-  !===============================================================================================
-  subroutine base_vector_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_vector_function_set_num_dims
-  
+    
    !===============================================================================================
   subroutine resistivity_function_white_get_value_space( this, point, result )
     implicit none 
@@ -227,7 +207,6 @@ contains
     case ( constant ) 
 	     result = this%default_value 
     case ( sinusoidal ) 
-      !result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)+point%get(2)+point%get(3))))
       result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1))))
     case DEFAULT 
     massert( .false. , 'Invalid resistivity coefficient case' ) 
@@ -262,7 +241,6 @@ contains
     case ( constant ) 
 	     result = this%default_value 
     case ( sinusoidal ) 
-      result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1)-point%get(2)+point%get(3))))
       result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(2))))
     case DEFAULT 
     massert( .false. , 'Invalid resistivity coefficient case' ) 

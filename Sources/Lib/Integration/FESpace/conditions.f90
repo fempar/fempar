@@ -37,7 +37,7 @@ module conditions_names
   ! indicator + component combination
   type, abstract :: conditions_t
    contains
-     procedure(get_num_components_interface), deferred :: get_num_components
+     procedure(get_num_components_interface)   , deferred :: get_num_components
      procedure(get_components_code_interface)  , deferred :: get_components_code
      procedure(get_function_interface)         , deferred :: get_function
   end type conditions_t

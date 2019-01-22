@@ -54,6 +54,7 @@ module mpi_context_names
   integer, parameter :: mpi_context_lg   = mpi_logical
   integer, parameter :: mpi_context_root = 0
   integer, parameter :: mpi_context_tag  = 1453524 ! which number should go here?
+  integer :: mpi_context_status(mpi_status_size)
 
   ! Parallel context
   type, extends(execution_context_t) :: mpi_context_t
@@ -89,6 +90,7 @@ module mpi_context_names
      procedure :: scatter_ip         => mpi_context_scatter_scalar_ip
      procedure :: gather_ip          => mpi_context_gather_scalar_ip
      procedure :: bcast_ip           => mpi_context_bcast_scalar_ip
+     procedure :: bcast_ip_1D_array  => mpi_context_bcast_scalar_ip_1D_array
      procedure :: scatter_igp        => mpi_context_scatter_scalar_igp
      procedure :: gather_igp         => mpi_context_gather_scalar_igp
      procedure :: bcast_igp          => mpi_context_bcast_scalar_igp
@@ -104,6 +106,18 @@ module mpi_context_names
      procedure :: neighbours_exchange_wo_unpack_ip         => mpi_context_neighbours_exchange_wo_unpack_ip
      procedure :: neighbours_exchange_variable_igp         => mpi_context_neighbours_exchange_variable_igp
      procedure :: neighbours_exchange_variable_ip          => mpi_context_neighbours_exchange_variable_ip       
+     procedure :: send_ip           => mpi_context_send_ip
+     procedure :: send_igp          => mpi_context_send_igp     
+     procedure :: send_rp           => mpi_context_send_rp
+     procedure :: send_ip_1D_array  => mpi_context_send_ip_1D_array
+     procedure :: send_igp_1D_array => mpi_context_send_igp_1D_array
+     procedure :: send_rp_1D_array  => mpi_context_send_rp_1D_array
+     procedure :: rcv_ip            => mpi_context_rcv_ip
+     procedure :: rcv_igp           => mpi_context_rcv_igp     
+     procedure :: rcv_rp            => mpi_context_rcv_rp
+     procedure :: rcv_ip_1D_array   => mpi_context_rcv_ip_1D_array
+     procedure :: rcv_igp_1D_array  => mpi_context_rcv_igp_1D_array     
+     procedure :: rcv_rp_1D_array   => mpi_context_rcv_rp_1D_array
      procedure :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
      procedure :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => mpi_context_root_send_master_rcv_rp
@@ -456,7 +470,7 @@ contains
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
        call mpi_recv(condition, 1, mpi_context_lg, send_rank,  &
-               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+               & mpi_context_tag, this%icontxt, mpi_context_status, istat); check( istat == mpi_success )
     end if
 
     select type(subcontxt2)
@@ -1752,6 +1766,15 @@ contains
   end subroutine mpi_context_bcast_scalar_ip
   
   !=============================================================================
+  subroutine mpi_context_bcast_scalar_ip_1D_array ( this, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(inout) :: data(:)
+    integer  ::  istat
+    call mpi_bcast(data,size(data),mpi_context_ip,mpi_context_root,this%icontxt,istat); check( istat == mpi_success )
+  end subroutine mpi_context_bcast_scalar_ip_1D_array
+  
+  !=============================================================================
   subroutine mpi_context_gather_scalar_igp ( this, input_data, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
@@ -2209,6 +2232,209 @@ contains
   end subroutine fill_ptr_snd_rcv_size
   
   !=============================================================================
+  subroutine mpi_context_send_ip ( this, rcv_task, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(ip)         , intent(in)    :: data
+    integer :: recv_rank, istat
+    massert(rcv_task<this%get_num_tasks(),'Wrong task number in mpi_context_send_ip')
+    recv_rank = rcv_task
+    call mpi_send(data, 1, mpi_context_ip, recv_rank,  &
+         &        mpi_context_tag, this%icontxt, istat)
+    mcheck( istat == mpi_success, 'Error in mpi_context_send_ip' )
+  end subroutine mpi_context_send_ip
+
+  subroutine mpi_context_rcv_ip ( this, send_task, data )
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(ip)          , intent(inout) :: data
+    integer :: send_rank, istat
+    if(send_task>0) then
+       massert(send_task<this%get_num_tasks(),'Wrong task number in mpi_context_root_send_rcv_ip')
+       send_rank = send_task
+       call mpi_recv(data, 1, mpi_context_ip, send_rank,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_ip'  )
+    else
+       call mpi_recv(data, 1, mpi_context_ip, mpi_any_source,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_ip'  )
+       send_task = mpi_context_status(mpi_source)
+    end if
+  end subroutine mpi_context_rcv_ip
+
+  !=============================================================================
+  subroutine mpi_context_send_igp ( this, rcv_task, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(igp)        , intent(in)    :: data
+    integer :: recv_rank, istat
+    massert(rcv_task<this%get_num_tasks(),'Wrong task number in mpi_context_send_ip')
+    recv_rank = rcv_task
+    call mpi_send(data, 1, mpi_context_ip, recv_rank,  &
+         &        mpi_context_tag, this%icontxt, istat)
+    mcheck( istat == mpi_success, 'Error in mpi_context_send_ip' )
+  end subroutine mpi_context_send_igp
+
+  subroutine mpi_context_rcv_igp ( this, send_task, data )
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(igp)         , intent(inout) :: data
+    integer :: send_rank, istat
+    if(send_task>0) then
+       massert(send_task<this%get_num_tasks(),'Wrong task number in mpi_context_root_send_rcv_ip')
+       send_rank = send_task
+       call mpi_recv(data, 1, mpi_context_igp, send_rank,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_ip'  )
+    else
+       call mpi_recv(data, 1, mpi_context_igp, mpi_any_source,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_ip'  )
+       send_task = mpi_context_status(mpi_source)
+    end if
+  end subroutine mpi_context_rcv_igp
+  
+  !=============================================================================
+  subroutine mpi_context_send_rp ( this, rcv_task, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    real(rp)         , intent(in)    :: data
+    integer :: recv_rank, istat
+    massert(rcv_task<this%get_num_tasks(),'Wrong task number in mpi_context_send_rp')
+    recv_rank = rcv_task
+    call mpi_send(data, 1, mpi_context_rp, recv_rank,  &
+         &        mpi_context_tag, this%icontxt, istat)
+    mcheck( istat == mpi_success, 'Error in mpi_context_send_rp' )
+  end subroutine mpi_context_send_rp
+
+  subroutine mpi_context_rcv_rp ( this, send_task, data )
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    real(rp)          , intent(inout) :: data
+    integer :: send_rank, istat
+    if(send_task>0) then
+       massert(send_task<this%get_num_tasks(),'Wrong task number in mpi_context_root_send_rcv_rp')
+       send_rank = send_task
+       call mpi_recv(data, 1, mpi_context_rp, send_rank,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_rp'  )
+    else
+       call mpi_recv(data, 1, mpi_context_rp, mpi_any_source,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_rp'  )
+       send_task = mpi_context_status(mpi_source)
+    end if
+  end subroutine mpi_context_rcv_rp
+
+  !=============================================================================
+  subroutine mpi_context_send_ip_1D_array ( this, rcv_task, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(ip)         , intent(in)    :: data(:)
+    integer :: recv_rank, istat
+    massert(rcv_task<this%get_num_tasks(),'Wrong task number in mpi_context_send_ip')
+    recv_rank = rcv_task
+    call mpi_send(data, size(data), mpi_context_ip, recv_rank,  &
+         &        mpi_context_tag, this%icontxt, istat)
+    mcheck( istat == mpi_success, 'Error in mpi_context_send_ip' )
+  end subroutine mpi_context_send_ip_1D_array
+
+  subroutine mpi_context_rcv_ip_1D_array ( this, send_task, data)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(ip)          , intent(inout) :: data(:)
+    integer :: send_rank, istat
+    if(send_task>0) then
+       massert(send_task<this%get_num_tasks(),'Wrong task number in mpi_context_root_send_rcv_ip')
+       send_rank = send_task
+       call mpi_recv(data, size(data), mpi_context_ip, send_rank,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_ip'  )
+    else
+       call mpi_recv(data, size(data), mpi_context_ip, mpi_any_source,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_ip'  )
+       send_task = mpi_context_status(mpi_source)
+    end if
+  end subroutine mpi_context_rcv_ip_1D_array
+
+ !=============================================================================
+  subroutine mpi_context_send_igp_1D_array ( this, rcv_task, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    integer(igp)        , intent(in)    :: data(:)
+    integer :: recv_rank, istat
+    massert(rcv_task<this%get_num_tasks(),'Wrong task number in mpi_context_send_igp')
+    recv_rank = rcv_task
+    call mpi_send(data, size(data), mpi_context_igp, recv_rank,  &
+         &        mpi_context_tag, this%icontxt, istat)
+    mcheck( istat == mpi_success, 'Error in mpi_context_send_igp' )
+  end subroutine mpi_context_send_igp_1D_array
+
+  subroutine mpi_context_rcv_igp_1D_array ( this, send_task, data)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    integer(igp)          , intent(inout) :: data(:)
+    integer :: send_rank, istat
+    if(send_task>0) then
+       massert(send_task<this%get_num_tasks(),'Wrong task number in mpi_context_root_send_rcv_igp')
+       send_rank = send_task
+       call mpi_recv(data, size(data), mpi_context_igp, send_rank,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_igp'  )
+    else
+       call mpi_recv(data, size(data), mpi_context_igp, mpi_any_source,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_igp'  )
+       send_task = mpi_context_status(mpi_source)
+    end if
+  end subroutine mpi_context_rcv_igp_1D_array
+  
+  !=============================================================================
+  subroutine mpi_context_send_rp_1D_array ( this, rcv_task, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(ip)         , intent(in)    :: rcv_task
+    real(rp)         , intent(in)    :: data(:)
+    integer :: recv_rank, istat
+    massert(rcv_task<this%get_num_tasks(),'Wrong task number in mpi_context_send_rp')
+    recv_rank = rcv_task
+    call mpi_send(data, size(data), mpi_context_rp, recv_rank,  &
+         &        mpi_context_tag, this%icontxt, istat)
+    mcheck( istat == mpi_success, 'Error in mpi_context_send_rp' )
+  end subroutine mpi_context_send_rp_1D_array
+
+  subroutine mpi_context_rcv_rp_1D_array ( this, send_task, data)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: send_task
+    real(rp)          , intent(inout) :: data(:)
+    integer :: send_rank, istat
+    if(send_task>0) then
+       massert(send_task<this%get_num_tasks(),'Wrong task number in mpi_context_root_send_rcv_rp')
+       send_rank = send_task
+       call mpi_recv(data, size(data), mpi_context_rp, send_rank,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_rp'  )
+    else
+       call mpi_recv(data, size(data), mpi_context_rp, mpi_any_source,  &
+            &      mpi_context_tag, this%icontxt, mpi_context_status, istat)
+       mcheck( istat == mpi_success, 'Error in mpi_context_rcv_rp'  )
+       send_task = mpi_context_status(mpi_source)
+    end if
+  end subroutine mpi_context_rcv_rp_1D_array
+
   !=============================================================================
   subroutine mpi_context_root_send_master_rcv_ip ( this, input_data, output_data )
     implicit none
@@ -2223,7 +2449,7 @@ contains
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
        call mpi_recv(output_data, 1, mpi_context_ip, send_rank,  &
-               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+               & mpi_context_tag, this%icontxt, mpi_context_status, istat); check( istat == mpi_success )
     end if
     end subroutine mpi_context_root_send_master_rcv_ip
 
@@ -2241,7 +2467,7 @@ contains
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
        call mpi_recv(output_data, size(output_data), mpi_context_ip, send_rank,  &
-               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+               & mpi_context_tag, this%icontxt, mpi_context_status, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_context_root_send_master_rcv_ip_1D_array
 
@@ -2259,7 +2485,7 @@ contains
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
        call mpi_recv(output_data, 1, mpi_context_rp, send_rank,  &
-               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+               & mpi_context_tag, this%icontxt, mpi_context_status, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_context_root_send_master_rcv_rp
 
@@ -2277,7 +2503,7 @@ contains
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
        call mpi_recv(output_data, size(output_data), mpi_context_rp, send_rank,  &
-               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+               & mpi_context_tag, this%icontxt, mpi_context_status, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_context_root_send_master_rcv_rp_1D_array
   
@@ -2295,7 +2521,7 @@ contains
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
        call mpi_recv(output_data, 1, mpi_context_lg, send_rank,  &
-               & mpi_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+               & mpi_context_tag, this%icontxt, mpi_context_status, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_context_root_send_master_rcv_logical
   

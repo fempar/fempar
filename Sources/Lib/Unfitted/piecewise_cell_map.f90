@@ -132,11 +132,12 @@ contains
   end subroutine piecewise_cell_map_free
 
 !========================================================================================
-  subroutine piecewise_cell_map_update_facet_map( this, quadrature )
+  subroutine piecewise_cell_map_update_facet_map( this, quadrature, cell_map_det_jacobian_is_positive )
 
     implicit none
-    class  (piecewise_cell_map_t),        intent(inout) :: this
+    class  (piecewise_cell_map_t),      intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
+    logical,                            intent(in)    :: cell_map_det_jacobian_is_positive
 
     ! The arguments quadrature is needed only
     ! because the cell_map_update_facet_map requires them, ...
@@ -147,7 +148,9 @@ contains
     real(rp), pointer :: normal_vecs(:,:)
     real(rp) :: reorientation_factor
     
-    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(facet_lid = 1)
+    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(&
+                                                      facet_lid = 1_ip,&
+                                                      cell_map_det_jacobian_is_positive = cell_map_det_jacobian_is_positive)
 
     do imap = 1, this%num_sub_maps
 

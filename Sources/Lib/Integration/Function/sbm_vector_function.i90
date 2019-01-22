@@ -25,6 +25,20 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine vector_function_set_num_dims ( this, num_dims )
+  implicit none
+  class(vector_function_t), intent(inout)    :: this
+  integer(ip)             , intent(in)       ::  num_dims
+  this%num_dims = num_dims
+end subroutine vector_function_set_num_dims
+
+function vector_function_get_num_dims ( this )
+  implicit none
+  class(vector_function_t), intent(in)    :: this
+  integer(ip)  ::  vector_function_get_num_dims
+  vector_function_get_num_dims = this%num_dims
+end function vector_function_get_num_dims
+
 subroutine vector_function_get_value_space( this, point, result )
   class(vector_function_t), intent(in) :: this
   type(point_t), intent(in)            :: point

@@ -113,6 +113,7 @@ contains
     real(rp) :: beta
     real(rp) :: exact_sol_gp
     real(rp), pointer :: lambdas(:,:)
+    logical :: is_void_field
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
@@ -126,13 +127,16 @@ contains
 
     ! Find the first non-void FE
     ! TODO use a function in fe_space istead
+    is_void_field = .true.
     do while ( .not. fe%has_finished() )
-       quad            => fe%get_quadrature()
-       num_quad_points = quad%get_num_quadrature_points()
-       if (num_quad_points > 0) exit
+       if ( .not. fe%is_void(1) ) then 
+         is_void_field = .false.
+         exit
+       end if
        call fe%next()
     end do
-
+    mcheck ( .not. is_void_field , 'integrate_galerkin : Void field' )
+    
     ! TODO We assume that all non-void FEs are the same...
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -142,8 +146,8 @@ contains
     ! TODO  We assume same ref element for all cells, and for all fields
     ref_fe => fe%get_reference_fe(1)
     nodal_quad => ref_fe%get_nodal_quadrature()
-    call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
-    call evaluate_monomials(nodal_quad,shape2mono,degree=this%analytical_functions%get_degree())
+    call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ ) 
+    call evaluate_monomials(nodal_quad,degree=this%analytical_functions%get_degree(),topology=ref_fe%get_topology(),monomials=shape2mono)    
     ! TODO  We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     ! Allocate the eigenvalue solver
@@ -158,7 +162,7 @@ contains
 
        ! Update FE-integration related data structures
        call fe%update_integration()
-
+       
        !WARNING This has to be inside the loop
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()

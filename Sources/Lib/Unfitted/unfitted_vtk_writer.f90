@@ -96,14 +96,30 @@ contains
 
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(triangulation_t), intent(in)    :: triangulation
+    class(triangulation_t),         intent(in)    :: triangulation
 
-    integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
-    integer(ip) :: istat, icell, inode, ino, isubcell
-    class(cell_iterator_t), allocatable  :: cell
-    type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
-    integer(ip) :: the_cell_type, the_subcell_type
-    integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
+
+    class(cell_iterator_t), allocatable           :: cell
+    class(reference_fe_t), pointer                :: geo_reference_fe_cell
+    type(point_t),      allocatable, dimension(:) :: cell_coords
+    type(point_t),      allocatable, dimension(:) :: subcell_coords
+    integer(ip),        allocatable               :: nodes_vtk2fempar(:)
+    integer(ip),        allocatable               :: nodesids(:)
+    
+    integer(ip) :: num_cells
+    integer(ip) :: num_cell_nodes
+    integer(ip) :: num_subcells
+    integer(ip) :: num_subcell_nodes
+    integer(ip) :: num_dime
+    
+    integer(ip) :: istat
+    integer(ip) :: icell
+    integer(ip) :: inode
+    integer(ip) :: ino
+    integer(ip) :: isubcell
+    integer(ip) :: the_cell_type
+    integer(ip) :: the_subcell_type
+    
     integer(ip) :: my_part_id
     
     call this%free()
@@ -146,18 +162,36 @@ contains
     allocate ( subcell_coords(1:num_subcell_nodes), stat = istat ); check(istat == 0)
     call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
     call memalloc ( num_cell_nodes, nodesids        , __FILE__, __LINE__ )
-
-    select case (num_dime)
-      case(3)
-        the_cell_type = 12_I1P
-        the_subcell_type = 10_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
-      case(2)
-        the_cell_type = 9_I1P
-        the_subcell_type = 5_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
-      case default
-      check(.false.)
+    
+    geo_reference_fe_cell => triangulation%get_reference_fe(ref_fe_geo_id = 1_ip)
+    
+    select case (geo_reference_fe_cell%get_topology())
+    case ( topology_tet )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 10_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3 , 4 ]
+        case(2)
+          the_cell_type = 5_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3]
+        case default
+        check(.false.)
+      end select
+    case ( topology_hex )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 12_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
+        case(2)
+          the_cell_type = 9_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+        case default
+        check(.false.)
+      end select
     end select
 
     ! Fill date to be passed to vtkio
@@ -346,6 +380,7 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(triangulation_t), intent(in)    :: triangulation
 
+    class(reference_fe_t), pointer         :: geo_reference_fe_cell
     integer(ip) :: num_facets, num_facet_nodes, num_subfacets, num_subfacet_nodes, num_dime
     integer(ip) :: istat, ifacet, inode, ino, isubfacet
     class(vef_iterator_t), allocatable  :: vef
@@ -402,16 +437,25 @@ contains
     allocate ( facet_coords(1:num_facet_nodes), stat = istat ); check(istat == 0)
     allocate ( subfacet_coords(1:num_subfacet_nodes), stat = istat ); check(istat == 0)
 
+    
+    geo_reference_fe_cell => triangulation%get_reference_fe(ref_fe_geo_id = 1_ip)
     select case (num_dime)
-      case(3)
+    case(3)
+      select case (geo_reference_fe_cell%get_topology())
+      case ( topology_tet )
+        the_facet_type    = 5_I1P
+        the_subfacet_type = 5_I1P
+        nodes_vtk2fempar(:) = [1, 2 , 3]
+      case ( topology_hex ) 
         the_facet_type    = 9_I1P
         the_subfacet_type = 5_I1P
         nodes_vtk2fempar(:) = [1, 2 , 4, 3]
-      case(2)
+      end select
+    case(2)
         the_facet_type    = 3_I1P
         the_subfacet_type = 3_I1P
         nodes_vtk2fempar(:) = [1, 2]
-      case default
+    case default
       check(.false.)
     end select
 
@@ -512,10 +556,12 @@ contains
     type(list_iterator_t) :: nodal_iter
     integer(ip) :: num_dime
     integer(ip) :: inode, icell, ino
-    integer(ip), parameter :: vef_type(0:2) = [1,3,9]
+    integer(ip), parameter :: vef_type_tet(0:2) = [1,3,5]
+    integer(ip), parameter :: vef_type_hex(0:2) = [1,3,9]
     integer(ip), parameter :: nodes_vtk2fempar_0d(1) = [1]
     integer(ip), parameter :: nodes_vtk2fempar_1d(2) = [1, 2]
-    integer(ip), parameter :: nodes_vtk2fempar_2d(4) = [1, 2 , 4, 3]
+    integer(ip), parameter :: nodes_vtk2fempar_2d_tet(3) = [1, 2, 3]
+    integer(ip), parameter :: nodes_vtk2fempar_2d_hex(4) = [1, 2 , 4, 3]
     type(p_scalar_function_t) :: func
     class(scalar_function_t), pointer :: fun
 
@@ -556,7 +602,6 @@ contains
       call memalloc ( this%Nn, this%point_data  , __FILE__, __LINE__ )
       this%point_data(:) = 0.0
     end if
-
     call vef%first()
     inode = 1
     icell = 1
@@ -591,14 +636,25 @@ contains
       else if (vef%get_dim() == 1) then
         this%connect(nodal_ids(1:2)) = nodal_ids( nodes_vtk2fempar_1d(:) ) - 1
       else if (vef%get_dim() == 2) then
-        this%connect(nodal_ids(1:4)) = nodal_ids( nodes_vtk2fempar_2d(:) ) - 1
+        select case (reference_fe%get_topology())
+        case ( topology_tet )
+           this%connect(nodal_ids(1:3)) = nodal_ids( nodes_vtk2fempar_2d_tet(:) ) - 1
+        case ( topology_hex )
+           this%connect(nodal_ids(1:4)) = nodal_ids( nodes_vtk2fempar_2d_hex(:) ) - 1
+        end select
       else
         check(.false.)
       end if
 
       this%offset(icell)        = inode - 1
-      this%cell_type(icell)     = vef_type(vef%get_dim())
       this%cell_data( icell )   = vef%get_set_id()
+      
+      select case (reference_fe%get_topology())
+      case ( topology_tet )
+        this%cell_type(icell) = vef_type_tet(vef%get_dim())
+      case ( topology_hex )
+        this%cell_type(icell) = vef_type_hex(vef%get_dim())
+      end select
 
       icell = icell + 1
       call vef%next()
@@ -761,17 +817,33 @@ contains
 
     call subcell_nodal_quad%create(num_dime,num_cell_eval_points)
 
-    select case (num_dime)
-      case(3)
-        the_cell_type = 12_I1P
-        the_subcell_type = 10_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
-      case(2)
-        the_cell_type = 9_I1P
-        the_subcell_type = 5_I1P
-        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
-      case default
-      check(.false.)
+    select case (geo_reference_fe_cell%get_topology())
+    case ( topology_tet )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 10_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3 , 4 ]
+        case(2)
+          the_cell_type = 5_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 3]
+        case default
+        check(.false.)
+      end select
+    case ( topology_hex )
+      select case (num_dime)
+        case(3)
+          the_cell_type = 12_I1P
+          the_subcell_type = 10_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
+        case(2)
+          the_cell_type = 9_I1P
+          the_subcell_type = 5_I1P
+          nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+        case default
+        check(.false.)
+      end select
     end select
 
     ! Loops to fill data
@@ -978,10 +1050,12 @@ contains
 
     total_num_quad_points = 0
     do while ( .not. fe%has_finished() )
-       call fe%update_boundary_integration()
-       quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_num_quadrature_points()
-       total_num_quad_points = total_num_quad_points + num_quad_points
+       if ( fe%is_cut() ) then
+          call fe%update_boundary_integration()
+          quadrature => fe%get_boundary_quadrature()
+          num_quad_points = quadrature%get_num_quadrature_points()
+          total_num_quad_points = total_num_quad_points + num_quad_points
+       end if
        call fe%next()
     end do
   
@@ -1003,7 +1077,7 @@ contains
     do while ( .not. fe%has_finished() )
   
        ! Skip ghost elems
-       if (fe%is_ghost()) then
+       if (fe%is_ghost() .or. .not. fe%is_cut()) then
          call fe%next(); cycle
        end if
   

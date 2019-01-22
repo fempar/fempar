@@ -1,0 +1,1255 @@
+ENTITIES
+POINT
+Num: 1 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 0.0 0.0 0.0
+END POINT
+POINT
+Num: 2 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 0.0 1.0 0.0
+END POINT
+POINT
+Num: 3 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 1.0 1.0 0.0
+END POINT
+POINT
+Num: 4 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 1.0 0.0 0.0
+END POINT
+STLINE
+Num: 1 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=5,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=10
+Points: 1 2
+END STLINE
+STLINE
+Num: 2 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=6,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=10
+Points: 2 3
+END STLINE
+STLINE
+Num: 3 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=7,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=10
+Points: 3 4
+END STLINE
+STLINE
+Num: 4 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=8,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=10
+Points: 4 1
+END STLINE
+NURBSURFACE
+Num: 1 HigherEntity: 0 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=10,NOE=1) Elemtype=2 IsStructured=1 Meshing=Default size=0 weight=0
+NumLines: 4
+Line: 4 Orientation: DIFF1ST
+Line: 3 Orientation: DIFF1ST
+Line: 2 Orientation: DIFF1ST
+Line: 1 Orientation: DIFF1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.050000000000000044,-0.050000000000000044,0.0
+Point 1,2 coords:1.05,-0.050000000000000044,0.0
+Point 2,1 coords:-0.050000000000000044,1.05,0.0
+Point 2,2 coords:1.05,1.05,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: 0.5 0.4999999999999998 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+END ENTITIES
+MESH dimension 3 ElemType Triangle Nnode 3
+Coordinates
+    1               1               1               0
+    2            0.95            0.95               0
+    3             0.9               1               0
+    4               1             0.9               0
+    5             0.9             0.9               0
+    6            0.95            0.85               0
+    7            0.85            0.95               0
+    8             0.8               1               0
+    9               1             0.8               0
+   10            0.85            0.85               0
+   11             0.8             0.9               0
+   12             0.9             0.8               0
+   13            0.95            0.75               0
+   14            0.75            0.95               0
+   15             0.8             0.8               0
+   16            0.85            0.75               0
+   17            0.75            0.85               0
+   18             0.7               1               0
+   19               1             0.7               0
+   20             0.9             0.7               0
+   21             0.7             0.9               0
+   22            0.95            0.65               0
+   23            0.75            0.75               0
+   24            0.65            0.95               0
+   25             0.7             0.8               0
+   26             0.8             0.7               0
+   27            0.85            0.65               0
+   28            0.65            0.85               0
+   29             0.6               1               0
+   30               1             0.6               0
+   31             0.9             0.6               0
+   32             0.6             0.9               0
+   33             0.7             0.7               0
+   34            0.75            0.65               0
+   35            0.65            0.75               0
+   36             0.8             0.6               0
+   37             0.6             0.8               0
+   38            0.95            0.55               0
+   39            0.55            0.95               0
+   40            0.85            0.55               0
+   41            0.55            0.85               0
+   42            0.65            0.65               0
+   43             0.5               1               0
+   44               1             0.5               0
+   45             0.7             0.6               0
+   46             0.6             0.7               0
+   47             0.5             0.9               0
+   48             0.9             0.5               0
+   49            0.75            0.55               0
+   50            0.55            0.75               0
+   51             0.5             0.8               0
+   52             0.8             0.5               0
+   53            0.95            0.45               0
+   54            0.45            0.95               0
+   55             0.6             0.6               0
+   56            0.65            0.55               0
+   57            0.85            0.45               0
+   58            0.55            0.65               0
+   59            0.45            0.85               0
+   60             0.7             0.5               0
+   61             0.5             0.7               0
+   62             0.4               1               0
+   63               1             0.4               0
+   64            0.75            0.45               0
+   65            0.45            0.75               0
+   66             0.9             0.4               0
+   67             0.4             0.9               0
+   68             0.4             0.8               0
+   69             0.8             0.4               0
+   70            0.55            0.55               0
+   71             0.5             0.6               0
+   72             0.6             0.5               0
+   73            0.95            0.35               0
+   74            0.35            0.95               0
+   75            0.65            0.45               0
+   76            0.45            0.65               0
+   77            0.85            0.35               0
+   78            0.35            0.85               0
+   79             0.7             0.4               0
+   80             0.4             0.7               0
+   81            0.75            0.35               0
+   82            0.35            0.75               0
+   83             0.3               1               0
+   84               1             0.3               0
+   85             0.9             0.3               0
+   86             0.5             0.5               0
+   87             0.3             0.9               0
+   88            0.55            0.45               0
+   89            0.45            0.55               0
+   90             0.4             0.6               0
+   91             0.6             0.4               0
+   92             0.8             0.3               0
+   93             0.3             0.8               0
+   94            0.65            0.35               0
+   95            0.35            0.65               0
+   96            0.25            0.95               0
+   97            0.95            0.25               0
+   98             0.7             0.3               0
+   99             0.3             0.7               0
+  100            0.85            0.25               0
+  101            0.25            0.85               0
+  102            0.45            0.45               0
+  103             0.5             0.4               0
+  104             0.4             0.5               0
+  105            0.75            0.25               0
+  106            0.55            0.35               0
+  107            0.35            0.55               0
+  108            0.25            0.75               0
+  109             0.2               1               0
+  110               1             0.2               0
+  111             0.6             0.3               0
+  112             0.3             0.6               0
+  113             0.9             0.2               0
+  114             0.2             0.9               0
+  115             0.8             0.2               0
+  116             0.2             0.8               0
+  117            0.25            0.65               0
+  118            0.65            0.25               0
+  119             0.4             0.4               0
+  120            0.45            0.35               0
+  121            0.15            0.95               0
+  122            0.35            0.45               0
+  123            0.95            0.15               0
+  124             0.7             0.2               0
+  125             0.2             0.7               0
+  126             0.3             0.5               0
+  127             0.5             0.3               0
+  128            0.15            0.85               0
+  129            0.85            0.15               0
+  130            0.55            0.25               0
+  131            0.25            0.55               0
+  132            0.15            0.75               0
+  133            0.75            0.15               0
+  134             0.2             0.6               0
+  135             0.6             0.2               0
+  136             0.1               1               0
+  137               1             0.1               0
+  138             0.9             0.1               0
+  139             0.1             0.9               0
+  140            0.35            0.35               0
+  141            0.65            0.15               0
+  142            0.15            0.65               0
+  143             0.4             0.3               0
+  144             0.8             0.1               0
+  145             0.3             0.4               0
+  146             0.1             0.8               0
+  147            0.45            0.25               0
+  148            0.25            0.45               0
+  149             0.5             0.2               0
+  150             0.2             0.5               0
+  151             0.1             0.7               0
+  152             0.7             0.1               0
+  153            0.05            0.95               0
+  154            0.95            0.05               0
+  155            0.55            0.15               0
+  156            0.05            0.85               0
+  157            0.85            0.05               0
+  158            0.15            0.55               0
+  159            0.75            0.05               0
+  160            0.05            0.75               0
+  161             0.6             0.1               0
+  162             0.1             0.6               0
+  163             0.3             0.3               0
+  164            0.35            0.25               0
+  165            0.25            0.35               0
+  166               0               1               0
+  167               1               0               0
+  168             0.4             0.2               0
+  169             0.2             0.4               0
+  170               0             0.9               0
+  171             0.9               0               0
+  172            0.45            0.15               0
+  173            0.05            0.65               0
+  174            0.65            0.05               0
+  175            0.15            0.45               0
+  176               0             0.8               0
+  177             0.8               0               0
+  178             0.5             0.1               0
+  179             0.1             0.5               0
+  180               0             0.7               0
+  181             0.7               0               0
+  182            0.55            0.05               0
+  183            0.05            0.55               0
+  184            0.25            0.25               0
+  185             0.3             0.2               0
+  186             0.2             0.3               0
+  187            0.15            0.35               0
+  188            0.35            0.15               0
+  189               0             0.6               0
+  190             0.6               0               0
+  191             0.4             0.1               0
+  192             0.1             0.4               0
+  193            0.45            0.05               0
+  194            0.05            0.45               0
+  195               0             0.5               0
+  196             0.5               0               0
+  197             0.2             0.2               0
+  198            0.25            0.15               0
+  199            0.15            0.25               0
+  200             0.1             0.3               0
+  201             0.3             0.1               0
+  202            0.35            0.05               0
+  203            0.05            0.35               0
+  204               0             0.4               0
+  205             0.4               0               0
+  206            0.15            0.15               0
+  207             0.2             0.1               0
+  208             0.1             0.2               0
+  209            0.25            0.05               0
+  210            0.05            0.25               0
+  211               0             0.3               0
+  212             0.3               0               0
+  213             0.1             0.1               0
+  214            0.05            0.15               0
+  215            0.15            0.05               0
+  216               0             0.2               0
+  217             0.2               0               0
+  218            0.05            0.05               0
+  219               0             0.1               0
+  220             0.1               0               0
+  221               0               0               0
+End Coordinates
+
+Elements
+1 220 218 221
+2 213 218 220
+3 219 218 213
+4 221 218 219
+5 217 215 220
+6 207 215 217
+7 213 215 207
+8 220 215 213
+9 212 209 217
+10 201 209 212
+11 207 209 201
+12 217 209 207
+13 205 202 212
+14 191 202 205
+15 201 202 191
+16 212 202 201
+17 196 193 205
+18 178 193 196
+19 191 193 178
+20 205 193 191
+21 190 182 196
+22 161 182 190
+23 178 182 161
+24 196 182 178
+25 181 174 190
+26 152 174 181
+27 161 174 152
+28 190 174 161
+29 177 159 181
+30 144 159 177
+31 152 159 144
+32 181 159 152
+33 171 157 177
+34 138 157 171
+35 144 157 138
+36 177 157 144
+37 167 154 171
+38 137 154 167
+39 138 154 137
+40 171 154 138
+41 213 214 219
+42 208 214 213
+43 216 214 208
+44 219 214 216
+45 207 206 213
+46 197 206 207
+47 208 206 197
+48 213 206 208
+49 201 198 207
+50 185 198 201
+51 197 198 185
+52 207 198 197
+53 191 188 201
+54 168 188 191
+55 185 188 168
+56 201 188 185
+57 178 172 191
+58 149 172 178
+59 168 172 149
+60 191 172 168
+61 161 155 178
+62 135 155 161
+63 149 155 135
+64 178 155 149
+65 152 141 161
+66 124 141 152
+67 135 141 124
+68 161 141 135
+69 144 133 152
+70 115 133 144
+71 124 133 115
+72 152 133 124
+73 138 129 144
+74 113 129 138
+75 115 129 113
+76 144 129 115
+77 137 123 138
+78 110 123 137
+79 113 123 110
+80 138 123 113
+81 208 210 216
+82 200 210 208
+83 211 210 200
+84 216 210 211
+85 197 199 208
+86 186 199 197
+87 200 199 186
+88 208 199 200
+89 185 184 197
+90 163 184 185
+91 186 184 163
+92 197 184 186
+93 168 164 185
+94 143 164 168
+95 163 164 143
+96 185 164 163
+97 149 147 168
+98 127 147 149
+99 143 147 127
+100 168 147 143
+101 135 130 149
+102 111 130 135
+103 127 130 111
+104 149 130 127
+105 124 118 135
+106 98 118 124
+107 111 118 98
+108 135 118 111
+109 115 105 124
+110 92 105 115
+111 98 105 92
+112 124 105 98
+113 113 100 115
+114 85 100 113
+115 92 100 85
+116 115 100 92
+117 110 97 113
+118 84 97 110
+119 85 97 84
+120 113 97 85
+121 200 203 211
+122 192 203 200
+123 204 203 192
+124 211 203 204
+125 186 187 200
+126 169 187 186
+127 192 187 169
+128 200 187 192
+129 163 165 186
+130 145 165 163
+131 169 165 145
+132 186 165 169
+133 143 140 163
+134 119 140 143
+135 145 140 119
+136 163 140 145
+137 127 120 143
+138 103 120 127
+139 119 120 103
+140 143 120 119
+141 111 106 127
+142 91 106 111
+143 103 106 91
+144 127 106 103
+145 98 94 111
+146 79 94 98
+147 91 94 79
+148 111 94 91
+149 92 81 98
+150 69 81 92
+151 79 81 69
+152 98 81 79
+153 85 77 92
+154 66 77 85
+155 69 77 66
+156 92 77 69
+157 84 73 85
+158 63 73 84
+159 66 73 63
+160 85 73 66
+161 192 194 204
+162 179 194 192
+163 195 194 179
+164 204 194 195
+165 169 175 192
+166 150 175 169
+167 179 175 150
+168 192 175 179
+169 145 148 169
+170 126 148 145
+171 150 148 126
+172 169 148 150
+173 119 122 145
+174 104 122 119
+175 126 122 104
+176 145 122 126
+177 103 102 119
+178 86 102 103
+179 104 102 86
+180 119 102 104
+181 91 88 103
+182 72 88 91
+183 86 88 72
+184 103 88 86
+185 79 75 91
+186 60 75 79
+187 72 75 60
+188 91 75 72
+189 69 64 79
+190 52 64 69
+191 60 64 52
+192 79 64 60
+193 66 57 69
+194 48 57 66
+195 52 57 48
+196 69 57 52
+197 63 53 66
+198 44 53 63
+199 48 53 44
+200 66 53 48
+201 179 183 195
+202 162 183 179
+203 189 183 162
+204 195 183 189
+205 150 158 179
+206 134 158 150
+207 162 158 134
+208 179 158 162
+209 126 131 150
+210 112 131 126
+211 134 131 112
+212 150 131 134
+213 104 107 126
+214 90 107 104
+215 112 107 90
+216 126 107 112
+217 86 89 104
+218 71 89 86
+219 90 89 71
+220 104 89 90
+221 72 70 86
+222 55 70 72
+223 71 70 55
+224 86 70 71
+225 60 56 72
+226 45 56 60
+227 55 56 45
+228 72 56 55
+229 52 49 60
+230 36 49 52
+231 45 49 36
+232 60 49 45
+233 48 40 52
+234 31 40 48
+235 36 40 31
+236 52 40 36
+237 44 38 48
+238 30 38 44
+239 31 38 30
+240 48 38 31
+241 162 173 189
+242 151 173 162
+243 180 173 151
+244 189 173 180
+245 134 142 162
+246 125 142 134
+247 151 142 125
+248 162 142 151
+249 112 117 134
+250 99 117 112
+251 125 117 99
+252 134 117 125
+253 90 95 112
+254 80 95 90
+255 99 95 80
+256 112 95 99
+257 71 76 90
+258 61 76 71
+259 80 76 61
+260 90 76 80
+261 55 58 71
+262 46 58 55
+263 61 58 46
+264 71 58 61
+265 45 42 55
+266 33 42 45
+267 46 42 33
+268 55 42 46
+269 36 34 45
+270 26 34 36
+271 33 34 26
+272 45 34 33
+273 31 27 36
+274 20 27 31
+275 26 27 20
+276 36 27 26
+277 30 22 31
+278 19 22 30
+279 20 22 19
+280 31 22 20
+281 151 160 180
+282 146 160 151
+283 176 160 146
+284 180 160 176
+285 125 132 151
+286 116 132 125
+287 146 132 116
+288 151 132 146
+289 99 108 125
+290 93 108 99
+291 116 108 93
+292 125 108 116
+293 80 82 99
+294 68 82 80
+295 93 82 68
+296 99 82 93
+297 61 65 80
+298 51 65 61
+299 68 65 51
+300 80 65 68
+301 46 50 61
+302 37 50 46
+303 51 50 37
+304 61 50 51
+305 33 35 46
+306 25 35 33
+307 37 35 25
+308 46 35 37
+309 26 23 33
+310 15 23 26
+311 25 23 15
+312 33 23 25
+313 20 16 26
+314 12 16 20
+315 15 16 12
+316 26 16 15
+317 19 13 20
+318 9 13 19
+319 12 13 9
+320 20 13 12
+321 146 156 176
+322 139 156 146
+323 170 156 139
+324 176 156 170
+325 116 128 146
+326 114 128 116
+327 139 128 114
+328 146 128 139
+329 93 101 116
+330 87 101 93
+331 114 101 87
+332 116 101 114
+333 68 78 93
+334 67 78 68
+335 87 78 67
+336 93 78 87
+337 51 59 68
+338 47 59 51
+339 67 59 47
+340 68 59 67
+341 37 41 51
+342 32 41 37
+343 47 41 32
+344 51 41 47
+345 25 28 37
+346 21 28 25
+347 32 28 21
+348 37 28 32
+349 15 17 25
+350 11 17 15
+351 21 17 11
+352 25 17 21
+353 12 10 15
+354 5 10 12
+355 11 10 5
+356 15 10 11
+357 9 6 12
+358 4 6 9
+359 5 6 4
+360 12 6 5
+361 139 153 170
+362 136 153 139
+363 166 153 136
+364 170 153 166
+365 114 121 139
+366 109 121 114
+367 136 121 109
+368 139 121 136
+369 87 96 114
+370 83 96 87
+371 109 96 83
+372 114 96 109
+373 67 74 87
+374 62 74 67
+375 83 74 62
+376 87 74 83
+377 47 54 67
+378 43 54 47
+379 62 54 43
+380 67 54 62
+381 32 39 47
+382 29 39 32
+383 43 39 29
+384 47 39 43
+385 21 24 32
+386 18 24 21
+387 29 24 18
+388 32 24 29
+389 11 14 21
+390 8 14 11
+391 18 14 8
+392 21 14 18
+393 5 7 11
+394 3 7 5
+395 8 7 3
+396 11 7 8
+397 4 2 5
+398 1 2 4
+399 3 2 1
+400 5 2 3
+End Elements
+MESH dimension 3 ElemType Linear Nnode 2
+Coordinates
+End Coordinates
+
+Elements
+401 221 219
+402 219 216
+403 216 211
+404 211 204
+405 204 195
+406 195 189
+407 189 180
+408 180 176
+409 176 170
+410 170 166
+411 166 136
+412 136 109
+413 109 83
+414 83 62
+415 62 43
+416 43 29
+417 29 18
+418 18 8
+419 8 3
+420 3 1
+421 1 4
+422 4 9
+423 9 19
+424 19 30
+425 30 44
+426 44 63
+427 63 84
+428 84 110
+429 110 137
+430 137 167
+431 167 171
+432 171 177
+433 177 181
+434 181 190
+435 190 196
+436 196 205
+437 205 212
+438 212 217
+439 217 220
+440 220 221
+End Elements
+PROBLEM DATA
+Title:  value: name
+END PROBLEM DATA
+INTERVAL NUMBER: 1
+NUMBER: 11 CONDITION: Point_id
+CONDTYPE: over points
+CONDMESHTYPE: over nodes
+QUESTION: ID:
+VALUE: 0
+QUESTION: Point_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 0 0 
+    2  Conds: 0 0 
+    3  Conds: 0 0 
+    4  Conds: 0 0 
+End Geometry Entities
+Mesh Entities
+N   221  Conds: 0 1 
+N   166  Conds: 0 2 
+N     1  Conds: 0 3 
+N   167  Conds: 0 4 
+End Mesh Entities
+NUMBER: 21 CONDITION: Line_id
+CONDTYPE: over lines
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Line_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 0 0 
+    2  Conds: 0 0 
+    3  Conds: 0 0 
+    4  Conds: 0 0 
+End Geometry Entities
+Mesh Entities
+E   401  Conds: 0 1 
+E   402  Conds: 0 1 
+E   403  Conds: 0 1 
+E   404  Conds: 0 1 
+E   405  Conds: 0 1 
+E   406  Conds: 0 1 
+E   407  Conds: 0 1 
+E   408  Conds: 0 1 
+E   409  Conds: 0 1 
+E   410  Conds: 0 1 
+E   411  Conds: 0 2 
+E   412  Conds: 0 2 
+E   413  Conds: 0 2 
+E   414  Conds: 0 2 
+E   415  Conds: 0 2 
+E   416  Conds: 0 2 
+E   417  Conds: 0 2 
+E   418  Conds: 0 2 
+E   419  Conds: 0 2 
+E   420  Conds: 0 2 
+E   421  Conds: 0 3 
+E   422  Conds: 0 3 
+E   423  Conds: 0 3 
+E   424  Conds: 0 3 
+E   425  Conds: 0 3 
+E   426  Conds: 0 3 
+E   427  Conds: 0 3 
+E   428  Conds: 0 3 
+E   429  Conds: 0 3 
+E   430  Conds: 0 3 
+E   431  Conds: 0 4 
+E   432  Conds: 0 4 
+E   433  Conds: 0 4 
+E   434  Conds: 0 4 
+E   435  Conds: 0 4 
+E   436  Conds: 0 4 
+E   437  Conds: 0 4 
+E   438  Conds: 0 4 
+E   439  Conds: 0 4 
+E   440  Conds: 0 4 
+End Mesh Entities
+NUMBER: 31 CONDITION: Surface_id
+CONDTYPE: over surfaces
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Surface_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 0 0 
+End Geometry Entities
+Mesh Entities
+E     1  Conds: 0 1 
+E     2  Conds: 0 1 
+E     3  Conds: 0 1 
+E     4  Conds: 0 1 
+E     5  Conds: 0 1 
+E     6  Conds: 0 1 
+E     7  Conds: 0 1 
+E     8  Conds: 0 1 
+E     9  Conds: 0 1 
+E    10  Conds: 0 1 
+E    11  Conds: 0 1 
+E    12  Conds: 0 1 
+E    13  Conds: 0 1 
+E    14  Conds: 0 1 
+E    15  Conds: 0 1 
+E    16  Conds: 0 1 
+E    17  Conds: 0 1 
+E    18  Conds: 0 1 
+E    19  Conds: 0 1 
+E    20  Conds: 0 1 
+E    21  Conds: 0 1 
+E    22  Conds: 0 1 
+E    23  Conds: 0 1 
+E    24  Conds: 0 1 
+E    25  Conds: 0 1 
+E    26  Conds: 0 1 
+E    27  Conds: 0 1 
+E    28  Conds: 0 1 
+E    29  Conds: 0 1 
+E    30  Conds: 0 1 
+E    31  Conds: 0 1 
+E    32  Conds: 0 1 
+E    33  Conds: 0 1 
+E    34  Conds: 0 1 
+E    35  Conds: 0 1 
+E    36  Conds: 0 1 
+E    37  Conds: 0 1 
+E    38  Conds: 0 1 
+E    39  Conds: 0 1 
+E    40  Conds: 0 1 
+E    41  Conds: 0 1 
+E    42  Conds: 0 1 
+E    43  Conds: 0 1 
+E    44  Conds: 0 1 
+E    45  Conds: 0 1 
+E    46  Conds: 0 1 
+E    47  Conds: 0 1 
+E    48  Conds: 0 1 
+E    49  Conds: 0 1 
+E    50  Conds: 0 1 
+E    51  Conds: 0 1 
+E    52  Conds: 0 1 
+E    53  Conds: 0 1 
+E    54  Conds: 0 1 
+E    55  Conds: 0 1 
+E    56  Conds: 0 1 
+E    57  Conds: 0 1 
+E    58  Conds: 0 1 
+E    59  Conds: 0 1 
+E    60  Conds: 0 1 
+E    61  Conds: 0 1 
+E    62  Conds: 0 1 
+E    63  Conds: 0 1 
+E    64  Conds: 0 1 
+E    65  Conds: 0 1 
+E    66  Conds: 0 1 
+E    67  Conds: 0 1 
+E    68  Conds: 0 1 
+E    69  Conds: 0 1 
+E    70  Conds: 0 1 
+E    71  Conds: 0 1 
+E    72  Conds: 0 1 
+E    73  Conds: 0 1 
+E    74  Conds: 0 1 
+E    75  Conds: 0 1 
+E    76  Conds: 0 1 
+E    77  Conds: 0 1 
+E    78  Conds: 0 1 
+E    79  Conds: 0 1 
+E    80  Conds: 0 1 
+E    81  Conds: 0 1 
+E    82  Conds: 0 1 
+E    83  Conds: 0 1 
+E    84  Conds: 0 1 
+E    85  Conds: 0 1 
+E    86  Conds: 0 1 
+E    87  Conds: 0 1 
+E    88  Conds: 0 1 
+E    89  Conds: 0 1 
+E    90  Conds: 0 1 
+E    91  Conds: 0 1 
+E    92  Conds: 0 1 
+E    93  Conds: 0 1 
+E    94  Conds: 0 1 
+E    95  Conds: 0 1 
+E    96  Conds: 0 1 
+E    97  Conds: 0 1 
+E    98  Conds: 0 1 
+E    99  Conds: 0 1 
+E   100  Conds: 0 1 
+E   101  Conds: 0 1 
+E   102  Conds: 0 1 
+E   103  Conds: 0 1 
+E   104  Conds: 0 1 
+E   105  Conds: 0 1 
+E   106  Conds: 0 1 
+E   107  Conds: 0 1 
+E   108  Conds: 0 1 
+E   109  Conds: 0 1 
+E   110  Conds: 0 1 
+E   111  Conds: 0 1 
+E   112  Conds: 0 1 
+E   113  Conds: 0 1 
+E   114  Conds: 0 1 
+E   115  Conds: 0 1 
+E   116  Conds: 0 1 
+E   117  Conds: 0 1 
+E   118  Conds: 0 1 
+E   119  Conds: 0 1 
+E   120  Conds: 0 1 
+E   121  Conds: 0 1 
+E   122  Conds: 0 1 
+E   123  Conds: 0 1 
+E   124  Conds: 0 1 
+E   125  Conds: 0 1 
+E   126  Conds: 0 1 
+E   127  Conds: 0 1 
+E   128  Conds: 0 1 
+E   129  Conds: 0 1 
+E   130  Conds: 0 1 
+E   131  Conds: 0 1 
+E   132  Conds: 0 1 
+E   133  Conds: 0 1 
+E   134  Conds: 0 1 
+E   135  Conds: 0 1 
+E   136  Conds: 0 1 
+E   137  Conds: 0 1 
+E   138  Conds: 0 1 
+E   139  Conds: 0 1 
+E   140  Conds: 0 1 
+E   141  Conds: 0 1 
+E   142  Conds: 0 1 
+E   143  Conds: 0 1 
+E   144  Conds: 0 1 
+E   145  Conds: 0 1 
+E   146  Conds: 0 1 
+E   147  Conds: 0 1 
+E   148  Conds: 0 1 
+E   149  Conds: 0 1 
+E   150  Conds: 0 1 
+E   151  Conds: 0 1 
+E   152  Conds: 0 1 
+E   153  Conds: 0 1 
+E   154  Conds: 0 1 
+E   155  Conds: 0 1 
+E   156  Conds: 0 1 
+E   157  Conds: 0 1 
+E   158  Conds: 0 1 
+E   159  Conds: 0 1 
+E   160  Conds: 0 1 
+E   161  Conds: 0 1 
+E   162  Conds: 0 1 
+E   163  Conds: 0 1 
+E   164  Conds: 0 1 
+E   165  Conds: 0 1 
+E   166  Conds: 0 1 
+E   167  Conds: 0 1 
+E   168  Conds: 0 1 
+E   169  Conds: 0 1 
+E   170  Conds: 0 1 
+E   171  Conds: 0 1 
+E   172  Conds: 0 1 
+E   173  Conds: 0 1 
+E   174  Conds: 0 1 
+E   175  Conds: 0 1 
+E   176  Conds: 0 1 
+E   177  Conds: 0 1 
+E   178  Conds: 0 1 
+E   179  Conds: 0 1 
+E   180  Conds: 0 1 
+E   181  Conds: 0 1 
+E   182  Conds: 0 1 
+E   183  Conds: 0 1 
+E   184  Conds: 0 1 
+E   185  Conds: 0 1 
+E   186  Conds: 0 1 
+E   187  Conds: 0 1 
+E   188  Conds: 0 1 
+E   189  Conds: 0 1 
+E   190  Conds: 0 1 
+E   191  Conds: 0 1 
+E   192  Conds: 0 1 
+E   193  Conds: 0 1 
+E   194  Conds: 0 1 
+E   195  Conds: 0 1 
+E   196  Conds: 0 1 
+E   197  Conds: 0 1 
+E   198  Conds: 0 1 
+E   199  Conds: 0 1 
+E   200  Conds: 0 1 
+E   201  Conds: 0 1 
+E   202  Conds: 0 1 
+E   203  Conds: 0 1 
+E   204  Conds: 0 1 
+E   205  Conds: 0 1 
+E   206  Conds: 0 1 
+E   207  Conds: 0 1 
+E   208  Conds: 0 1 
+E   209  Conds: 0 1 
+E   210  Conds: 0 1 
+E   211  Conds: 0 1 
+E   212  Conds: 0 1 
+E   213  Conds: 0 1 
+E   214  Conds: 0 1 
+E   215  Conds: 0 1 
+E   216  Conds: 0 1 
+E   217  Conds: 0 1 
+E   218  Conds: 0 1 
+E   219  Conds: 0 1 
+E   220  Conds: 0 1 
+E   221  Conds: 0 1 
+E   222  Conds: 0 1 
+E   223  Conds: 0 1 
+E   224  Conds: 0 1 
+E   225  Conds: 0 1 
+E   226  Conds: 0 1 
+E   227  Conds: 0 1 
+E   228  Conds: 0 1 
+E   229  Conds: 0 1 
+E   230  Conds: 0 1 
+E   231  Conds: 0 1 
+E   232  Conds: 0 1 
+E   233  Conds: 0 1 
+E   234  Conds: 0 1 
+E   235  Conds: 0 1 
+E   236  Conds: 0 1 
+E   237  Conds: 0 1 
+E   238  Conds: 0 1 
+E   239  Conds: 0 1 
+E   240  Conds: 0 1 
+E   241  Conds: 0 1 
+E   242  Conds: 0 1 
+E   243  Conds: 0 1 
+E   244  Conds: 0 1 
+E   245  Conds: 0 1 
+E   246  Conds: 0 1 
+E   247  Conds: 0 1 
+E   248  Conds: 0 1 
+E   249  Conds: 0 1 
+E   250  Conds: 0 1 
+E   251  Conds: 0 1 
+E   252  Conds: 0 1 
+E   253  Conds: 0 1 
+E   254  Conds: 0 1 
+E   255  Conds: 0 1 
+E   256  Conds: 0 1 
+E   257  Conds: 0 1 
+E   258  Conds: 0 1 
+E   259  Conds: 0 1 
+E   260  Conds: 0 1 
+E   261  Conds: 0 1 
+E   262  Conds: 0 1 
+E   263  Conds: 0 1 
+E   264  Conds: 0 1 
+E   265  Conds: 0 1 
+E   266  Conds: 0 1 
+E   267  Conds: 0 1 
+E   268  Conds: 0 1 
+E   269  Conds: 0 1 
+E   270  Conds: 0 1 
+E   271  Conds: 0 1 
+E   272  Conds: 0 1 
+E   273  Conds: 0 1 
+E   274  Conds: 0 1 
+E   275  Conds: 0 1 
+E   276  Conds: 0 1 
+E   277  Conds: 0 1 
+E   278  Conds: 0 1 
+E   279  Conds: 0 1 
+E   280  Conds: 0 1 
+E   281  Conds: 0 1 
+E   282  Conds: 0 1 
+E   283  Conds: 0 1 
+E   284  Conds: 0 1 
+E   285  Conds: 0 1 
+E   286  Conds: 0 1 
+E   287  Conds: 0 1 
+E   288  Conds: 0 1 
+E   289  Conds: 0 1 
+E   290  Conds: 0 1 
+E   291  Conds: 0 1 
+E   292  Conds: 0 1 
+E   293  Conds: 0 1 
+E   294  Conds: 0 1 
+E   295  Conds: 0 1 
+E   296  Conds: 0 1 
+E   297  Conds: 0 1 
+E   298  Conds: 0 1 
+E   299  Conds: 0 1 
+E   300  Conds: 0 1 
+E   301  Conds: 0 1 
+E   302  Conds: 0 1 
+E   303  Conds: 0 1 
+E   304  Conds: 0 1 
+E   305  Conds: 0 1 
+E   306  Conds: 0 1 
+E   307  Conds: 0 1 
+E   308  Conds: 0 1 
+E   309  Conds: 0 1 
+E   310  Conds: 0 1 
+E   311  Conds: 0 1 
+E   312  Conds: 0 1 
+E   313  Conds: 0 1 
+E   314  Conds: 0 1 
+E   315  Conds: 0 1 
+E   316  Conds: 0 1 
+E   317  Conds: 0 1 
+E   318  Conds: 0 1 
+E   319  Conds: 0 1 
+E   320  Conds: 0 1 
+E   321  Conds: 0 1 
+E   322  Conds: 0 1 
+E   323  Conds: 0 1 
+E   324  Conds: 0 1 
+E   325  Conds: 0 1 
+E   326  Conds: 0 1 
+E   327  Conds: 0 1 
+E   328  Conds: 0 1 
+E   329  Conds: 0 1 
+E   330  Conds: 0 1 
+E   331  Conds: 0 1 
+E   332  Conds: 0 1 
+E   333  Conds: 0 1 
+E   334  Conds: 0 1 
+E   335  Conds: 0 1 
+E   336  Conds: 0 1 
+E   337  Conds: 0 1 
+E   338  Conds: 0 1 
+E   339  Conds: 0 1 
+E   340  Conds: 0 1 
+E   341  Conds: 0 1 
+E   342  Conds: 0 1 
+E   343  Conds: 0 1 
+E   344  Conds: 0 1 
+E   345  Conds: 0 1 
+E   346  Conds: 0 1 
+E   347  Conds: 0 1 
+E   348  Conds: 0 1 
+E   349  Conds: 0 1 
+E   350  Conds: 0 1 
+E   351  Conds: 0 1 
+E   352  Conds: 0 1 
+E   353  Conds: 0 1 
+E   354  Conds: 0 1 
+E   355  Conds: 0 1 
+E   356  Conds: 0 1 
+E   357  Conds: 0 1 
+E   358  Conds: 0 1 
+E   359  Conds: 0 1 
+E   360  Conds: 0 1 
+E   361  Conds: 0 1 
+E   362  Conds: 0 1 
+E   363  Conds: 0 1 
+E   364  Conds: 0 1 
+E   365  Conds: 0 1 
+E   366  Conds: 0 1 
+E   367  Conds: 0 1 
+E   368  Conds: 0 1 
+E   369  Conds: 0 1 
+E   370  Conds: 0 1 
+E   371  Conds: 0 1 
+E   372  Conds: 0 1 
+E   373  Conds: 0 1 
+E   374  Conds: 0 1 
+E   375  Conds: 0 1 
+E   376  Conds: 0 1 
+E   377  Conds: 0 1 
+E   378  Conds: 0 1 
+E   379  Conds: 0 1 
+E   380  Conds: 0 1 
+E   381  Conds: 0 1 
+E   382  Conds: 0 1 
+E   383  Conds: 0 1 
+E   384  Conds: 0 1 
+E   385  Conds: 0 1 
+E   386  Conds: 0 1 
+E   387  Conds: 0 1 
+E   388  Conds: 0 1 
+E   389  Conds: 0 1 
+E   390  Conds: 0 1 
+E   391  Conds: 0 1 
+E   392  Conds: 0 1 
+E   393  Conds: 0 1 
+E   394  Conds: 0 1 
+E   395  Conds: 0 1 
+E   396  Conds: 0 1 
+E   397  Conds: 0 1 
+E   398  Conds: 0 1 
+E   399  Conds: 0 1 
+E   400  Conds: 0 1 
+End Mesh Entities
+NUMBER: 41 CONDITION: Volume_id
+CONDTYPE: over volumes
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Volume_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+INTERVAL DATA
+END INTERVAL DATA

@@ -40,7 +40,7 @@
     type(p_reference_fe_t)             :: make_reference_fe
     
     assert ( topology == topology_hex .or. topology == topology_tet )
-    assert ( fe_type  == fe_type_lagrangian .or. fe_type == fe_type_raviart_thomas .or. fe_type == fe_type_nedelec .or. fe_type == fe_type_void )
+    assert ( fe_type  == fe_type_lagrangian .or. fe_type == fe_type_raviart_thomas .or. fe_type == fe_type_nedelec .or. fe_type == fe_type_lagrangian_gp .or. fe_type == fe_type_void )
     
     if ( fe_type == fe_type_lagrangian ) then
        if ( topology == topology_hex ) then
@@ -61,6 +61,13 @@
           allocate ( hex_nedelec_reference_fe_t :: make_reference_fe%p )
        elseif ( topology == topology_tet ) then
           allocate ( tet_nedelec_reference_fe_t :: make_reference_fe%p )
+       end if
+    else if ( fe_type == fe_type_lagrangian_gp ) then
+       if ( topology == topology_hex ) then
+          allocate ( hex_lagrangian_gp_reference_fe_t :: make_reference_fe%p )
+       elseif ( topology == topology_tet ) then
+          ! To be implemented ...
+          mcheck(.false.,'This reference fe must be implemented')
        end if   
     else if ( fe_type == fe_type_void ) then
        allocate ( void_reference_fe_t :: make_reference_fe%p )

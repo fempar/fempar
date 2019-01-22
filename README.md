@@ -16,6 +16,58 @@ Finite Element Multiphysics PARallel solvers
 
 ## Compilation
 
+**FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
+
+We strongly recommend to use the `configure` script in `$FEMPARDIR/Tools`. Information of the script can be obtained by typing `configure --help`.
+
+We also strongly recommend to use the `module` functionality described above, in order to easily switch between different compilers and compiler versions, and to automatically have a well-defined environment.
+For instance, the compilation of **FEMPAR** using the previous two functionalities using a ++GNU++ compiler would read:
+
+```
+$ mkdir build
+$ cd build
+$ module load gcc/8.2.0
+$ $FEMPARDIR/Tools/configure -c GNU -s $FEMPARDIR/SuperBuild
+$ make
+```
+
+Instead, for INTEL compilers, the last part would read:
+
+```
+$ module load ifc/19.0.0
+$ $FEMPARDIR/Tools/configure -s $FEMPARDIR/SuperBuild
+$ make
+```
+The compiler by default is the **INTEL** compiler. The tests are compiled unless otherwise stated with `--without-tests`.
+One driver can be included in the compilation by adding `-d drivername`.
+
+For stubborn users that want not to take profit from the previous tools, a manual way to compile **FEMPAR** under Linux is (with compilation of tests included):
+```
+$ mkdir build
+$ cd build
+$ cmake ../fempar/SuperBuild -DFEMPAR_ENABLE_TESTS=ON
+$ make
+```
+assuming that the right environment configuration is in place through, e.g., `.bashrc`. But this approach is prone to error when switching environments. 
+Another approach is to directly include in the `cmake` call the right compilation flags and values (see one of the notes below).
+
+In order to configure the compilation of a driver (right after the previous steps):
+
+```
+$ cd build
+$ cmake . -DFEMPAR_DRIVER=driver_folder_name
+$ make
+```
+
+In order to compile FEMPAR library and tests if the first block of commands has been executed:
+
+```
+$ cd build/FEMPAR
+$ make -jP
+```
+with ```P``` being the number of parallel processes involved in the compilation
+
+
 **FEMPAR** compiles with GNU Fortran compiler 5.3.0 (and newer versions) and Intel Fortran compiler 16.0.0 (and newer versions).
 
 **NOTE**: we have detected that some tests (e.g., `test_poisson_unffited`) do **NOT** pass with GNU Fortran compiler 5.5.0, 6.3.0, & 7.3.0 for `experimental` 
@@ -53,36 +105,11 @@ by `Ubuntu 18.04`), please note the following. The most annoying issue is relate
 This is already achieved by fempar's `configure` script in `Tools` whenever you specify `-c Intel`, but it won't be if you call `cmake` directly.
 In the latter case, you must specify `-DCMAKE_CXX_COMPILER=icpc` explicitly when invoking cmake. 
 
-**FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
-
-The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
-
-```
-$ mkdir build
-$ cd build
-$ cmake ../fempar/SuperBuild -DFEMPAR_ENABLE_TESTS=ON
-$ make
-```
-
-In order to configure the compilation of a driver (right after the previous steps):
-
-```
-$ cd build
-$ cmake . -DFEMPAR_DRIVER=driver_folder_name
-$ make
-```
-
-In order to compile FEMPAR library and tests if the first block of commands has been executed:
-
-```
-$ cd build/FEMPAR
-$ make -jP
-```
-with ```P``` being the number of parallel processes involved in the compilation
-
 ## Run tests
 
-In order to run the all tests in fast mode:
+In order to run the tests, we need the right environment. If we are relying on `module` functionalities, we must be sure that the required modules are load in the terminal in which we want to run the tests.
+It seems that the only module that has to be loaded is `mkl`, whereas the path to other dynamic libraries is hard-coded, e.g., `openmpi`. In any case, one can use the initialization suggested in the `module` manual and pre-load some modules in `modulerc`.
+Assuming the right environment is in place, to run all tests in fast mode, we just do:
 
 ```
 $ cd build/FEMPAR

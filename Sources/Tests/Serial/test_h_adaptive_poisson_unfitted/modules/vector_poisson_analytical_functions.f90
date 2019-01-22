@@ -33,11 +33,9 @@ module vector_poisson_analytical_functions_names
   private
 
   type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dims = -1  
     logical     :: in_fe_space = .false.
     integer(ip) :: degree      = 1
   contains
-    procedure :: set_num_dims          => base_vector_function_set_num_dims
     procedure :: set_is_in_fe_space    => base_vector_function_set_is_in_fe_space
     procedure :: set_degree            => base_vector_function_set_degree
   end type base_vector_function_t
@@ -110,13 +108,6 @@ contains
     call val%set(2, 0.0 )
   end subroutine sol_ex001_2d_lapl_u
 
-  subroutine base_vector_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_vector_function_set_num_dims
-
   subroutine base_vector_function_set_is_in_fe_space(this,val)
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
@@ -137,14 +128,14 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       if (this%in_fe_space) then
         call sol_ex001_2d_lapl_u(point,result,this%degree)
         result = (-1.0)*result
       else
         check(.false.)
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%in_fe_space) then
         check(.false.)
       else
@@ -161,13 +152,13 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       if (this%in_fe_space) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
         check(.false.)
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%in_fe_space) then
         check(.false.)
       else
@@ -184,13 +175,13 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       if (this%in_fe_space) then
         call sol_ex001_2d_grad_u(point,result,this%degree)
       else
         check(.false.)
       end if
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       if (this%in_fe_space) then
         check(.false.)
       else
