@@ -351,6 +351,7 @@ subroutine hts_discrete_integration_integrate_residual ( this, fe_space, assembl
           resistivity  = this%compute_resistivity( H_current_values(qpoint), H_current_curl_values(qpoint), fe%get_set_id() )           
           permeability = this%air_permeability
 										
+
           do idof = 1, num_dofs									
              ! R_K(i) = A(u)*u - F  
              elvec(idof) = elvec(idof) + factor * permeability/time_factor * shape_values(idof,qpoint) * H_current_values(qpoint)  &
@@ -438,7 +439,7 @@ function compute_tangent_resistivity(this, H_value, curl_H, shape_value, curl_sh
   Jc = this%critical_current 
   n  = this%nonlinear_exponent 
 
-  if ( this%is_analytical_solution ) then ! Analytical resistivity = rho * n * <H|H>**(n-1) * <Phi|H>
+  if ( this%is_analytical_solution ) then ! Analytical resistivity = rho * 2*n * <H|H>**(n-1) * <Phi|H>
      massert(this%hts_device_type==bulk, 'In analytical solutions device type must be an isotropic bulk')
      if ( n > 0.0_rp) then 
         tangent_resistivity = this%hts_resistivity * 2.0_rp*n*( H_value*H_value )**(n-1.0_rp)*(shape_value * H_value) + 1e-14_rp 

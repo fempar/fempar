@@ -163,7 +163,7 @@ contains
        call curl_values%set(2, grad_function_values(ipoint)%get(3,1) - grad_function_values(ipoint)%get(1,3) ) 
        call curl_values%set(3, grad_function_values(ipoint)%get(1,2) - grad_function_values(ipoint)%get(2,1) ) 
        scalar_function_values(ipoint) = this%critical_electric_field/this%critical_current*           & 
-                                       (curl_values%nrm2()/this%critical_current)**this%nonlinear_exponent   
+                                       (curl_values%nrm2()/this%critical_current)**this%nonlinear_exponent + 1.0e-14_rp
     end do
 
   end subroutine resistivity_field_generator_compute_function_values
