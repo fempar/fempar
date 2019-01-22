@@ -101,6 +101,10 @@ contains
 end type nonlinear_solver_t
 
 public :: nonlinear_solver_t
+public :: abs_res_norm
+public :: rel_inc_norm
+public :: rel_r0_res_norm
+public :: abs_res_norm_and_rel_inc_norm
 
 contains
 
