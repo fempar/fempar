@@ -388,8 +388,7 @@ end subroutine free_timers
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
-         &                                     environment = this%par_environment, &
-                                        fe_operator = this%fe_operator)  
+                                               fe_operator = this%fe_operator)  
     
 
   end subroutine setup_operators
