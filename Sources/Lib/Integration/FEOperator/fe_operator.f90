@@ -146,6 +146,7 @@ module fe_operator_names
      procedure          :: get_discrete_integration              => fe_operator_get_discrete_integration
      procedure          :: get_domain_vector_space               => fe_operator_get_domain_vector_space
      procedure          :: get_range_vector_space                => fe_operator_get_range_vector_space
+     procedure          :: get_environment                       => fe_operator_get_environment
      
      procedure          :: get_diagonal_blocks_symmetric_storage => fe_operator_get_diagonal_blocks_symmetric_storage
      procedure          :: get_diagonal_blocks_symmetric         => fe_operator_get_diagonal_blocks_symmetric

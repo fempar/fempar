@@ -47,7 +47,7 @@ subroutine lagrangian_reference_fe_create ( this, topology, num_dims, order, fie
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_lagrangian )
   call this%fill()
-  call this%create_nodal_quadrature()
+
 
 end subroutine lagrangian_reference_fe_create
 

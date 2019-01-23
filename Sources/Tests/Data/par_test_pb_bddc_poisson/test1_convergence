@@ -1,6 +1,9 @@
 CG:   Iteration   Error Estimate        Tolerance
-CG:           1   1.095931513E-04   1.485339506E-08
-CG:           2   2.866412160E-06   1.485339506E-08
-CG:           3   1.142663490E-09   1.485339506E-08
-CG converged to    1.485339506E-08  in          3  iterations. 
-Last iteration error estimate:    1.142663490E-09
+CG:           1   4.382567417E-03   1.369598765E-08
+CG:           2   8.335558606E-04   1.369598765E-08
+CG:           3   2.176364387E-05   1.369598765E-08
+CG:           4   3.403336911E-06   1.369598765E-08
+CG:           5   1.419421369E-07   1.369598765E-08
+CG:           6   2.869830236E-09   1.369598765E-08
+CG converged to    1.369598765E-08  in          6  iterations. 
+Last iteration error estimate:    2.869830236E-09

@@ -310,7 +310,6 @@ contains
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 0_ip, &
                                 linear_solver = this%direct_solver, &
-                                environment = this%fe_space%get_environment() , &
                                 fe_operator = this%time_operator%get_fe_operator(), &
                                 print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
     !* Setup iterative solver when MKL is not enabled
@@ -329,7 +328,6 @@ contains
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 10_ip, &
                                 linear_solver = this%iterative_linear_solver, &
-                                environment = this%fe_space%get_environment(),&
                                 fe_operator = this%time_operator%get_fe_operator(), &
                                 print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
 #endif

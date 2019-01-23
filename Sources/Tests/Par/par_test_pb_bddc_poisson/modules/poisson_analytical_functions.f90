@@ -84,9 +84,11 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     if ( this%get_num_dims() == 2 ) then
-      result = 0.0_rp !point%get(1) + point%get(2) ! x+y
+      result = 0.0_rp !homogeneous Dirichlet boundary condition
+      !result = point%get(1) + point%get(2) ! x+y
     else if ( this%get_num_dims() == 3 ) then
-      result = 0.0_rp !point%get(1) + point%get(2) + point%get(3) ! x+y+z
+      result = 0.0_rp !homogeneous Dirichlet boundary condition
+      !result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
     end if  
   end subroutine boundary_function_get_value_space 
 
