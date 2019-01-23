@@ -503,7 +503,6 @@ end subroutine free_timers
                                rel_tol = 1.0e-6_rp, &
                                max_iters = 0_ip, &
                                linear_solver = this%iterative_linear_solver, &
-                               environment = this%fe_space%get_environment(),&
                                fe_operator = this%time_operator%get_fe_operator())
    
    call this%time_solver%create( ts_op = this%time_operator, &

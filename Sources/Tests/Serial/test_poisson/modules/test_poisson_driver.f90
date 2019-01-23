@@ -493,7 +493,6 @@ contains
          &                     rel_tol = 1.0e-12_rp, &
          &                     max_iters = 10   ,  &
          &                     linear_solver = this%direct_solver, &
-         &                     environment = this%serial_environment, &
                                fe_operator = this%fe_affine_operator)
 #else    
     FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
@@ -509,7 +508,6 @@ contains
          &                     rel_tol = 1.0e-12_rp, &
          &                     max_iters = 10   ,  &
          &                     linear_solver = this%iterative_linear_solver, &
-         &                     environment = this%serial_environment, &
                                fe_operator = this%fe_affine_operator)
 #endif
     call parameter_list%free()

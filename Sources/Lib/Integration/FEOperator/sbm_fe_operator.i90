@@ -451,6 +451,14 @@ function fe_operator_get_range_vector_space ( this )
   fe_operator_get_range_vector_space => operator_get_range_vector_space(this)
 end function fe_operator_get_range_vector_space
 
+function fe_operator_get_environment ( this ) 
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  class(environment_t), pointer :: fe_operator_get_environment
+  assert ( associated(this%get_state()) )
+  fe_operator_get_environment => this%test_fe_space%get_environment()
+end function fe_operator_get_environment
+
 function fe_operator_get_current_evaluation_point(this) result(evaluation_point)
   implicit none
   class(fe_operator_t), intent(in) :: this

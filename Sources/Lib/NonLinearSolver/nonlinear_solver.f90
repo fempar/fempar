@@ -110,14 +110,13 @@ contains
 
   !==============================================================================
 subroutine nonlinear_solver_create(this, &
-    convergence_criteria, &
-    abs_tol, &
-    rel_tol, &
-    max_iters, &
-    linear_solver, &
-    environment, &
-    fe_operator, &
-    print_iteration_output )
+                                   convergence_criteria, &
+                                   abs_tol, &
+                                   rel_tol, &
+                                   max_iters, &
+                                   linear_solver, &
+                                   fe_operator, &
+                                   print_iteration_output )
  implicit none
  class(nonlinear_solver_t)             , intent(inout) :: this
  character(len=*)                      , intent(in)    :: convergence_criteria
@@ -125,7 +124,6 @@ subroutine nonlinear_solver_create(this, &
  real(rp)                              , intent(in)    :: rel_tol
  integer(ip)                           , intent(in)    :: max_iters
  class(linear_solver_t)        , target, intent(in)    :: linear_solver
- class(environment_t)          , target, intent(in)    :: environment
  class(fe_operator_t)          , target, intent(in)    :: fe_operator
  logical                     , optional, intent(in)    :: print_iteration_output
 
@@ -138,7 +136,7 @@ subroutine nonlinear_solver_create(this, &
  this%relative_tolerance    = rel_tol
  this%max_number_iterations = max_iters
  this%linear_solver  => linear_solver
- this%environment    => environment
+ this%environment    => fe_operator%get_environment()
  this%fe_operator => fe_operator
  call this%fe_operator%create_range_vector(this%initial_solution)
  call this%initial_solution%init(0.0_rp)
