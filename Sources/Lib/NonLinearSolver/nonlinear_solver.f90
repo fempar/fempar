@@ -42,7 +42,7 @@ module nonlinear_solver_names
 
   character(len=*), parameter :: abs_res_norm                   = 'abs_res_norm'                  ! |r(x_i)| <= abs_tol
   character(len=*), parameter :: rel_inc_norm                   = 'rel_inc_norm'                  ! |dx_i|   <= rel_norm*|x_i|
-  character(len=*), parameter :: rel_r0_res_norm                = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|
+  character(len=*), parameter :: rel_r0_res_norm                = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|+abs_tol
   character(len=*), parameter :: abs_res_norm_and_rel_inc_norm  = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
   logical         , parameter :: default_print_iteration_output = .true.
 
@@ -299,8 +299,8 @@ function nonlinear_solver_has_converged(this)
     nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%absolute_tolerance )
  case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
     nonlinear_solver_has_converged = ( this%increment_dof_values%nrm2() <= this%relative_tolerance*this%current_dof_values%nrm2() )
- case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
-    nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%relative_tolerance*this%initial_residual_norm )
+ case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)| + abs_tol
+    nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%relative_tolerance*this%initial_residual_norm + this%absolute_tolerance )
  case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
     nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%absolute_tolerance ) .and. &
          ( this%increment_dof_values%nrm2() <= this%relative_tolerance*this%current_dof_values%nrm2() )
@@ -374,7 +374,7 @@ subroutine nonlinear_solver_print_iteration_output_header(this)
          write(*,'(a10,2a21)') 'NL iter', '|r(x_i)|', 'abs_tol'
       case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
          write(*,'(a10,3a21)') 'NL iter', '|dx_i|', 'rel_tol*|x_i|', 'rel_tol'
-      case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
+      case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)| + abs_tol
          write(*,'(a10,3a21)') 'NL iter', '|r(x_i)|', 'rel_tol*|r(x_0)|', 'rel_tol'
       case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
          write(*,'(a8,5a15)') 'NL iter', '|r(x_i)|', 'abs_tol', '|dx_i|', 'rel_tol*|x_i|', 'rel_tol'
@@ -408,7 +408,7 @@ subroutine nonlinear_solver_print_current_iteration_output(this)
    case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
       current_residual_nrm2 = this%current_residual%nrm2()
       if ( this%environment%am_i_l1_root()) write(*,'(i10,3es21.10)') this%current_iteration, current_residual_nrm2, &
-           this%relative_tolerance*this%initial_residual_norm, this%relative_tolerance
+           this%relative_tolerance*this%initial_residual_norm+this%absolute_tolerance, this%relative_tolerance
 
    case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
       current_residual_nrm2 = this%current_residual%nrm2()
