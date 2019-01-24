@@ -35,15 +35,10 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   real(rp), target                      , intent(in)    :: average_permeability(:) 
   real(rp), target                      , intent(in)    :: average_resistivity(:) 
   ! Initialize parameters 
-  character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
+
   character(len=:), allocatable :: continuity_algorithm
   integer(ip)    :: FPLError
-
   type(environment_t), pointer        :: environment  
-
-  ! To clean 
-  class(fe_cell_iterator_t), allocatable    :: fe 
-  class(reference_fe_t)    , pointer        :: reference_fe 
 
   environment => par_fe_space%get_environment() 
   if ( .not. environment%am_i_l1_task() ) return 
@@ -74,12 +69,14 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   this%num_total_dofs    = par_fe_space%get_field_num_dofs(this%field_id) 
 
   ! Count and partition coarse edges 
-  call this%compute_subedges_info( par_fe_space ) 
+  call this%compute_subedges_info( par_fe_space )
   
   ! Prepare alternative change of basis 
+  this%is_change_basis_computed = .false. 
   if ( this%use_alternative_basis ) then
      call this%compute_change_basis_matrix( par_fe_space ) 
      call this%setup_direct_solvers() 
+     this%is_change_basis_computed = .true. 
   end if
 
 end subroutine Hcurl_l1_create
@@ -166,7 +163,6 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   type(list_iterator_t)       :: fine_edges_iterator 
   type(list_iterator_t)       :: own_dofs 
   integer(ip)                 :: num_fine_edges_in_subedge 
-  character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
   character(len=:), allocatable :: edge_continuity_algorithm 
   integer(ip)                 :: FPLError
 
@@ -259,7 +255,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   integer(ip), pointer    :: fe_dofs(:)
 
   character(len=:), allocatable  :: edge_continuity_algorithm 
-  character(len=*), parameter    :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
   integer(ip)                    :: FPLError
   type(serial_scalar_array_t)    :: first_moment_constraint_in_edges 
   real(rp), pointer              :: first_moment_constraint_in_edges_entries(:)
@@ -479,7 +474,7 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
         do while ( .not. nodes_in_vef_iterator%is_upper_bound() ) 
            call constraint_in_edges%add( i    = this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ),  &
                                          val  = elvec(nodes_in_vef_iterator%get_current())                              )
-           call nodes_in_vef_iterator%next() 
+           call nodes_in_vef_iterator%next()
         end do
 
         call fine_edge_iterator%next() 
@@ -524,7 +519,6 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   real(rp), pointer                    :: assembled_w(:)
   real(rp), allocatable                :: sub_assembled_w(:)
   integer(ip)                          :: istat
-  character(len=*), parameter          :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
   character(len=:), allocatable        :: weighting_function 
   integer(ip) :: FPLError
   ! Fill the parameter-based case 
@@ -651,23 +645,17 @@ subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y)
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
 
-  type(environment_t), pointer        :: environment  
-  class(execution_context_t), pointer :: l1_context
-
-  environment => x%get_par_environment() 
-  l1_context   => environment%get_l1_context()
-
   x_local         => x%get_serial_scalar_array()
   x_local_entries => x_local%get_entries()
   y_local         => y%get_serial_scalar_array()
   y_local_entries => y_local%get_entries()
 
-  if ( this%use_alternative_basis ) call this%apply_inverse_local_change_basis( x_local, x_local )
+  if ( this%use_alternative_basis ) then 
+    call this%apply_inverse_local_change_basis( x_local, x_local )
+  end if 
   y_local_entries = x_local_entries*W 
   call y%comm()
   if ( this%use_alternative_basis) then 
-  ! Local applications of Qi*xi give complete information for my part 
-  ! due to Qi, xi fully assembled and its structure 
   call this%apply_global_change_basis( y, y )
   end if 
 
@@ -685,25 +673,19 @@ subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y)
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
 
-  type(environment_t), pointer        :: environment  
-  class(execution_context_t), pointer :: l1_context
-
-  environment => x%get_par_environment() 
-  l1_context   => environment%get_l1_context()
-
   x_local         => x%get_serial_scalar_array()
   x_local_entries => x_local%get_entries()
   y_local         => y%get_serial_scalar_array()
   y_local_entries => y_local%get_entries()
 
   if (this%use_alternative_basis) then 
-  ! Q'x product is applied locally, x must be weight and comm afterwards to 
-  ! reproduce global product with the fully assembled Q
-  call this%apply_global_change_basis_transpose( x, x, W ) 
+    call this%apply_global_change_basis_transpose( x, x, W ) 
   end if 
   y_local_entries = x_local_entries*W 
-  if (this%use_alternative_basis) call this%apply_inverse_local_change_basis_transpose( y_local, y_local )  
-
+  if (this%use_alternative_basis) then 
+    call this%apply_inverse_local_change_basis_transpose( y_local, y_local )  
+  end if 
+  
 end subroutine Hcurl_l1_apply_transpose_weighting_operator
 ! -------------------------------------------------------------------------------------------------
 !
@@ -1225,7 +1207,7 @@ end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
 subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
   ! Thanks to structure of change basis, it can be applied locally without 
   ! further consideration and obtain the fully assembled local parts of the global
-  ! change of basis 
+  ! change of basis (see art031, Sect. 4.2) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t), target, intent(in)     :: this
   type(par_scalar_array_t)                   , intent(in)     :: x_new
@@ -1239,6 +1221,8 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
 
   type(sparse_matrix_t), pointer           :: change_basis_matrix
 
+  massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed') 
+  
   x_old_local         => x_old%get_serial_scalar_array()
   x_new_local         => x_new%get_serial_scalar_array()
 
@@ -1263,6 +1247,8 @@ end subroutine Hcurl_l1_apply_global_change_basis
 
 !===============================================================================================
 subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new, W)
+  ! Due to the structure of the global change of basis, the application of 
+  ! its transpose can be performed in parallel + NN comms. (see art031, Sect. 4.2)
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
   type(par_scalar_array_t)                 , intent(in)     :: x_old
@@ -1277,7 +1263,7 @@ subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new, W)
   type(serial_scalar_array_t)           :: x_old_local_G
   type(serial_scalar_array_t)           :: change_basis_trans_times_x
 
-
+  massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed')
 
   x_old_local         => x_old%get_serial_scalar_array()
   x_old_local_entries => x_old_local%get_entries()
@@ -1319,6 +1305,8 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
   type(serial_scalar_array_t)              :: x_old_local_G
   type(serial_scalar_array_t)              :: inv_change_basis_times_x
 
+  massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed')
+  
   call x_new_local%create_view( this%num_interior_dofs + 1,   & 
        this%num_total_dofs,          &
        x_new_local_G )
@@ -1349,6 +1337,8 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
   type(serial_scalar_array_t)              :: x_old_local_G
   type(serial_scalar_array_t)              :: inv_change_basis_trans_times_x
 
+  massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed')
+  
   call x_new_local%create_view( this%num_interior_dofs + 1,  & 
        this%num_total_dofs,         &
        x_new_local_G )
@@ -1616,6 +1606,7 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
         offcomponent_fine_edges        = 0
         do while ( any(num_nodes_each_type /= 0) ) 
            num_subedges_in_coarse_edge = num_subedges_in_coarse_edge + 1
+           massert( num_subedges_in_coarse_edge <= num_fine_edges_x_coarse_edge(iedge_coarse), 'Num subedges exceeded potential number of subedges, algorithm bad behaviour' ) 
            total_num_subedges          = total_num_subedges + 1
 
            start_node_gid = identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type )
@@ -1993,6 +1984,12 @@ subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, lo
   integer(ip)                    :: ielem, ielem_with_max_ggid, inode_w_min_ggid 
 
   npotential_candidates = size(nodes_array)
+  massert( npotential_candidates >= 1, 'No start/end node to be considered')
+  
+  if ( npotential_candidates == 1 ) then
+  local_node_w_min_ggid = nodes_array(1)
+  
+  else 
   call memalloc( npotential_candidates, node_ggids,  __FILE__, __LINE__ )
   node_ggids = 0
 
@@ -2024,4 +2021,5 @@ subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, lo
   if (present(pos_in_array)) pos_in_array = inode_w_min_ggid
 
   call memfree( node_ggids, __FILE__, __LINE__ )
+  end if 
 end subroutine find_node_w_minimum_nonconsecutive_gid

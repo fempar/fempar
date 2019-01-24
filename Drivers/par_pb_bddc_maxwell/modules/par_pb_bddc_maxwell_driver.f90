@@ -601,10 +601,6 @@ contains
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        
-       FPLError = neumann%set(key = ils_rtol_key, value = 1.0e-12_rp); assert(FPLError == 0)
-       FPLError = neumann%set(key = ils_output_frequency_key, value = 1); assert(FPLError == 0)
-       FPLError = neumann%set(key = ils_max_num_iterations_key, value = 5000); assert(FPLError == 0)
-       
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do

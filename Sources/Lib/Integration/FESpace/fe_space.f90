@@ -79,10 +79,7 @@ module fe_space_names
   use par_sparse_matrix_names
   use par_scalar_array_names
   use par_sparse_assembler_names
-  
-		use timer_names 
-		use execution_context_names
-		  
+  		  
   implicit none
 # include "debug.i90"
   
@@ -1214,6 +1211,7 @@ module fe_space_names
     private 
     ! Customization 
     logical                                 :: use_alternative_basis 
+    logical                                 :: is_change_basis_computed 
     logical                                 :: arithmetic_average
     integer(ip)                             :: field_id 
     real(rp), pointer                       :: permeability(:) 
@@ -1241,9 +1239,9 @@ module fe_space_names
 	   procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
     procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator
-	   procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator  
+    procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
 	   ! Counting & Splitting coarse edges procedures
 				procedure, non_overridable, private :: compute_subedges_info                         => Hcurl_l1_compute_subedges_info
 				procedure, non_overridable, private :: count_coarse_edges_and_owned_fine_edges       => Hcurl_l1_count_coarse_edges_and_owned_fine_edges
@@ -1270,10 +1268,12 @@ module fe_space_names
   integer(ip), parameter :: opposite_to_coarse_edge = 0
   integer(ip), parameter :: same_as_coarse_edge     = 1  
   ! Coarse Edges enforced Continuity algorithm 
+  character(len=*), parameter :: bddc_edge_continuity_algorithm_key        = 'bddc_edge_continuity_algorithm'
   character(len=*), parameter :: tangential_average                        = 'tangential_average'
   character(len=*), parameter :: tangential_average_and_first_order_moment = 'tangential_average_and_first_order_moment'
   character(len=*), parameter :: all_dofs_in_coarse_edges                  = 'all_dofs_in_coarse_edges'
   ! Weighting function 
+  character(len=*), parameter :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
   character(len=*), parameter :: cardinality           = 'cardinality'
   character(len=*), parameter :: resistivity           = 'resistivity' 
   character(len=*), parameter :: permeability          = 'permeability' 

@@ -101,7 +101,7 @@ contains
     error = list%set(key = permeability_black_key   , value =  1.0 ); check(error==0)
     error = list%set(key = resistivity_black_key    , value =  1.0 ); check(error==0)
     error = list%set(key = materials_distribution_case_key, value = checkerboard); check(error==0) 
-    error = list%set(key = materials_coefficient_case_key, value = sinusoidal); check(error==0) 
+    error = list%set(key = materials_coefficient_case_key, value = constant); check(error==0) 
     error = list%set(key = channels_ratio_key   , value =  0.1 ); check(error==0)
     error = list%set(key = num_peaks_resistivity_key    , value =  3)   ; check(error==0)
     error = list%set(key = num_peaks_permeability_key     , value =  3)   ; check(error==0)
