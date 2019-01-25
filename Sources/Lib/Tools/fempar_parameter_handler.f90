@@ -84,6 +84,8 @@ contains
     if (present(define_user_parameters_procedure)) then
       this%define_user_parameters => define_user_parameters_procedure
       call this%define_user_parameters()
+    else
+      nullify(this%define_user_parameters)
     end if
     
 #ifdef DEBUG
@@ -402,6 +404,8 @@ contains
     !if associated ( this%define_user_parameters) then
     !  call this%define_user_parameters()
     !end if 
+    
+    assert ( error == 0 )
 
   end subroutine fph_define_fempar_parameters
 

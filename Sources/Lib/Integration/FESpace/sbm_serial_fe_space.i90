@@ -25,16 +25,17 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 subroutine serial_fe_space_create_with_parameter_list( this,          &
                                                        triangulation, &
                                                        parameters,    &
-                                                       conditions)
+                                                       conditions,    &
+                                                       generate_global_dof_numbering)
   implicit none
-  class(serial_fe_space_t)                ,         intent(inout)        :: this
-  class(triangulation_t)                  , target, intent(in)           :: triangulation
-  type(ParameterList_t)                   ,         intent(inout)        :: parameters
-  class(strong_boundary_conditions_t), optional   , target, intent(inout)        :: conditions
+  class(serial_fe_space_t)                     ,         intent(inout)   :: this
+  class(triangulation_t)                       , target, intent(in)      :: triangulation
+  type(ParameterList_t)                        ,         intent(inout)   :: parameters
+  class(strong_boundary_conditions_t), optional, target, intent(inout)   :: conditions
+  logical                            , optional,         intent(in)      :: generate_global_dof_numbering 
   
   integer(ip) :: istat, i, num_fields, Nt
   integer(ip), allocatable :: fe_space_field_ids(:), fe_space_field_blocks(:)
@@ -54,52 +55,44 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
   
   ! Optional parameters
   istat = parameters%get(key = fes_same_ref_fes_all_cells_key, &
-                         value = fe_space_same_reference_fe_all_cells)
-  istat = parameters%get(key = fes_num_fields_key, value = num_fields)
-
-  istat = parameters%GetShape(Key=fes_field_blocks_key, Shape=Shape)
-  call memalloc( Shape(1), fe_space_field_blocks, __FILE__, __LINE__) 
-  istat = parameters%get(key = fes_field_blocks_key, value = fe_space_field_blocks)
-  if ( .not. Shape(1) == num_fields ) then
-    call memrealloc(num_fields,fe_space_field_blocks,__FILE__,__LINE__)
-    fe_space_field_blocks(1:num_fields) = 1    
-    istat = istat + parameters%set(key = fes_field_blocks_key, value = fe_space_field_blocks)
-    wassert( .false., "FE_SPACE_FIELD_BLOCKS size is different from FE_SPACE_NUM_FIELDS, assuming monolithic storage")
-  end if
+                         value = fe_space_same_reference_fe_all_cells);assert(istat==0)
   
-  istat = parameters%GetShape(Key=fes_ref_fe_conformities_key, Shape=Shape)
+  call this%get_fe_space_num_fields_from_pl(parameters, num_fields)
+  call this%get_fe_space_field_blocks_from_pl(parameters,fe_space_field_blocks)
+  
+  istat = parameters%GetShape(Key=fes_ref_fe_conformities_key, Shape=Shape);assert(istat==0)
   call memalloc( Shape(1), reference_fe_conformity, __FILE__, __LINE__) 
-  istat = parameters%get(key = fes_ref_fe_conformities_key, value = reference_fe_conformity)
+  istat = parameters%get(key = fes_ref_fe_conformities_key, value = reference_fe_conformity);assert(istat==0)
   if ( .not. Shape(1) == num_fields ) then
     call memrealloc(num_fields,reference_fe_conformity,__FILE__,__LINE__)
     reference_fe_conformity(1:num_fields) = .true.   
-    istat = istat + parameters%set(key = fes_ref_fe_conformities_key, value = reference_fe_conformity)
+    istat = parameters%set(key = fes_ref_fe_conformities_key, value = reference_fe_conformity);assert(istat==0)
     wassert( .false., "FE_SPACE_FIELD_CONFORMITIES size is different from FE_SPACE_NUM_FIELDS, assuming conformity for all fields")
   end if
   
-  istat = parameters%GetShape(Key=fes_ref_fe_continuities_key, Shape=Shape)
+  istat = parameters%GetShape(Key=fes_ref_fe_continuities_key, Shape=Shape);assert(istat==0)
   call memalloc( Shape(1), reference_fe_continuity, __FILE__, __LINE__) 
-  istat = parameters%get(key = fes_ref_fe_continuities_key, value = reference_fe_continuity)
+  istat = parameters%get(key = fes_ref_fe_continuities_key, value = reference_fe_continuity);assert(istat==0)
   if ( .not. Shape(1) == num_fields ) then
     call memrealloc(num_fields,reference_fe_continuity,__FILE__,__LINE__)
     reference_fe_continuity(1:num_fields) = .true.   
-    istat = istat + parameters%set(key = fes_ref_fe_continuities_key, value = reference_fe_continuity)
+    istat = parameters%set(key = fes_ref_fe_continuities_key, value = reference_fe_continuity);assert(istat==0)
     wassert( .false., "FE_SPACE_FIELD_CONTINUITIES size is different from FE_SPACE_NUM_FIELDS, assuming continuous spaces for all fields")
   end if
    
-  istat = parameters%getasstring(key = fes_field_types_key, string = fe_space_field_types)
+  istat = parameters%getasstring(key = fes_field_types_key, string = fe_space_field_types);assert(istat==0)
   Nt    = count_tokens_cla_string_list(fe_space_field_types)
   massert( Nt == num_fields, "FE_SPACE_FIELD_TYPES size is different from FE_SPACE_NUM_FIELDS" )
   allocate ( fe_space_field_types_array(Nt) )
   call process_tokens_cla_string_list(fe_space_field_types,fe_space_field_types_array)
   
-  istat = parameters%getasstring(key = fes_ref_fe_types_key, string = reference_fe_type)
+  istat = parameters%getasstring(key = fes_ref_fe_types_key, string = reference_fe_type);assert(istat==0)
   Nt    = count_tokens_cla_string_list(reference_fe_type)
   massert( Nt == num_fields, "FE_SPACE_REFERENCE_FES size is different from FE_SPACE_NUM_FIELDS" )
   allocate ( reference_fe_type_array(Nt) )
   call process_tokens_cla_string_list(reference_fe_type,reference_fe_type_array)
   
-  istat = parameters%GetShape(Key=fes_ref_fe_orders_key, Shape=Shape)
+  istat = parameters%GetShape(Key=fes_ref_fe_orders_key, Shape=Shape);assert(istat==0)
   massert( Shape(1) == num_fields, "FE_SPACE_FIELD_ORDERS size is different from FE_SPACE_NUM_FIELDS" )
   call memalloc( num_fields, reference_fe_order, __FILE__, __LINE__) 
   istat = parameters%get(key = fes_ref_fe_orders_key, value = reference_fe_order)
@@ -149,13 +142,54 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
   call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   call this%block_layout%create( this%get_num_fields(),fe_space_field_blocks)   
-  call this%generate_global_dof_numbering()
+  if ( present(generate_global_dof_numbering) ) then
+    if ( generate_global_dof_numbering ) then
+      call this%generate_global_dof_numbering()
+    end if 
+  else
+    call this%generate_global_dof_numbering()
+  end if
   call memfree( reference_fe_order, __FILE__, __LINE__) 
   call memfree( reference_fe_continuity, __FILE__, __LINE__) 
   call memfree( reference_fe_conformity, __FILE__, __LINE__) 
   call memfree( fe_space_field_blocks, __FILE__, __LINE__) 
 end subroutine serial_fe_space_create_with_parameter_list
 
+subroutine serial_fe_space_get_fe_space_num_fields_from_pl ( this, &
+                                                         parameters, &
+                                                         num_fields ) 
+   implicit none
+   class(serial_fe_space_t), intent(in)    :: this
+   type(ParameterList_t)   , intent(inout) :: parameters
+   integer(ip)             , intent(inout) :: num_fields
+   integer(ip) :: istat
+   istat = parameters%get(key = fes_num_fields_key, value = num_fields); assert(istat==0)
+end subroutine serial_fe_space_get_fe_space_num_fields_from_pl 
+
+subroutine serial_fe_space_get_fe_space_field_blocks_from_pl ( this, &
+                                                           parameters, &
+                                                           fe_space_field_blocks  ) 
+   implicit none
+   class(serial_fe_space_t), intent(in)    :: this
+   type(ParameterList_t)   , intent(inout) :: parameters
+   integer(ip), allocatable, intent(inout) :: fe_space_field_blocks(:)
+   integer(ip) :: istat, num_fields
+   integer(ip), allocatable :: Shape(:)
+   if ( allocated(fe_space_field_blocks) ) then
+     call memfree( fe_space_field_blocks, __FILE__, __LINE__) 
+   end if 
+   call this%get_fe_space_num_fields_from_pl(parameters, num_fields)
+   istat = parameters%GetShape(Key=fes_field_blocks_key, Shape=Shape); assert(istat==0)
+   call memalloc( Shape(1), fe_space_field_blocks, __FILE__, __LINE__) 
+   istat = parameters%get(key = fes_field_blocks_key, value = fe_space_field_blocks); assert(istat==0)
+   if ( .not. Shape(1) == num_fields ) then
+     call memrealloc(num_fields,fe_space_field_blocks,__FILE__,__LINE__)
+     fe_space_field_blocks(1:num_fields) = 1    
+     istat = parameters%set(key = fes_field_blocks_key, value = fe_space_field_blocks); assert(istat==0)
+     wassert( .false., "FE_SPACE_FIELD_BLOCKS size is different from FE_SPACE_NUM_FIELDS, assuming monolithic storage")
+   end if
+end subroutine serial_fe_space_get_fe_space_field_blocks_from_pl 
+                                                           
 
 subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,          &
                                                                    triangulation, &
