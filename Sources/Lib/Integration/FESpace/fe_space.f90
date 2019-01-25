@@ -701,6 +701,8 @@ module fe_space_names
  
    contains
      procedure                           :: serial_fe_space_create_with_parameter_list
+     procedure                 , private :: get_fe_space_num_fields_from_pl              => serial_fe_space_get_fe_space_num_fields_from_pl
+     procedure                 , private :: get_fe_space_field_blocks_from_pl            => serial_fe_space_get_fe_space_field_blocks_from_pl
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
      generic                             :: create                                       => serial_fe_space_create_with_parameter_list,&
@@ -999,9 +1001,11 @@ module fe_space_names
    procedure          :: serial_fe_space_create_with_parameter_list                => par_fe_space_serial_create_with_parameter_list
    procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
+   procedure          :: par_fe_space_create_with_parameter_list
    procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
    procedure          :: par_fe_space_create_different_ref_fes_between_cells
-   generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
+   generic                                     :: create                                          => par_fe_space_create_with_parameter_list, & 
+                                                                                                     par_fe_space_create_same_reference_fes_on_all_cells, &
                                                                                                      par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
