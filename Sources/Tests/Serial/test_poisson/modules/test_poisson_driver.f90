@@ -488,11 +488,8 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
-    call this%nl_solver%create(convergence_criteria = abs_res_norm, & 
-         &                     abs_tol = 1.0e-12_rp,  &
-         &                     rel_tol = 1.0e-12_rp, &
-         &                     max_iters = 10   ,  &
-         &                     linear_solver = this%direct_solver, &
+    call this%nl_solver%create(this%parameter_list, & 
+                               linear_solver = this%direct_solver, &
                                fe_operator = this%fe_affine_operator)
 #else    
     FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)

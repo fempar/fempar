@@ -32,19 +32,36 @@ module nonlinear_solver_names
   use vector_space_names
   use vector_names
   use environment_names
-
-  !use base_sparse_matrix_names
   use linear_solver_names
   use fe_operator_names
+  use FPL
+
   implicit none
 # include "debug.i90"
   private
+
+  !-------------------------------------------------------------------
+  ! FPL keys of the parameters for nonlinear solvers
+  !-------------------------------------------------------------------
+  character(len=*), parameter :: nls_rtol_key                   = 'nonlinear_solver_rtol'
+  character(len=*), parameter :: nls_atol_key                   = 'nonlinear_solver_atol'
+  character(len=*), parameter :: nls_stopping_criterium_key     = 'nonlinear_solver_stopping_criterium'
+  character(len=*), parameter :: nls_max_num_iterations_key     = 'nonlinear_solver_max_num_iterations'
+  character(len=*), parameter :: nls_print_iteration_output_key = 'nonlinear_solver_print_iteration_output'
 
   character(len=*), parameter :: abs_res_norm                   = 'abs_res_norm'                  ! |r(x_i)| <= abs_tol
   character(len=*), parameter :: rel_inc_norm                   = 'rel_inc_norm'                  ! |dx_i|   <= rel_norm*|x_i|
   character(len=*), parameter :: rel_r0_res_norm                = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|+abs_tol
   character(len=*), parameter :: abs_res_norm_and_rel_inc_norm  = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
-  logical         , parameter :: default_print_iteration_output = .true.
+
+  !------------------------------------------------------------------
+  ! Default values of the parameters for nonlinear solvers 
+  !------------------------------------------------------------------
+  real    (rp), parameter :: default_nls_rtol                     = 1.0e-09_rp
+  real    (rp), parameter :: default_nls_atol                     = 1.0e-14_rp
+  character(*), parameter :: default_nls_stopping_criterium       = rel_r0_res_norm
+  integer (ip), parameter :: default_nls_max_iter                 = 10 
+  logical     , parameter :: default_nls_print_iteration_output   = .true. 
 
   type, extends(solver_t) :: nonlinear_solver_t
   private
@@ -72,8 +89,6 @@ contains
   procedure :: apply_add                        => nonlinear_solver_apply_add
   procedure :: is_linear                        => nonlinear_solver_is_linear
   procedure :: update_matrix                    => nonlinear_solver_update_matrix  
-
-
   procedure :: free                             => nonlinear_solver_free
 
   ! Getters and checkers
@@ -83,13 +98,11 @@ contains
 
   ! Setters
   procedure :: set_initial_solution             => nonlinear_solver_set_initial_solution
-  
 
   ! Others
 
-
   ! Private TBPs
-  !procedure, private :: initialize                       => nonlinear_solver_initialize
+  procedure, private :: process_params                   => nonlinear_solver_process_params
   procedure, private :: update_solution                  => nonlinear_solver_update_solution
   procedure, private :: compute_residual                 => nonlinear_solver_compute_residual  
   procedure, private :: compute_tangent                  => nonlinear_solver_compute_tangent
@@ -101,52 +114,46 @@ contains
 end type nonlinear_solver_t
 
 public :: nonlinear_solver_t
+
+public :: nls_rtol_key
+public :: nls_atol_key
+public :: nls_stopping_criterium_key
+public :: nls_max_num_iterations_key
+public :: nls_print_iteration_output_key
+
 public :: abs_res_norm
 public :: rel_inc_norm
 public :: rel_r0_res_norm
 public :: abs_res_norm_and_rel_inc_norm
 
+public :: default_nls_rtol
+public :: default_nls_atol
+public :: default_nls_stopping_criterium
+public :: default_nls_max_iter 
+public :: default_nls_print_iteration_output 
+
 contains
 
-  !==============================================================================
+!==============================================================================
 subroutine nonlinear_solver_create(this, &
-                                   convergence_criteria, &
-                                   abs_tol, &
-                                   rel_tol, &
-                                   max_iters, &
+                                   parameters, &
                                    linear_solver, &
-                                   fe_operator, &
-                                   print_iteration_output )
+                                   fe_operator )
  implicit none
  class(nonlinear_solver_t)             , intent(inout) :: this
- character(len=*)                      , intent(in)    :: convergence_criteria
- real(rp)                              , intent(in)    :: abs_tol
- real(rp)                              , intent(in)    :: rel_tol
- integer(ip)                           , intent(in)    :: max_iters
+ type(parameterlist_t)                 , intent(in)    :: parameters
  class(linear_solver_t)        , target, intent(in)    :: linear_solver
  class(fe_operator_t)          , target, intent(in)    :: fe_operator
- logical                     , optional, intent(in)    :: print_iteration_output
 
  call this%free()
 
- ! Initialize options
  this%current_iteration     = 1
- this%convergence_criteria  = convergence_criteria
- this%absolute_tolerance    = abs_tol
- this%relative_tolerance    = rel_tol
- this%max_number_iterations = max_iters
+ call this%process_params(parameters)
  this%linear_solver  => linear_solver
  this%environment    => fe_operator%get_environment()
  this%fe_operator => fe_operator
  call this%fe_operator%create_range_vector(this%initial_solution)
  call this%initial_solution%init(0.0_rp)
- 
- if( present(print_iteration_output) )  then 
-   this%print_iteration_output = print_iteration_output
- else
-   this%print_iteration_output = default_print_iteration_output
- end if
- 
 end subroutine nonlinear_solver_create
 
 !==============================================================================
@@ -353,6 +360,54 @@ subroutine nonlinear_solver_set_current_dof_values( this, current_dof_values )
  class(vector_t),         target,  intent(in)    :: current_dof_values
  this%current_dof_values => current_dof_values
 end subroutine nonlinear_solver_set_current_dof_values
+
+!==============================================================================
+subroutine nonlinear_solver_process_params(this,parameter_list)
+ implicit none
+ class(nonlinear_solver_t), intent(inout) :: this
+ type(parameterlist_t)    , intent(in)    :: parameter_list
+ integer(ip) :: FPLError
+ ! Rtol
+ if(parameter_list%isPresent(nls_rtol_key)) then
+   assert(parameter_list%isAssignable(nls_rtol_key, this%relative_tolerance))
+   FPLError   = parameter_list%Get(Key=nls_rtol_key, Value=this%relative_tolerance)
+   assert(FPLError == 0)
+ else
+   this%relative_tolerance = default_nls_rtol
+ endif
+ ! Atol
+ if(parameter_list%isPresent(nls_atol_key)) then
+   assert(parameter_list%isAssignable(nls_atol_key, this%absolute_tolerance))
+   FPLError   = parameter_list%Get(Key=nls_atol_key, Value=this%absolute_tolerance)
+   assert(FPLError == 0)
+ else
+   this%absolute_tolerance = default_nls_atol
+ endif
+ ! Stopping criterium
+ if(parameter_list%isPresent(nls_stopping_criterium_key)) then
+   assert(parameter_list%isAssignable(nls_stopping_criterium_key, this%convergence_criteria))
+   FPLError   = parameter_list%Get(Key=nls_stopping_criterium_key, Value=this%convergence_criteria)
+   assert(FPLError == 0)
+ else
+   this%convergence_criteria = default_nls_stopping_criterium
+ endif
+ ! Max num iterations
+ if(parameter_list%isPresent(nls_max_num_iterations_key)) then
+   assert(parameter_list%isAssignable(nls_max_num_iterations_key, this%max_number_iterations))
+   FPLError   = parameter_list%Get(Key=nls_max_num_iterations_key, Value=this%max_number_iterations)
+   assert(FPLError == 0)
+ else
+   this%max_number_iterations = default_nls_max_iter
+ endif
+ ! Print iteration output 
+ if(parameter_list%isPresent(nls_print_iteration_output_key)) then
+   assert(parameter_list%isAssignable(nls_print_iteration_output_key, this%print_iteration_output))
+   FPLError   = parameter_list%Get(Key=nls_print_iteration_output_key, Value=this%print_iteration_output)
+   assert(FPLError == 0)
+ else
+   this%print_iteration_output = default_nls_print_iteration_output
+ endif
+end subroutine nonlinear_solver_process_params
 
 !==============================================================================
 subroutine nonlinear_solver_update_solution(this)
