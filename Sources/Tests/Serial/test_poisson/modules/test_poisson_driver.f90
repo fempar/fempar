@@ -488,6 +488,11 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
+
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 10); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = abs_res_norm); assert(FPLError == 0)
     call this%nl_solver%create(this%parameter_list, & 
                                linear_solver = this%direct_solver, &
                                fe_operator = this%fe_affine_operator)

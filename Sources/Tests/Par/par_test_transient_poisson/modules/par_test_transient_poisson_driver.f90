@@ -497,7 +497,12 @@ end subroutine free_timers
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
-    
+
+
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-06_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-06_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 0); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = abs_res_norm); assert(FPLError == 0)
     call this%nl_solver%create(parameters    = this%parameter_list, & 
                                linear_solver = this%iterative_linear_solver, &
                                fe_operator = this%time_operator%get_fe_operator())

@@ -386,7 +386,7 @@ subroutine nonlinear_solver_process_params(this,parameter_list)
  ! Stopping criterium
  if(parameter_list%isPresent(nls_stopping_criterium_key)) then
    assert(parameter_list%isAssignable(nls_stopping_criterium_key, this%convergence_criteria))
-   FPLError   = parameter_list%Get(Key=nls_stopping_criterium_key, Value=this%convergence_criteria)
+   FPLError   = parameter_list%GetAsString(Key=nls_stopping_criterium_key, String=this%convergence_criteria)
    assert(FPLError == 0)
  else
    this%convergence_criteria = default_nls_stopping_criterium
