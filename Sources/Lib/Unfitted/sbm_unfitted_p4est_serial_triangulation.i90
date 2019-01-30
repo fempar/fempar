@@ -39,7 +39,7 @@ subroutine upst_create(this, parameters, level_set_function, environment)
   allocate( marching_cubes_t :: this%boundary_cutter )
   select type ( cutter => this%boundary_cutter )
     type is ( marching_cubes_t )
-      call cutter%create_from_level_set(this, level_set_function)
+      call cutter%create(this, level_set_function)
     class DEFAULT
       check( .false. )
   end select
@@ -73,7 +73,7 @@ subroutine upst_update_cut_cells(this, level_set_function)
   allocate( marching_cubes_t :: this%boundary_cutter )
   select type ( cutter => this%boundary_cutter )
     type is ( marching_cubes_t )
-      call cutter%create_from_level_set(this, level_set_function)
+      call cutter%create(this, level_set_function)
     class DEFAULT
       check( .false. )
   end select

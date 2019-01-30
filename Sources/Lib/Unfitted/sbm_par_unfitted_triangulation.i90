@@ -40,7 +40,7 @@ subroutine put_create(this, parameters, level_set_function, par_environment)
   allocate( marching_cubes_t :: this%boundary_cutter )
   select type ( cutter => this%boundary_cutter )
     type is ( marching_cubes_t )
-      call cutter%create_from_level_set(this, level_set_function)
+      call cutter%create(this, level_set_function)
     class DEFAULT
       check( .false. )
   end select

@@ -304,8 +304,8 @@ module unfitted_triangulations_names
   contains
 
     ! Creation / deletion methods
-    procedure                  :: create_from_level_set         => marching_cubes_create
-    procedure                  :: free                          => marching_cubes_free
+    procedure                  :: create         => marching_cubes_create
+    procedure                  :: free           => marching_cubes_free
 
     ! Getters (Implementation of the public interfaces of the unfitted triangulations)
     procedure :: get_cell_gid                     => marching_cubes_get_cell_gid
