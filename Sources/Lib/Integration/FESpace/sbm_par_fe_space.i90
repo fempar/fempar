@@ -26,14 +26,16 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine par_fe_space_serial_create_with_parameter_list( this,          &
-                                                       triangulation, &
-                                                       parameters,    &
-                                                       conditions)
+                                                           triangulation, &
+                                                           parameters,    &
+                                                           conditions, &
+                                                           generate_global_dof_numbering )
   implicit none
-  class(par_fe_space_t)                        , intent(inout)  :: this
-  class(triangulation_t)               , target, intent(in)     :: triangulation
-  type(ParameterList_t)                        , intent(inout)  :: parameters
+  class(par_fe_space_t)                                , intent(inout)  :: this
+  class(triangulation_t)                       , target, intent(in)     :: triangulation
+  type(ParameterList_t)                                , intent(inout)  :: parameters
   class(strong_boundary_conditions_t), optional, target,  intent(inout) :: conditions
+  logical                            , optional        , intent(in)     :: generate_global_dof_numbering
   assert(.false.)
 end subroutine par_fe_space_serial_create_with_parameter_list
 
@@ -46,13 +48,13 @@ subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,    
                                                                        generate_global_dof_numbering )
                                                                       
   implicit none
-  class(par_fe_space_t)                       , intent(inout)  :: this
-  class(triangulation_t), target  , intent(in)     :: triangulation
-  type(p_reference_fe_t)                      , intent(in)     :: reference_fes(:)
-  class(conditions_t)       , target, optional, intent(in)     :: conditions
+  class(par_fe_space_t)                       , intent(inout) :: this
+  class(triangulation_t)    , target          , intent(in)    :: triangulation
+  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
+  class(conditions_t)       , target, optional, intent(in)    :: conditions
   integer(ip)                       , optional, intent(in)    :: field_blocks(:)
   logical                           , optional, intent(in)    :: field_coupling(:,:)
-  logical                           , optional , intent(in)   :: generate_global_dof_numbering
+  logical                           , optional, intent(in)    :: generate_global_dof_numbering
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
@@ -73,9 +75,70 @@ subroutine par_fe_space_serial_create_different_ref_fes_between_cells( this,    
   integer(ip)                       , optional, intent(in)    :: field_blocks(:)
   logical                           , optional, intent(in)    :: field_coupling(:,:)
   logical                           , optional, intent(in)   :: generate_global_dof_numbering
-
   check(.false.)
 end subroutine par_fe_space_serial_create_different_ref_fes_between_cells
+
+subroutine par_fe_space_create_with_parameter_list( this,               &
+                                                    triangulation,      &
+                                                    coarse_fe_handlers, &
+                                                    parameters,         &
+                                                    conditions,         &
+                                                    generate_global_dof_numbering )
+  implicit none
+  class(par_fe_space_t)                                , intent(inout) :: this
+  class(triangulation_t)                       , target, intent(in)    :: triangulation
+  type(p_l1_coarse_fe_handler_t)                       , intent(in)    :: coarse_fe_handlers(:)
+  type(ParameterList_t)                                , intent(inout) :: parameters
+  class(strong_boundary_conditions_t), optional, target, intent(inout) :: conditions
+  logical                            , optional        , intent(in)    :: generate_global_dof_numbering
+  type(environment_t), pointer :: environment 
+  integer(ip)                  :: field_id
+  integer(ip), allocatable :: field_blocks(:)
+  
+  call this%free()
+  
+  ! This is a little bit DIRTY. Many type(par_fe_space_t) TBPs require that 
+  ! coarse-grid tasks also associate this (superclass') member variable to a 
+  ! target
+  this%triangulation     => triangulation
+  this%environment       => triangulation%get_environment()
+  environment    => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     call this%serial_fe_space_t%create( triangulation, &
+                                         parameters, &
+                                         conditions, &
+                                         generate_global_dof_numbering = .false. )
+  else
+     ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
+     ! tasks also know how many fields there are
+     call this%get_fe_space_num_fields_from_pl(parameters,this%num_fields)
+     
+     ! This is a little bit DIRTY. fe_function%create(fe_space)
+     ! requires that num_fixed_dofs is initialize
+     this%num_fixed_dofs = 0
+     
+     ! This is a little bit DIRTY, force initialization of variable.
+     this%num_total_free_dofs  = 0
+     this%num_total_free_ghost_dofs = 0
+     
+     ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
+     ! require that this%block_layout is created on all processes
+     call this%get_fe_space_field_blocks_from_pl(parameters,field_blocks)
+     call this%block_layout%create(this%get_num_fields(), field_blocks)
+     call memfree(field_blocks,__FILE__,__LINE__)
+  end if
+  call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers) 
+  if ( present(generate_global_dof_numbering) ) then
+    if ( generate_global_dof_numbering ) then
+      call this%generate_global_dof_numbering()
+    end if 
+  else
+    call this%generate_global_dof_numbering()
+  end if
+  
+  
+end subroutine par_fe_space_create_with_parameter_list
+
 
 subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,               &
                                                                 triangulation,      &

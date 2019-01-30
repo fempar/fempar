@@ -29,6 +29,7 @@ module fempar_parameter_handler_names
   use types_names
   use iterative_linear_solver_parameters_names
   use direct_solver_parameters_names
+  use nonlinear_solver_names
   use environment_names
   use mesh_distribution_names
   use metis_interface_names
@@ -84,6 +85,8 @@ contains
     if (present(define_user_parameters_procedure)) then
       this%define_user_parameters => define_user_parameters_procedure
       call this%define_user_parameters()
+    else
+      nullify(this%define_user_parameters)
     end if
     
 #ifdef DEBUG
@@ -229,6 +232,27 @@ contains
     error = error + switches%set(key = umfpack_control_params    , value = '--UMFPACK_cont_params')
     error = error + values%set(key = umfpack_control_params      , value = umfpack_control )
 #endif 
+
+
+    error = error + helpers%set(key = nls_rtol_key , value = 'Relative tolerance for the nonlinear solvers stopping criteria')
+    error = error + switches%set(key = nls_rtol_key, value = '--NLS_RTOL')
+    error = error + values%set(key = nls_rtol_key  , value = default_nls_rtol)
+    
+    error = error + helpers%set(key = nls_atol_key , value = 'Absolute tolerance for the nonlinear solvers stopping criteria')
+    error = error + switches%set(key = nls_atol_key, value = '--NLS_ATOL')
+    error = error + values%set(key = nls_atol_key  , value = default_nls_atol)
+
+    error = error + helpers%set(key = nls_stopping_criterium_key , value = 'Nonlinear solvers stopping criterium type')
+    error = error + switches%set(key = nls_stopping_criterium_key, value = '--NLS_STOPPING_CRITERIUM')
+    error = error + values%set(key = nls_stopping_criterium_key  , value =  default_nls_stopping_criterium)
+
+    error = error + helpers%set(key = nls_max_num_iterations_key , value = 'Nonlinear solvers maximum number of iterations')
+    error = error + switches%set(key = nls_max_num_iterations_key, value = '--NLS_MAX_NUM_ITERATIONS')
+    error = error + values%set(key = nls_max_num_iterations_key  , value = default_nls_max_iter)
+    
+    error = error + helpers%set(key = nls_print_iteration_output_key , value = 'Print output per nonlinear solver iteration')
+    error = error + switches%set(key = nls_print_iteration_output_key, value = '--NLS_PRINT_ITERATION_OUTPUT')
+    error = error + values%set(key = nls_print_iteration_output_key  , value = default_nls_print_iteration_output)
 
     ! Finite element space 
 
@@ -402,6 +426,8 @@ contains
     !if associated ( this%define_user_parameters) then
     !  call this%define_user_parameters()
     !end if 
+    
+    assert ( error == 0 )
 
   end subroutine fph_define_fempar_parameters
 

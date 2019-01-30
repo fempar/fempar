@@ -170,7 +170,7 @@ subroutine stokes_discrete_integration_integrate_tangent ( this, fe_space, assem
             ! U-P
             do jdof_p = 1, num_dofs_per_field(2)
               jdof = num_dofs_per_field(1)+jdof_p
-              elmat(idof,jdof) = elmat(idof,jdof) + dV * div_v * shape_p_values(jdof_p,qpoint)
+              elmat(idof,jdof) = elmat(idof,jdof) - dV * div_v * shape_p_values(jdof_p,qpoint)
             end do
          end do
          do idof_p = 1, num_dofs_per_field(2)
@@ -291,7 +291,7 @@ subroutine stokes_discrete_integration_integrate_residual ( this, fe_space, asse
            div_v = trace(epsd_v)
            elvec(idof) = elvec(idof) - dV * source_term_value * shape_u_values(idof_u,qpoint)
            elvec(idof) = elvec(idof) + dV * double_contract(epsd_v,2*this%viscosity*epsd_u)
-           elvec(idof) = elvec(idof) + dV * div_v * solution_p(qpoint)
+           elvec(idof) = elvec(idof) - dV * div_v * solution_p(qpoint)
            !> Convective term $\int_\Omega u_i \cdot \partial_i u_j v_j
            !elvec(idof) = elvec(idof) + dV * (solution_u(qpoint)*solution_gradu(qpoint))*shape_u_values(idof_u,qpoint)
          end do
