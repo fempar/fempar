@@ -91,12 +91,12 @@ subroutine sut_create_vef_iterator ( this, vef )
 end subroutine sut_create_vef_iterator
 
 !========================================================================================
-function sut_get_marching_cubes(this) result (val)
+function sut_get_unfitted_boundary_cutter(this) result (val)
   implicit none
   class(serial_unfitted_triangulation_t), target, intent(in)    :: this
   class(unfitted_boundary_cutter_t), pointer :: val
   val => this%boundary_cutter
-end function sut_get_marching_cubes
+end function sut_get_unfitted_boundary_cutter
 
 !========================================================================================
 function sut_get_num_cut_cells(this) result (val)

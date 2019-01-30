@@ -112,12 +112,12 @@ subroutine upst_create_vef_iterator ( this, vef )
 end subroutine upst_create_vef_iterator
 
 !========================================================================================
-function upst_get_marching_cubes(this) result (val)
+function upst_get_unfitted_boundary_cutter(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(in)    :: this
   class(unfitted_boundary_cutter_t), pointer :: val
   val => this%boundary_cutter
-end function upst_get_marching_cubes
+end function upst_get_unfitted_boundary_cutter
 
 !========================================================================================
 function upst_get_num_cut_cells(this) result (val)

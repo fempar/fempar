@@ -39,21 +39,20 @@ subroutine unfitted_vef_iterator_create ( this, triangulation )
   
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)
-    boundary_cutter => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call this%bst_vef_iterator_t%create(triangulation)
   class is (unfitted_p4est_serial_triangulation_t)
-    boundary_cutter => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call vef_iterator_create(this,triangulation)
   class is (par_unfitted_triangulation_t)
-    boundary_cutter => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call this%bst_vef_iterator_t%create(triangulation)
   class default
     check(.false.)
   end select
   
-  assert(associated(boundary_cutter%triangulation))
   this%boundary_cutter => boundary_cutter
-  call this%boundary_cutter%triangulation%create_cell_iterator(this%unfitted_cell)  
+  call this%boundary_cutter%create_cell_iterator(this%unfitted_cell)  
   call this%update_unfitted_cell()
 
 end subroutine unfitted_vef_iterator_create
@@ -64,8 +63,7 @@ subroutine unfitted_vef_iterator_free ( this )
   class(unfitted_vef_iterator_t), intent(inout) :: this
 
   if (associated(this%boundary_cutter)) then
-    assert(associated(this%boundary_cutter%triangulation))
-    call this%boundary_cutter%triangulation%free_cell_iterator(this%unfitted_cell)
+    call this%boundary_cutter%free_cell_iterator(this%unfitted_cell)
   end if
   this%boundary_cutter => null()
   call this%bst_vef_iterator_t%free()

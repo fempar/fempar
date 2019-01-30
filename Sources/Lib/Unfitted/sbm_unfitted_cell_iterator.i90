@@ -37,18 +37,18 @@ subroutine unfitted_cell_iterator_create ( this, triangulation )
   call this%free()
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)
-    boundary_cutter => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call this%bst_cell_iterator_t%create(triangulation)
   class is (unfitted_p4est_serial_triangulation_t)
-    boundary_cutter => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call cell_iterator_create(this,triangulation)
   class is (par_unfitted_triangulation_t)
-    boundary_cutter => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call this%bst_cell_iterator_t%create(triangulation)
   class default
     check(.false.)
   end select
-  assert(associated(boundary_cutter%triangulation))
+  assert(associated(boundary_cutter%get_triangulation()))
   this%boundary_cutter => boundary_cutter
 end subroutine unfitted_cell_iterator_create
 

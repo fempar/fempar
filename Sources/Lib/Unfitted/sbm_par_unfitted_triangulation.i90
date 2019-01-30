@@ -90,12 +90,12 @@ end subroutine put_create_cell_iterator
 !!end subroutine put_create_vef_iterator
 
 !========================================================================================
-function put_get_marching_cubes(this) result (val)
+function put_get_unfitted_boundary_cutter(this) result (val)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(in)    :: this
   class(unfitted_boundary_cutter_t), pointer :: val
   val => this%boundary_cutter
-end function put_get_marching_cubes
+end function put_get_unfitted_boundary_cutter
 
 !========================================================================================
 function put_get_num_cut_cells(this) result (val)
