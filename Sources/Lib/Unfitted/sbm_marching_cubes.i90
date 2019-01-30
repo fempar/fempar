@@ -111,7 +111,7 @@ end subroutine marching_cubes_create
 !========================================================================================
 subroutine marching_cubes_free(this)
   implicit none
-  class(marching_cubes_t), target, intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
   call this%subnodes_data_free()
   call this%mc_runtime_info_free()
   call this%discrete_levelset_free()
@@ -345,9 +345,8 @@ end function marching_cubes_get_num_mc_cases
 !========================================================================================
 subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   implicit none
-  class(marching_cubes_t), target, intent(inout) :: this
-  class(cell_iterator_t),          intent(in)    :: cell_iterator ! Check if is needed, rethink ...
-  
+  class(marching_cubes_t) , intent(inout) :: this
+  class(cell_iterator_t)  , intent(in)    :: cell_iterator
   integer(ip)                 :: num_subnodes
   integer(ip)                 :: num_nodes
   integer(ip)                 :: num_intersections
@@ -359,13 +358,8 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   integer(ip)                 :: idi
   integer(ip)                 :: subcell
   integer(ip)                 :: subfacet
-  type(point_t),      pointer :: node_coords(:)
-  type(point_t),      pointer :: intersec_coords(:)
-  type(point_t),      pointer :: coordinates(:)
-  type(quadrature_t), pointer :: quadrature
   real(rp),           pointer :: points_in_quadrature(:,:)
   type(point_t),      pointer :: phys_cell_coords(:)
-  type(cell_map_t),   pointer :: cell_map
   integer(ip)                 :: subcell_nodes(4)
   integer(ip)                 :: subfacet_nodes(3)
   type(quadrature_t), pointer :: nodal_quadrature
@@ -389,15 +383,12 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
 
   ! Recover the sub-points coordinates on the ref space
   this%reference_fe_geo => cell_iterator%get_reference_fe()
-  coordinates           => this%subnodes_ref_coords
-  assert ( num_subnodes <= size( coordinates ) )
-  node_coords           => coordinates( 1 : num_nodes )
+  assert ( num_subnodes <= size( this%subnodes_ref_coords ) )
   nodal_quadrature      => this%reference_fe_geo%get_nodal_quadrature()
-  call nodal_quadrature%get_coordinates_as_points( node_coords )
-  intersec_coords    => coordinates( num_nodes + 1 : num_subnodes )
+  call nodal_quadrature%get_coordinates_as_points(this%subnodes_ref_coords(1: num_nodes))
   i1                 =  this%mc_ptr_to_intersections( this%current_cell_gid )
   i2                 =  this%mc_ptr_to_intersections( this%current_cell_gid + 1 ) - 1
-  intersec_coords(:) =  this%mc_intersection_points( i1 : i2 )
+  this%subnodes_ref_coords(num_nodes+1:num_subnodes) = this%mc_intersection_points( i1 : i2 )
 
   ! Recover connectivities of the sub-cells
   mc_case                      = this%mc_case_x_cell( this%current_cell_gid )
@@ -464,22 +455,21 @@ subroutine marching_cubes_update_sub_triangulation( this, cell_iterator )
   end if
 
   ! Update the quadrature
-  quadrature           => this%sub_nodes_nodal_quadratures( mc_case )
-  assert( num_dim      == quadrature%get_num_dims())
-  assert( num_subnodes == quadrature%get_num_quadrature_points())
-  points_in_quadrature => quadrature%get_coordinates()
+  assert( num_dim      == this%sub_nodes_nodal_quadratures(mc_case)%get_num_dims())
+  assert( num_subnodes == this%sub_nodes_nodal_quadratures(mc_case)%get_num_quadrature_points())
+  points_in_quadrature => this%sub_nodes_nodal_quadratures(mc_case)%get_coordinates()
   do ipo = 1, num_subnodes
     do idi = 1, num_dim
-      points_in_quadrature( idi, ipo ) = coordinates( ipo )%get( idi )
+      points_in_quadrature( idi, ipo ) = this%subnodes_ref_coords( ipo )%get( idi )
     end do
   end do
 
   ! Prepare the fe map
-  cell_map => this%sub_nodes_cell_maps( mc_case )
-  call cell_map%update_interpolation( quadrature, this%reference_fe_geo )
-  phys_cell_coords => cell_map%get_coordinates()
-  call cell_iterator%get_nodes_coordinates( phys_cell_coords ) ! phys_cell_coords as a memeber variable of this to reduce the interface with cell_iterator
-  call cell_map%compute_quadrature_points_coordinates()
+  call this%sub_nodes_cell_maps( mc_case )%update_interpolation( & 
+          this%sub_nodes_nodal_quadratures(mc_case), this%reference_fe_geo )
+  phys_cell_coords => this%sub_nodes_cell_maps( mc_case )%get_coordinates()
+  call cell_iterator%get_nodes_coordinates( phys_cell_coords )
+  call this%sub_nodes_cell_maps( mc_case )%compute_quadrature_points_coordinates()
 
   ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
 
@@ -509,62 +499,37 @@ function marching_cubes_get_num_subcell_nodes( this ) result ( num_nodes_subcell
   num_nodes_subcell = this%mc_table_num_nodes_in_sub_cell
 end function marching_cubes_get_num_subcell_nodes
 
-
 !========================================================================================
 subroutine marching_cubes_get_phys_coords_of_subcell( this, subcell, points)
-
   implicit none
-  class(marching_cubes_t), target, intent(in)    :: this
-  integer(ip),                     intent(in)    :: subcell
-  type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip)               :: num_nodes_subcell, mc_case
-  type(point_t),    pointer :: subnodes_phys_coords(:)
-  type(cell_map_t), pointer :: cell_map
-  integer(ip),      pointer :: subcell_node_ids(:)
-
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip)            , intent(in)    :: subcell
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip) :: mc_case
+  type(point_t), pointer :: subnodes_phys_coords(:)
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-
-  num_nodes_subcell = this%get_num_subcell_nodes()
-  assert( size(points) == num_nodes_subcell)
+  assert( size(points) == this%get_num_subcell_nodes())
   assert( this%is_cut( this%current_cell_gid ) )
   assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
-
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
-  cell_map => this%sub_nodes_cell_maps(mc_case)
-  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
-  subcell_node_ids =>  this%sub_cells_node_ids(:,subcell)
-  points(:) = subnodes_phys_coords(subcell_node_ids(:))
-
+  subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
+  points(:) = subnodes_phys_coords(this%sub_cells_node_ids(:,subcell))
 end subroutine marching_cubes_get_phys_coords_of_subcell
-
 
 !========================================================================================
 subroutine marching_cubes_get_ref_coords_of_subcell( this, subcell, points)
   implicit none
-  class(marching_cubes_t), target, intent(in)    :: this
-  integer(ip),                     intent(in)    :: subcell
-  type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip)            :: num_nodes_subcell
-  type(point_t), pointer :: subnodes_ref_coords(:)
-  integer(ip),   pointer ::  subcell_node_ids(:)
-
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip)            , intent(in)    :: subcell
+  type(point_t)          , intent(inout) :: points(:)
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-
-  num_nodes_subcell = this%get_num_subcell_nodes()
-  assert( size(points) == num_nodes_subcell)
+  assert( size(points) == this%get_num_subcell_nodes())
   assert( this%is_cut( this%current_cell_gid ) )
   assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells() ) )
-
-  subnodes_ref_coords => this%subnodes_ref_coords
-  subcell_node_ids =>  this%sub_cells_node_ids(:,subcell)
-  points(:) = subnodes_ref_coords(subcell_node_ids(:))
-
+  points(:) = this%subnodes_ref_coords(this%sub_cells_node_ids(:,subcell))
 end subroutine marching_cubes_get_ref_coords_of_subcell
-
 
 !========================================================================================
 function marching_cubes_get_num_subfacets( this ) result ( num_subfacets )
@@ -591,58 +556,36 @@ end function marching_cubes_get_num_subfacet_nodes
 !========================================================================================
 subroutine marching_cubes_get_phys_coords_of_subfacet( this, subfacet, points )
   implicit none
-  class(marching_cubes_t), target, intent(in)    :: this
-  integer(ip),                     intent(in)    :: subfacet
-  type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip)               :: num_nodes_subfacet
+  class(marching_cubes_t),  intent(in)    :: this
+  integer(ip),              intent(in)    :: subfacet
+  type(point_t),            intent(inout) :: points(:)
   integer(ip)               :: mc_case
   type(point_t),    pointer :: subnodes_phys_coords(:)
-  type(cell_map_t), pointer :: cell_map
-  integer(ip),      pointer ::  subfacet_node_ids(:)
-
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-
-  num_nodes_subfacet = this%get_num_subfacet_nodes()
-  assert( size(points) == num_nodes_subfacet)
+  assert( size(points) ==  this%get_num_subfacet_nodes())
   assert( this%is_cut( this%current_cell_gid ) )
   assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets() ) )
-
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
-  cell_map => this%sub_nodes_cell_maps(mc_case)
-  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
-  subfacet_node_ids =>  this%unfitted_sub_facets_node_ids(:,subfacet)
-  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
-
+  subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
+  points(:) = subnodes_phys_coords(this%unfitted_sub_facets_node_ids(:,subfacet))
 end subroutine marching_cubes_get_phys_coords_of_subfacet
 
 !========================================================================================
 subroutine marching_cubes_get_ref_coords_of_subfacet( this, subfacet, points )
 
   implicit none
-  class(marching_cubes_t), target, intent(in)    :: this
-  integer(ip),                     intent(in)    :: subfacet
-  type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip)            :: num_nodes_subfacet
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip)            , intent(in)    :: subfacet
+  type(point_t)          , intent(inout) :: points(:)
   integer(ip)            :: mc_case
-  type(point_t), pointer :: subnodes_ref_coords(:)
-  integer(ip),   pointer :: subfacet_node_ids(:)
-
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-
-  num_nodes_subfacet = this%get_num_subfacet_nodes()
-  assert( size(points) == num_nodes_subfacet)
+  assert( size(points) == this%get_num_subfacet_nodes())
   assert( this%is_cut( this%current_cell_gid ) )
   assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets() ) )
-
-  subnodes_ref_coords => this%subnodes_ref_coords
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
-  subfacet_node_ids =>  this%unfitted_sub_facets_node_ids(:,subfacet)
-  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
-
+  points(:) = this%subnodes_ref_coords(this%unfitted_sub_facets_node_ids(:,subfacet))
 end subroutine marching_cubes_get_ref_coords_of_subfacet
 
 !========================================================================================
@@ -744,59 +687,41 @@ end function marching_cubes_get_num_fitted_subfacets
 !========================================================================================
 subroutine marching_cubes_get_phys_coords_of_subvef ( this, gid, facet_lid, subvef, points )
   implicit none
-  class(marching_cubes_t), target, intent(in)    :: this
-  integer(ip),                     intent(in)    :: gid
-  integer(ip),                     intent(in)    :: facet_lid
-  integer(ip),                     intent(in)    :: subvef
-  type(point_t),                   intent(inout) :: points(:)
-  
-  integer(ip)               :: mc_case
-  type(point_t),    pointer :: subnodes_phys_coords(:)
-  type(cell_map_t), pointer :: cell_map
-  integer(ip),      pointer ::  subfacet_node_ids(:)
-  
-  assert(this%mc_runtime_init)
-  
-  
-  mc_case = this%mc_case_x_cell( gid )
-  cell_map => this%sub_nodes_cell_maps(mc_case)
-  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
-  subfacet_node_ids =>  this%fitted_sub_facets_node_ids_x_facet(:, subvef, facet_lid )
-  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip)            , intent(in)    :: gid
+  integer(ip)            , intent(in)    :: facet_lid
+  integer(ip)            , intent(in)    :: subvef
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip)            :: mc_case
+  type(point_t), pointer :: subnodes_phys_coords(:)
 
+  assert(this%mc_runtime_init)
+  mc_case = this%mc_case_x_cell( gid )
+  subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
+  points(:) = subnodes_phys_coords(this%fitted_sub_facets_node_ids_x_facet(:, subvef, facet_lid ))
 end subroutine marching_cubes_get_phys_coords_of_subvef
 
 !========================================================================================
 subroutine marching_cubes_get_ref_coords_of_subvef ( this, reference_fe, gid, facet_lid, subvef, points )
   implicit none
-  class(marching_cubes_t), target, intent(in)    :: this
-  class(reference_fe_t),           intent(in)    :: reference_fe
-  integer(ip),                     intent(in)    :: gid
-  integer(ip),                     intent(in)    :: facet_lid
-  integer(ip),                     intent(in)    :: subvef
-  type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip)                    :: num_nodes_subfacet
-  integer(ip)                    :: mc_case
-  type(point_t),         pointer :: subnodes_ref_coords(:)
-  type(cell_map_t),      pointer :: cell_map
-  integer(ip),           pointer ::  subfacet_node_ids(:)
-  integer(ip)                    :: num_dims
-  integer(ip)                    :: dime1
-  integer(ip)                    :: dime2
-  integer(ip)                    :: ipoint
-  !class(reference_fe_t), pointer :: reference_fe
-  integer(ip)                    :: cell_to_facet_coords_2d(4)
-  integer(ip)                    :: cell_to_facet_coords_3d(2,6)
+  class(marching_cubes_t), intent(in)    :: this
+  class(reference_fe_t)  , intent(in)    :: reference_fe
+  integer(ip)            , intent(in)    :: gid
+  integer(ip)            , intent(in)    :: facet_lid
+  integer(ip)            , intent(in)    :: subvef
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip) :: mc_case
+  integer(ip) :: num_dims
+  integer(ip) :: dime1
+  integer(ip) :: dime2
+  integer(ip) :: ipoint
+  integer(ip) :: cell_to_facet_coords_2d(4)
+  integer(ip) :: cell_to_facet_coords_3d(2,6)
   
   assert(this%mc_runtime_init)
   mc_case = this%mc_case_x_cell( gid )
-  subnodes_ref_coords => this%subnodes_ref_coords
-  subfacet_node_ids =>  this%fitted_sub_facets_node_ids_x_facet( :, subvef, facet_lid )
-  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
+  points(:) = this%subnodes_ref_coords(this%fitted_sub_facets_node_ids_x_facet( :, subvef, facet_lid ))
   num_dims = this%num_dims
-
-  !reference_fe => this%reference_fe_geo
   
   select case (reference_fe%get_topology())
     case ( topology_tet )

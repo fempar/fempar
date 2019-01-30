@@ -93,7 +93,7 @@ module unfitted_boundary_cutter_names
   abstract interface
      subroutine ubc_free_interface ( this )
        import :: unfitted_boundary_cutter_t
-       class(unfitted_boundary_cutter_t), target, intent(inout) :: this
+       class(unfitted_boundary_cutter_t), intent(inout) :: this
      end subroutine ubc_free_interface
 
      function ubc_get_cell_gid_interface ( this ) result( gid )
@@ -152,8 +152,8 @@ module unfitted_boundary_cutter_names
 
      subroutine ubc_update_sub_triangulation_interface ( this, cell_iterator )
        import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(inout)    :: this
-       class(cell_iterator_t),            intent(in)       :: cell_iterator
+       class(unfitted_boundary_cutter_t), intent(inout)    :: this
+       class(cell_iterator_t)           , intent(in)       :: cell_iterator
      end subroutine ubc_update_sub_triangulation_interface
 
      function ubc_get_num_subcells_interface ( this ) result( num_subcells )
@@ -170,16 +170,16 @@ module unfitted_boundary_cutter_names
 
      subroutine ubc_get_phys_coords_of_subcell_interface ( this, subcell, points )
        import :: unfitted_boundary_cutter_t, point_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(in)    :: this
-       integer(ip),                               intent(in)    :: subcell
-       type(point_t),                             intent(inout) :: points(:)
+       class(unfitted_boundary_cutter_t), intent(in)    :: this
+       integer(ip)                      , intent(in)    :: subcell
+       type(point_t)                    , intent(inout) :: points(:)
      end subroutine ubc_get_phys_coords_of_subcell_interface
 
      subroutine ubc_get_ref_coords_of_subcell_interface ( this, subcell, points )
        import :: unfitted_boundary_cutter_t, point_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(in)    :: this
-       integer(ip),                               intent(in)    :: subcell
-       type(point_t),                             intent(inout) :: points(:)
+       class(unfitted_boundary_cutter_t), intent(in)    :: this
+       integer(ip)                      , intent(in)    :: subcell
+       type(point_t)                    , intent(inout) :: points(:)
      end subroutine ubc_get_ref_coords_of_subcell_interface
 
      function ubc_get_num_subfacets_interface ( this ) result( num_subfacets )
@@ -196,16 +196,16 @@ module unfitted_boundary_cutter_names
 
      subroutine ubc_get_phys_coords_of_subfacet_interface ( this, subfacet, points )
        import :: unfitted_boundary_cutter_t, point_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(in)    :: this
-       integer(ip),                               intent(in)    :: subfacet
-       type(point_t),                             intent(inout) :: points(:)
+       class(unfitted_boundary_cutter_t), intent(in)    :: this
+       integer(ip)                      , intent(in)    :: subfacet
+       type(point_t)                    , intent(inout) :: points(:)
      end subroutine ubc_get_phys_coords_of_subfacet_interface
 
      subroutine ubc_get_ref_coords_of_subfacet_interface ( this, subfacet, points )
        import :: unfitted_boundary_cutter_t, point_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(in)    :: this
-       integer(ip),                               intent(in)    :: subfacet
-       type(point_t),                             intent(inout) :: points(:)
+       class(unfitted_boundary_cutter_t), intent(in)    :: this
+       integer(ip)                      , intent(in)    :: subfacet
+       type(point_t)                    , intent(inout) :: points(:)
      end subroutine ubc_get_ref_coords_of_subfacet_interface
 
      function ubc_is_cut_interface ( this, gid ) result( is_cut )
@@ -253,21 +253,21 @@ module unfitted_boundary_cutter_names
 
      subroutine ubc_get_phys_coords_of_subvef_interface ( this, gid, facet_lid, subvef, points )
        import :: unfitted_boundary_cutter_t, point_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(in)    :: this
-       integer(ip),                               intent(in)    :: gid
-       integer(ip),                               intent(in)    :: facet_lid
-       integer(ip),                               intent(in)    :: subvef
-       type(point_t),                             intent(inout) :: points(:)
+       class(unfitted_boundary_cutter_t),  intent(in)    :: this
+       integer(ip)                      ,  intent(in)    :: gid
+       integer(ip)                      ,  intent(in)    :: facet_lid
+       integer(ip)                      ,  intent(in)    :: subvef
+       type(point_t)                    ,  intent(inout) :: points(:)
      end subroutine ubc_get_phys_coords_of_subvef_interface
 
      subroutine ubc_get_ref_coords_of_subvef_interface ( this, reference_fe, gid, facet_lid, subvef, points )
        import :: unfitted_boundary_cutter_t, point_t, reference_fe_t, ip
-       class(unfitted_boundary_cutter_t), target, intent(in)    :: this
-       class(reference_fe_t),                     intent(in)    :: reference_fe
-       integer(ip),                               intent(in)    :: gid
-       integer(ip),                               intent(in)    :: facet_lid
-       integer(ip),                               intent(in)    :: subvef
-       type(point_t),                             intent(inout) :: points(:)
+       class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(reference_fe_t)            , intent(in)    :: reference_fe
+       integer(ip)                      , intent(in)    :: gid
+       integer(ip)                      , intent(in)    :: facet_lid
+       integer(ip)                      , intent(in)    :: subvef
+       type(point_t)                    , intent(inout) :: points(:)
      end subroutine ubc_get_ref_coords_of_subvef_interface
 
      function ubc_is_cut_facet_interface ( this, gid, facet_lid ) result ( is_cut )
