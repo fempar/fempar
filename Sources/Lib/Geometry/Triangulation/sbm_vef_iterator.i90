@@ -110,12 +110,6 @@ function vef_iterator_is_within_valid_range (this)
   vef_iterator_is_within_valid_range  = (this%gid >= 1 .and. .not. this%has_finished())
 end function vef_iterator_is_within_valid_range
 
-subroutine vef_iterator_update_sub_triangulation( this )
-  implicit none
-  class(vef_iterator_t), intent(inout) :: this
-  mcheck(.false.,'This procedure can only be called by some child derived data types')
-end subroutine vef_iterator_update_sub_triangulation
-
 function vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   implicit none
   class(vef_iterator_t), intent(in)    :: this

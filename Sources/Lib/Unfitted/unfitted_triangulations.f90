@@ -68,13 +68,9 @@ module unfitted_triangulations_names
   contains
   
     ! Creation / deletion methods
-    procedure :: create => unfitted_cell_iterator_create
-    procedure :: free   => unfitted_cell_iterator_free
-    
-    ! Updater: to be called each time the lid changes
-    procedure :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
-
-    
+    procedure :: create  => unfitted_cell_iterator_create
+    procedure :: free    => unfitted_cell_iterator_free
+            
     ! Getters related with the subcells
     procedure :: get_num_subcells            => unfitted_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes       => unfitted_cell_iterator_get_num_subcell_nodes
@@ -111,9 +107,6 @@ module unfitted_triangulations_names
     procedure :: first        => unfitted_vef_iterator_first
     procedure :: next         => unfitted_vef_iterator_next
     procedure :: set_gid      => unfitted_vef_iterator_set_gid
-    
-    ! Updater: to be called each time the lid changes
-    procedure :: update_sub_triangulation  => unfitted_vef_iterator_update_sub_triangulation
     
     ! Getters related with the subvefs
     procedure :: get_num_subvefs           => unfitted_vef_iterator_get_num_subvefs
@@ -288,7 +281,7 @@ module unfitted_triangulations_names
     logical,                   allocatable :: sub_cell_has_been_reoriented(:)
     logical                                :: mc_cell_info_init = .false.
     integer(ip)                            :: current_cell_gid = -1
-    integer(ip)                            :: num_cell_nodes
+    integer(ip)                            :: num_current_cell_nodes = -1
     integer(ip)                            :: num_subcells
     integer(ip)                            :: num_subfacets
     integer(ip),               allocatable :: subcells_status(:)
@@ -300,6 +293,8 @@ module unfitted_triangulations_names
     ! Auxiliary work data
     type(quadrature_t), allocatable :: sub_nodes_nodal_quadratures(:)
     type(cell_map_t),   allocatable :: sub_nodes_cell_maps(:)
+    
+    logical :: current_cell_sub_triangulation_updated = .false.
 
   contains
 
@@ -308,7 +303,6 @@ module unfitted_triangulations_names
     procedure                  :: free           => marching_cubes_free
 
     ! Getters (Implementation of the public interfaces of the unfitted triangulations)
-    procedure :: get_cell_gid                     => marching_cubes_get_cell_gid
     procedure :: get_num_cut_cells                => marching_cubes_get_num_cut_cells
     procedure :: get_num_interior_cells           => marching_cubes_get_num_interior_cells
     procedure :: get_num_exterior_cells           => marching_cubes_get_num_exterior_cells
@@ -342,15 +336,16 @@ module unfitted_triangulations_names
     procedure :: is_exterior_facet                => marching_cubes_is_exterior_facet
     procedure :: is_interior_subfacet             => marching_cubes_is_interior_subfacet
     procedure :: is_exterior_subfacet             => marching_cubes_is_exterior_subfacet
-
-   
+    
+    ! Parent class overrided TBPs 
+    procedure :: set_current_cell                 => marching_cubes_set_current_cell
+       
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases
     
     ! Printers
     procedure :: print                     => marching_cubes_print
     
-   
     ! Private TBPs
     procedure, non_overridable, private :: get_num_subnodes               => marching_cubes_get_num_subnodes
     procedure, non_overridable, private :: is_inverted_subcell            => marching_cubes_is_inverted_subcell
