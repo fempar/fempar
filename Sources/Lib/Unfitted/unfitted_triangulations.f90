@@ -303,16 +303,8 @@ module unfitted_triangulations_names
     procedure                  :: free           => marching_cubes_free
 
     ! Getters (Implementation of the public interfaces of the unfitted triangulations)
-    procedure :: get_num_cut_cells                => marching_cubes_get_num_cut_cells
-    procedure :: get_num_interior_cells           => marching_cubes_get_num_interior_cells
-    procedure :: get_num_exterior_cells           => marching_cubes_get_num_exterior_cells
-    procedure :: get_max_num_subcells_in_cell     => marching_cubes_get_max_num_subcells_in_cell
     procedure :: get_max_num_nodes_in_subcell     => marching_cubes_get_max_num_nodes_in_subcell
-    procedure :: get_total_num_subcells           => marching_cubes_get_total_num_subcells
-    procedure :: get_max_num_subfacets_in_cell    => marching_cubes_get_max_num_subfacets_in_cell
     procedure :: get_max_num_nodes_in_subfacet    => marching_cubes_get_max_num_nodes_in_subfacet
-    procedure :: get_total_num_subfacets          => marching_cubes_get_total_num_subfacets
-    procedure :: get_total_num_fitted_sub_facets  => marching_cubes_get_total_num_fitted_sub_facets
     procedure :: get_max_num_subnodes_in_cell     => marching_cubes_get_max_num_subnodes_in_cell
     procedure :: update_sub_triangulation         => marching_cubes_update_sub_triangulation
     procedure :: get_num_subcells                 => marching_cubes_get_num_subcells

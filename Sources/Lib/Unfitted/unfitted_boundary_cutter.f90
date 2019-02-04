@@ -63,17 +63,22 @@ module unfitted_boundary_cutter_names
     procedure, non_overridable :: free_cell_iterator    => ubc_free_cell_iterator
     procedure, non_overridable :: create_vef_iterator   => ubc_create_vef_iterator
     procedure, non_overridable :: free_vef_iterator     => ubc_free_vef_iterator
+
+    ! These procedures are overridable since the concrete implementations can provide
+    ! more efficient code
+    procedure :: get_num_cut_cells               => ubc_get_num_cut_cells
+    procedure :: get_num_interior_cells          => ubc_get_num_interior_cells
+    procedure :: get_num_exterior_cells          => ubc_get_num_exterior_cells
+    procedure :: get_total_num_subcells          => ubc_get_total_num_subcells
+    procedure :: get_total_num_subfacets         => ubc_get_total_num_subfacets
+    procedure :: get_total_num_fitted_sub_facets => ubc_get_total_num_fitted_sub_facets
+    procedure :: get_max_num_nodes_in_subcell    => ubc_get_max_num_nodes_in_subcell
+    procedure :: get_max_num_nodes_in_subfacet   => ubc_get_max_num_nodes_in_subfacet
+    procedure :: get_max_num_subcells_in_cell    => ubc_get_max_num_subcells_in_cell
+    procedure :: get_max_num_subfacets_in_cell   => ubc_get_max_num_subfacets_in_cell
   
     ! Deferred BPs
     procedure(free_interface),                            deferred :: free
-    procedure(get_num_cut_cells_interface)              , deferred :: get_num_cut_cells
-    procedure(get_num_interior_cells_interface)         , deferred :: get_num_interior_cells
-    procedure(get_num_exterior_cells_interface)         , deferred :: get_num_exterior_cells
-    procedure(get_max_num_nodes_in_subcell_interface)   , deferred :: get_max_num_nodes_in_subcell
-    procedure(get_total_num_subcells_interface)         , deferred :: get_total_num_subcells
-    procedure(get_max_num_nodes_in_subfacet_interface)  , deferred :: get_max_num_nodes_in_subfacet
-    procedure(get_total_num_subfacets_interface)        , deferred :: get_total_num_subfacets
-    procedure(get_total_num_fitted_sub_facets_interface), deferred :: get_total_num_fitted_sub_facets
     procedure(get_num_subcells_interface)               , deferred :: get_num_subcells
     procedure(get_num_subcell_nodes_interface)          , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface)     , deferred :: get_phys_coords_of_subcell
@@ -103,54 +108,6 @@ module unfitted_boundary_cutter_names
        import :: unfitted_boundary_cutter_t
        class(unfitted_boundary_cutter_t), intent(inout) :: this
      end subroutine free_interface
-
-     function get_num_cut_cells_interface ( this ) result( num_cut_cells )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: num_cut_cells
-     end function get_num_cut_cells_interface
-
-     function get_num_interior_cells_interface ( this ) result( num_interior_cells )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: num_interior_cells
-     end function get_num_interior_cells_interface
-
-     function get_num_exterior_cells_interface ( this ) result( num_exterior_cells )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: num_exterior_cells
-     end function get_num_exterior_cells_interface
-
-     function get_max_num_nodes_in_subcell_interface ( this ) result( max_num_nodes )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: max_num_nodes
-     end function get_max_num_nodes_in_subcell_interface
-
-     function get_total_num_subcells_interface ( this ) result( total_num_subcells )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: total_num_subcells
-     end function get_total_num_subcells_interface
-
-     function get_max_num_nodes_in_subfacet_interface ( this ) result( max_num_nodes )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: max_num_nodes
-     end function get_max_num_nodes_in_subfacet_interface
-
-     function get_total_num_subfacets_interface ( this ) result( total_num_subfacets )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: total_num_subfacets
-     end function get_total_num_subfacets_interface
-
-     function get_total_num_fitted_sub_facets_interface ( this ) result( total_num_fitted_sub_facets )
-       import :: unfitted_boundary_cutter_t, ip
-       class(unfitted_boundary_cutter_t), intent(in)    :: this
-       integer(ip) :: total_num_fitted_sub_facets
-     end function get_total_num_fitted_sub_facets_interface
 
      function get_num_subcells_interface ( this ) result( num_subcells )
        import :: unfitted_boundary_cutter_t, ip
@@ -386,6 +343,165 @@ contains
     assert(associated(this%triangulation))
     call this%triangulation%free_vef_iterator(vef)
   end subroutine ubc_free_vef_iterator
- 
+
+  function ubc_get_num_cut_cells( this ) result ( num_cut_cells )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: num_cut_cells
+    class(cell_iterator_t), allocatable  :: cell
+    num_cut_cells = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_cut() ) then
+        num_cut_cells = num_cut_cells + 1_ip
+      end if
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_num_cut_cells
+
+  function ubc_get_num_interior_cells( this ) result ( num_interior_cells )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: num_interior_cells
+    class(cell_iterator_t), allocatable  :: cell
+    num_interior_cells = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_interior() ) then
+        num_interior_cells = num_interior_cells + 1_ip
+      end if
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_num_interior_cells
+  
+  function ubc_get_num_exterior_cells( this ) result ( num_exterior_cells )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: num_exterior_cells
+    class(cell_iterator_t), allocatable  :: cell
+    num_exterior_cells = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_exterior() ) then
+        num_exterior_cells = num_exterior_cells + 1_ip
+      end if
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_num_exterior_cells
+
+  function ubc_get_total_num_subcells( this ) result ( total_num )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: total_num
+    class(cell_iterator_t), allocatable  :: cell
+    total_num = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if (cell%is_ghost()) then
+        call cell%next(); cycle
+      end if
+      total_num = total_num + cell%get_num_subcells()
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_total_num_subcells
+  
+  function ubc_get_total_num_subfacets( this ) result ( total_num )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: total_num
+    class(cell_iterator_t), allocatable  :: cell
+    total_num = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      total_num = total_num + cell%get_num_subfacets()
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_total_num_subfacets
+  
+  function ubc_get_total_num_fitted_sub_facets( this ) result ( total_num )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: total_num
+    class(vef_iterator_t), allocatable  :: vef
+    total_num = 0_ip
+    call this%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+      if ( vef%is_facet() ) then
+        total_num = total_num + vef%get_num_subvefs()
+      end if
+      call vef%next()
+    end do
+    call this%free_vef_iterator(vef)
+  end function ubc_get_total_num_fitted_sub_facets
+
+  function ubc_get_max_num_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: max_nodes_in_subcell
+    class(cell_iterator_t), allocatable  :: cell
+    call this%create_cell_iterator(cell)
+    max_nodes_in_subcell = 0_ip
+    do while ( .not. cell%has_finished() )
+      max_nodes_in_subcell = max( max_nodes_in_subcell, cell%get_num_subcell_nodes() )
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_max_num_nodes_in_subcell
+  
+  function ubc_get_max_num_nodes_in_subfacet( this ) result ( max_nodes_in_subfacet)
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: max_nodes_in_subfacet
+    class(cell_iterator_t), allocatable  :: cell
+    call this%create_cell_iterator(cell)
+    max_nodes_in_subfacet = 0_ip
+    do while ( .not. cell%has_finished() )
+      max_nodes_in_subfacet = max( max_nodes_in_subfacet, cell%get_num_subfacet_nodes() )
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_max_num_nodes_in_subfacet
+
+  function ubc_get_max_num_subcells_in_cell( this ) result ( max_subcells_in_cell )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: max_subcells_in_cell
+    class(cell_iterator_t), allocatable  :: cell
+    max_subcells_in_cell = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_local() ) then
+        if ( cell%is_cut() ) then
+          max_subcells_in_cell = max(max_subcells_in_cell,cell%get_num_subcells())
+        end if
+      end if
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_max_num_subcells_in_cell
+  
+  function ubc_get_max_num_subfacets_in_cell( this ) result ( max_subfacets_in_cell )
+    implicit none
+    class(unfitted_boundary_cutter_t)  , intent(in)    :: this
+    integer(ip) :: max_subfacets_in_cell
+    class(cell_iterator_t), allocatable  :: cell
+    max_subfacets_in_cell = 0_ip
+    call this%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_local() ) then
+        if ( cell%is_cut() ) then
+          max_subfacets_in_cell = max(max_subfacets_in_cell,cell%get_num_subfacets())
+        end if
+      end if
+      call cell%next()
+    end do
+    call this%free_cell_iterator(cell)
+  end function ubc_get_max_num_subfacets_in_cell
+
 end module unfitted_boundary_cutter_names
 

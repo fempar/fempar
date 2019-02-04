@@ -128,91 +128,6 @@ subroutine marching_cubes_free(this)
 end subroutine marching_cubes_free
 
 !========================================================================================
-function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: num_cut_cells
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  num_cut_cells = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_cut() ) then
-      num_cut_cells = num_cut_cells + 1_ip
-    end if
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_num_cut_cells
-
-!========================================================================================
-function marching_cubes_get_num_interior_cells( this ) result ( num_interior_cells )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: num_interior_cells
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  num_interior_cells = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_interior() ) then
-      num_interior_cells = num_interior_cells + 1_ip
-    end if
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_num_interior_cells
-
-!========================================================================================
-function marching_cubes_get_num_exterior_cells( this ) result ( num_exterior_cells )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: num_exterior_cells
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  num_exterior_cells = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_exterior() ) then
-      num_exterior_cells = num_exterior_cells + 1_ip
-    end if
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_num_exterior_cells
-
-!========================================================================================
-function marching_cubes_get_max_num_subcells_in_cell( this ) result ( max_subcells_in_cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: max_subcells_in_cell
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  max_subcells_in_cell = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_local() ) then
-      if ( cell%is_cut() ) then
-        max_subcells_in_cell = max(max_subcells_in_cell,cell%get_num_subcells())
-      end if
-    end if
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_max_num_subcells_in_cell
-
-!========================================================================================
 function marching_cubes_get_max_num_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
@@ -221,96 +136,12 @@ function marching_cubes_get_max_num_nodes_in_subcell( this ) result ( max_nodes_
 end function marching_cubes_get_max_num_nodes_in_subcell
 
 !========================================================================================
-function marching_cubes_get_total_num_subcells( this ) result ( total_num )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: total_num
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  total_num = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if (cell%is_ghost()) then
-      call cell%next(); cycle
-    end if
-    total_num = total_num + cell%get_num_subcells()
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_total_num_subcells
-
-!========================================================================================
-function marching_cubes_get_max_num_subfacets_in_cell( this ) result ( max_subfacets_in_cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: max_subfacets_in_cell
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  max_subfacets_in_cell = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_local() ) then
-      if ( cell%is_cut() ) then
-        max_subfacets_in_cell = max(max_subfacets_in_cell,cell%get_num_subfacets())
-      end if
-    end if
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_max_num_subfacets_in_cell
-
-!========================================================================================
 function marching_cubes_get_max_num_nodes_in_subfacet( this ) result ( max_nodes_in_subfacet)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_nodes_in_subfacet
   max_nodes_in_subfacet = this%mc_table_num_nodes_in_sub_facet
 end function marching_cubes_get_max_num_nodes_in_subfacet
-
-!========================================================================================
-function marching_cubes_get_total_num_subfacets( this ) result ( total_num )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: total_num
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  total_num = 0_ip
-  call this%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    total_num = total_num + cell%get_num_subfacets()
-    call cell%next()
-  end do
-  call this%free_cell_iterator(cell)
-
-end function marching_cubes_get_total_num_subfacets
-
-!========================================================================================
-function marching_cubes_get_total_num_fitted_sub_facets( this ) result ( total_num )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: total_num
-
-  class(vef_iterator_t), allocatable  :: vef
-
-  total_num = 0_ip
-  call this%create_vef_iterator(vef)
-  do while ( .not. vef%has_finished() )
-    if ( vef%is_facet() ) then
-      total_num = total_num + vef%get_num_subvefs()
-    end if
-    call vef%next()
-  end do
-  call this%free_vef_iterator(vef)
-
-end function marching_cubes_get_total_num_fitted_sub_facets
 
 !========================================================================================
 function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
@@ -329,7 +160,6 @@ function marching_cubes_get_num_mc_cases(this) result (mc_cases)
   integer(ip) :: mc_cases
   mc_cases = this%mc_table_num_cases
 end function marching_cubes_get_num_mc_cases
-
 
 !========================================================================================
 subroutine marching_cubes_update_sub_triangulation( this )
