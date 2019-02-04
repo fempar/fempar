@@ -96,8 +96,7 @@ function unfitted_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  num_subvefs = this%boundary_cutter%get_num_fitted_subfacets( this%facet_lid )
+  num_subvefs = this%boundary_cutter%get_num_fitted_subfacets( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_get_num_subvefs
 
 !========================================================================================
@@ -108,8 +107,7 @@ function unfitted_vef_iterator_get_num_subvef_nodes( this ) result ( num_nodes_s
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  num_nodes_subvef = this%boundary_cutter%get_num_subfacet_nodes()
+  num_nodes_subvef = this%boundary_cutter%get_num_subfacet_nodes(this%unfitted_cell)
 end function unfitted_vef_iterator_get_num_subvef_nodes
 
 !========================================================================================
@@ -124,8 +122,7 @@ subroutine unfitted_vef_iterator_get_phys_coords_of_subvef( this, subvef, points
   assert( size(points) == this%unfitted_cell%get_num_subfacet_nodes())
   assert(this%is_cut())
   assert( (1_ip <= subvef) .and. (subvef <= this%get_num_subvefs()) )
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  call this%boundary_cutter%get_phys_coords_of_subvef ( this%facet_lid, subvef, points )
+  call this%boundary_cutter%get_phys_coords_of_subvef ( this%unfitted_cell, this%facet_lid, subvef, points )
 end subroutine unfitted_vef_iterator_get_phys_coords_of_subvef
 
 !========================================================================================
@@ -140,8 +137,7 @@ subroutine unfitted_vef_iterator_get_ref_coords_of_subvef( this, subvef, points 
   assert( size(points) == this%unfitted_cell%get_num_subfacet_nodes())
   assert(this%is_cut())
   assert((1_ip <= subvef) .and. (subvef <= this%get_num_subvefs()))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  call this%boundary_cutter%get_ref_coords_of_subvef ( this%unfitted_cell%get_reference_fe(), &
+  call this%boundary_cutter%get_ref_coords_of_subvef ( this%unfitted_cell, &
                                                        this%facet_lid, subvef, points )
 end subroutine unfitted_vef_iterator_get_ref_coords_of_subvef
 
@@ -153,8 +149,7 @@ function unfitted_vef_iterator_is_cut( this ) result ( is_cut )
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  is_cut = this%boundary_cutter%is_cut_facet( this%facet_lid )
+  is_cut = this%boundary_cutter%is_cut_facet( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_is_cut
 
 !========================================================================================
@@ -167,8 +162,7 @@ function unfitted_vef_iterator_is_interior( this ) result ( is_interior )
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  is_interior = this%boundary_cutter%is_interior_facet( this%facet_lid )
+  is_interior = this%boundary_cutter%is_interior_facet( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_is_interior
 
 !========================================================================================
@@ -181,8 +175,7 @@ function unfitted_vef_iterator_is_exterior( this ) result ( is_exterior )
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  is_exterior = this%boundary_cutter%is_exterior_facet( this%facet_lid )
+  is_exterior = this%boundary_cutter%is_exterior_facet( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_is_exterior
 
 !========================================================================================
@@ -196,8 +189,7 @@ function unfitted_vef_iterator_is_interior_subvef( this, subvef ) result ( is_in
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  is_in = this%boundary_cutter%is_interior_subfacet( this%facet_lid, subvef )
+  is_in = this%boundary_cutter%is_interior_subfacet( this%unfitted_cell, this%facet_lid, subvef )
 end function unfitted_vef_iterator_is_interior_subvef
 
 !========================================================================================
@@ -211,8 +203,7 @@ function unfitted_vef_iterator_is_exterior_subvef( this, subvef ) result ( is_ou
   massert(this%is_facet(),'This procedure is only implemented for facets')
   assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-  call this%boundary_cutter%set_current_cell(this%unfitted_cell)
-  is_out = this%boundary_cutter%is_exterior_subfacet( this%facet_lid, subvef )
+  is_out = this%boundary_cutter%is_exterior_subfacet( this%unfitted_cell, this%facet_lid, subvef )
 end function unfitted_vef_iterator_is_exterior_subvef
 
 !========================================================================================

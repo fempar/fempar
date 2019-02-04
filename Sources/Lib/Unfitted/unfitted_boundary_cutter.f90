@@ -36,24 +36,16 @@ module unfitted_boundary_cutter_names
   private
 #include "debug.i90"
   
-  ! In my view (@amartinhuertas), unfitted_boundary_cutter_t is conceptually seen as follows (perhaps we may
-  ! think of a different/better conceptual definition). It is a mesh-like container
-  ! able to describe the subtriangulation of cut cells. However, as its clients are cell iterators,
-  ! it has to become aware of the current cell on which the iterator is positioned to resolve the queries
-  ! related to the current cell.  I have made this concept explicit in the abstract class, i.e., the client
-  ! has to signal explicitly via a call to "set_current_cell" where it is currently positioned.
+  ! unfitted_boundary_cutter_t is conceptually a mesh-like container
+  ! able to describe the subtriangulation of cut cells.
   type, abstract :: unfitted_boundary_cutter_t
     private
     class(triangulation_t) , pointer :: triangulation => null()
-    class(cell_iterator_t) , pointer :: current_cell  => null()
   contains
     ! Regular TBPs
     procedure, non_overridable :: set_triangulation     => ubc_set_triangulation
     procedure, non_overridable :: get_triangulation     => ubc_get_triangulation
     procedure, non_overridable :: nullify_triangulation => ubc_nullify_triangulation
-    procedure                  :: set_current_cell      => ubc_set_current_cell
-    procedure                  :: get_current_cell      => ubc_get_current_cell
-    procedure                  :: nullify_current_cell  => ubc_nullify_current_cell
     
     ! We are not sure whether this set of 4x TBPs should actually be here taking into
     ! account how we conceptually conceive unfitted_boundary_cutter_t. In my view (@amartin)
@@ -109,146 +101,166 @@ module unfitted_boundary_cutter_names
        class(unfitted_boundary_cutter_t), intent(inout) :: this
      end subroutine free_interface
 
-     function get_num_subcells_interface ( this ) result( num_subcells )
-       import :: unfitted_boundary_cutter_t, ip
+     function get_num_subcells_interface ( this, cell ) result( num_subcells )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip) :: num_subcells
      end function get_num_subcells_interface
 
-     function get_num_subcell_nodes_interface ( this ) result( num_subcell_nodes )
-       import :: unfitted_boundary_cutter_t, ip
+     function get_num_subcell_nodes_interface ( this, cell ) result( num_subcell_nodes )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip) :: num_subcell_nodes
      end function get_num_subcell_nodes_interface
 
-     subroutine get_phys_coords_of_subcell_interface ( this, subcell, points )
-       import :: unfitted_boundary_cutter_t, point_t, ip
+     subroutine get_phys_coords_of_subcell_interface ( this, cell, subcell, points )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, point_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip)                      , intent(in)    :: subcell
        type(point_t)                    , intent(inout) :: points(:)
      end subroutine get_phys_coords_of_subcell_interface
 
-     subroutine get_ref_coords_of_subcell_interface ( this, subcell, points )
-       import :: unfitted_boundary_cutter_t, point_t, ip
+     subroutine get_ref_coords_of_subcell_interface ( this, cell, subcell, points )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, point_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip)                      , intent(in)    :: subcell
        type(point_t)                    , intent(inout) :: points(:)
      end subroutine get_ref_coords_of_subcell_interface
 
-     function get_num_subfacets_interface ( this ) result( num_subfacets )
-       import :: unfitted_boundary_cutter_t, ip
+     function get_num_subfacets_interface ( this, cell ) result( num_subfacets )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip) :: num_subfacets
      end function get_num_subfacets_interface
 
-     function get_num_subfacet_nodes_interface ( this ) result( num_subfacet_nodes )
-       import :: unfitted_boundary_cutter_t, ip
+     function get_num_subfacet_nodes_interface ( this, cell ) result( num_subfacet_nodes )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip) :: num_subfacet_nodes
      end function get_num_subfacet_nodes_interface
 
-     subroutine get_phys_coords_of_subfacet_interface ( this, subfacet, points )
-       import :: unfitted_boundary_cutter_t, point_t, ip
+     subroutine get_phys_coords_of_subfacet_interface ( this, cell, subfacet, points )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, point_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip)                      , intent(in)    :: subfacet
        type(point_t)                    , intent(inout) :: points(:)
      end subroutine get_phys_coords_of_subfacet_interface
 
-     subroutine get_ref_coords_of_subfacet_interface ( this, subfacet, points )
-       import :: unfitted_boundary_cutter_t, point_t, ip
+     subroutine get_ref_coords_of_subfacet_interface ( this, cell, subfacet, points )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, point_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip)                      , intent(in)    :: subfacet
        type(point_t)                    , intent(inout) :: points(:)
      end subroutine get_ref_coords_of_subfacet_interface
 
-     function is_cut_interface ( this ) result( is_cut )
-       import :: unfitted_boundary_cutter_t
+     function is_cut_interface ( this, cell ) result( is_cut )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        logical :: is_cut
      end function is_cut_interface
 
-     function is_interior_interface ( this ) result( is_interior )
-       import :: unfitted_boundary_cutter_t
+     function is_interior_interface ( this, cell ) result( is_interior )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        logical :: is_interior
      end function is_interior_interface
 
-     function is_exterior_interface ( this ) result( is_exterior )
-       import :: unfitted_boundary_cutter_t
+     function is_exterior_interface ( this, cell ) result( is_exterior )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        logical :: is_exterior
      end function is_exterior_interface
 
-     function is_interior_subcell_interface ( this, subcell ) result( is_interior_subcell )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_interior_subcell_interface ( this, cell, subcell ) result( is_interior_subcell )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: subcell
        logical :: is_interior_subcell
      end function is_interior_subcell_interface
 
-     function is_exterior_subcell_interface ( this, subcell ) result( is_exterior_subcell )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_exterior_subcell_interface ( this, cell, subcell ) result( is_exterior_subcell )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: subcell
        logical :: is_exterior_subcell
      end function is_exterior_subcell_interface
 
-     function get_num_fitted_subfacets_interface ( this, facet_lid ) result (num_fitted_subfacets)
-       import :: unfitted_boundary_cutter_t, ip
+     function get_num_fitted_subfacets_interface ( this, cell, facet_lid ) result (num_fitted_subfacets)
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in) :: this
+       class(cell_iterator_t)           , intent(in) :: cell
        integer(ip),                       intent(in) :: facet_lid
        integer(ip) :: num_fitted_subfacets
      end function get_num_fitted_subfacets_interface
 
-     subroutine get_phys_coords_of_subvef_interface ( this, facet_lid, subvef, points )
-       import :: unfitted_boundary_cutter_t, point_t, ip
+     subroutine get_phys_coords_of_subvef_interface ( this, cell, facet_lid, subvef, points )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, point_t, ip
        class(unfitted_boundary_cutter_t),  intent(in)    :: this
+       class(cell_iterator_t)           ,  intent(in)    :: cell
        integer(ip)                      ,  intent(in)    :: facet_lid
        integer(ip)                      ,  intent(in)    :: subvef
        type(point_t)                    ,  intent(inout) :: points(:)
      end subroutine get_phys_coords_of_subvef_interface
 
-     subroutine get_ref_coords_of_subvef_interface ( this, reference_fe, facet_lid, subvef, points )
-       import :: unfitted_boundary_cutter_t, point_t, reference_fe_t, ip
+     subroutine get_ref_coords_of_subvef_interface ( this, cell, facet_lid, subvef, points )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, point_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
-       class(reference_fe_t)            , intent(in)    :: reference_fe
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip)                      , intent(in)    :: facet_lid
        integer(ip)                      , intent(in)    :: subvef
        type(point_t)                    , intent(inout) :: points(:)
      end subroutine get_ref_coords_of_subvef_interface
 
-     function is_cut_facet_interface ( this, facet_lid ) result ( is_cut )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_cut_facet_interface ( this, cell, facet_lid ) result ( is_cut )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: facet_lid
        logical :: is_cut 
      end function is_cut_facet_interface
 
-     function is_interior_facet_interface ( this, facet_lid ) result ( is_interior )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_interior_facet_interface ( this, cell, facet_lid ) result ( is_interior )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: facet_lid
        logical :: is_interior 
      end function is_interior_facet_interface
 
-     function is_exterior_facet_interface ( this, facet_lid ) result ( is_exterior )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_exterior_facet_interface ( this, cell, facet_lid ) result ( is_exterior )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: facet_lid
        logical :: is_exterior 
      end function is_exterior_facet_interface
 
-     function is_interior_subfacet_interface ( this, facet_lid, subvef ) result ( is_in )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_interior_subfacet_interface ( this, cell, facet_lid, subvef ) result ( is_in )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: facet_lid
        integer(ip),                       intent(in)    :: subvef
        logical :: is_in
      end function is_interior_subfacet_interface
 
-     function is_exterior_subfacet_interface ( this, facet_lid, subvef ) result ( is_out )
-       import :: unfitted_boundary_cutter_t, ip
+     function is_exterior_subfacet_interface ( this, cell, facet_lid, subvef ) result ( is_out )
+       import :: unfitted_boundary_cutter_t, cell_iterator_t, ip
        class(unfitted_boundary_cutter_t), intent(in)    :: this
+       class(cell_iterator_t)           , intent(in)    :: cell
        integer(ip),                       intent(in)    :: facet_lid
        integer(ip),                       intent(in)    :: subvef
        logical :: is_out
@@ -262,7 +274,6 @@ module unfitted_boundary_cutter_names
 
   ! Derived types
   public :: unfitted_boundary_cutter_t
-  public :: ubc_set_current_cell
 
 contains 
 
@@ -285,33 +296,7 @@ contains
     class(unfitted_boundary_cutter_t), intent(inout) :: this
     nullify(this%triangulation)
   end subroutine ubc_nullify_triangulation
-  
-  subroutine ubc_set_current_cell ( this, cell ) 
-    implicit none
-    class(unfitted_boundary_cutter_t), intent(inout) :: this
-    class(cell_iterator_t), target   , intent(in)    :: cell
-#ifdef DEBUG
-    class(triangulation_t), pointer :: triangulation
-    assert(associated(this%triangulation))
-    triangulation => cell%get_triangulation()
-    assert(associated(this%triangulation,triangulation))
-#endif    
-    this%current_cell => cell    
-  end subroutine ubc_set_current_cell 
-  
-  function ubc_get_current_cell ( this ) 
-    implicit none
-    class(unfitted_boundary_cutter_t), target, intent(in) :: this
-    class(cell_iterator_t), pointer :: ubc_get_current_cell
-    ubc_get_current_cell => this%current_cell
-  end function ubc_get_current_cell 
-  
-  subroutine ubc_nullify_current_cell (this) 
-    implicit none
-    class(unfitted_boundary_cutter_t), intent(inout) :: this
-    nullify(this%current_cell)
-  end subroutine ubc_nullify_current_cell
-  
+    
   subroutine ubc_create_cell_iterator(this, cell)
     implicit none
     class(unfitted_boundary_cutter_t)  , intent(in)    :: this

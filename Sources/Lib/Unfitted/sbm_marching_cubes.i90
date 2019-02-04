@@ -60,34 +60,6 @@ subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, p
 end subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator
 
 !========================================================================================
-function mc_dummy_conditions_get_num_components(this)
-  implicit none
-  class(mc_dummy_conditions_t), intent(in) :: this
-  integer(ip) :: mc_dummy_conditions_get_num_components
-  mc_dummy_conditions_get_num_components = 1
-end function mc_dummy_conditions_get_num_components
-
-!========================================================================================
-subroutine mc_dummy_conditions_get_components_code(this, boundary_id, components_code)
-  implicit none
-  class(mc_dummy_conditions_t), intent(in)  :: this
-  integer(ip)                 , intent(in)  :: boundary_id
-  logical                     , intent(out) :: components_code(:)
-  assert ( size(components_code) == 1 )
-  components_code(1) = .false.
-end subroutine mc_dummy_conditions_get_components_code
-
-!========================================================================================
-subroutine mc_dummy_conditions_get_function ( this, boundary_id, component_id, function )
-  implicit none
-  class(mc_dummy_conditions_t), target,  intent(in)  :: this
-  integer(ip),                           intent(in)  :: boundary_id
-  integer(ip),                           intent(in)  :: component_id
-  class(scalar_function_t),     pointer, intent(out) :: function
-  mcheck(.false.,'This procedure should have never been called!')
-end subroutine mc_dummy_conditions_get_function
-
-!========================================================================================
 subroutine marching_cubes_create(this, triangulation, level_set_function)
   implicit none
   class(marching_cubes_t),            target,  intent(inout)  :: this
@@ -118,6 +90,7 @@ subroutine marching_cubes_free(this)
   call this%mc_tables_free()
   call this%nullify_triangulation()
   this%level_set_function => null()
+  nullify(this%current_cell)
   this%mc_tables_init = .false.
   this%mc_runtime_init   = .false.
   this%mc_cell_info_init = .false.
@@ -184,11 +157,8 @@ subroutine marching_cubes_update_sub_triangulation( this )
   integer(ip)                 :: facet
   logical                     :: is_valid_submesh
   logical                     :: has_inverted_subcells
-  class(cell_iterator_t), pointer :: cell_iterator
   if ( .not. this%current_cell_sub_triangulation_updated ) then
-     cell_iterator => this%get_current_cell()
-     assert ( associated(cell_iterator) )
-     assert( this%is_cut() )
+     assert( this%is_cut(this%current_cell) )
 
      assert( this%mc_runtime_init )
      assert( this%mc_cell_info_init )
@@ -200,7 +170,7 @@ subroutine marching_cubes_update_sub_triangulation( this )
      assert( num_subnodes > this%num_current_cell_nodes )
      
      ! Recover the sub-points coordinates on the ref space
-     this%reference_fe_geo => cell_iterator%get_reference_fe()
+     this%reference_fe_geo => this%current_cell%get_reference_fe()
      assert ( num_subnodes <= size( this%subnodes_ref_coords ) )
      nodal_quadrature      => this%reference_fe_geo%get_nodal_quadrature()
      call nodal_quadrature%get_coordinates_as_points(this%subnodes_ref_coords(1: this%num_current_cell_nodes))
@@ -286,7 +256,7 @@ subroutine marching_cubes_update_sub_triangulation( this )
      call this%sub_nodes_cell_maps( mc_case )%update_interpolation( & 
           this%sub_nodes_nodal_quadratures(mc_case), this%reference_fe_geo )
      phys_cell_coords => this%sub_nodes_cell_maps( mc_case )%get_coordinates()
-     call cell_iterator%get_nodes_coordinates( phys_cell_coords )
+     call this%current_cell%get_nodes_coordinates( phys_cell_coords )
      call this%sub_nodes_cell_maps( mc_case )%compute_quadrature_points_coordinates()
      
      ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
@@ -296,13 +266,15 @@ end subroutine marching_cubes_update_sub_triangulation
 
 
 !========================================================================================
-function marching_cubes_get_num_subcells( this ) result ( num_subcells )
+function marching_cubes_get_num_subcells( this, cell ) result ( num_subcells )
   implicit none
   class(marching_cubes_t), intent(in) :: this
+  class(cell_iterator_t) , intent(in) :: cell
   integer(ip) :: num_subcells
   assert( this%mc_tables_init )
   assert( this%mc_cell_info_init )
-  assert( this%is_cut() )
+  assert( this%is_cut(cell) )
+  call this%set_current_cell(cell)
   ! In order to determine the number of subcells in the current (cut) cell
   ! we require to call update_sub_triangulation(). Recall that, in the
   ! case of hexahedral background meshes, it may happen that the standard marching cubes 
@@ -315,29 +287,33 @@ end function marching_cubes_get_num_subcells
 
 
 !========================================================================================
-function marching_cubes_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
+function marching_cubes_get_num_subcell_nodes( this, cell ) result ( num_nodes_subcell )
   implicit none
   class(marching_cubes_t), intent(in) :: this
+  class(cell_iterator_t) , intent(in) :: cell
   integer(ip) :: num_nodes_subcell
   assert(this%mc_tables_init)
   assert(this%mc_cell_info_init)
-  assert( this%is_cut() )
+  assert( this%is_cut(cell) )
+  call this%set_current_cell(cell)
   num_nodes_subcell = this%mc_table_num_nodes_in_sub_cell
 end function marching_cubes_get_num_subcell_nodes
 
 !========================================================================================
-subroutine marching_cubes_get_phys_coords_of_subcell( this, subcell, points)
+subroutine marching_cubes_get_phys_coords_of_subcell( this, cell, subcell, points)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip)            , intent(in)    :: subcell
   type(point_t)          , intent(inout) :: points(:)
   integer(ip) :: mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert( size(points) == this%get_num_subcell_nodes())
-  assert( this%is_cut() )
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
+  assert( size(points) == this%get_num_subcell_nodes(cell))
+  assert( this%is_cut(cell) )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells(cell))  )
+  call this%set_current_cell(cell)
   call this%update_sub_triangulation()
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
@@ -345,28 +321,32 @@ subroutine marching_cubes_get_phys_coords_of_subcell( this, subcell, points)
 end subroutine marching_cubes_get_phys_coords_of_subcell
 
 !========================================================================================
-subroutine marching_cubes_get_ref_coords_of_subcell( this, subcell, points)
+subroutine marching_cubes_get_ref_coords_of_subcell( this, cell, subcell, points)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip)            , intent(in)    :: subcell
   type(point_t)          , intent(inout) :: points(:)
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert( size(points) == this%get_num_subcell_nodes())
-  assert( this%is_cut()  )
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells() ) )
+  assert( size(points) == this%get_num_subcell_nodes(cell))
+  assert( this%is_cut(cell)  )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells(cell) ) )
+  call this%set_current_cell(cell)
   call this%update_sub_triangulation()
   points(:) = this%subnodes_ref_coords(this%sub_cells_node_ids(:,subcell))
 end subroutine marching_cubes_get_ref_coords_of_subcell
 
 !========================================================================================
-function marching_cubes_get_num_subfacets( this ) result ( num_subfacets )
+function marching_cubes_get_num_subfacets( this, cell ) result ( num_subfacets )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip) :: num_subfacets
   assert(this%mc_tables_init)
   assert(this%mc_cell_info_init)
-  assert(this%is_cut())
+  assert(this%is_cut(cell))
+  call this%set_current_cell(cell)
   ! In order to determine the number of subfacets in the current (cut) cell
   ! we require to call update_sub_triangulation(). Recall that, in the
   ! case of hexahedral background meshes, it may happen that the standard marching cubes 
@@ -378,29 +358,33 @@ function marching_cubes_get_num_subfacets( this ) result ( num_subfacets )
 end function marching_cubes_get_num_subfacets
 
 !========================================================================================
-function marching_cubes_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
+function marching_cubes_get_num_subfacet_nodes( this, cell ) result ( num_nodes_subfacet )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip) :: num_nodes_subfacet
   assert(this%mc_tables_init)
   assert(this%mc_cell_info_init)
-  assert(this%is_cut())
+  assert(this%is_cut(cell))
+  call this%set_current_cell(cell)
   num_nodes_subfacet = this%mc_table_num_nodes_in_sub_facet
 end function marching_cubes_get_num_subfacet_nodes
 
 !========================================================================================
-subroutine marching_cubes_get_phys_coords_of_subfacet( this, subfacet, points )
+subroutine marching_cubes_get_phys_coords_of_subfacet( this, cell, subfacet, points )
   implicit none
   class(marching_cubes_t),  intent(in)    :: this
+  class(cell_iterator_t) ,  intent(in)    :: cell
   integer(ip),              intent(in)    :: subfacet
   type(point_t),            intent(inout) :: points(:)
   integer(ip)               :: mc_case
   type(point_t),    pointer :: subnodes_phys_coords(:)
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert(size(points) ==  this%get_num_subfacet_nodes())
-  assert(this%is_cut())
-  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets() ) )
+  assert(size(points) ==  this%get_num_subfacet_nodes(cell))
+  assert(this%is_cut(cell))
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets(cell) ) )
+  call this%set_current_cell(cell)
   call this%update_sub_triangulation()
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
@@ -408,94 +392,100 @@ subroutine marching_cubes_get_phys_coords_of_subfacet( this, subfacet, points )
 end subroutine marching_cubes_get_phys_coords_of_subfacet
 
 !========================================================================================
-subroutine marching_cubes_get_ref_coords_of_subfacet( this, subfacet, points )
+subroutine marching_cubes_get_ref_coords_of_subfacet( this, cell, subfacet, points )
 
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip)            , intent(in)    :: subfacet
   type(point_t)          , intent(inout) :: points(:)
   integer(ip)            :: mc_case
   assert(this%mc_runtime_init)
   assert(this%mc_cell_info_init)
-  assert( size(points) == this%get_num_subfacet_nodes())
-  assert(this%is_cut())
-  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets() ) )
+  assert( size(points) == this%get_num_subfacet_nodes(cell))
+  assert(this%is_cut(cell))
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets(cell) ) )
+  call this%set_current_cell(cell)
   call this%update_sub_triangulation()
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   points(:) = this%subnodes_ref_coords(this%unfitted_sub_facets_node_ids(:,subfacet))
 end subroutine marching_cubes_get_ref_coords_of_subfacet
 
 !========================================================================================
-function marching_cubes_is_cut( this ) result ( is_cut )
+function marching_cubes_is_cut( this, cell ) result ( is_cut )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   logical :: is_cut
   integer(ip) :: mc_case
   integer(ip) :: num_mc_cases
   assert( this%mc_runtime_init )
+  call this%set_current_cell(cell)
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   num_mc_cases = this%mc_table_num_cases
   is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
 end function marching_cubes_is_cut
 
 !========================================================================================
-function marching_cubes_is_interior( this ) result ( is_interior )
+function marching_cubes_is_interior( this, cell ) result ( is_interior )
   implicit none
   class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
   logical :: is_interior
   integer(ip) :: mc_case
   integer(ip) :: num_mc_cases
   assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   num_mc_cases = this%mc_table_num_cases
   is_interior = ( mc_case == num_mc_cases )
 end function marching_cubes_is_interior
 
 !========================================================================================
-function marching_cubes_is_exterior( this ) result ( is_exterior )
+function marching_cubes_is_exterior( this, cell ) result ( is_exterior )
   implicit none
   class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
   logical :: is_exterior
   integer(ip) :: mc_case
   assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   is_exterior = ( mc_case == 1_ip )
 end function marching_cubes_is_exterior
 
 !========================================================================================
-function marching_cubes_is_interior_subcell( this, subcell ) result ( is_in )
+function marching_cubes_is_interior_subcell( this, cell, subcell ) result ( is_in )
   implicit none
   class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
   integer(ip), intent(in) :: subcell
   logical :: is_in
   integer(ip) :: num_subcells
   integer(ip) :: pos
   assert(this%mc_runtime_init)
-  assert(this%is_cut())
-  ! Although is_interior_subcell requires the subtriangulation to be updated
-  ! for the current (cut) cell, we do not call update_sub_triangulation() explicitly
-  ! as we assume that this%get_num_subcells() already triggers it if necessary
-  num_subcells = this%get_num_subcells()
-  assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
+  assert(this%is_cut(cell))
+  assert( ( 1_ip <= subcell) .and. subcell <= this%get_num_subcells(cell) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
   pos = this%subcells_status(subcell)
   is_in = ( pos == -1_ip )
 end function marching_cubes_is_interior_subcell
 
 !========================================================================================
-function marching_cubes_is_exterior_subcell( this, subcell ) result ( is_out )
+function marching_cubes_is_exterior_subcell( this, cell, subcell ) result ( is_out )
   implicit none
   class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
   integer(ip), intent(in) :: subcell
   logical :: is_out
   integer(ip) :: num_subcells
   integer(ip) :: pos
   assert(this%mc_runtime_init)
-  assert(this%is_cut())
-  ! Although is_exterior_subcell requires the subtriangulation to be updated
-  ! for the current (cut) cell, we do not call update_sub_triangulation() explicitly
-  ! as we assume that this%get_num_subcells() already triggers it if necessary
-  num_subcells = this%get_num_subcells()
-  assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
+  assert(this%is_cut(cell))
+  assert( ( 1_ip <= subcell) .and. subcell <= this%get_num_subcells(cell) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
   pos = this%subcells_status( subcell )
   is_out = ( pos == 1_ip )
 end function marching_cubes_is_exterior_subcell
@@ -513,26 +503,30 @@ end function marching_cubes_get_num_subnodes
 
 
 !========================================================================================
-function marching_cubes_get_num_fitted_subfacets ( this, facet_lid ) result (num_fitted_subfacets)
+function marching_cubes_get_num_fitted_subfacets ( this, cell, facet_lid ) result (num_fitted_subfacets)
   implicit none
   class(marching_cubes_t), intent(in) :: this
+  class(cell_iterator_t) , intent(in) :: cell
   integer(ip),             intent(in) :: facet_lid
   integer(ip) :: num_fitted_subfacets
   integer(ip) :: mc_case
+  call this%set_current_cell(cell)
   mc_case              = this%mc_case_x_cell( this%current_cell_gid )
   num_fitted_subfacets = this%mc_table_num_fitted_sub_facets_x_case_and_facet( facet_lid, mc_case )
 end function marching_cubes_get_num_fitted_subfacets
 
 !========================================================================================
-subroutine marching_cubes_get_phys_coords_of_subvef ( this, facet_lid, subvef, points )
+subroutine marching_cubes_get_phys_coords_of_subvef ( this, cell, facet_lid, subvef, points )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip)            , intent(in)    :: facet_lid
   integer(ip)            , intent(in)    :: subvef
   type(point_t)          , intent(inout) :: points(:)
   integer(ip)            :: mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
   assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
   call this%update_sub_triangulation()
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
@@ -540,10 +534,10 @@ subroutine marching_cubes_get_phys_coords_of_subvef ( this, facet_lid, subvef, p
 end subroutine marching_cubes_get_phys_coords_of_subvef
 
 !========================================================================================
-subroutine marching_cubes_get_ref_coords_of_subvef ( this, reference_fe, facet_lid, subvef, points )
+subroutine marching_cubes_get_ref_coords_of_subvef ( this, cell, facet_lid, subvef, points )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
-  class(reference_fe_t)  , intent(in)    :: reference_fe
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip)            , intent(in)    :: facet_lid
   integer(ip)            , intent(in)    :: subvef
   type(point_t)          , intent(inout) :: points(:)
@@ -554,12 +548,15 @@ subroutine marching_cubes_get_ref_coords_of_subvef ( this, reference_fe, facet_l
   integer(ip) :: ipoint
   integer(ip) :: cell_to_facet_coords_2d(4)
   integer(ip) :: cell_to_facet_coords_3d(2,6)
+  class(reference_fe_t), pointer :: reference_fe
   assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
   call this%update_sub_triangulation()
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   points(:) = this%subnodes_ref_coords(this%fitted_sub_facets_node_ids_x_facet( :, subvef, facet_lid ))
   num_dims = this%num_dims
   
+  reference_fe => cell%get_reference_fe()
   select case (reference_fe%get_topology())
     case ( topology_tet )
      cell_to_facet_coords_2d(1:3) = [1,2,1]
@@ -603,97 +600,97 @@ subroutine marching_cubes_get_ref_coords_of_subvef ( this, reference_fe, facet_l
 end subroutine marching_cubes_get_ref_coords_of_subvef
 
 !========================================================================================
-function marching_cubes_is_cut_facet ( this, facet_lid ) result ( is_cut )
+function marching_cubes_is_cut_facet ( this, cell, facet_lid ) result ( is_cut )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip),             intent(in)    :: facet_lid
   logical :: is_cut
   integer(ip) :: mc_case
   integer(ip) :: istat
-  
+  call this%set_current_cell(cell)
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   istat   = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
   is_cut  = (istat == 0_ip)
-  
 end function marching_cubes_is_cut_facet
 
 
 !========================================================================================
-function marching_cubes_is_interior_facet ( this, facet_lid ) result ( is_interior )
+function marching_cubes_is_interior_facet ( this, cell, facet_lid ) result ( is_interior )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip),             intent(in)    :: facet_lid
   logical :: is_interior
   integer(ip) :: mc_case
   integer(ip) :: istat
-  
+  call this%set_current_cell(cell)
   mc_case     = this%mc_case_x_cell( this%current_cell_gid )
   istat       = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
   is_interior = (istat == -1_ip)
-  
 end function marching_cubes_is_interior_facet
 
 !========================================================================================
-function marching_cubes_is_exterior_facet ( this, facet_lid ) result ( is_exterior )
+function marching_cubes_is_exterior_facet ( this, cell, facet_lid ) result ( is_exterior )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip),             intent(in)    :: facet_lid
   logical :: is_exterior
   integer(ip) :: mc_case
   integer(ip) :: istat
-  
+  call this%set_current_cell(cell)
   mc_case     = this%mc_case_x_cell( this%current_cell_gid )
   istat       = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
   is_exterior = (istat == 1_ip)
-  
 end function marching_cubes_is_exterior_facet
 
 !========================================================================================
-function marching_cubes_is_interior_subfacet ( this, facet_lid, subvef ) result ( is_in)
+function marching_cubes_is_interior_subfacet ( this, cell, facet_lid, subvef ) result ( is_in)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip),             intent(in)    :: facet_lid
   integer(ip),             intent(in)    :: subvef
   logical :: is_in
   integer(ip) :: mc_case
   integer(ip) :: istat
-  
+  call this%set_current_cell(cell)
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   istat   = this%mc_table_fitted_sub_facets_status_x_case_and_facet( subvef, facet_lid, mc_case )
   is_in   = (istat == -1_ip)
-
 end function marching_cubes_is_interior_subfacet
 
 !========================================================================================
-function marching_cubes_is_exterior_subfacet ( this, facet_lid, subvef ) result ( is_out )
+function marching_cubes_is_exterior_subfacet ( this, cell, facet_lid, subvef ) result ( is_out )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
   integer(ip),             intent(in)    :: facet_lid
   integer(ip),             intent(in)    :: subvef
   logical :: is_out
   integer(ip) :: mc_case
   integer(ip) :: istat
-
+  call this%set_current_cell(cell)
   mc_case = this%mc_case_x_cell( this%current_cell_gid )
   istat   = this%mc_table_fitted_sub_facets_status_x_case_and_facet( subvef, facet_lid, mc_case )
   is_out  = (istat == 1_ip)
-
 end function marching_cubes_is_exterior_subfacet
 
 !========================================================================================
 subroutine marching_cubes_set_current_cell ( this, cell ) 
   implicit none
-  class(marching_cubes_t)       , intent(inout) :: this
+  class(marching_cubes_t)                       :: this
   class(cell_iterator_t), target, intent(in)    :: cell
   
   ! If a client calls "set_current_cell" with the same cell
-  ! used in a previous call to "set_current_cell"ctes, then don't
+  ! used in a previous call to "set_current_cell", then don't
   ! touch the current_cell_sub_triangulation_updated member
   ! variable
   if ( cell%get_gid() /= this%current_cell_gid ) then
     this%current_cell_sub_triangulation_updated = .false.
   end if 
-  call ubc_set_current_cell(this,cell)
+  this%current_cell => cell
   if ( .not. cell%has_finished() ) then 
      this%current_cell_gid = cell%get_gid()
      this%num_current_cell_nodes   = cell%get_num_nodes()
@@ -799,7 +796,7 @@ function marching_cubes_is_inverted_subcell(this,subcell) result (is_inverted)
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
   assert( 1 <= subcell .and. subcell <= this%num_subcells )
-  assert( this%get_num_subcell_nodes() == 4)
+  assert( this%get_num_subcell_nodes(this%current_cell) == 4)
   assert( this%num_dims == 3)
 
   ! Get connectivities and coordinates
@@ -835,7 +832,7 @@ function marching_cubes_is_valid_submesh(this) result ( is_valid_submesh )
   real(rp),  parameter :: tol_volume =  1.0e-13_rp
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
-  assert( this%get_num_subcell_nodes() == 4 )
+  assert( this%get_num_subcell_nodes(this%current_cell) == 4 )
   assert( this%num_dims == 3 )
 
   vol = 0.0_rp
@@ -943,7 +940,7 @@ subroutine marching_cubes_generate_subcells_status(this)
 
   ! Set as interior the sub-cells that touches an interior point
   do isubcell = 1, this%num_subcells
-    do inode = 1, this%get_num_subcell_nodes()
+    do inode = 1, this%get_num_subcell_nodes(this%current_cell)
       phi = this%level_set_all_nodes( this%sub_cells_node_ids( inode, isubcell ) )
       if ( phi < 0 ) then
         this%subcells_status( isubcell ) = -1_ip
@@ -1027,10 +1024,9 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
 
   class(cell_iterator_t),      allocatable  :: cell
   class(reference_fe_t),            pointer :: reference_fe_geo
-  character(:),                 allocatable :: topology
   integer(ip)                               :: num_dim, num_dim_tmp, p_order
 
-  ! Hypothesis: All cells in the mesh are either bi-linear tri/qua or tri-linear tet/hex
+  ! Preconditions: All cells in the mesh are either first-order tri/qua or first-order tet/hex
   fulfills = .true.
   call this%create_cell_iterator(cell)
   num_dim  = this%num_dims
@@ -1042,7 +1038,6 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
       if (num_dim .ne. num_dim_tmp) fulfills = .false.
       p_order  = reference_fe_geo%get_order()
       if (p_order .ne. 1_ip) fulfills = .false.
-      topology = reference_fe_geo%get_topology()
       if (.not. fulfills) exit
     end if
     call cell%next()
@@ -1356,7 +1351,6 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
       allocate(serial_fe_space_t :: this%fe_space, stat=istat); check(istat==0)
       call this%fe_space%create(triangulation     = triangulation, &
-                                conditions        = this%dummy_conditions, &
                                 reference_fes     = this%reference_fes )
 
     type is(par_unfitted_triangulation_t)
@@ -1369,7 +1363,6 @@ subroutine marching_cubes_discrete_levelset_create(this)
       select type (fe_space)
       class is (par_fe_space_t)
         call fe_space%create(triangulation      = triangulation, &
-                             conditions         = this%dummy_conditions, &
                              reference_fes      = this%reference_fes , &
                              coarse_fe_handlers = this%dummy_coarse_handlers)
     class default

@@ -212,14 +212,6 @@ module unfitted_triangulations_names
       procedure :: setup_weighting_operator  => mc_dummy_coarse_fe_handler_setup_weighting_operator
   end type mc_dummy_coarse_fe_handler_t
 
-  ! We need this to create a fe space in marching_cubes_t to hold a discrete levelset function
-  type, extends(conditions_t) :: mc_dummy_conditions_t
-    contains
-      procedure :: get_num_components  => mc_dummy_conditions_get_num_components
-      procedure :: get_components_code    => mc_dummy_conditions_get_components_code
-      procedure :: get_function           => mc_dummy_conditions_get_function
-  end type mc_dummy_conditions_t
-  
   type, extends(unfitted_boundary_cutter_t) :: marching_cubes_t
     private
 
@@ -241,7 +233,6 @@ module unfitted_triangulations_names
     ! Auxiliary dummy things to create the fe space for the levelset
     type(p_reference_fe_t),         allocatable :: reference_fes(:) 
     type(mc_dummy_coarse_fe_handler_t)          :: dummy_coarse_handler
-    type(mc_dummy_conditions_t)                 :: dummy_conditions
     type(p_l1_coarse_fe_handler_t), allocatable :: dummy_coarse_handlers(:)
 
     ! Look up-tables (precomputed off-line, for each cell type)
@@ -274,6 +265,7 @@ module unfitted_triangulations_names
     ! Info related to the sub-tessellation
     ! When located on a cell, and the sub-triangulation is updated,
     ! these member variables contain info about the current sub-tessalation
+    class(cell_iterator_t), pointer        :: current_cell => null()
     integer(ip),               allocatable :: sub_cells_node_ids(:,:)
     integer(ip),               allocatable :: unfitted_sub_facets_node_ids(:,:)
     integer(ip),               allocatable :: fitted_sub_facets_node_ids_x_facet(:,:,:)
@@ -282,6 +274,7 @@ module unfitted_triangulations_names
     logical                                :: mc_cell_info_init = .false.
     integer(ip)                            :: current_cell_gid = -1
     integer(ip)                            :: num_current_cell_nodes = -1
+    integer(ip)                            :: num_current_cell_subcell_nodes = -1 
     integer(ip)                            :: num_subcells
     integer(ip)                            :: num_subfacets
     integer(ip),               allocatable :: subcells_status(:)
@@ -329,8 +322,7 @@ module unfitted_triangulations_names
     procedure :: is_interior_subfacet             => marching_cubes_is_interior_subfacet
     procedure :: is_exterior_subfacet             => marching_cubes_is_exterior_subfacet
     
-    ! Parent class overrided TBPs 
-    procedure :: set_current_cell                 => marching_cubes_set_current_cell
+    procedure, non_overridable :: set_current_cell => marching_cubes_set_current_cell
        
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases
