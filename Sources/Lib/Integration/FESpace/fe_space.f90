@@ -391,12 +391,17 @@ module fe_space_names
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
 
+    procedure, non_overridable, private :: apply_constraints_array        => fe_cell_iterator_apply_constraints_array 
+    procedure, non_overridable, private :: apply_constraints_matrix       => fe_cell_iterator_apply_constraints_matrix 
+    procedure, non_overridable, private :: apply_constraints_matrix_array => fe_cell_iterator_apply_constraints_matrix_array
+    generic :: apply_constraints => apply_constraints_array,       &
+                                    apply_constraints_matrix,      &
+                                    apply_constraints_matrix_array
+				
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_scalar
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_vector
     generic :: evaluate_laplacian_fe_function => fe_cell_iterator_evaluate_laplacian_fe_function_scalar, &
     & fe_cell_iterator_evaluate_laplacian_fe_function_vector
-
-    procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
 
   end type fe_cell_iterator_t
    

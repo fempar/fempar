@@ -1679,24 +1679,32 @@ subroutine fe_cell_iterator_assembly_array ( this,  &
   real(rp)                 , intent(in)    :: elvec(:)
   class(assembler_t)       , intent(inout) :: assembler
   
-#ifdef DEBUG  
   logical     :: no_hanging_node_constraints
   integer(ip) :: ifield
   
   no_hanging_node_constraints = .true.
   do ifield=1, this%fe_space%num_fields
-    if ( this%has_hanging_dofs(ifield) ) then
-      massert(.false.,'fe_cell_iterator_assembly_array not implemented for non-conforming meshes')
-    end if
+     if ( this%has_hanging_dofs(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+     end if
   end do
-#endif  
-  
+
   call this%update_assembly_scratch_data()
-  call assembler%assembly_array( this%fe_space%num_fields,           &
-                                 this%fe_space%get_field_blocks(),   &
-                                 this%num_cell_dofs_x_field,         &
-                                 this%fe_dofs,                       &
-                                 elvec )
+  if ( no_hanging_node_constraints ) then
+    call assembler%assembly_array( this%fe_space%num_fields,            &
+                                   this%fe_space%get_field_blocks(),    &
+                                   this%num_cell_dofs_x_field,          &
+                                   this%fe_dofs,                        &
+                                   elvec )
+  else
+     call this%apply_constraints ( elvec )
+     call assembler%assembly_array( this%fe_space%num_fields,           &
+                                    this%fe_space%get_field_blocks(),   &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%fe_dofs,                       &
+                                    this%extended_elvec%a )
+  end if
   
 end subroutine fe_cell_iterator_assembly_array
 
@@ -1708,27 +1716,38 @@ subroutine fe_cell_iterator_assembly_matrix ( this,  &
   real(rp)                 , intent(in)    :: elmat(:,:)
   class(assembler_t)       , intent(inout) :: assembler
   
-#ifdef DEBUG  
   logical     :: no_hanging_node_constraints
   integer(ip) :: ifield
   
   no_hanging_node_constraints = .true.
   do ifield=1, this%fe_space%num_fields
-    if ( this%has_hanging_dofs(ifield) ) then
-      massert(.false.,'fe_cell_iterator_assembly_matrix not implemented for non-conforming meshes')
-    end if
+     if ( this%has_hanging_dofs(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+     end if
   end do
-#endif  
   
   call this%update_assembly_scratch_data()
-  call assembler%assembly_matrix( this%fe_space%num_fields,                        &
-                                               this%fe_space%get_field_blocks(),   &
-                                               this%fe_space%get_field_coupling(), &
-                                               this%num_cell_dofs_x_field,         &
-                                               this%num_cell_dofs_x_field,         &
-                                               this%fe_dofs,                       &
-                                               this%fe_dofs,                       &
-                                               elmat )
+  if ( no_hanging_node_constraints ) then
+    call assembler%assembly_matrix( this%fe_space%num_fields,           &
+                                    this%fe_space%get_field_blocks(),   &
+                                    this%fe_space%get_field_coupling(), &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%fe_dofs,                       &
+                                    this%fe_dofs,                       &
+                                    elmat )
+  else
+     call this%apply_constraints ( elmat )
+     call assembler%assembly_matrix( this%fe_space%num_fields,           &
+                                     this%fe_space%get_field_blocks(),   &
+                                     this%fe_space%get_field_coupling(), &
+                                     this%num_cell_dofs_x_field,         &
+                                     this%num_cell_dofs_x_field,         &
+                                     this%fe_dofs,                       &
+                                     this%fe_dofs,                       &
+                                     this%extended_elmat%a )
+  end if
   
 end subroutine fe_cell_iterator_assembly_matrix
 
@@ -2117,7 +2136,327 @@ subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector ( this,       
   call cell_integrator%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
-subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
+!=================================================================================================
+subroutine fe_cell_iterator_apply_constraints_array(this, elvec)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)    :: this
+  real(rp), intent(in) :: elvec(:)
+  integer(ip) :: ifield, i_lid, j_lid, i_gid, i_gid_hanging, j_gid, total_num_dofs
+  integer(ip) :: num_fields, num_dofs_field, num_dofs_field_i
+  integer(ip) :: current_i, current_extended_i
+  integer(ip) :: k_lid, k_gid, pos, spos, epos, iblock
+  real(rp) :: weight
+  integer(ip), pointer :: field_blocks(:)
+  integer(ip) :: offset
+  integer(ip), pointer :: p_ptr_constraining_free_dofs(:)
+  integer(ip), pointer :: p_constraining_free_dofs(:)
+  real(rp), pointer :: p_constraining_free_dofs_coefficients(:)
+  
+  field_blocks                          => this%get_field_blocks()
+  num_fields                            = this%get_num_fields()
+  p_ptr_constraining_free_dofs          => this%fe_space%ptr_constraining_free_dofs%get_pointer()
+  p_constraining_free_dofs              => this%fe_space%constraining_free_dofs%get_pointer()
+  p_constraining_free_dofs_coefficients => this%fe_space%constraining_free_dofs_coefficients%get_pointer()
+
+  
+  ! ** IMPORTANT NOTE :: TO MOVE THIS LOOP TO A SEPARATED PRIVATE TBP
+  !                      compute_gid_to_lid_ext_fe_dofs_num_cell_dofs_and_fe_dofs()
+  ! Count number of free dofs involved in the assembly of this cell
+  ! i.e., the free dofs of the cell + all other free dofs that constrain
+  ! hanging dofs of the cell
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     ! Only if hanging nodes perform the following work
+     if ( this%has_hanging_dofs(ifield) ) then
+        ! Initialize extended_fe_dofs
+        call this%extended_fe_dofs(ifield)%resize(0)
+        
+        num_dofs_field = this%get_num_dofs_field(ifield)
+        
+        ! First, insert all free nodes
+        do i_lid=1, num_dofs_field
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_free_dof(i_gid) ) then
+              ! Global to local map for free dofs (dofs already belonging to the cell)
+              this%gid_to_lid_map(iblock)%a(i_gid) = i_lid
+           end if
+           ! Insert all dofs belonging to the cell
+           call this%extended_fe_dofs(ifield)%push_back(i_gid)
+        end do
+        do i_lid=1, num_dofs_field
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_hanging_dof(i_gid) ) then
+              ! Only for hanging dofs, find outer constraining dofs
+              i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+              do j_lid= p_ptr_constraining_free_dofs(i_gid_hanging), &
+                   p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+                 j_gid = p_constraining_free_dofs(j_lid)
+                 ! If not touched constraining free dof, compute gid to lid map, and insert this dof
+                 ! in extended_fe_dofs
+                 if ( this%gid_to_lid_map(iblock)%a(j_gid) == 0 ) then
+                    this%num_cell_dofs_x_field(ifield) = this%num_cell_dofs_x_field(ifield)+1
+                    this%gid_to_lid_map(iblock)%a(j_gid) = this%num_cell_dofs_x_field(ifield)
+                    call this%extended_fe_dofs(ifield)%push_back(j_gid) 
+                 end if
+              end do
+           end if
+        end do
+        ! Update the fe_dofs array with the extended ones
+        this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_pointer()
+     end if
+  end do
+
+  ! Compute all extended dofs, and resize elvec accordingly
+  total_num_dofs = sum(this%num_cell_dofs_x_field)
+  call this%extended_elvec%resize(total_num_dofs)
+  this%extended_elvec%a(1:total_num_dofs) = 0.0_rp
+
+  current_i          = 1 
+  current_extended_i = 1     
+  do ifield=1, num_fields   
+     num_dofs_field_i = this%get_num_dofs_field(ifield)
+     this%extended_elvec%a(current_extended_i:current_extended_i+num_dofs_field_i-1) &
+          & = elvec(current_i:current_i+num_dofs_field_i-1)
+     current_i = current_i + num_dofs_field_i
+     current_extended_i = current_extended_i + this%num_cell_dofs_x_field(ifield)       
+  end do
+
+  ! Now, we want to compute the vector entries for the constraining free dofs, both the own constraining free dofs
+  ! and the outer ones
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     if (ifield==1) then
+        offset = 0
+     else
+        offset = offset + this%num_cell_dofs_x_field(ifield-1)
+     end if
+     num_dofs_field = this%get_num_dofs_field(ifield)
+     do i_lid=1, this%get_num_dofs_field(ifield)
+        i_gid = this%fe_dofs(ifield)%p(i_lid)
+        ! i is a hanging DoF?
+        if ( this%is_hanging_dof(i_gid) ) then
+           ! Traverse constraining free DoFs of i
+           i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+           spos = p_ptr_constraining_free_dofs(i_gid_hanging)
+           epos = p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+           do pos=spos, epos 
+              k_gid = p_constraining_free_dofs(pos)
+              weight = p_constraining_free_dofs_coefficients(pos)
+              k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
+              ! free dofs, add the hanging dof row * weighting in the free dof row (for extended elmat and elvec)
+              this%extended_elvec%a(k_lid+offset)   = this%extended_elvec%a(k_lid+offset)   + weight*this%extended_elvec%a(i_lid+offset)
+           end do
+        end if
+     end do
+  end do
+
+  ! ** IMPORTANT NOTE :: TO MOVE THIS PIECE OF CODE TO A SEPARATED PRIVATE SUBROUTINE
+  !                      reset_gid_to_lid_map()
+  ! Initialize gid_to_lid_map to zero
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     ! Only if hanging nodes perform the following work
+     if ( this%has_hanging_dofs(ifield) ) then
+        do i_lid=1, this%get_num_dofs_field(ifield)
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_hanging_dof(i_gid) ) then
+              ! Only for hanging dofs, find outer constraining dofs
+              i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+              do j_lid= p_ptr_constraining_free_dofs(i_gid_hanging), &
+                   p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+                 j_gid = p_constraining_free_dofs(j_lid)
+                 ! If not touched constraining free dof, compute gid to lid map, and insert this dof
+                 ! in extended_fe_dofs
+                 this%gid_to_lid_map(iblock)%a(j_gid) = 0
+              end do
+           else if ( this%is_free_dof(i_gid) ) then
+              ! Global to local map for free dofs (dofs already belonging to the cell)
+              this%gid_to_lid_map(iblock)%a(i_gid) = 0
+           end if
+        end do
+     end if
+  end do
+  
+
+end subroutine fe_cell_iterator_apply_constraints_array
+			
+subroutine fe_cell_iterator_apply_constraints_matrix(this,elmat)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)    :: this
+  real(rp), intent(in) :: elmat(:,:)
+  integer(ip) :: ifield, jfield, i_lid, j_lid, i_gid, i_gid_hanging, j_gid, total_num_dofs
+  integer(ip) :: num_fields, num_dofs_field, num_dofs_field_i, num_dofs_field_j
+  integer(ip) :: current_i, current_extended_i, current_j, current_extended_j
+  integer(ip) :: k_lid, k_gid, pos, spos, epos, iblock
+  real(rp) :: weight
+  integer(ip), pointer :: field_blocks(:)
+  integer(ip) :: offset
+  integer(ip), pointer :: p_ptr_constraining_free_dofs(:)
+  integer(ip), pointer :: p_constraining_free_dofs(:)
+  real(rp), pointer :: p_constraining_free_dofs_coefficients(:)
+  
+  field_blocks                          => this%get_field_blocks()
+  num_fields                            = this%get_num_fields()
+  p_ptr_constraining_free_dofs          => this%fe_space%ptr_constraining_free_dofs%get_pointer()
+  p_constraining_free_dofs              => this%fe_space%constraining_free_dofs%get_pointer()
+  p_constraining_free_dofs_coefficients => this%fe_space%constraining_free_dofs_coefficients%get_pointer()
+
+  ! Count number of free dofs involved in the assembly of this cell
+  ! i.e., the free dofs of the cell + all other free dofs that constrain
+  ! hanging dofs of the cell
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     ! Only if hanging nodes perform the following work
+     if ( this%has_hanging_dofs(ifield) ) then
+        ! Initialize extended_fe_dofs
+        call this%extended_fe_dofs(ifield)%resize(0)
+        
+        num_dofs_field = this%get_num_dofs_field(ifield)
+        
+        ! First, insert all free nodes
+        do i_lid=1, num_dofs_field
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_free_dof(i_gid) ) then
+              ! Global to local map for free dofs (dofs already belonging to the cell)
+              this%gid_to_lid_map(iblock)%a(i_gid) = i_lid
+           end if
+           ! Insert all dofs belonging to the cell
+           call this%extended_fe_dofs(ifield)%push_back(i_gid)
+        end do
+        do i_lid=1, num_dofs_field
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_hanging_dof(i_gid) ) then
+              ! Only for hanging dofs, find outer constraining dofs
+              i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+              do j_lid= p_ptr_constraining_free_dofs(i_gid_hanging), &
+                   p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+                 j_gid = p_constraining_free_dofs(j_lid)
+                 ! If not touched constraining free dof, compute gid to lid map, and insert this dof
+                 ! in extended_fe_dofs
+                 if ( this%gid_to_lid_map(iblock)%a(j_gid) == 0 ) then
+                    this%num_cell_dofs_x_field(ifield) = this%num_cell_dofs_x_field(ifield)+1
+                    this%gid_to_lid_map(iblock)%a(j_gid) = this%num_cell_dofs_x_field(ifield)
+                    call this%extended_fe_dofs(ifield)%push_back(j_gid) 
+                 end if
+              end do
+           end if
+        end do
+        ! Update the fe_dofs array with the extended ones
+        this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_pointer()
+     end if
+  end do
+
+  ! Compute all extended dofs, and resize elmat accordingly
+  total_num_dofs = sum(this%num_cell_dofs_x_field)
+  call this%extended_elmat%resize(total_num_dofs, total_num_dofs)
+  this%extended_elmat%a(1:total_num_dofs,1:total_num_dofs) = 0.0_rp
+
+  current_i          = 1 
+  current_extended_i = 1     
+  do ifield=1, num_fields   
+     num_dofs_field_i = this%get_num_dofs_field(ifield)
+     current_j          = 1 
+     current_extended_j = 1   
+     do jfield=1, num_fields 
+        num_dofs_field_j = this%get_num_dofs_field(jfield)
+        ! For every field, insert the cell dofs entries
+        this%extended_elmat%a(current_extended_i:current_extended_i+num_dofs_field_i-1, &
+             & current_extended_j:current_extended_j+num_dofs_field_j-1) = &
+             & elmat(current_i:current_i+num_dofs_field_i-1, &
+             & current_j:current_j+num_dofs_field_j-1)
+        current_j = current_j + num_dofs_field_j
+        current_extended_j = current_extended_j + this%num_cell_dofs_x_field(jfield)  
+     end do
+     current_i = current_i + num_dofs_field_i
+     current_extended_i = current_extended_i + this%num_cell_dofs_x_field(ifield)       
+  end do
+
+  ! Now, we want to compute the matrix entries for the constraining free dofs, both the own constraining free dofs
+  ! and the outer ones
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     if (ifield==1) then
+        offset = 0
+     else
+        offset = offset + this%num_cell_dofs_x_field(ifield-1)
+     end if
+     num_dofs_field = this%get_num_dofs_field(ifield)
+     do i_lid=1, this%get_num_dofs_field(ifield)
+        i_gid = this%fe_dofs(ifield)%p(i_lid)
+        ! i is a hanging DoF?
+        if ( this%is_hanging_dof(i_gid) ) then
+           ! Traverse constraining free DoFs of i
+           i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+           spos = p_ptr_constraining_free_dofs(i_gid_hanging)
+           epos = p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+           do pos=spos, epos 
+              k_gid = p_constraining_free_dofs(pos)
+              weight = p_constraining_free_dofs_coefficients(pos)
+              k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
+              ! free dofs, add the hanging dof row * weighting in the free dof row (for extended elmat and elvec)
+              this%extended_elmat%a(k_lid+offset,:) = this%extended_elmat%a(k_lid+offset,:) + weight*this%extended_elmat%a(i_lid+offset,:)
+           end do
+        end if
+     end do
+  end do
+
+  ! Idem for columns
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     if (ifield==1) then
+        offset = 0
+     else
+        offset = offset + this%num_cell_dofs_x_field(ifield-1)
+     end if
+     do i_lid=1, this%get_num_dofs_field(ifield)
+        i_gid = this%fe_dofs(ifield)%p(i_lid)
+        ! i is a hanging DoF?
+        if ( this%is_hanging_dof(i_gid) ) then
+           ! Traverse constraining free DoFs of i
+           i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+           spos = p_ptr_constraining_free_dofs(i_gid_hanging)
+           epos = p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+           do pos=spos, epos 
+              k_gid = p_constraining_free_dofs(pos)
+              weight = p_constraining_free_dofs_coefficients(pos)
+              k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
+              ! free dofs, add the hanging dof column * weighting in the free dof column (for extended elmat and elvec)
+              this%extended_elmat%a(:,k_lid+offset) = this%extended_elmat%a(:,k_lid+offset) + weight*this%extended_elmat%a(:,i_lid+offset)
+           end do
+        end if
+     end do
+  end do
+
+  ! Initialize gid_to_lid_map to zero
+  do ifield=1, num_fields 
+     iblock = field_blocks(ifield)
+     ! Only if hanging nodes perform the following work
+     if ( this%has_hanging_dofs(ifield) ) then
+        do i_lid=1, this%get_num_dofs_field(ifield)
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           if ( this%is_hanging_dof(i_gid) ) then
+              ! Only for hanging dofs, find outer constraining dofs
+              i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+              do j_lid= p_ptr_constraining_free_dofs(i_gid_hanging), &
+                   p_ptr_constraining_free_dofs(i_gid_hanging+1)-1
+                 j_gid = p_constraining_free_dofs(j_lid)
+                 ! If not touched constraining free dof, compute gid to lid map, and insert this dof
+                 ! in extended_fe_dofs
+                 this%gid_to_lid_map(iblock)%a(j_gid) = 0
+              end do
+           else if ( this%is_free_dof(i_gid) ) then
+              ! Global to local map for free dofs (dofs already belonging to the cell)
+              this%gid_to_lid_map(iblock)%a(i_gid) = 0
+           end if
+        end do
+     end if
+  end do
+
+
+
+end subroutine fe_cell_iterator_apply_constraints_matrix
+
+subroutine fe_cell_iterator_apply_constraints_matrix_array(this,elmat,elvec)
   implicit none
   class(fe_cell_iterator_t), intent(inout)    :: this
   real(rp), intent(in) :: elmat(:,:)
@@ -2183,7 +2522,6 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
         ! Update the fe_dofs array with the extended ones
         this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_pointer()
      end if
-
   end do
 
   ! Compute all extended dofs, and resize elmat and elvec accordingly
@@ -2298,7 +2636,7 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
      end if
   end do
 
-end subroutine fe_cell_iterator_apply_constraints
+end subroutine fe_cell_iterator_apply_constraints_matrix_array
 
 
 
