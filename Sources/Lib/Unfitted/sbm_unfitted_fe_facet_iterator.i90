@@ -108,7 +108,6 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
       end do
     end if
   else if (this%is_cut()) then
-    call this%update_sub_triangulation()
     call this%update_quadrature()
     call this%update_facet_maps_interpolation()
     call this%update_facet_integrators_interpolation()

@@ -105,7 +105,6 @@ module triangulation_names
     procedure(cell_get_disconnected_set_id_interface), deferred :: get_disconnected_set_id
  
     ! XFEM-related TBPs
-    procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
     procedure(get_num_subcells_interface)           , deferred :: get_num_subcells
     procedure(get_num_subcell_nodes_interface)      , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface) , deferred :: get_phys_coords_of_subcell
@@ -173,7 +172,6 @@ module triangulation_names
      procedure(is_at_interface)               , deferred :: is_at_interface
 
      ! XFEM-related TBPs
-     procedure               :: update_sub_triangulation  => vef_iterator_update_sub_triangulation
      procedure               :: get_num_subvefs           => vef_iterator_get_num_subvefs
      procedure               :: get_num_subvef_nodes      => vef_iterator_get_num_subvef_nodes
      procedure               :: get_phys_coords_of_subvef => vef_iterator_get_phys_coords_of_subvef
@@ -357,11 +355,6 @@ module triangulation_names
        class(cell_iterator_t), intent(in)    :: this
        integer(ip) :: cell_get_disconnected_set_id_interface
      end function cell_get_disconnected_set_id_interface
-
-     subroutine update_sub_triangulation_interface( this )
-       import :: cell_iterator_t
-       class(cell_iterator_t), intent(inout) :: this
-     end subroutine update_sub_triangulation_interface
      
      function get_num_subcells_interface( this ) result ( num_subcells )
        import :: cell_iterator_t, ip
@@ -950,7 +943,6 @@ module triangulation_names
     procedure                            :: get_permutation_index   => bst_cell_iterator_get_permutation_index
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
-    procedure :: update_sub_triangulation    => bst_cell_iterator_update_sub_triangulation
     procedure :: get_num_subcells      => bst_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes => bst_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => bst_cell_iterator_get_phys_coords_of_subcell

@@ -195,7 +195,6 @@ module fe_space_names
     procedure, non_overridable           :: get_permutation_index   => base_fe_cell_iterator_get_permutation_index
     procedure, non_overridable           :: get_level               => base_fe_cell_iterator_get_level
     
-    procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => base_fe_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => base_fe_cell_iterator_get_phys_coords_of_subcell
@@ -456,7 +455,6 @@ module fe_space_names
      procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
      procedure, non_overridable          :: is_facet                   => base_fe_vef_iterator_is_facet
      
-     procedure, non_overridable          :: update_sub_triangulation  => base_fe_vef_iterator_update_sub_triangulation
      procedure, non_overridable          :: get_num_subvefs           => base_fe_vef_iterator_get_num_subvefs
      procedure, non_overridable          :: get_num_subvef_nodes      => base_fe_vef_iterator_get_num_subvef_nodes
      procedure, non_overridable          :: get_phys_coords_of_subvef => base_fe_vef_iterator_get_phys_coords_of_subvef
