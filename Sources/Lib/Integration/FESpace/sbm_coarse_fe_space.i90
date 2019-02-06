@@ -139,7 +139,8 @@ recursive subroutine coarse_fe_space_free (this)
       end if
       nullify(this%coarse_triangulation)
       nullify(this%environment)
-   end if   
+      call this%set_coarse_fe_space_is_set_up(.false.) 
+  end if   
 end subroutine coarse_fe_space_free
 
 subroutine coarse_fe_space_print ( this )
@@ -1502,6 +1503,7 @@ subroutine coarse_fe_space_setup_coarse_fe_space(this)
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_fe_space)
   end if
+  call this%set_coarse_fe_space_is_set_up(.true.) 
 
   ! All tasks free raw data (see actual reason on the top part of this subroutine)
   call memfree (fe_space_type_x_field, __FILE__, __LINE__)
