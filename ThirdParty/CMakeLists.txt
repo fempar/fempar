@@ -81,7 +81,7 @@ ENDIF()
 include(ExternalProject)
 
 # List of external projects to be managed from this CMakeLists.txt
-SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For)
+SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For FortranParser)
 
 # Loop over the list of external projects
 FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})

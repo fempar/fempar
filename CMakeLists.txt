@@ -246,7 +246,7 @@ ENDIF()
 #################################################################
 
 UNSET(${PROJECT_NAME}_EXTERNAL_PROJECTS CACHE)
-SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For) # List of Fempar external projects
+SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For FortranParser) # List of Fempar external projects
 
 # Loop over all (required) external projects
 # ${EXT_PROJ}_DIR is used as a clue to find every external project
