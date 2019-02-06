@@ -332,7 +332,9 @@ subroutine par_fe_space_free( this )
      nullify(this%environment)
      nullify(this%parameter_list)
      call this%free_coarse_fe_handlers()
+     call this%set_coarse_fe_space_is_set_up(.false.) 
   end if
+  
 end subroutine par_fe_space_free
 
 subroutine par_fe_space_free_coarse_fe_space_l1_data(this)
@@ -4199,6 +4201,7 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_fe_space)
   end if
+  call this%set_coarse_fe_space_is_set_up(.true.) 
 
   ! All tasks free raw data (see actual reason on the top part of this subroutine)
   call memfree (fe_space_type_x_field, __FILE__, __LINE__)
@@ -4633,7 +4636,7 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
      end if
   end if
   ! Re-set up coarse_fe_space()
-  if ( triangulation%coarse_triangulation_is_set_up() ) then
+  if ( this%coarse_fe_space_is_set_up() ) then
     call this%setup_coarse_fe_space(this%parameter_list)
   end if
 
@@ -5144,7 +5147,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
      end if
   end if
   ! Re-set up coarse_fe_space()
-  if ( triangulation%coarse_triangulation_is_set_up() ) then
+  if ( this%coarse_fe_space_is_set_up() ) then
     call this%setup_coarse_fe_space(this%parameter_list)
   end if
 
@@ -5342,7 +5345,7 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
      end if 
   end if
   ! Re-set up coarse_fe_space()
-  if ( triangulation%coarse_triangulation_is_set_up() ) then
+  if ( this%coarse_fe_space_is_set_up() ) then
     call this%setup_coarse_fe_space(this%parameter_list)
   end if
 
@@ -5578,7 +5581,7 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
     end if 
   end if
   ! Re-set up coarse_fe_space()
-  if ( triangulation%coarse_triangulation_is_set_up() ) then
+  if ( this%coarse_fe_space_is_set_up() ) then
     call this%setup_coarse_fe_space(this%parameter_list)
   end if
   

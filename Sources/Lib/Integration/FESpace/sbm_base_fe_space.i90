@@ -222,6 +222,20 @@ function base_fe_space_get_coarse_fe_space(this)
   base_fe_space_get_coarse_fe_space => this%coarse_fe_space
 end function base_fe_space_get_coarse_fe_space
 
+function base_fe_space_coarse_fe_space_is_set_up(this) result(is_set_up)
+  implicit none
+  class(base_fe_space_t), intent(in) :: this
+  logical :: is_set_up
+  is_set_up = this%coarse_fe_space_set_up
+end function base_fe_space_coarse_fe_space_is_set_up
+
+subroutine base_fe_space_set_coarse_fe_space_is_set_up(this,is_set_up)
+  implicit none
+  class(base_fe_space_t), intent(inout) :: this
+  logical               , intent(in)    :: is_set_up
+  this%coarse_fe_space_set_up = is_set_up 
+end subroutine base_fe_space_set_coarse_fe_space_is_set_up
+
 function base_fe_space_get_environment(this) result(environment)
   implicit none
   class(base_fe_space_t), intent(in)    :: this 
