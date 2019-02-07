@@ -267,9 +267,11 @@ module fe_space_names
     procedure, non_overridable          :: generate_own_dofs_vef_general              => fe_cell_iterator_generate_own_dofs_vef_general
     procedure, non_overridable          :: generate_own_dofs_vef_w_scratch_data       => fe_cell_iterator_generate_own_dofs_vef_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
-    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_general         => fci_generate_own_dofs_vef_component_wise_general
-    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_w_scratch_data  => fci_generate_own_dofs_vef_component_wise_w_scratch_data  
-
+    procedure, non_overridable          :: reset_gid_to_lid_map                       => fe_cell_iterator_reset_gid_to_lid_map    
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_general              => fci_generate_own_dofs_vef_component_wise_general
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_w_scratch_data       => fci_generate_own_dofs_vef_component_wise_w_scratch_data  
+    procedure, non_overridable          :: compute_gid_to_lid_ext_fe_dofs_num_cell_dofs_and_fe_dofs  => fci_compute_gid_to_lid_ext_fe_dofs_num_cell_dofs_and_fe_dofs
+    
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_general  => fci_fetch_own_dofs_vef_from_source_fe_general
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_w_scratch_data => fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data
@@ -393,12 +395,17 @@ module fe_space_names
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
 
+    procedure, non_overridable, private :: apply_constraints_array        => fe_cell_iterator_apply_constraints_array 
+    procedure, non_overridable, private :: apply_constraints_matrix       => fe_cell_iterator_apply_constraints_matrix 
+    procedure, non_overridable, private :: apply_constraints_matrix_array => fe_cell_iterator_apply_constraints_matrix_array
+    generic :: apply_constraints => apply_constraints_array,       &
+                                    apply_constraints_matrix,      &
+                                    apply_constraints_matrix_array
+				
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_scalar
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_vector
     generic :: evaluate_laplacian_fe_function => fe_cell_iterator_evaluate_laplacian_fe_function_scalar, &
     & fe_cell_iterator_evaluate_laplacian_fe_function_vector
-
-    procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
 
   end type fe_cell_iterator_t
    
