@@ -20,4 +20,5 @@
 	branch = master
 [submodule "ThirdParty/FortranParser"]
 	path = ThirdParty/FortranParser
-	url = git@gitlab.com:fempar/FortranParser.git
+	url = https://gitlab.com/fempar/FortranParser.git
+	branch = master
