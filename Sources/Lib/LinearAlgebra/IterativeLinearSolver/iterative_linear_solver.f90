@@ -67,6 +67,7 @@ module iterative_linear_solver_names
    contains
      ! Concrete TBPs
      procedure :: create                          => iterative_linear_solver_create
+     procedure :: reallocate_after_remesh         => iterative_linear_solver_reallocate_after_remesh
      procedure :: free                            => iterative_linear_solver_free
      procedure :: apply                           => iterative_linear_solver_apply
      procedure :: apply_add                       => iterative_linear_solver_apply_add
@@ -94,6 +95,12 @@ contains
      this%environment => environment
      this%state = environment_set
    end subroutine iterative_linear_solver_create
+   
+   subroutine iterative_linear_solver_reallocate_after_remesh ( this ) 
+     implicit none
+     class(iterative_linear_solver_t), intent(inout) :: this
+     call this%base_iterative_linear_solver%reallocate_after_remesh()
+   end subroutine iterative_linear_solver_reallocate_after_remesh 
    
    subroutine iterative_linear_solver_free ( this )
      implicit none

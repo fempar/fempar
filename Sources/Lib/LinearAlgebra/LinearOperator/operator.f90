@@ -52,6 +52,7 @@ module operator_names
      procedure (is_linear_interface), deferred :: is_linear
      
      procedure :: update_matrix                           => operator_update_matrix
+     procedure :: reallocate_after_remesh                 => operator_reallocate_after_remesh
      procedure :: get_tangent                             => operator_get_tangent         ! partial A / partial x (x*)
      procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
@@ -92,20 +93,22 @@ module operator_names
      private
      class(operator_t), pointer :: op1 => null(), op2 => null()
    contains
-     procedure :: default_initialization => binary_operator_default_init
-     procedure :: free                   => binary_operator_free
-     procedure :: assign                 => binary_operator_assign
-     procedure :: update_matrix          => binary_operator_update_matrix
+     procedure :: default_initialization  => binary_operator_default_init
+     procedure :: free                    => binary_operator_free
+     procedure :: assign                  => binary_operator_assign
+     procedure :: update_matrix           => binary_operator_update_matrix
+     procedure :: reallocate_after_remesh => binary_operator_reallocate_after_remesh
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
      private
      class(operator_t), pointer :: op => null()
    contains
-     procedure :: default_initialization => unary_operator_default_init
-     procedure :: free                   => unary_operator_free
-     procedure :: assign                 => unary_operator_assign
-     procedure :: update_matrix          => unary_operator_update_matrix
+     procedure :: default_initialization  => unary_operator_default_init
+     procedure :: free                    => unary_operator_free
+     procedure :: assign                  => unary_operator_assign
+     procedure :: update_matrix           => unary_operator_update_matrix
+     procedure :: reallocate_after_remesh => unary_operator_reallocate_after_remesh
   end type unary_operator_t
 
   type, extends(operator_t) :: lvalue_operator_t
@@ -113,15 +116,17 @@ module operator_names
      class(operator_t), pointer :: op_stored     => null()
      class(operator_t), pointer :: op_referenced => null()
    contains
-     procedure  :: default_initialization => lvalue_operator_default_init
-     procedure  :: get_operator  => lvalue_get_operator
-     procedure  :: apply         => lvalue_operator_apply
-     procedure  :: apply_add     => lvalue_operator_apply_add
-     procedure  :: update_matrix => lvalue_operator_update_matrix
-     procedure  :: is_linear     => lvalue_operator_is_linear
-     procedure  :: free          => lvalue_operator_free
-     procedure  :: assign        => lvalue_operator_create
-     generic    :: assignment(=) => assign
+     procedure  :: default_initialization  => lvalue_operator_default_init
+     procedure  :: get_operator            => lvalue_get_operator
+     procedure  :: apply                   => lvalue_operator_apply
+     procedure  :: apply_add               => lvalue_operator_apply_add
+     procedure  :: update_matrix           => lvalue_operator_update_matrix
+     procedure  :: reallocate_after_remesh => lvalue_operator_reallocate_after_remesh
+     procedure  :: is_linear               => lvalue_operator_is_linear
+     procedure  :: free                    => lvalue_operator_free
+     procedure  :: assign                  => lvalue_operator_create
+     procedure  :: create_vector_spaces    => lvalue_operator_create_vector_spaces
+     generic    :: assignment(=)           => assign
   end type lvalue_operator_t
   
   type, extends(binary_operator_t) :: sum_operator_t
@@ -332,6 +337,12 @@ contains
     wassert(.false.,'Note: you are calling operator_t%update_matrix() on a type extension of operator_t which does not override update_matrix(). operator_t%update_matrix() does NOTHING by default.')
   end subroutine operator_update_matrix
   
+  subroutine operator_reallocate_after_remesh( this )
+    implicit none
+    class(operator_t),  intent(inout) :: this
+    wassert(.false.,'Note: you are calling operator_t%reallocate_after_remesh() on a type extension of operator_t which does not override reallocate_after_remesh(). operator_t%reallocate_after_remesh() does NOTHING by default.')
+  end subroutine operator_reallocate_after_remesh
+  
   subroutine binary_operator_default_init(this)
     implicit none
     class(binary_operator_t), intent(inout) :: this
@@ -417,7 +428,7 @@ contains
        call rvalue%op1%range_vector_space%clone(this%range_vector_space)
        call binary_operator_create(rvalue%op1,rvalue%op2,this)
        class default
-       check(1==0)
+       check(.false.)
     end select
   end subroutine binary_operator_assign
   
@@ -451,7 +462,7 @@ contains
        call rvalue%op%range_vector_space%clone(this%range_vector_space)
        call unary_operator_create(rvalue%op,this)
        class default
-       check(1==0)
+       check(.false.)
     end select
   end subroutine unary_operator_assign
 
@@ -515,14 +526,14 @@ contains
                 class is(lvalue_operator_t)
                    this = op%op_stored
                 class default
-                   check(1==0)
+                   check(.false.)
              end select
              call this%op_stored%GuardTemp()
           else if(associated(op%op_referenced)) then
              assert(.not. associated(op%op_stored))
              this%op_referenced => op%op_referenced
           else
-             check(1==0)
+             check(.false.)
           end if
        class is(expression_operator_t) ! Temporary
           allocate(this%op_stored,mold=op, stat=istat); check(istat==0)
@@ -536,7 +547,12 @@ contains
           this%op_referenced => op
     end select
     call op%CleanTemp()
-    
+    call this%create_vector_spaces()
+  end subroutine lvalue_operator_create
+  
+  subroutine lvalue_operator_create_vector_spaces(this)
+    implicit none 
+    class(lvalue_operator_t), intent(inout) :: this
     if ( associated(this%op_referenced) ) then
       call this%op_referenced%domain_vector_space%clone(this%domain_vector_space)
       call this%op_referenced%range_vector_space%clone(this%range_vector_space)
@@ -546,7 +562,7 @@ contains
     else
       check(.false.)
     end if
-  end subroutine lvalue_operator_create
+  end subroutine lvalue_operator_create_vector_spaces
 
   subroutine lvalue_operator_free(this)
     implicit none
@@ -718,7 +734,7 @@ contains
        call rvalue%op%range_vector_space%clone(this%range_vector_space)
        call unary_operator_create(rvalue%op,this)
        class default
-       check(1==0)
+       check(.false.)
     end select
   end subroutine scal_operator_assign
 
@@ -833,7 +849,7 @@ contains
        assert(.not. associated(this%op_stored))
        lvalue_get_operator => this%op_referenced
     else
-       check(1==0)
+       check(.false.)
     end if 
   end function lvalue_get_operator
   
@@ -855,7 +871,7 @@ contains
        assert(.not. associated(this%op_stored))
        call this%op_referenced%apply(x,y)
     else
-       check(1==0)
+       check(.false.)
     end if
     call x%CleanTemp()
     call this%CleanTemp()
@@ -980,7 +996,7 @@ contains
        assert(.not. associated(this%op_stored))
        call this%op_referenced%apply_add(x,y)
     else
-       check(1==0)
+       check(.false.)
     end if
     call x%CleanTemp()
     call this%CleanTemp()
@@ -1049,12 +1065,25 @@ contains
     call this%op2%update_matrix(same_nonzero_pattern)
   end subroutine binary_operator_update_matrix
   
+  subroutine binary_operator_reallocate_after_remesh(this)
+    implicit none
+    class(binary_operator_t), intent(inout)    :: this
+    call this%op1%reallocate_after_remesh()
+    call this%op2%reallocate_after_remesh()
+  end subroutine binary_operator_reallocate_after_remesh
+  
   subroutine unary_operator_update_matrix(this, same_nonzero_pattern)
     implicit none
     class(unary_operator_t), intent(inout)    :: this
     logical                 , intent(in)       :: same_nonzero_pattern
     call this%op%update_matrix(same_nonzero_pattern)
   end subroutine unary_operator_update_matrix
+  
+  subroutine unary_operator_reallocate_after_remesh(this)
+    implicit none
+    class(unary_operator_t), intent(inout)    :: this
+    call this%op%reallocate_after_remesh()
+  end subroutine unary_operator_reallocate_after_remesh
   
   subroutine identity_operator_update_matrix( this, same_nonzero_pattern )
     implicit none
@@ -1073,8 +1102,23 @@ contains
        assert(.not. associated(this%op_stored))
        call this%op_referenced%update_matrix(same_nonzero_pattern)
     else
-       check(1==0)
+       check(.false.)
     end if
   end subroutine lvalue_operator_update_matrix
-   
+  
+  subroutine lvalue_operator_reallocate_after_remesh(this)
+    implicit none
+    class(lvalue_operator_t), intent(inout)    :: this
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       call this%op_stored%reallocate_after_remesh()
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       call this%op_referenced%reallocate_after_remesh()
+    else
+       check(.false.)
+    end if
+    call this%create_vector_spaces()
+  end subroutine lvalue_operator_reallocate_after_remesh
+  
 end module operator_names

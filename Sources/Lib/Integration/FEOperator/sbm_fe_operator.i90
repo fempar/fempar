@@ -92,16 +92,32 @@ subroutine fe_operator_reallocate_after_remesh(this)
   implicit none
   class(fe_operator_t)              , intent(inout) :: this
   integer(ip) :: istat
-
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
   assert(associated(this%get_state()))
 
   if ( associated(this%assembler) ) then
-     call this%assembler%free()
-     deallocate(this%assembler,stat=istat); check(istat==0);
-  end if
-
-  select type(fe_space => this%test_fe_space)
-     class is(serial_fe_space_t) 
+   matrix => this%assembler%get_matrix(); assert(associated(matrix))
+   array  => this%assembler%get_array(); assert(associated(array))
+   call matrix%free()
+   call array%free() 
+   select type(fe_space => this%test_fe_space)
+    class is(serial_fe_space_t) 
+      call this%create_members_serial_assembler(this%diagonal_blocks_symmetric_storage, &
+                                                this%diagonal_blocks_symmetric, &
+                                                this%diagonal_blocks_sign, &
+                                                this%assembler) 
+    class is(par_fe_space_t) 
+      call this%create_members_par_assembler(this%diagonal_blocks_symmetric_storage, &
+                                              this%diagonal_blocks_symmetric, &
+                                              this%diagonal_blocks_sign, &
+                                              this%assembler)
+    class default
+     check(.false.)
+   end select
+  else 
+    select type(fe_space => this%test_fe_space)
+    class is(serial_fe_space_t) 
      this%assembler  => this%create_serial_assembler(this%diagonal_blocks_symmetric_storage, &
           this%diagonal_blocks_symmetric, &
           this%diagonal_blocks_sign)
@@ -111,7 +127,8 @@ subroutine fe_operator_reallocate_after_remesh(this)
           this%diagonal_blocks_sign)
      class default
      check(.false.)
-  end select
+    end select
+  end if 
   
   call this%assembler%allocate_array()
   call this%assembler%init_array(0.0_rp)  
@@ -153,62 +170,29 @@ function fe_operator_create_serial_assembler (this, &
   class(array_t) , pointer :: array
   integer(ip)          :: ife_space, jfe_space
   integer(ip)          :: iblock, jblock
-
   type(block_layout_t), pointer :: block_layout
-
   block_layout => this%test_fe_space%get_block_layout()
-
   if (block_layout%get_num_blocks() == 1) then
      allocate ( sparse_assembler_t :: fe_operator_create_serial_assembler )
      allocate ( sparse_matrix_t :: matrix )
      allocate ( serial_scalar_array_t  :: array )
-     select type(matrix)
-        class is(sparse_matrix_t)
-        call matrix%create(block_layout%get_block_num_dofs(1), &
-             diagonal_blocks_symmetric_storage(1),&
-             diagonal_blocks_symmetric(1),&
-             diagonal_blocks_sign(1))
-        class default
-        check(.false.)
-     end select
-     select type(array)
-        class is(serial_scalar_array_t)
-        call array%create(block_layout%get_block_num_dofs(1))
-        class default
-        check(.false.)
-     end select
+     call fe_operator_create_serial_assembler%set_matrix(matrix)
+     call fe_operator_create_serial_assembler%set_array(array)
+     call this%create_members_serial_assembler(diagonal_blocks_symmetric_storage, &
+                                               diagonal_blocks_symmetric, &
+                                               diagonal_blocks_sign, &
+                                               fe_operator_create_serial_assembler) 
   else
      allocate ( block_sparse_assembler_t :: fe_operator_create_serial_assembler )
      allocate ( block_sparse_matrix_t :: matrix )
      allocate ( serial_block_array_t  :: array )
-     select type(matrix)
-        class is (block_sparse_matrix_t)
-        call matrix%create(block_layout%get_num_blocks(), &
-             block_layout%get_num_dofs_x_block(),&
-             block_layout%get_num_dofs_x_block(),&
-             diagonal_blocks_symmetric_storage,&
-             diagonal_blocks_symmetric,&
-             diagonal_blocks_sign)
-
-        do jblock=1,block_layout%get_num_blocks()
-           do iblock=1,block_layout%get_num_blocks()
-              if (.not. block_layout%blocks_coupled(iblock,jblock) ) then
-                 call matrix%set_block_to_zero(iblock,jblock)
-              end if
-           end do
-        end do
-        class default
-        check(.false.)
-     end select
-     select type(array)
-        class is(serial_block_array_t)
-        call array%create(block_layout%get_num_blocks(),block_layout%get_num_dofs_x_block())
-        class default
-        check(.false.)
-     end select
+     call fe_operator_create_serial_assembler%set_matrix(matrix)
+     call fe_operator_create_serial_assembler%set_array(array)
+     call this%create_members_serial_assembler(diagonal_blocks_symmetric_storage, &
+                                               diagonal_blocks_symmetric, &
+                                               diagonal_blocks_sign, &
+                                               fe_operator_create_serial_assembler)
   end if
-  call fe_operator_create_serial_assembler%set_matrix(matrix)
-  call fe_operator_create_serial_assembler%set_array(array)
 end function fe_operator_create_serial_assembler
 
 function fe_operator_create_par_assembler(this, &
@@ -238,6 +222,111 @@ function fe_operator_create_par_assembler(this, &
         allocate ( par_sparse_assembler_t :: fe_operator_create_par_assembler )
         allocate ( par_sparse_matrix_t :: matrix )
         allocate ( par_scalar_array_t  :: array )
+        call fe_operator_create_par_assembler%set_matrix(matrix)
+        call fe_operator_create_par_assembler%set_array(array)
+        call this%create_members_par_assembler(diagonal_blocks_symmetric_storage, &
+                                               diagonal_blocks_symmetric, &
+                                               diagonal_blocks_sign, &
+                                               fe_operator_create_par_assembler) 
+     end if 
+     class default
+     check(.false.)
+  end select
+end function fe_operator_create_par_assembler
+
+subroutine fe_operator_create_members_serial_assembler (this, &
+                                                        diagonal_blocks_symmetric_storage,&
+                                                        diagonal_blocks_symmetric, & 
+                                                        diagonal_blocks_sign, &
+                                                        assembler)
+  implicit none
+  class(fe_operator_t)  , intent(in)    :: this
+  logical               , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical               , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)           , intent(in)    :: diagonal_blocks_sign(:)
+  class(assembler_t)    , intent(inout) :: assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  integer(ip)          :: ife_space, jfe_space
+  integer(ip)          :: iblock, jblock
+
+  type(block_layout_t), pointer :: block_layout
+
+  block_layout => this%test_fe_space%get_block_layout()
+  matrix => assembler%get_matrix()
+  array  => assembler%get_array()
+  
+  if (block_layout%get_num_blocks() == 1) then
+     select type(matrix)
+        class is(sparse_matrix_t)
+        call matrix%create(block_layout%get_block_num_dofs(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(block_layout%get_block_num_dofs(1))
+        class default
+        check(.false.)
+     end select
+  else
+     select type(matrix)
+        class is (block_sparse_matrix_t)
+        call matrix%create(block_layout%get_num_blocks(), &
+             block_layout%get_num_dofs_x_block(),&
+             block_layout%get_num_dofs_x_block(),&
+             diagonal_blocks_symmetric_storage,&
+             diagonal_blocks_symmetric,&
+             diagonal_blocks_sign)
+        do jblock=1,block_layout%get_num_blocks()
+           do iblock=1,block_layout%get_num_blocks()
+              if (.not. block_layout%blocks_coupled(iblock,jblock) ) then
+                 call matrix%set_block_to_zero(iblock,jblock)
+              end if
+           end do
+        end do
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_block_array_t)
+        call array%create(block_layout%get_num_blocks(),block_layout%get_num_dofs_x_block())
+        class default
+        check(.false.)
+     end select
+  end if
+end subroutine fe_operator_create_members_serial_assembler
+
+subroutine fe_operator_create_members_par_assembler(this, &
+                                                    diagonal_blocks_symmetric_storage,&
+                                                    diagonal_blocks_symmetric, & 
+                                                    diagonal_blocks_sign, &
+                                                    assembler)
+  implicit none
+  class(fe_operator_t)       , intent(in)    :: this
+  logical                    , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical                    , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)                , intent(in)    :: diagonal_blocks_sign(:)
+  class(assembler_t)         , intent(inout) :: assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  type(environment_t), pointer :: par_environment
+  type(block_layout_t), pointer :: block_layout
+
+  block_layout => this%test_fe_space%get_block_layout()
+  matrix => assembler%get_matrix()
+  array  => assembler%get_array()
+  select type(fe_space => this%test_fe_space)
+     class is(par_fe_space_t)
+     par_environment => fe_space%get_environment()
+     if (block_layout%get_num_blocks() == 1) then
         select type(matrix)
            class is(par_sparse_matrix_t)
            call matrix%create(par_environment, &
@@ -258,12 +347,11 @@ function fe_operator_create_par_assembler(this, &
      else
         check(.false.)
      end if
-     call fe_operator_create_par_assembler%set_matrix(matrix)
-     call fe_operator_create_par_assembler%set_array(array)
      class default
      check(.false.)
   end select
-end function fe_operator_create_par_assembler
+end subroutine fe_operator_create_members_par_assembler
+
 
 function fe_operator_get_diagonal_blocks_symmetric_storage(this)
   implicit none

@@ -58,6 +58,7 @@ private
         procedure, non_overridable, public :: set_matrix              => direct_solver_set_matrix
         procedure, non_overridable, public :: replace_matrix          => direct_solver_replace_matrix
         procedure,                  public :: update_matrix           => direct_solver_update_matrix
+        procedure,                  public :: reallocate_after_remesh => direct_solver_reallocate_after_remesh
         procedure, non_overridable         :: create_vector_spaces    => direct_solver_create_vector_spaces
         procedure, non_overridable, public :: symbolic_setup          => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup         => direct_solver_numerical_setup
@@ -189,6 +190,17 @@ contains
       call this%base_direct_solver%update_matrix(same_nonzero_pattern)  
       if(.not. same_nonzero_pattern) call this%free_vector_spaces()
     end subroutine direct_solver_update_matrix
+    
+    subroutine direct_solver_reallocate_after_remesh(this)
+    !-----------------------------------------------------------------
+    !< reallocate after remesh
+    !< Not same_nonzero_pattern. The workspace must be reallocated
+    !-----------------------------------------------------------------
+        class(direct_solver_t),        intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%update_matrix(.false.)
+        call this%create_vector_spaces()
+    end subroutine direct_solver_reallocate_after_remesh    
     
     subroutine direct_solver_create_vector_spaces ( this ) 
     !-----------------------------------------------------------------

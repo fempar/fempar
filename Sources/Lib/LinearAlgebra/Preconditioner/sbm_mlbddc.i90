@@ -155,6 +155,16 @@ subroutine mlbddc_update_matrix(this, same_nonzero_pattern )
   end if 
 end subroutine mlbddc_update_matrix
 
+subroutine mlbddc_reallocate_after_remesh(this)
+  implicit none
+  class(mlbddc_t)          , intent(inout) :: this
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  call this%free_numerical_setup()
+  call this%free_symbolic_setup()
+  call this%create_vector_spaces()
+end subroutine mlbddc_reallocate_after_remesh
+
+
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
 ! from the fe_nonlinear_operator, and dynamically casts it into  
 ! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 

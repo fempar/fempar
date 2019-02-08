@@ -42,11 +42,12 @@ module matrix_names
      procedure (free_in_stages_interface) , deferred :: free_in_stages
      procedure (create_iterator_interface), deferred :: create_iterator
      
-     procedure :: is_linear => matrix_is_linear
+     procedure :: is_linear               => matrix_is_linear
+     procedure :: reallocate_after_remesh => matrix_reallocate_after_remesh
      ! This subroutine is an instance of the Template Method pattern with
      ! free_in_stages being the primitive method. According to this pattern,
      ! template methods cannot be overrided by subclasses
-     procedure :: free => matrix_free_template_method
+     procedure :: free                    => matrix_free_template_method
   end type matrix_t
 
   type, abstract :: matrix_iterator_t
@@ -207,6 +208,11 @@ contains
     logical :: matrix_is_linear
     matrix_is_linear = .true. 
   end function matrix_is_linear
+  
+  subroutine matrix_reallocate_after_remesh(this)
+    implicit none
+    class(matrix_t), intent(inout) :: this
+  end subroutine matrix_reallocate_after_remesh
 
   subroutine matrix_free_template_method ( this )
     implicit none
