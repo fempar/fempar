@@ -90,6 +90,7 @@ contains
   procedure :: apply_add                        => nonlinear_solver_apply_add
   procedure :: is_linear                        => nonlinear_solver_is_linear
   procedure :: update_matrix                    => nonlinear_solver_update_matrix  
+  procedure :: set_parameters_from_pl           => nonlinear_solver_set_parameters_from_pl
   procedure :: free                             => nonlinear_solver_free
 
   ! Getters and checkers
@@ -103,7 +104,6 @@ contains
   ! Others
 
   ! Private TBPs
-  procedure, private :: process_params                   => nonlinear_solver_process_params
   procedure, private :: update_solution                  => nonlinear_solver_update_solution
   procedure, private :: compute_residual                 => nonlinear_solver_compute_residual  
   procedure, private :: compute_tangent                  => nonlinear_solver_compute_tangent
@@ -350,7 +350,7 @@ subroutine nonlinear_solver_set_current_dof_values( this, current_dof_values )
 end subroutine nonlinear_solver_set_current_dof_values
 
 !==============================================================================
-subroutine nonlinear_solver_process_params(this,parameter_list)
+subroutine nonlinear_solver_set_parameters_from_pl(this,parameter_list)
  implicit none
  class(nonlinear_solver_t), intent(inout) :: this
  type(parameterlist_t)    , intent(in)    :: parameter_list
@@ -395,7 +395,7 @@ subroutine nonlinear_solver_process_params(this,parameter_list)
  else
    this%print_iteration_output = default_nls_print_iteration_output
  endif
-end subroutine nonlinear_solver_process_params
+end subroutine nonlinear_solver_set_parameters_from_pl
 
 !==============================================================================
 subroutine nonlinear_solver_update_solution(this)
