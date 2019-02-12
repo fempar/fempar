@@ -516,17 +516,17 @@ end subroutine free_timers
     if ( this%par_environment%am_i_l1_root() ) then
       requested_precision=1.0e-8_rp
       write(*,'(a20)')        ' Displacement field: '      
-      write(*,'(a20,e32.25)') 'mean_norm:', mean!; check ( abs(mean) < requested_precision )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1!; check ( l1 < requested_precision )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2!; check ( l2 < requested_precision )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp!; check ( lp < requested_precision )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty!; check ( linfty < requested_precision )
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s!; check ( h1_s < requested_precision )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1!; check ( h1 < requested_precision )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s!; check ( w1p_s < requested_precision )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p!; check ( w1p < requested_precision )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s!; check ( w1infty_s < requested_precision )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty!; check ( w1infty < requested_precision )
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < requested_precision )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < requested_precision )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < requested_precision )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < requested_precision )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < requested_precision )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < requested_precision )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < requested_precision )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < requested_precision )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < requested_precision )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < requested_precision )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < requested_precision )
     end if      
     call error_norm%free()
     call error_norm_vector%free()
