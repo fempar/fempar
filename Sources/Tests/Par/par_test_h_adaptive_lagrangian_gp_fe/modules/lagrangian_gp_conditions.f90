@@ -33,10 +33,12 @@ module lagrangian_gp_conditions_names
   private
   type, extends(conditions_t) :: lagrangian_gp_conditions_t
      private
+     integer(ip)  :: num_dims
      class(scalar_function_t), pointer :: boundary_function  
    contains
      procedure :: set_boundary_function       => lagrangian_gp_conditions_set_boundary_function
-     procedure :: get_num_components       => lagrangian_gp_conditions_get_num_components  
+     procedure :: set_number_dimensions       => lagrangian_gp_conditions_set_num_dims     
+     procedure :: get_num_components          => lagrangian_gp_conditions_get_num_components  
      procedure :: get_components_code         => lagrangian_gp_conditions_get_components_code
      procedure :: get_function                => lagrangian_gp_conditions_get_function
   end type lagrangian_gp_conditions_t
@@ -51,12 +53,19 @@ contains
     class(scalar_function_t), target, intent(in)    :: boundary_function
     this%boundary_function => boundary_function
   end subroutine lagrangian_gp_conditions_set_boundary_function
+  
+  subroutine lagrangian_gp_conditions_set_num_dims (this, num_dims)
+    implicit none
+    class(lagrangian_gp_conditions_t)     , intent(inout) :: this
+    integer(ip),                            intent(in)    :: num_dims
+    this%num_dims = num_dims
+  end subroutine lagrangian_gp_conditions_set_num_dims
 
   function lagrangian_gp_conditions_get_num_components(this)
     implicit none
     class(lagrangian_gp_conditions_t), intent(in) :: this
     integer(ip) :: lagrangian_gp_conditions_get_num_components
-    lagrangian_gp_conditions_get_num_components = 1
+    lagrangian_gp_conditions_get_num_components = 1 + this%num_dims
   end function lagrangian_gp_conditions_get_num_components
 
   subroutine lagrangian_gp_conditions_get_components_code(this, boundary_id, components_code)
@@ -64,10 +73,11 @@ contains
     class(lagrangian_gp_conditions_t), intent(in)  :: this
     integer(ip)            , intent(in)  :: boundary_id
     logical                , intent(out) :: components_code(:)
-    assert ( size(components_code) == 1 )
-    components_code(1) = .true.
+    !assert ( size(components_code) == 1 )
+    !components_code(1) = .true.
+    components_code(1:this%get_num_components()) = .false.
     if ( boundary_id == 1 ) then
-      components_code(1) = .true.
+      components_code(1:this%get_num_components()) = .true.
     end if
   end subroutine lagrangian_gp_conditions_get_components_code
   

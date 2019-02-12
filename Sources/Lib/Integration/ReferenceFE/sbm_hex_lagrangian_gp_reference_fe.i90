@@ -175,7 +175,7 @@ subroutine hex_lagrangian_gp_reference_fe_fill_h_refinement_interpolation ( this
      !if ( subcell_id == 1 ) then
      !  ref_centroid_coordinate = centroid_coordinate
      !end if
-     translation = subcell_centroid_coordinate!-ref_centroid_coordinate
+     translation = subcell_centroid_coordinate
      
      call translate_coordinates(translation, aux_quadrature%coordinates)
 
@@ -208,8 +208,10 @@ subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell(this,          
   real(rp)                                , intent(inout) ::  nodal_values_on_child(:)
   
   real(rp),           allocatable :: parent_to_child_injection_op(:,:)
-  integer(ip)                     :: num_shape_functions, spos, num_nodes
-  integer(ip)                     :: coarse_shape_func, child_shape_func 
+  integer(ip)                     :: num_shape_functions, spos
+  integer(ip)                     :: num_scalar_shape_functions
+  integer(ip)                     :: coarse_shape_func, child_shape_func, ishape_fe
+  real(rp)                        :: coefficient
  
   num_shape_functions = this%get_num_shape_functions()
 
@@ -220,16 +222,22 @@ subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell(this,          
   ! parent and child have the same order / same number of nodes and field components
   call memalloc(num_shape_functions, num_shape_functions, &
                 parent_to_child_injection_op,__FILE__,__LINE__)
+  
+  num_scalar_shape_functions = this%h_refinement_interpolation%num_shape_functions
 
-  spos = subcell_id*num_shape_functions
-  do coarse_shape_func = 1, num_shape_functions
-     do child_shape_func = 1, num_shape_functions  
-        parent_to_child_injection_op(coarse_shape_func,child_shape_func) = &
-                      this%h_refinement_interpolation%shape_functions(1,this%node_component_array(coarse_shape_func,1),spos+child_shape_func)
+  spos = subcell_id*num_scalar_shape_functions 
+  parent_to_child_injection_op = 0.0_rp
+  ishape_fe = 0
+  do child_shape_func = 1, num_shape_functions
+     ishape_fe = ishape_fe + 1 
+     do coarse_shape_func= 1, num_shape_functions
+        call this%get_h_refinement_coefficient(ishape_fe,coarse_shape_func,spos,coefficient)
+        parent_to_child_injection_op(coarse_shape_func,child_shape_func) = coefficient
      end do
   end do
-  nodal_values_on_child = 0.0_rp
-  do child_shape_func = 1, num_shape_functions
+ 
+  nodal_values_on_child = 0.0_rp 
+  do child_shape_func = 1, num_shape_functions     
      do coarse_shape_func = 1, num_shape_functions
        nodal_values_on_child(child_shape_func) = nodal_values_on_child(child_shape_func) + &
                   parent_to_child_injection_op(coarse_shape_func,child_shape_func)*nodal_values_on_parent(coarse_shape_func)
@@ -237,6 +245,31 @@ subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell(this,          
   end do
   call memfree(parent_to_child_injection_op,__FILE__,__LINE__)
 end subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell
+
+
+!==================================================================================================
+subroutine hex_lagrangian_gp_get_h_refinement_coefficient ( this, ishape_fe,   & 
+                                                                         ishape_coarser_fe, & 
+                                                                         qpoint, coefficient )
+  implicit none 
+  class(hex_lagrangian_gp_reference_fe_t), target, intent(in)    :: this
+  integer(ip)                                 , intent(in)    :: ishape_fe
+  integer(ip)                                 , intent(in)    :: ishape_coarser_fe
+  integer(ip)                                 , intent(in)    :: qpoint
+  real(rp)                                    , intent(inout) :: coefficient
+  assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
+  assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
+  ! In this reference fe, qpoint plays the role of spos, indicating the starting position for the
+  ! scalar shape functions when vector or tensor fields are use.
+  assert( qpoint >= 0 )  
+  if ( this%node_component_array(ishape_fe,2) == & 
+       this%node_component_array(ishape_coarser_fe,2) ) then
+       coefficient = this%h_refinement_interpolation%shape_functions(1, & 
+                     this%node_component_array(ishape_coarser_fe,1),qpoint+this%node_component_array(ishape_fe,1))
+  else
+       coefficient = 0.0_rp
+  end if
+end subroutine hex_lagrangian_gp_get_h_refinement_coefficient
 
 !==================================================================================================
 function hex_lagrangian_gp_get_num_nodes_children_patch(this)
@@ -431,7 +464,7 @@ subroutine hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation(this, in
 
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
-  num_shape_functions_x_component = this%num_shape_functions/this%num_field_components 
+  num_shape_functions_x_component = this%get_num_nodes() !this%num_shape_functions/this%num_field_components 
   
   ! Compute shape functions
   do qpoint = 1, interpolation%num_quadrature_points

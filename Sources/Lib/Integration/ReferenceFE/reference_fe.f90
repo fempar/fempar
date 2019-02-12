@@ -1638,6 +1638,8 @@ procedure :: interpolate_nodal_values_on_subcell                         &
 & => hex_lagrangian_gp_interpolate_nodal_values_on_subcell
 procedure :: get_num_nodes_children_patch                                 &
 & => hex_lagrangian_gp_get_num_nodes_children_patch
+procedure :: get_h_refinement_coefficient                       &
+& => hex_lagrangian_gp_get_h_refinement_coefficient
 
 end type hex_lagrangian_gp_reference_fe_t
 
