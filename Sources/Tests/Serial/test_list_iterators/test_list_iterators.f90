@@ -90,7 +90,7 @@ print*, '!----------------------------------------------------------------- '
 print*, '!< RANGE ITERATOR INCREASING LOOP - get_current'
 print*, '!----------------------------------------------------------------- '
 
-    j = p(2+1)
+    j = p(2)
     iterator = list%create_iterator(2,4)
     print*, 'Pointer from: ', trim(str(no_sign=.true., n=2)), ' to: ',trim(str(no_sign=.true., n=4)), &
             ', components:', trim(str(no_sign=.true., n=iterator%get_size()))
