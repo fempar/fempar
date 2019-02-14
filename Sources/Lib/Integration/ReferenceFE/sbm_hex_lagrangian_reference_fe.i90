@@ -494,8 +494,9 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
   integer(ip),        allocatable :: subcell_to_cell_node_identifier(:)  
   real(rp),           allocatable :: global_patch_children_values_array(:)  
   integer(ip)                     :: subcell_id, num_shape_functions, num_child_cells_x_parent_cell, ishape, jshape
-  integer(ip)                     :: num_nodes_children_patch, num_field_components, field_comp, patch_node_id, node
-  
+  integer(ip)                     :: num_nodes_children_patch, num_field_components, field_comp, patch_node_id, node, num_nodes
+
+  num_nodes                  = this%get_num_nodes()
   num_nodes_children_patch   = this%get_num_nodes_children_patch()
   num_field_components       = this%get_num_field_components()
   
@@ -520,7 +521,8 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
         field_comp    = this%get_component_node(ishape)     
         patch_node_id = this%get_scalar_from_vector_node(ishape)
         node          = subcell_to_cell_node_identifier(patch_node_id)
-        global_patch_children_values_array((field_comp-1)*num_nodes_children_patch+node) = nodal_values_on_children(subcell_id,patch_node_id)
+        global_patch_children_values_array((field_comp-1)*num_nodes_children_patch+node) = & 
+                                nodal_values_on_children(subcell_id,(field_comp-1)*num_nodes+patch_node_id)
      end do
   end do
   ! Compute the nodal values on the parent finite element
