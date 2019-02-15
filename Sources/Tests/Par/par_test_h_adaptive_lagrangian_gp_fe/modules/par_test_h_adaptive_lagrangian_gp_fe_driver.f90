@@ -388,11 +388,11 @@ end subroutine free_timers
                                                    fe_type = fe_type_lagrangian_gp, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
-                                                   field_type = field_type_scalar, &
+                                                   field_type = fe_type_lagrangian_gp, &
                                                    conformity = .true., &
                                                    continuity = .false. )
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   fe_type = fe_type_lagrangian, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_vector, &
@@ -608,19 +608,28 @@ end subroutine free_timers
     call this%timer_fe_space%stop()
     
     call this%interpolate_analytical_functions()
-    
+    if ( this%par_environment%am_i_l1_root() ) then    
+       write (*,*) "ERROR NORMS AFTER INTERPOLATION"
+    end if
+    !call this%write_solution()    
     call this%check_solution()
     call this%print_info() 
-    !call this%write_solution()
+
     call this%refine_and_coarsen()
-    
+    if ( this%par_environment%am_i_l1_root() ) then    
+       write (*,*) "ERROR NORMS AFTER REFINE AND COARSEN"
+    end if 
+    !call this%write_solution()    
+    call this%check_solution()
+
     call this%set_cells_weights()
     call this%triangulation%redistribute()
-    call this%fe_space%redistribute(this%solution)  
-
-    call this%write_solution()
+    call this%fe_space%redistribute(this%solution)
+    if ( this%par_environment%am_i_l1_root() ) then
+       write (*,*) "ERROR NORMS AFTER REDISTRIBUTE"
+    end if    
+    call this%write_solution()    
     call this%check_solution()
-    !call this%write_solution()
     call this%free()
   end subroutine run_simulation
   

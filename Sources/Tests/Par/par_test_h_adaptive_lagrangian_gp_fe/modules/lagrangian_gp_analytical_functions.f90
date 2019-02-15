@@ -230,12 +230,13 @@ contains
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
     if ( this%get_num_dims() == 2 ) then
-      call result%set(1, point%get(1)+point%get(2) ) 
-      call result%set(2, point%get(1)+point%get(2) ) 
+      call result%set(1, point%get(1)-point%get(2) ) 
+      call result%set(2, -point%get(1)+point%get(2) ) 
+      call result%set(3,0.0_rp) 
     else
-      call result%set(1, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(2, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(3, point%get(1)+point%get(2)+point%get(3) )
+      call result%set(1, point%get(1)-point%get(2)-point%get(3) ) 
+      call result%set(2, -point%get(1)+point%get(2)-point%get(3) ) 
+      call result%set(3, -point%get(1)-point%get(2)+point%get(3) )
     end if
   end subroutine solution_displacement_function_get_value_space  
   
@@ -246,12 +247,16 @@ contains
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
     if ( this%get_num_dims() == 2 ) then
+      call result%init(0.0_rp)    
       call result%set( 1, 1, 1.0_rp ) 
-      call result%set( 2, 1, 1.0_rp )
-      call result%set( 1, 2, 1.0_rp ) 
+      call result%set( 2, 1, -1.0_rp )
+      call result%set( 1, 2, -1.0_rp ) 
       call result%set( 2, 2, 1.0_rp )
     else
-      call result%init(1.0_rp)
+      call result%init(-1.0_rp)
+      call result%set( 1, 1, 1.0_rp ) 
+      call result%set( 2, 2, 1.0_rp )
+      call result%set( 3, 3, 1.0_rp ) 
     end if
   end subroutine solution_displacement_function_get_gradient_space  
   
