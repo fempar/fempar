@@ -5291,8 +5291,8 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
         if (new2old(i) /= 0) then
           current_new_cell_lid = i
           do field_id=1, this%num_fields
-            base_pos_old = old_ptr_dofs_x_fe(1)%get(new2old(i))-1
-            base_pos_new = this%ptr_dofs_x_fe(1)%get(i)-1
+            base_pos_old = old_ptr_dofs_x_fe(field_id)%get(new2old(i))-1
+            base_pos_new = this%ptr_dofs_x_fe(field_id)%get(i)-1
             num_dofs = get_new_num_dofs()
             do idof=1, num_dofs
               p_new_fe_function_nodal_values(base_pos_new+idof) = &
@@ -5359,7 +5359,7 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
     call this%setup_coarse_fe_space(this%parameter_list)
   end if
 
- contains 
+ contains
 
   function get_field_fe_dofs()
     implicit none
