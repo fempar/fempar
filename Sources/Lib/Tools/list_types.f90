@@ -203,7 +203,7 @@ contains
     !----------------------------------------------------------------- 
         assert(this%state == LIST_STATE_HEADER_BUILT)
         call this%l_std_vector%resize( this%p(this%n+1)-1 )
-        if( this%l_std_vector%size() > 0 ) call this%l_std_vector%init( 0 )
+        call this%l_std_vector%init( 0 )
         this%l => this%l_std_vector%get_pointer()
         this%state = LIST_STATE_LIST_ALLOCATED
     end subroutine list_allocate_list_from_p  

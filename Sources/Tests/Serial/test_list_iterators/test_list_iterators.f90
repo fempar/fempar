@@ -115,6 +115,7 @@ print*, '!----------------------------------------------------------------- '
         assert(l(p(4)+i) == iterator%get_from_current(i))
     enddo
 
+! Reinit list
     call list%reinit(np)
     call list%sum_to_pointer_index(index=1, value=2)
     call list%sum_to_pointer_index(index=3, value=2)
@@ -132,6 +133,23 @@ print*, '!----------------------------------------------------------------- '
         i = i+1
         call iterator%set_current(l(i))
         assert(iterator%get_current() == l(i))
+        call iterator%next()
+    enddo
+
+    call list%print(6)
+
+! Create empty list
+    call list%create(5)
+    call list%calculate_header()
+    call list%allocate_list_from_pointer()
+    iterator = list%create_iterator()
+    i = 0
+
+print*, '!----------------------------------------------------------------- '
+print*, '!< FULL ITERATOR INCREASING LOOP - set_current (empty list)'
+print*, '!----------------------------------------------------------------- '
+    do while(.not. iterator%is_upper_bound())
+        check( .false. )
         call iterator%next()
     enddo
 
