@@ -388,11 +388,11 @@ end subroutine free_timers
                                                    fe_type = fe_type_lagrangian_gp, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
-                                                   field_type = fe_type_lagrangian_gp, &
+                                                   field_type = field_type_scalar, &
                                                    conformity = .true., &
                                                    continuity = .false. )
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian, &
+                                                   fe_type = fe_type_lagrangian_gp, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_vector, &
