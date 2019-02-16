@@ -4753,7 +4753,10 @@ subroutine par_fe_space_project_field_cell_to_ref_fes(this)
     call old_field_cell_to_ref_fes(field_id)%copy(this%field_cell_to_ref_fes(field_id))
     call this%field_cell_to_ref_fes(field_id)%resize(0)
     call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells(),1)
-  end do   
+  end do 
+
+  environment => triangulation%get_environment()
+  cell_import => triangulation%get_cell_import() 
   
   do field_id = 1,this%num_fields
     old_cell_lid = 1
@@ -4786,6 +4789,17 @@ subroutine par_fe_space_project_field_cell_to_ref_fes(this)
       end if
       old_cell_lid = old_cell_lid + 1
     end do
+    
+    call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), & 
+                                              cell_import%get_neighbours_ids(), & 
+                                              cell_import%get_rcv_ptrs(),       & 
+                                              cell_import%get_rcv_leids(),      & 
+                                              cell_import%get_num_neighbours(), & 
+                                              cell_import%get_neighbours_ids(), & 
+                                              cell_import%get_snd_ptrs(),       & 
+                                              cell_import%get_snd_leids(),      & 
+                                              p_field_cell_to_ref_fes_field_id, & 
+                                              p_field_cell_to_ref_fes_field_id )
   end do
   
   massert ( (new_cell_lid - 1) == this%triangulation%get_num_local_cells(), 'Loop in old cells failed to visit all new cells' )
@@ -4795,19 +4809,6 @@ subroutine par_fe_space_project_field_cell_to_ref_fes(this)
     call old_field_cell_to_ref_fes(field_id)%free()
   end do  
   deallocate(old_field_cell_to_ref_fes, stat=istat); check(istat==0)
-  
-  environment => triangulation%get_environment()
-  cell_import => triangulation%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), & 
-                                            cell_import%get_neighbours_ids(), & 
-                                            cell_import%get_rcv_ptrs(),       & 
-                                            cell_import%get_rcv_leids(),      & 
-                                            cell_import%get_num_neighbours(), & 
-                                            cell_import%get_neighbours_ids(), & 
-                                            cell_import%get_snd_ptrs(),       & 
-                                            cell_import%get_snd_leids(),      & 
-                                            p_field_cell_to_ref_fes_field_id, & 
-                                            p_field_cell_to_ref_fes_field_id )
   
 #else  
   call this%not_enabled_error()
