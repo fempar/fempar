@@ -625,6 +625,7 @@ end subroutine free_timers
     call this%set_cells_weights()
     call this%triangulation%redistribute()
     call this%fe_space%redistribute(this%solution)
+    call this%fe_space%set_up_cell_integration()
     if ( this%par_environment%am_i_l1_root() ) then
        write (*,*) "ERROR NORMS AFTER REDISTRIBUTE"
     end if    
