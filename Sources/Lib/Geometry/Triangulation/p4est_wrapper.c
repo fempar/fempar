@@ -53,9 +53,9 @@
 // Gets a Fortran communicator and transform it into a C communicator
 // http://stackoverflow.com/questions/42530620/how-to-pass-mpi-communicator-handle-from-fortran-to-c-using-iso-c-binding
 #ifdef SC_ENABLE_MPI
-void F90_p4est_init(const MPI_Fint Fcomm)
+void F90_p4est_init(const MPI_Fint Fcomm, const int SC_LOG_LEVEL)
 #else
-void F90_p4est_init(const int dummy)
+void F90_p4est_init(const int dummy, const int SC_LOG_LEVEL)
 #endif
 {
 #ifndef SC_ENABLE_MPI
@@ -75,8 +75,8 @@ void F90_p4est_init(const int dummy)
     /* These 2x functions are optional.  If called they store the MPI rank as a
      * static variable so subsequent global p4est log messages are only issued
      * from processor zero.  Here we turn off most of the logging; see sc.h. */
-    sc_init (sc_MPI_COMM_WORLD, 1, 1, NULL, SC_LP_ESSENTIAL);
-    p4est_init (NULL, SC_LP_PRODUCTION);  
+    sc_init (sc_MPI_COMM_WORLD, 1, 1, NULL, SC_LOG_LEVEL);
+    p4est_init (NULL, SC_LOG_LEVEL);  
     sc_mpi_initialized = 1;
   }
 #else
@@ -87,8 +87,8 @@ void F90_p4est_init(const int dummy)
   {
     MPI_Comm Ccomm;
     Ccomm = MPI_Comm_f2c(Fcomm); // Convert Fortran->C communicator
-    sc_init (Ccomm, 1, 1, NULL, SC_LP_ESSENTIAL);
-    p4est_init (NULL, SC_LP_PRODUCTION);
+    sc_init (Ccomm, 1, 1, NULL, SC_LOG_LEVEL);
+    p4est_init (NULL, SC_LOG_LEVEL);
     sc_p4est_initialized = 1;
   }
 #endif  
