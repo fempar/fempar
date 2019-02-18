@@ -38,6 +38,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   integer(ip), allocatable :: array_size(:)
   real(rp)   , allocatable :: bounding_box_limits(:)
   integer(ip) :: dummy_comm
+  integer(ip) :: p4est_log_level
   
 #ifdef ENABLE_P4EST
   call this%free()
@@ -72,6 +73,13 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     this%bounding_box_limits(:,2) = 1.0_rp
   end if
   
+  if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
+    assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
+    istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
+  else
+    p4est_log_level = FEMPAR_SC_LP_DEFAULT
+  end if
+  
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
                                      1, &
@@ -81,6 +89,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   call this%allocate_and_gen_reference_fe_geo_scratch_data()
 
   dummy_comm = 0
+  call F90_p4est_init(dummy_comm,p4est_log_level)
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
     call F90_p4est_new(dummy_comm,this%p4est_connectivity, this%p4est)
