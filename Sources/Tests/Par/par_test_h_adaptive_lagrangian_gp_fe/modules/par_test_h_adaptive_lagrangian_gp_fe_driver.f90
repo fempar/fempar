@@ -38,13 +38,19 @@ module par_test_h_adaptive_lagrangian_gp_fe_driver_names
   integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL = 1
   integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID = 2 
   
-  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL_TEMP_FIELD   = 1 ! Has to be == 1
-  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD = 2 ! Has to be == 1
-  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID_TEMP_FIELD   = 3
-  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID_DISPL_FIELD = 4
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL_TEMP_FIELD   = 1 
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL_PRESS_FIELD  = 2 
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD  = 3 
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_FULL_STRESS_FIELD = 4 
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID_TEMP_FIELD   = 5
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID_PRESS_FIELD  = 6
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID_DISPL_FIELD  = 7
+  integer(ip), parameter :: PAR_TEST_LAGRANGIAN_GP_VOID_STRESS_FIELD = 8
 
-  integer(ip), parameter :: TEMPERATURE_FIELD_ID  = 1
-  integer(ip), parameter :: DISPL_FIELD_ID  = 2
+  integer(ip), parameter :: TEMPERATURE_FIELD_ID = 1
+  integer(ip), parameter :: PRESS_FIELD_ID       = 2
+  integer(ip), parameter :: DISPL_FIELD_ID       = 3
+  integer(ip), parameter :: STRESS_FIELD_ID      = 4
 
   type par_test_h_adaptive_lagrangian_gp_fe_driver_t 
      private 
@@ -375,9 +381,9 @@ end subroutine free_timers
     class(reference_fe_t), pointer :: reference_fe_geo
     
     if (this%test_params%get_use_void_fes()) then
-      allocate(this%reference_fes(4), stat=istat)
+      allocate(this%reference_fes(8), stat=istat)
     else
-      allocate(this%reference_fes(2), stat=istat)
+      allocate(this%reference_fes(4), stat=istat)
     end if
     check(istat==0)
     
@@ -391,6 +397,13 @@ end subroutine free_timers
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
                                                    continuity = .false. )
+      this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_PRESS_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   num_dims = this%triangulation%get_num_dims(), &
+                                                   order = this%test_params%get_reference_fe_order(), &
+                                                   field_type = field_type_scalar, &
+                                                   conformity = .true., &
+                                                   continuity = .false. )
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian_gp, &
                                                    num_dims = this%triangulation%get_num_dims(), &
@@ -398,8 +411,21 @@ end subroutine free_timers
                                                    field_type = field_type_vector, &
                                                    conformity = .true., &
                                                    continuity = .false. )      
+      this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_STRESS_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   num_dims = this%triangulation%get_num_dims(), &
+                                                   order = this%test_params%get_reference_fe_order(), &
+                                                   field_type = field_type_tensor, &
+                                                   conformity = .true., &
+                                                   continuity = .false. )          
       if (this%test_params%get_use_void_fes()) then
         this%reference_fes(PAR_TEST_LAGRANGIAN_GP_VOID_TEMP_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_void, &
+                                                   num_dims = this%triangulation%get_num_dims(), &
+                                                   order = -1, &
+                                                   field_type = field_type_scalar, &
+                                                   conformity = .true. )
+        this%reference_fes(PAR_TEST_LAGRANGIAN_GP_VOID_PRESS_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = -1, &
@@ -411,6 +437,12 @@ end subroutine free_timers
                                                    order = -1, &
                                                    field_type = field_type_vector, &
                                                    conformity = .true. )
+        this%reference_fes(PAR_TEST_LAGRANGIAN_GP_VOID_STRESS_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+                                                   fe_type = fe_type_void, &
+                                                   num_dims = this%triangulation%get_num_dims(), &
+                                                   order = -1, &
+                                                   field_type = field_type_tensor, &
+                                                   conformity = .true. )        
       end if
       call this%triangulation%free_cell_iterator(cell)
     end if
@@ -420,17 +452,19 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
-    allocate(this%coarse_fe_handlers(2), stat=istat)
+    allocate(this%coarse_fe_handlers(4), stat=istat)
     check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler ! temperature
-    this%coarse_fe_handlers(2)%p => this%coarse_fe_handler ! displacement
+    this%coarse_fe_handlers(2)%p => this%coarse_fe_handler ! pressure
+    this%coarse_fe_handlers(3)%p => this%coarse_fe_handler ! displacement
+    this%coarse_fe_handlers(4)%p => this%coarse_fe_handler ! stress
   end subroutine setup_coarse_fe_handlers
 
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
 
-    integer(ip) :: set_ids_to_reference_fes(2,2)
+    integer(ip) :: set_ids_to_reference_fes(4,2)
 
     call this%lagrangian_gp_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%lagrangian_gp_analytical_functions%set_solution_polynomial_order(this%test_params%get_reference_fe_order())
@@ -440,9 +474,13 @@ end subroutine free_timers
  
     if (this%test_params%get_use_void_fes()) then
       set_ids_to_reference_fes(1,PAR_TEST_LAGRANGIAN_GP_FULL) = PAR_TEST_LAGRANGIAN_GP_FULL_TEMP_FIELD
-      set_ids_to_reference_fes(2,PAR_TEST_LAGRANGIAN_GP_FULL) = PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD
+      set_ids_to_reference_fes(2,PAR_TEST_LAGRANGIAN_GP_FULL) = PAR_TEST_LAGRANGIAN_GP_FULL_PRESS_FIELD
+      set_ids_to_reference_fes(3,PAR_TEST_LAGRANGIAN_GP_FULL) = PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD
+      set_ids_to_reference_fes(4,PAR_TEST_LAGRANGIAN_GP_FULL) = PAR_TEST_LAGRANGIAN_GP_FULL_STRESS_FIELD
       set_ids_to_reference_fes(1,PAR_TEST_LAGRANGIAN_GP_VOID) = PAR_TEST_LAGRANGIAN_GP_VOID_TEMP_FIELD
-      set_ids_to_reference_fes(2,PAR_TEST_LAGRANGIAN_GP_VOID) = PAR_TEST_LAGRANGIAN_GP_VOID_DISPL_FIELD
+      set_ids_to_reference_fes(2,PAR_TEST_LAGRANGIAN_GP_VOID) = PAR_TEST_LAGRANGIAN_GP_VOID_PRESS_FIELD
+      set_ids_to_reference_fes(3,PAR_TEST_LAGRANGIAN_GP_VOID) = PAR_TEST_LAGRANGIAN_GP_VOID_DISPL_FIELD
+      set_ids_to_reference_fes(4,PAR_TEST_LAGRANGIAN_GP_VOID) = PAR_TEST_LAGRANGIAN_GP_VOID_STRESS_FIELD
       call this%fe_space%create( triangulation            = this%triangulation,       &
                                  reference_fes            = this%reference_fes,       &
                                  set_ids_to_reference_fes = set_ids_to_reference_fes, &
@@ -466,24 +504,25 @@ end subroutine free_timers
   subroutine check_solution(this)
     implicit none
     class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
-    type(error_norms_scalar_t) :: error_norm 
-    type(error_norms_vector_t) :: error_norm_vector
+    type(error_norms_scalar_t) :: error_norm_temp,  error_norm_press
+    type(error_norms_vector_t) :: error_norm_displ
+    type(error_norms_tensor_t) :: error_norm_stress
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: requested_precision
     
     ! TEMPERATURE FIELD
-    call error_norm%create(this%fe_space,1)    
-    mean = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1infty_norm)  
+    call error_norm_temp%create(this%fe_space,1)    
+    mean = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, mean_norm)   
+    l1 = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, l1_norm)   
+    l2 = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, l2_norm)   
+    lp = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, lp_norm)   
+    linfty = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, linfty_norm)   
+    h1_s = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, h1_seminorm) 
+    h1 = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, h1_norm) 
+    w1p_s = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm_temp%compute(this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
       requested_precision=1.0e-8_rp
       write(*,'(a20)')        ' Temperature field: '      
@@ -498,21 +537,50 @@ end subroutine free_timers
       write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < requested_precision )
       write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < requested_precision )
       write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < requested_precision )
-    end if  
+    end if
+    
+    ! PRESSURE FIELD
+    call error_norm_press%create(this%fe_space,2)    
+    mean = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, mean_norm)   
+    l1 = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, l1_norm)   
+    l2 = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, l2_norm)   
+    lp = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, lp_norm)   
+    linfty = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, linfty_norm)   
+    h1_s = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, h1_seminorm) 
+    h1 = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, h1_norm) 
+    w1p_s = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm_press%compute(this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution, w1infty_norm)  
+    if ( this%par_environment%am_i_l1_root() ) then
+      requested_precision=1.0e-8_rp
+      write(*,'(a20)')        ' Pressure field: '      
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < requested_precision )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < requested_precision )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < requested_precision )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < requested_precision )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < requested_precision )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < requested_precision )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < requested_precision )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < requested_precision )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < requested_precision )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < requested_precision )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < requested_precision )
+    end if     
     
     ! DISPLACEMENT FIELD
-    call error_norm_vector%create(this%fe_space,2)    
-    mean = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, mean_norm)   
-    l1 = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, l1_norm)   
-    l2 = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, l2_norm)   
-    lp = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, lp_norm)   
-    linfty = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, linfty_norm)   
-    h1_s = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, h1_seminorm) 
-    h1 = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, h1_norm) 
-    w1p_s = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm_vector%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1infty_norm)  
+    call error_norm_displ%create(this%fe_space,3)    
+    mean = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, mean_norm)   
+    l1 = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, l1_norm)   
+    l2 = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, l2_norm)   
+    lp = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, lp_norm)   
+    linfty = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, linfty_norm)   
+    h1_s = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, h1_seminorm) 
+    h1 = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, h1_norm) 
+    w1p_s = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm_displ%compute(this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
       requested_precision=1.0e-8_rp
       write(*,'(a20)')        ' Displacement field: '      
@@ -527,9 +595,41 @@ end subroutine free_timers
       write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < requested_precision )
       write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < requested_precision )
       write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < requested_precision )
-    end if      
-    call error_norm%free()
-    call error_norm_vector%free()
+    end if
+    
+    ! STRESS FIELD
+    call error_norm_stress%create(this%fe_space,4)    
+    mean = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, mean_norm)   
+    l1 = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, l1_norm)   
+    l2 = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, l2_norm)   
+    linfty = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, linfty_norm)   
+    !lp = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, lp_norm)       
+    !h1_s = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, h1_seminorm) 
+    !h1 = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, h1_norm) 
+    !w1p_s = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, w1p_seminorm)   
+    !w1p = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, w1p_norm)   
+    !w1infty_s = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, w1infty_seminorm) 
+    !w1infty = error_norm_stress%compute(this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution, w1infty_norm)  
+    if ( this%par_environment%am_i_l1_root() ) then
+      requested_precision=1.0e-8_rp
+      write(*,'(a20)')        ' Stress field: '      
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < requested_precision )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < requested_precision )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < requested_precision )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < requested_precision )
+      !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < requested_precision )
+      !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < requested_precision )
+      !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < requested_precision )
+      !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < requested_precision )
+      !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < requested_precision )
+      !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < requested_precision )
+      !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < requested_precision )
+    end if    
+
+    call error_norm_temp%free()
+    call error_norm_press%free()
+    call error_norm_displ%free()
+    call error_norm_stress%free()
   end subroutine check_solution
   
   subroutine write_solution(this)
@@ -561,7 +661,9 @@ end subroutine free_timers
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution: temperature')
-        call oh%add_fe_function(this%solution, 2, 'solution: displacement')
+        call oh%add_fe_function(this%solution, 2, 'solution: pressure')
+        call oh%add_fe_function(this%solution, 3, 'solution: displacement')
+        call oh%add_fe_function(this%solution, 4, 'solution: stress')
         if (this%test_params%get_use_void_fes()) then
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
@@ -587,7 +689,9 @@ end subroutine free_timers
 
     ! Project analytical function to solution function using the gp-lagrangian fe
     call this%fe_space%interpolate( TEMPERATURE_FIELD_ID, this%lagrangian_gp_analytical_functions%get_solution_temperature_function(), this%solution )
+    call this%fe_space%interpolate( PRESS_FIELD_ID, this%lagrangian_gp_analytical_functions%get_solution_pressure_function(), this%solution )
     call this%fe_space%interpolate( DISPL_FIELD_ID, this%lagrangian_gp_analytical_functions%get_solution_displacement_function(), this%solution )
+    call this%fe_space%interpolate( STRESS_FIELD_ID, this%lagrangian_gp_analytical_functions%get_solution_stress_function(), this%solution )
     call this%fe_space%interpolate_dirichlet_values( this%solution )  
 
   end subroutine interpolate_analytical_functions
@@ -611,7 +715,7 @@ end subroutine free_timers
     if ( this%par_environment%am_i_l1_root() ) then    
        write (*,*) "ERROR NORMS AFTER INTERPOLATION"
     end if
-    !call this%write_solution()    
+    call this%write_solution()    
     call this%check_solution()
     call this%print_info() 
 

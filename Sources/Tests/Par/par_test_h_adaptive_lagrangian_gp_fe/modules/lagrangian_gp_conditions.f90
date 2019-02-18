@@ -65,7 +65,7 @@ contains
     implicit none
     class(lagrangian_gp_conditions_t), intent(in) :: this
     integer(ip) :: lagrangian_gp_conditions_get_num_components
-    lagrangian_gp_conditions_get_num_components = 1 + this%num_dims
+    lagrangian_gp_conditions_get_num_components = 1 + 1 + this%num_dims + this%num_dims**2
   end function lagrangian_gp_conditions_get_num_components
 
   subroutine lagrangian_gp_conditions_get_components_code(this, boundary_id, components_code)
