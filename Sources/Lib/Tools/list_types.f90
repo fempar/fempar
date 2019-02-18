@@ -2,6 +2,7 @@ module list_types_names
 
 use iso_c_binding, only: c_loc, c_ptr
 use types_names,   only: ip, runend
+use std_vector_integer_ip_names
 use memor_names
 
 implicit none
@@ -40,14 +41,18 @@ implicit none
         private
         integer(ip), private     :: state = LIST_STATE_START
         integer(ip)              :: n = 0
-        integer(ip), allocatable :: p(:) 
-        integer(ip), allocatable :: l(:) 
+        integer(ip), pointer     :: p(:) => NULL()
+        integer(ip), pointer     :: l(:) => NULL()
+        type(std_vector_integer_ip_t) :: p_std_vector
+        type(std_vector_integer_ip_t) :: l_std_vector
+        
     contains
         procedure, non_overridable, private :: list_assign
         procedure, non_overridable, private :: list_get_full_list_iterator
         procedure, non_overridable, private :: list_get_list_range_iterator
         procedure, non_overridable, private :: list_get_list_index_iterator
         procedure, non_overridable          :: create                     => list_create
+        procedure, non_overridable          :: reinit                     => list_reinit
         procedure, non_overridable          :: get_num_pointers           => list_get_num_pointers
         procedure, non_overridable          :: get_size                   => list_get_size
         procedure, non_overridable          :: get_sublist_size           => list_get_sublist_size
@@ -125,12 +130,13 @@ contains
     !----------------------------------------------------------------- 
         class(list_t), intent(inout) :: this
     !----------------------------------------------------------------- 
-        if(allocated(this%p)) call memfree(this%p, __FILE__, __LINE__)
-        if(allocated(this%l)) call memfree(this%l, __FILE__, __LINE__)
+        call this%p_std_vector%free()
+        call this%l_std_vector%free()
+        nullify( this%p )
+        nullify( this%l )
         this%n = 0
         this%n = LIST_STATE_START
     end subroutine list_free
-
 
     subroutine list_create( this, n )
     !-----------------------------------------------------------------
@@ -140,11 +146,24 @@ contains
         integer(ip),   intent(in)    :: n
     !----------------------------------------------------------------- 
         call this%free()
+        call this%reinit( n )
+    end subroutine list_create
+    
+    subroutine list_reinit( this, n )
+    !-----------------------------------------------------------------
+    !< Allocate pointer and initialize it to zero
+    !----------------------------------------------------------------- 
+        class(list_t), intent(inout) :: this
+        integer(ip),   intent(in)    :: n
+    !----------------------------------------------------------------- 
+        call this%l_std_vector%resize( 0 )
+        nullify( this%l )
         this%n = n
-        call memalloc(this%n+1, this%p, __FILE__, __LINE__)
-        this%p = 0
+        call this%p_std_vector%resize( this%n + 1 )
+        call this%p_std_vector%init( 0 )
+        this%p => this%p_std_vector%get_pointer()
         this%state = LIST_STATE_CREATED
-    end subroutine list_create  
+    end subroutine list_reinit
 
 
     subroutine list_sum_to_pointer_index( this, index, value )
@@ -183,8 +202,9 @@ contains
         class(list_t), intent(inout) :: this
     !----------------------------------------------------------------- 
         assert(this%state == LIST_STATE_HEADER_BUILT)
-        call memalloc(this%p(this%n+1)-1, this%l, __FILE__, __LINE__)
-        this%l = 0
+        call this%l_std_vector%resize( this%p(this%n+1)-1 )
+        call this%l_std_vector%init( 0 )
+        this%l => this%l_std_vector%get_pointer()
         this%state = LIST_STATE_LIST_ALLOCATED
     end subroutine list_allocate_list_from_p  
 
