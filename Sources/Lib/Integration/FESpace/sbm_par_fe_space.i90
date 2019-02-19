@@ -4753,7 +4753,10 @@ subroutine par_fe_space_project_field_cell_to_ref_fes(this)
     call old_field_cell_to_ref_fes(field_id)%copy(this%field_cell_to_ref_fes(field_id))
     call this%field_cell_to_ref_fes(field_id)%resize(0)
     call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells(),1)
-  end do   
+  end do 
+
+  environment => triangulation%get_environment()
+  cell_import => triangulation%get_cell_import() 
   
   do field_id = 1,this%num_fields
     old_cell_lid = 1
@@ -4786,6 +4789,17 @@ subroutine par_fe_space_project_field_cell_to_ref_fes(this)
       end if
       old_cell_lid = old_cell_lid + 1
     end do
+    
+    call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), & 
+                                              cell_import%get_neighbours_ids(), & 
+                                              cell_import%get_rcv_ptrs(),       & 
+                                              cell_import%get_rcv_leids(),      & 
+                                              cell_import%get_num_neighbours(), & 
+                                              cell_import%get_neighbours_ids(), & 
+                                              cell_import%get_snd_ptrs(),       & 
+                                              cell_import%get_snd_leids(),      & 
+                                              p_field_cell_to_ref_fes_field_id, & 
+                                              p_field_cell_to_ref_fes_field_id )
   end do
   
   massert ( (new_cell_lid - 1) == this%triangulation%get_num_local_cells(), 'Loop in old cells failed to visit all new cells' )
@@ -4795,19 +4809,6 @@ subroutine par_fe_space_project_field_cell_to_ref_fes(this)
     call old_field_cell_to_ref_fes(field_id)%free()
   end do  
   deallocate(old_field_cell_to_ref_fes, stat=istat); check(istat==0)
-  
-  environment => triangulation%get_environment()
-  cell_import => triangulation%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), & 
-                                            cell_import%get_neighbours_ids(), & 
-                                            cell_import%get_rcv_ptrs(),       & 
-                                            cell_import%get_rcv_leids(),      & 
-                                            cell_import%get_num_neighbours(), & 
-                                            cell_import%get_neighbours_ids(), & 
-                                            cell_import%get_snd_ptrs(),       & 
-                                            cell_import%get_snd_leids(),      & 
-                                            p_field_cell_to_ref_fes_field_id, & 
-                                            p_field_cell_to_ref_fes_field_id )
   
 #else  
   call this%not_enabled_error()
@@ -5291,8 +5292,8 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
         if (new2old(i) /= 0) then
           current_new_cell_lid = i
           do field_id=1, this%num_fields
-            base_pos_old = old_ptr_dofs_x_fe(1)%get(new2old(i))-1
-            base_pos_new = this%ptr_dofs_x_fe(1)%get(i)-1
+            base_pos_old = old_ptr_dofs_x_fe(field_id)%get(new2old(i))-1
+            base_pos_new = this%ptr_dofs_x_fe(field_id)%get(i)-1
             num_dofs = get_new_num_dofs()
             do idof=1, num_dofs
               p_new_fe_function_nodal_values(base_pos_new+idof) = &
@@ -5359,7 +5360,7 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
     call this%setup_coarse_fe_space(this%parameter_list)
   end if
 
- contains 
+ contains
 
   function get_field_fe_dofs()
     implicit none

@@ -52,25 +52,50 @@ module lagrangian_gp_analytical_functions_names
      procedure :: get_value_space    => boundary_function_get_value_space
      procedure :: get_gradient_space => boundary_function_get_gradient_space
   end type boundary_function_t
+  
+  type, extends(tensor_function_t) :: solution_stress_function_t
+   contains
+     procedure :: get_value_space      => solution_stress_function_get_value_space
+     !procedure :: get_gradient_space   => solution_stress_function_get_gradient_space
+  end type solution_stress_function_t  
+  
+  type, extends(vector_function_t) :: solution_displacement_function_t
+   contains
+     procedure :: get_value_space      => solution_displacement_function_get_value_space
+     procedure :: get_gradient_space   => solution_displacement_function_get_gradient_space
+  end type solution_displacement_function_t  
 
-  type, extends(base_scalar_function_t) :: solution_function_t
+  type, extends(base_scalar_function_t) :: solution_temperature_function_t
     private 
    contains
-     procedure :: get_value_space    => solution_function_get_value_space
-     procedure :: get_gradient_space => solution_function_get_gradient_space
-  end type solution_function_t
+     procedure :: get_value_space    => solution_temperature_function_get_value_space
+     procedure :: get_gradient_space => solution_temperature_function_get_gradient_space
+  end type solution_temperature_function_t
+  
+  type, extends(base_scalar_function_t) :: solution_pressure_function_t
+    private 
+   contains
+     procedure :: get_value_space    => solution_pressure_function_get_value_space
+     procedure :: get_gradient_space => solution_pressure_function_get_gradient_space
+  end type solution_pressure_function_t  
 
   type lagrangian_gp_analytical_functions_t
      private
      type(source_term_t)       :: source_term
      type(boundary_function_t) :: boundary_function
-     type(solution_function_t) :: solution_function
+     type(solution_temperature_function_t)  :: solution_temperature_function
+     type(solution_pressure_function_t)     :: solution_pressure_function
+     type(solution_displacement_function_t) :: solution_displacement_function
+     type(solution_stress_function_t)       :: solution_stress_function
    contains
      procedure :: set_num_dims                     => lagrangian_gp_analytical_functions_set_num_dims
      procedure :: set_solution_polynomial_order    => lgp_analytical_functions_set_solution_polynomial_order
      procedure :: get_source_term                  => lagrangian_gp_analytical_functions_get_source_term
      procedure :: get_boundary_function            => lagrangian_gp_analytical_functions_get_boundary_function
-     procedure :: get_solution_function            => lagrangian_gp_analytical_functions_get_solution_function
+     procedure :: get_solution_temperature_function  => lgpaf_get_solution_temperature_function
+     procedure :: get_solution_pressure_function     => lgpaf_get_solution_pressure_function
+     procedure :: get_solution_displacement_function => lgpaf_get_solution_displacement_function
+     procedure :: get_solution_stress_function       => lgpaf_get_solution_stress_function
   end type lagrangian_gp_analytical_functions_t
 
   public :: lagrangian_gp_analytical_functions_t
@@ -175,9 +200,9 @@ contains
   end subroutine boundary_function_get_gradient_space
   
   !===============================================================================================
-  subroutine solution_function_get_value_space ( this, point, result )
+  subroutine solution_temperature_function_get_value_space ( this, point, result )
     implicit none
-    class(solution_function_t), intent(in)    :: this
+    class(solution_temperature_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
     assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
@@ -189,12 +214,12 @@ contains
       ! result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
     end if  
       
-  end subroutine solution_function_get_value_space
+  end subroutine solution_temperature_function_get_value_space
   
   !===============================================================================================
-  subroutine solution_function_get_gradient_space ( this, point, result )
+  subroutine solution_temperature_function_get_gradient_space ( this, point, result )
     implicit none
-    class(solution_function_t), intent(in)    :: this
+    class(solution_temperature_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
     real(rp) :: n 
@@ -213,7 +238,101 @@ contains
       ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
       ! call result%set( 3, n*point%get(3)**(n-1.0_rp) ) ! nz^{n-1}
     end if
-  end subroutine solution_function_get_gradient_space
+  end subroutine solution_temperature_function_get_gradient_space
+  
+  !===============================================================================================
+  subroutine solution_pressure_function_get_value_space ( this, point, result )
+    implicit none
+    class(solution_pressure_function_t), intent(in) :: this
+    type(point_t)             , intent(in)          :: point
+    real(rp)                  , intent(inout)       :: result
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
+      result = point%get(1) - point%get(2) 
+      ! result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n 
+    else if ( this%get_num_dims() == 3 ) then
+      result = point%get(1) - point%get(2) - point%get(3)
+      ! result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
+    end if  
+      
+  end subroutine solution_pressure_function_get_value_space   
+  
+  !===============================================================================================
+  subroutine solution_pressure_function_get_gradient_space ( this, point, result )
+    implicit none
+    class(solution_pressure_function_t), intent(in)    :: this
+    type(point_t)             , intent(in)    :: point
+    type(vector_field_t)      , intent(inout) :: result
+    real(rp) :: n 
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
+      call result%set( 1, 1.0_rp ) 
+      call result%set( 2, -1.0_rp ) 
+    else if ( this%get_num_dims() == 3 ) then
+      call result%set( 1, 1.0_rp ) 
+      call result%set( 2, -1.0_rp ) 
+      call result%set( 3, -1.0_rp ) 
+    end if
+  end subroutine solution_pressure_function_get_gradient_space  
+  
+  !===============================================================================================  
+  subroutine solution_displacement_function_get_value_space ( this, point, result )
+    implicit none
+    class(solution_displacement_function_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    type(vector_field_t)    , intent(inout) :: result
+    if ( this%get_num_dims() == 2 ) then
+      call result%set(1, point%get(1)-point%get(2) ) 
+      call result%set(2, -point%get(1)+point%get(2) ) 
+      call result%set(3,0.0_rp) 
+    else
+      call result%set(1, point%get(1)-point%get(2)-point%get(3) ) 
+      call result%set(2, -point%get(1)+point%get(2)-point%get(3) ) 
+      call result%set(3, -point%get(1)-point%get(2)+point%get(3) )
+    end if
+  end subroutine solution_displacement_function_get_value_space  
+  
+  !===============================================================================================  
+  subroutine solution_displacement_function_get_gradient_space ( this, point, result )
+    implicit none
+    class(solution_displacement_function_t), intent(in)    :: this
+    type(point_t)             , intent(in)    :: point
+    type(tensor_field_t)      , intent(inout) :: result
+    if ( this%get_num_dims() == 2 ) then
+      call result%init(0.0_rp)    
+      call result%set( 1, 1, 1.0_rp ) 
+      call result%set( 2, 1, -1.0_rp )
+      call result%set( 1, 2, -1.0_rp ) 
+      call result%set( 2, 2, 1.0_rp )
+    else
+      call result%init(-1.0_rp)
+      call result%set( 1, 1, 1.0_rp ) 
+      call result%set( 2, 2, 1.0_rp )
+      call result%set( 3, 3, 1.0_rp ) 
+    end if
+  end subroutine solution_displacement_function_get_gradient_space  
+  
+  !===============================================================================================  
+  subroutine solution_stress_function_get_value_space ( this, point, result )
+    implicit none
+    class(solution_stress_function_t), intent(in)  :: this
+    type(point_t)           , intent(in)           :: point
+    type(tensor_field_t)    , intent(inout)        :: result
+    call result%init(0.0_rp)
+    if ( this%get_num_dims() > 1) then
+      call result%set(1, 1,  point%get(1)) 
+      call result%set(2, 1,  point%get(1)-point%get(2)) 
+      call result%set(1, 2, -point%get(1)+point%get(2))
+      call result%set(2, 2,  point%get(2))    
+    end if
+    if ( this%get_num_dims() > 2) then
+      call result%set(3, 1,  point%get(1)-point%get(3)) 
+      call result%set(3, 2,  point%get(2)-point%get(3)) 
+      call result%set(1, 3, -point%get(1)+point%get(3))
+      call result%set(2, 3, -point%get(2)+point%get(3))
+      call result%set(3, 3,  point%get(3))
+    end if
+  end subroutine solution_stress_function_get_value_space  
   
   !===============================================================================================
   subroutine lagrangian_gp_analytical_functions_set_num_dims ( this, num_dims )
@@ -222,7 +341,10 @@ contains
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%boundary_function%set_num_dims(num_dims)
-    call this%solution_function%set_num_dims(num_dims)
+    call this%solution_temperature_function%set_num_dims(num_dims)
+    call this%solution_pressure_function%set_num_dims(num_dims)
+    call this%solution_displacement_function%set_num_dims(num_dims)
+    call this%solution_stress_function%set_num_dims(num_dims)
   end subroutine lagrangian_gp_analytical_functions_set_num_dims 
   
   !===============================================================================================
@@ -232,7 +354,7 @@ contains
     integer(ip), intent(in) ::  order
     call this%source_term%set_polynomial_order(order)
     call this%boundary_function%set_polynomial_order(order)
-    call this%solution_function%set_polynomial_order(order)
+    call this%solution_temperature_function%set_polynomial_order(order)
   end subroutine lgp_analytical_functions_set_solution_polynomial_order 
   
   !===============================================================================================
@@ -252,12 +374,36 @@ contains
   end function lagrangian_gp_analytical_functions_get_boundary_function
   
   !===============================================================================================
-  function lagrangian_gp_analytical_functions_get_solution_function ( this )
+  function lgpaf_get_solution_temperature_function ( this )
     implicit none
     class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: lagrangian_gp_analytical_functions_get_solution_function
-    lagrangian_gp_analytical_functions_get_solution_function => this%solution_function
-  end function lagrangian_gp_analytical_functions_get_solution_function
+    class(scalar_function_t), pointer :: lgpaf_get_solution_temperature_function
+    lgpaf_get_solution_temperature_function => this%solution_temperature_function
+  end function lgpaf_get_solution_temperature_function
+  
+  !===============================================================================================
+  function lgpaf_get_solution_displacement_function ( this )
+    implicit none
+    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: lgpaf_get_solution_displacement_function
+    lgpaf_get_solution_displacement_function => this%solution_displacement_function
+  end function lgpaf_get_solution_displacement_function  
+  
+  !===============================================================================================
+  function lgpaf_get_solution_pressure_function ( this )
+    implicit none
+    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: lgpaf_get_solution_pressure_function 
+    lgpaf_get_solution_pressure_function  => this%solution_pressure_function 
+  end function lgpaf_get_solution_pressure_function     
+  
+  !===============================================================================================
+  function lgpaf_get_solution_stress_function ( this )
+    implicit none
+    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
+    class(tensor_function_t), pointer :: lgpaf_get_solution_stress_function
+    lgpaf_get_solution_stress_function => this%solution_stress_function
+  end function lgpaf_get_solution_stress_function    
 
 end module lagrangian_gp_analytical_functions_names
 !***************************************************************************************************
