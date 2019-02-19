@@ -50,6 +50,7 @@ subroutine hex_lagrangian_gp_reference_fe_create(this, &
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_lagrangian_gp )
   call this%fill()
+  call this%scalar_to_multicomp_h_refinement_operator()
   assert(this%conformity)
   assert(.not. this%continuity) 
 end subroutine hex_lagrangian_gp_reference_fe_create
@@ -68,9 +69,9 @@ subroutine hex_lagrangian_gp_reference_fe_create_nodal_quadrature (this)
   ! Fill nodal quadrature
   call this%fill_quadrature ( this%nodal_quadrature )
 end subroutine hex_lagrangian_gp_reference_fe_create_nodal_quadrature
-!==================================================================================================
 
 !==================================================================================================
+
 subroutine hex_lagrangian_gp_reference_fe_create_interpolation ( this, quadrature, interpolation, & 
      &                                                    interpolation_duties)
   implicit none 
@@ -85,6 +86,7 @@ subroutine hex_lagrangian_gp_reference_fe_create_interpolation ( this, quadratur
   call this%fill_interpolation( quadrature, interpolation )
 
 end subroutine hex_lagrangian_gp_reference_fe_create_interpolation
+
 !==================================================================================================
 
 subroutine hex_lagrangian_gp_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
@@ -197,6 +199,43 @@ subroutine hex_lagrangian_gp_reference_fe_fill_h_refinement_interpolation ( this
 end subroutine hex_lagrangian_gp_reference_fe_fill_h_refinement_interpolation
 
 !==================================================================================================
+
+subroutine hlgp_scalar_to_multicomp_h_refinement_operator(this)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t) , intent(inout)    ::  this
+  
+  integer(ip)                     :: num_shape_functions, num_child_cells_x_parent_cell, spos
+  integer(ip)                     :: subcell_id, num_scalar_shape_functions
+  integer(ip)                     :: coarse_shape_func, child_shape_func, ishape_fe
+  real(rp)                        :: coefficient
+ 
+  num_shape_functions = this%get_num_shape_functions()
+
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1) 
+  
+  ! Allocate projection operator Cij-s
+  ! In this case we can use num_shape_functions in both components because both fes
+  ! parent and child have the same order / same number of nodes and field components
+  call memalloc(num_shape_functions, num_shape_functions, num_child_cells_x_parent_cell, &
+                this%parent_to_child_injection_op,__FILE__,__LINE__)
+  
+  num_scalar_shape_functions = this%h_refinement_interpolation%num_shape_functions
+  this%parent_to_child_injection_op = 0.0_rp
+  do subcell_id = 1, num_child_cells_x_parent_cell
+    spos = (subcell_id-1)*num_scalar_shape_functions 
+    ishape_fe = 0
+    do child_shape_func = 1, num_shape_functions
+       ishape_fe = ishape_fe + 1 
+       do coarse_shape_func= 1, num_shape_functions
+          call this%get_h_refinement_coefficient(ishape_fe,coarse_shape_func,spos,coefficient)
+          this%parent_to_child_injection_op(coarse_shape_func,child_shape_func,subcell_id) = coefficient
+       end do
+    end do
+  end do
+end subroutine hlgp_scalar_to_multicomp_h_refinement_operator
+
+!==================================================================================================
+
 subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell(this,                   &
                                                                  subcell_id,             &
                                                                  nodal_values_on_parent, &
@@ -206,51 +245,26 @@ subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell(this,          
   integer(ip)                             , intent(in)    ::  subcell_id
   real(rp)                                , intent(in)    ::  nodal_values_on_parent(:)
   real(rp)                                , intent(inout) ::  nodal_values_on_child(:)
-  
-  real(rp),           allocatable :: parent_to_child_injection_op(:,:)
-  integer(ip)                     :: num_shape_functions, spos
-  integer(ip)                     :: num_scalar_shape_functions
-  integer(ip)                     :: coarse_shape_func, child_shape_func, ishape_fe
-  real(rp)                        :: coefficient
+  integer(ip)                     :: num_shape_functions
+  integer(ip)                     :: coarse_shape_func, child_shape_func
  
   num_shape_functions = this%get_num_shape_functions()
-
-  !num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1) 
-  
-  ! Allocate projection operator Cij-s
-  ! In this case we can use num_shape_functions in both components because both fes
-  ! parent and child have the same order / same number of nodes and field components
-  call memalloc(num_shape_functions, num_shape_functions, &
-                parent_to_child_injection_op,__FILE__,__LINE__)
-  
-  num_scalar_shape_functions = this%h_refinement_interpolation%num_shape_functions
-
-  spos = subcell_id*num_scalar_shape_functions 
-  parent_to_child_injection_op = 0.0_rp
-  ishape_fe = 0
-  do child_shape_func = 1, num_shape_functions
-     ishape_fe = ishape_fe + 1 
-     do coarse_shape_func= 1, num_shape_functions
-        call this%get_h_refinement_coefficient(ishape_fe,coarse_shape_func,spos,coefficient)
-        parent_to_child_injection_op(coarse_shape_func,child_shape_func) = coefficient
-     end do
-  end do
- 
   nodal_values_on_child = 0.0_rp 
   do child_shape_func = 1, num_shape_functions     
      do coarse_shape_func = 1, num_shape_functions
        nodal_values_on_child(child_shape_func) = nodal_values_on_child(child_shape_func) + &
-                  parent_to_child_injection_op(coarse_shape_func,child_shape_func)*nodal_values_on_parent(coarse_shape_func)
+                  this%parent_to_child_injection_op(coarse_shape_func,child_shape_func,subcell_id+1)*nodal_values_on_parent(coarse_shape_func)
       end do
   end do
-  call memfree(parent_to_child_injection_op,__FILE__,__LINE__)
 end subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell
 
-
 !==================================================================================================
-subroutine hex_lagrangian_gp_get_h_refinement_coefficient ( this, ishape_fe,   & 
-                                                                         ishape_coarser_fe, & 
-                                                                         qpoint, coefficient )
+
+subroutine hex_lagrangian_gp_get_h_refinement_coefficient ( this, &
+                                                            ishape_fe,   & 
+                                                            ishape_coarser_fe, & 
+                                                            qpoint, &
+                                                            coefficient )
   implicit none 
   class(hex_lagrangian_gp_reference_fe_t), target, intent(in)    :: this
   integer(ip)                                 , intent(in)    :: ishape_fe
@@ -272,6 +286,7 @@ subroutine hex_lagrangian_gp_get_h_refinement_coefficient ( this, ishape_fe,   &
 end subroutine hex_lagrangian_gp_get_h_refinement_coefficient
 
 !==================================================================================================
+
 function hex_lagrangian_gp_get_num_nodes_children_patch(this)
   implicit none
   class(hex_lagrangian_gp_reference_fe_t), intent(in)  :: this
@@ -288,14 +303,13 @@ function hex_lagrangian_gp_get_num_nodes_children_patch(this)
 end function hex_lagrangian_gp_get_num_nodes_children_patch
 
 !==================================================================================================
+
 function hex_lagrangian_gp_get_num_nodes_on_subcell(this, subcell_id) result(num_nodes_on_subcell)
   implicit none
   class(hex_lagrangian_gp_reference_fe_t), intent(in) :: this
   integer(ip)                            , intent(in) :: subcell_id
   integer(ip) :: num_nodes_on_subcell
   integer(ip) :: num_child_cells_x_parent_cell
-  !integer(ip) :: node_identifier
-  !type(node_iterator_t) :: node_iterator_on_subcell
 
 #ifdef DEBUG  
   num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1)
@@ -310,6 +324,8 @@ function hex_lagrangian_gp_get_num_nodes_on_subcell(this, subcell_id) result(num
   num_nodes_on_subcell = this%get_num_nodes()
   
 end function hex_lagrangian_gp_get_num_nodes_on_subcell
+
+!==================================================================================================
 
 subroutine hex_lagrangian_gp_restrict_cell_quadrature_to_subcell(this, cell_quadrature, subcell_id, cell_quadrature_restricted_to_subcell)
   implicit none
@@ -342,6 +358,7 @@ subroutine hex_lagrangian_gp_restrict_cell_quadrature_to_subcell(this, cell_quad
     call node_iterator_on_subcell%next()
   end do                                                               
 end subroutine hex_lagrangian_gp_restrict_cell_quadrature_to_subcell
+
 !==================================================================================================
 
 function hex_lagrangian_gp_compute_subcell_centroid(this,subcell_id) result(centroid)
@@ -384,6 +401,7 @@ function hex_lagrangian_gp_compute_subcell_centroid(this,subcell_id) result(cent
   centroid = centroid/real(num_nodes_on_subcell)
   call node_array_order_two%free()
 end function hex_lagrangian_gp_compute_subcell_centroid
+
 !==================================================================================================
 
 subroutine hex_lagrangian_gp_transform_coordinates_from_cell_to_subcell (this, subcell_id, cell_quadrature_restricted_to_subcell)
@@ -410,6 +428,7 @@ subroutine hex_lagrangian_gp_transform_coordinates_from_cell_to_subcell (this, s
      end do
    end do 
 end subroutine hex_lagrangian_gp_transform_coordinates_from_cell_to_subcell
+
 !==================================================================================================
 
 subroutine hex_lagrangian_gp_fill_subcell_to_cell_node_identifier(this, subcell_id, subcell_to_cell_node_identifier)
@@ -452,6 +471,7 @@ subroutine hex_lagrangian_gp_reference_fe_change_basis(this)
   call this%invert_change_basis_matrix()
   this%basis_changed = .true.
 end subroutine hex_lagrangian_gp_reference_fe_change_basis
+
 !==================================================================================================
 
 subroutine hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
@@ -492,6 +512,21 @@ subroutine hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation(this, in
      end do
   end if
 end subroutine hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_reference_fe_free(this)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(inout)    :: this 
+  
+  ! Free tensor expansion of h_refinement interpolation operator
+  if(allocated(this%parent_to_child_injection_op)) & 
+    call memfree(this%parent_to_child_injection_op,__FILE__,__LINE__)
+
+  ! Free member variables of lagrangian_reference_fe_t (and those of its ancestors)
+  call lagrangian_reference_fe_free(this)
+
+end subroutine hex_lagrangian_gp_reference_fe_free
 
 !**************************************************************************************************
 ! Support functions
