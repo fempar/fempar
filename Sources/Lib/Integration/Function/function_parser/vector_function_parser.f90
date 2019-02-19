@@ -85,7 +85,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_2
         type(scalar_function_parser_t), target, intent(in)    :: component_3
     !----------------------------------------------------------------- 
-        this%ncomponents = 33
+        this%ncomponents = 3
         this%components(1)%function => component_1
         this%components(2)%function => component_2
         this%components(3)%function => component_3

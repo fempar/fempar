@@ -61,8 +61,8 @@ contains
     !< Initialize the time independant scalar analytical function
     !-----------------------------------------------------------------
         class(scalar_function_gradient_parser_t), intent(inout) :: this
-        type(scalar_function_parser_t),           intent(in)    :: function
-        type(vector_function_parser_t),           intent(in)    :: gradient
+        type(scalar_function_parser_t), target,   intent(in)    :: function
+        type(vector_function_parser_t), target,   intent(in)    :: gradient
     !----------------------------------------------------------------- 
         this%function => function
         this%gradient => gradient
