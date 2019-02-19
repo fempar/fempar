@@ -4185,7 +4185,7 @@ contains
     !< Return the diagonal of a CSR sparse matrix
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(in)    :: this
-        real(rp),   allocatable,    intent(inout) :: diagonal(:)
+        real(rp)                  , intent(inout) :: diagonal(:)
         integer(ip)                               :: diagonal_size
         integer(ip)                               :: row
         integer(ip)                               :: row_start_offset
@@ -4193,10 +4193,8 @@ contains
         integer(ip)                               :: col_offset_in_row
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
-        if(allocated(diagonal)) deallocate(diagonal)
         diagonal_size = min(this%get_num_rows(), this%get_num_cols())
-        allocate(diagonal(diagonal_size))
-
+        assert(diagonal_size == size(diagonal))
         do row=1, diagonal_size
             row_start_offset = this%irp(row)
             row_end_offset = this%irp(row+1)-1

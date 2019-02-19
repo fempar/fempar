@@ -76,7 +76,7 @@ private
         procedure, non_overridable ::         create_vector_spaces             => sparse_matrix_create_vector_spaces
         procedure, non_overridable, public :: get_pointer_to_base_matrix       => sparse_matrix_get_pointer_to_base_matrix
         procedure, non_overridable, public :: get_nnz                          => sparse_matrix_get_nnz
-        procedure, non_overridable, public :: get_sign                         => sparse_matrix_get_sign
+        procedure,                  public :: get_sign                         => sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                     => sparse_matrix_get_num_rows
         procedure, non_overridable, public :: get_num_cols                     => sparse_matrix_get_num_cols
         procedure, non_overridable, public :: is_diagonal                      => sparse_matrix_is_diagonal
@@ -301,7 +301,7 @@ contains
     end function sparse_matrix_get_nnz
 
 
-    function sparse_matrix_get_sign(this) result( sign)
+    function sparse_matrix_get_sign(this) result(sign)
     !-----------------------------------------------------------------
     !< Get the sign of the sparse matrix
     !-----------------------------------------------------------------
@@ -1250,10 +1250,10 @@ contains
 
     subroutine sparse_matrix_extract_diagonal(this, diagonal) 
     !-----------------------------------------------------------------
-    !< Apply matrix vector product y=op*x
+    !< Extract the diagonal entries of a matrix in a rank-1 array
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: this
-        real(rp), allocatable,  intent(inout) :: diagonal(:)
+        class(sparse_matrix_t), intent(in)     :: this
+        real(rp)              ,  intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%extract_diagonal(diagonal)

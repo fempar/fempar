@@ -53,7 +53,7 @@ private
         procedure, non_overridable ::         create_vector_spaces           => par_sparse_matrix_create_vector_spaces
         procedure, non_overridable, public :: get_sparse_matrix              => par_sparse_matrix_get_sparse_matrix
         procedure, non_overridable, public :: get_nnz                        => par_sparse_matrix_get_nnz
-        procedure, non_overridable, public :: get_sign                       => par_sparse_matrix_get_sign
+        procedure,                  public :: get_sign                       => par_sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                   => par_sparse_matrix_get_num_rows
         procedure, non_overridable, public :: get_num_cols                   => par_sparse_matrix_get_num_cols
         procedure, non_overridable, public :: get_symmetric_storage          => par_sparse_matrix_get_symmetric_storage 
@@ -723,12 +723,13 @@ contains
         call this%sparse_matrix%convert(mold)
     end subroutine par_sparse_matrix_convert_base_par_sparse_matrix_mold
 
+    
     subroutine par_sparse_matrix_extract_diagonal(this, diagonal) 
     !-----------------------------------------------------------------
-    !< Apply matrix vector product y=op*x
+    !< Extract the diagonal entries of a matrix in a rank-1 array
     !-----------------------------------------------------------------
         class(par_sparse_matrix_t), intent(in)    :: this
-        real(rp), allocatable,  intent(inout) :: diagonal(:)
+        real(rp)                  , intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%extract_diagonal(diagonal)
