@@ -98,6 +98,7 @@ module operator_names
      procedure :: assign                  => binary_operator_assign
      procedure :: update_matrix           => binary_operator_update_matrix
      procedure :: reallocate_after_remesh => binary_operator_reallocate_after_remesh
+     procedure :: create_vector_spaces    => binary_operator_create_vector_spaces
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
@@ -109,6 +110,7 @@ module operator_names
      procedure :: assign                  => unary_operator_assign
      procedure :: update_matrix           => unary_operator_update_matrix
      procedure :: reallocate_after_remesh => unary_operator_reallocate_after_remesh
+     procedure :: create_vector_spaces    => unary_operator_create_vector_spaces
   end type unary_operator_t
 
   type, extends(operator_t) :: lvalue_operator_t
@@ -1065,12 +1067,29 @@ contains
     call this%op2%update_matrix(same_nonzero_pattern)
   end subroutine binary_operator_update_matrix
   
+  subroutine binary_operator_create_vector_spaces(this)
+    implicit none
+    class(binary_operator_t), intent(inout)    :: this
+    assert( associated(this%op1) )
+    if ( associated(this%op1) ) then
+      call this%op1%domain_vector_space%clone(this%domain_vector_space)
+      call this%op1%range_vector_space%clone(this%range_vector_space)
+    end if   
+  end subroutine binary_operator_create_vector_spaces
+  
   subroutine binary_operator_reallocate_after_remesh(this)
     implicit none
     class(binary_operator_t), intent(inout)    :: this
-    call this%op1%reallocate_after_remesh()
-    call this%op2%reallocate_after_remesh()
-  end subroutine binary_operator_reallocate_after_remesh
+    if(associated(this%op1)) then
+      call this%op1%reallocate_after_remesh()
+    end if 
+    if(associated(this%op2)) then
+      call this%op2%reallocate_after_remesh()
+    end if
+    ! After call reallocate_after_remesh the next step is update both vector spaces
+    call this%free_vector_spaces()
+    call this%create_vector_spaces()    
+  end subroutine binary_operator_reallocate_after_remesh  
   
   subroutine unary_operator_update_matrix(this, same_nonzero_pattern)
     implicit none
@@ -1082,8 +1101,24 @@ contains
   subroutine unary_operator_reallocate_after_remesh(this)
     implicit none
     class(unary_operator_t), intent(inout)    :: this
-    call this%op%reallocate_after_remesh()
+    if(associated(this%op)) then
+      call this%op%reallocate_after_remesh()
+    end if
+    ! After call reallocate_after_remesh the next step is update both vector spaces
+    call this%free_vector_spaces()
+    call this%create_vector_spaces()
   end subroutine unary_operator_reallocate_after_remesh
+
+  subroutine unary_operator_create_vector_spaces(this)
+    implicit none
+    class(unary_operator_t), intent(inout)    :: this
+    if ( associated(this%op) ) then
+      call this%op%domain_vector_space%clone(this%domain_vector_space)
+      call this%op%range_vector_space%clone(this%range_vector_space)
+    else
+      check(.false.)
+    end if
+  end subroutine unary_operator_create_vector_spaces   
   
   subroutine identity_operator_update_matrix( this, same_nonzero_pattern )
     implicit none
