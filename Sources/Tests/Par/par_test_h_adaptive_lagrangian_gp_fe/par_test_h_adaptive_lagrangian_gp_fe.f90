@@ -38,7 +38,8 @@ program par_test_h_adaptive_lagrangian_gp_fe
   call test_driver%parse_command_line_parameters()
   call test_driver%setup_environment(world_context)
   call test_driver%setup_timers()
-  do i = 1,1
+  do i = 1,2
+    call test_driver%setup_reference_fe_type(i)
     call test_driver%run_simulation()
     call test_driver%report_timers()
   end do

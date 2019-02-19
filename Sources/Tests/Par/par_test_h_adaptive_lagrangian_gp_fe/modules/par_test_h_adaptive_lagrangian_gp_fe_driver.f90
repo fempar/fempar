@@ -51,6 +51,9 @@ module par_test_h_adaptive_lagrangian_gp_fe_driver_names
   integer(ip), parameter :: PRESS_FIELD_ID       = 2
   integer(ip), parameter :: DISPL_FIELD_ID       = 3
   integer(ip), parameter :: STRESS_FIELD_ID      = 4
+  
+  integer(ip), parameter :: LAGRANGIAN_REFERENCE_FE    = 1
+  integer(ip), parameter :: LAGRANGIAN_GP_REFERENCE_FE = 2
 
   type par_test_h_adaptive_lagrangian_gp_fe_driver_t 
      private 
@@ -90,6 +93,7 @@ module par_test_h_adaptive_lagrangian_gp_fe_driver_names
      procedure                  :: free_timers
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
+     procedure                  :: setup_reference_fe_type
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
@@ -391,28 +395,28 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_TEMP_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   fe_type = this%test_params%get_fe_type(), &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
                                                    continuity = .false. )
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_PRESS_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   fe_type = this%test_params%get_fe_type(), &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
                                                    continuity = .false. )
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_DISPL_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   fe_type = this%test_params%get_fe_type(), &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_vector, &
                                                    conformity = .true., &
                                                    continuity = .false. )      
       this%reference_fes(PAR_TEST_LAGRANGIAN_GP_FULL_STRESS_FIELD) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian_gp, &
+                                                   fe_type = this%test_params%get_fe_type(), &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_tensor, &
@@ -695,6 +699,24 @@ end subroutine free_timers
     call this%fe_space%interpolate_dirichlet_values( this%solution )  
 
   end subroutine interpolate_analytical_functions
+  
+  subroutine setup_reference_fe_type(this, REFERENCE_FE_ID)
+    implicit none
+    class(par_test_h_adaptive_lagrangian_gp_fe_driver_t), intent(inout) :: this
+    integer(ip),                                          intent(in)    :: REFERENCE_FE_ID
+    integer(ip)  :: FPLError 
+      if (REFERENCE_FE_ID == LAGRANGIAN_REFERENCE_FE) then 
+         if ( this%par_environment%am_i_l1_root() ) then  
+           write (*,*) "============== TEST : HEX_LAGRANGIAN_REFERENCE_FE =============="
+         end if
+         FPLError = this%parameter_list%set(key = fe_type_key, value = fe_type_lagrangian)
+      elseif (REFERENCE_FE_ID == LAGRANGIAN_GP_REFERENCE_FE) then
+         if ( this%par_environment%am_i_l1_root() ) then  
+           write (*,*) "============== TEST : HEX_LAGRANGIAN_GP_REFERENCE_FE =============="
+         end if 
+         FPLError = this%parameter_list%set(key = fe_type_key, value = fe_type_lagrangian_gp)
+      end if
+  end subroutine setup_reference_fe_type
   
   subroutine run_simulation(this) 
     implicit none

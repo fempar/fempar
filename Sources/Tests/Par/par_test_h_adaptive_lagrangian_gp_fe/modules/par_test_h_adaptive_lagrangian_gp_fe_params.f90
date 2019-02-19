@@ -43,6 +43,7 @@ module par_test_h_adaptive_lagrangian_gp_fe_params_names
   character(len=*), parameter :: use_void_fes_key               = 'use_void_fes'
   character(len=*), parameter :: use_void_fes_case_key          = 'use_void_fes_case'
   character(len=*), parameter :: coupling_criteria_key          = 'coupling_criteria'
+  character(len=*), parameter :: fe_type_key                    = 'reference_fe_type'
   
   ! Meshing parameters 
   character(len=*), parameter :: refinement_pattern_case_key   = 'refinement_pattern_case'
@@ -69,12 +70,13 @@ module par_test_h_adaptive_lagrangian_gp_fe_params_names
        procedure, non_overridable             :: get_inner_region_size 
        procedure, non_overridable             :: get_num_refinements 
        procedure, non_overridable             :: get_min_num_refinements
-       procedure, non_overridable             :: get_subparts_coupling_criteria 
+       procedure, non_overridable             :: get_subparts_coupling_criteria
+       procedure, non_overridable             :: get_fe_type
        !procedure, non_overridable             :: get_num_dims
   end type par_test_h_adaptive_lagrangian_gp_params_t
 
   ! Parameters 
-  public :: even_cells, inner_region, uniform   
+  public :: even_cells, inner_region, uniform, fe_type_key  
   
   ! Types
   public :: par_test_h_adaptive_lagrangian_gp_params_t
@@ -118,6 +120,7 @@ contains
     error = list%set(key = num_refinements_key               , value = 3) ; check(error==0)
     error = list%set(key = min_num_refinements_key           , value = 1) ; check(error==0)
     error = list%set(key = coupling_criteria_key    , value = loose_coupling) ; check(error==0) 
+    error = list%set(key = fe_type_key              , value = fe_type_lagrangian) ; check(error==0) 
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -142,6 +145,7 @@ contains
     error = switches%set(key = num_refinements_key    , value = '--num_refinements') ; check(error==0)
     error = switches%set(key = min_num_refinements_key, value = '--min_num_refinements') ; check(error==0)
     error = switches%set(key = coupling_criteria_key, value = '--subparts_coupling_criteria') ; check(error==0)
+    error = switches%set(key = fe_type_key,           value = '--reference_fe_type') ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -165,6 +169,7 @@ contains
     error = switches_ab%set(key = num_refinements_key        , value = '-num_refs')    ; check(error==0)
     error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
     error = switches_ab%set(key = coupling_criteria_key    , value = '-subparts_coupling')    ; check(error==0)
+    error = switches_ab%set(key = fe_type_key    , value = '-rftype')    ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -187,6 +192,7 @@ contains
     error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell') ; check(error==0)
     error = helpers%set(key = min_num_refinements_key , value = 'Minimum number of adaptive mesh refinements for any cell') ; check(error==0)
     error = helpers%set(key = coupling_criteria_key, value = 'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly') ; check(error==0)
+    error = helpers%set(key = fe_type_key,          value = 'Type of reference fe to be used in the test') ; check(error==0)
  
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -216,6 +222,7 @@ contains
     error = required%set(key = num_refinements_key,                 value = .false.)  ; check(error==0)
     error = required%set(key = min_num_refinements_key,             value = .false.)  ; check(error==0)
     error = required%set(key = coupling_criteria_key,               value = .false.)  ; check(error==0)
+    error = required%set(key = fe_type_key,                 value = .false.)  ; check(error==0)
 
   end subroutine par_test_h_adaptive_lagrangian_gp_params_define_parameters
 
@@ -405,5 +412,19 @@ contains
     error = list%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
     assert(error==0)
   end function get_subparts_coupling_criteria
+  
+  !==================================================================================================
+  function get_fe_type(this)
+    implicit none
+    class(par_test_h_adaptive_lagrangian_gp_params_t) , intent(in) :: this
+    character(len=:), allocatable                            :: get_fe_type
+    type(ParameterList_t), pointer                           :: list
+    integer(ip)                                              :: error
+    character(1) :: dummy_string
+    list  => this%get_values()
+    assert(list%isAssignable(fe_type_key, dummy_string))
+    error = list%GetAsString(key = fe_type_key, string = get_fe_type)
+    assert(error==0)
+  end function get_fe_type
 
 end module par_test_h_adaptive_lagrangian_gp_fe_params_names
