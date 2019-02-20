@@ -50,6 +50,7 @@ module unfitted_triangulations_names
   use block_layout_names
   use function_names
   use unfitted_temporary_names
+  use unfitted_boundary_cutter_names
   
   implicit none
 # include "debug.i90"
@@ -63,50 +64,39 @@ module unfitted_triangulations_names
   
   type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
-    class(marching_cubes_t), pointer :: marching_cubes => NULL()
+    class(unfitted_boundary_cutter_t), pointer :: boundary_cutter => NULL()
   contains
-
+  
     ! Creation / deletion methods
-    procedure :: create => unfitted_cell_iterator_create
-    procedure :: free   => unfitted_cell_iterator_free
-    
-    ! Updater: to be called each time the lid changes
-    procedure :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
-
+    procedure :: create  => unfitted_cell_iterator_create
+    procedure :: free    => unfitted_cell_iterator_free
+            
     ! Getters related with the subcells
-    procedure :: get_num_subcells      => unfitted_cell_iterator_get_num_subcells
-    procedure :: get_num_subcell_nodes => unfitted_cell_iterator_get_num_subcell_nodes
+    procedure :: get_num_subcells            => unfitted_cell_iterator_get_num_subcells
+    procedure :: get_num_subcell_nodes       => unfitted_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => unfitted_cell_iterator_get_phys_coords_of_subcell
     procedure :: get_ref_coords_of_subcell   => unfitted_cell_iterator_get_ref_coords_of_subcell
     
     ! Getters related with the subfacets
-    procedure :: get_num_subfacets      => unfitted_cell_iterator_get_num_subfacets
-    procedure :: get_num_subfacet_nodes => unfitted_cell_iterator_get_num_subfacet_nodes
+    procedure :: get_num_subfacets            => unfitted_cell_iterator_get_num_subfacets
+    procedure :: get_num_subfacet_nodes       => unfitted_cell_iterator_get_num_subfacet_nodes
     procedure :: get_phys_coords_of_subfacet  => unfitted_cell_iterator_get_phys_coords_of_subfacet
     procedure :: get_ref_coords_of_subfacet   => unfitted_cell_iterator_get_ref_coords_of_subfacet
     
     ! Checkers
-    procedure :: is_cut      => unfitted_cell_iterator_is_cut
-    procedure :: is_interior => unfitted_cell_iterator_is_interior
-    procedure :: is_exterior => unfitted_cell_iterator_is_exterior
+    procedure :: is_cut              => unfitted_cell_iterator_is_cut
+    procedure :: is_interior         => unfitted_cell_iterator_is_interior
+    procedure :: is_exterior         => unfitted_cell_iterator_is_exterior
     procedure :: is_interior_subcell => unfitted_cell_iterator_is_interior_subcell
     procedure :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
-    ! Private TBPs
-    procedure, non_overridable, private :: get_num_subnodes            => unfitted_cell_iterator_get_num_subnodes
-    procedure, non_overridable, private :: is_inverted_subcell         => unfitted_cell_iterator_is_inverted_subcell
-    procedure, non_overridable, private :: is_valid_submesh            => unfitted_cell_iterator_is_valid_submesh
-    procedure, non_overridable, private :: generate_subcells           => unfitted_cell_iterator_generate_subcells
-    procedure, non_overridable, private :: generate_subcells_status    => unfitted_cell_iterator_generate_subcells_status
-    procedure, non_overridable, private :: generate_boundary_subfacets => unfitted_cell_iterator_generate_boundary_subfacets
-
-    end type unfitted_cell_iterator_t
+  end type unfitted_cell_iterator_t
 
   type, extends(bst_vef_iterator_t) :: unfitted_vef_iterator_t
     private
-    class(marching_cubes_t), pointer :: marching_cubes => NULL()
-    class(cell_iterator_t), allocatable :: unfitted_cell
-    integer(ip) :: facet_lid
+    class(unfitted_boundary_cutter_t),     pointer :: boundary_cutter => NULL()
+    class(cell_iterator_t),            allocatable :: unfitted_cell
+    integer(ip)                                    :: facet_lid
   contains
 
     ! Creation / deletion methods
@@ -118,19 +108,16 @@ module unfitted_triangulations_names
     procedure :: next         => unfitted_vef_iterator_next
     procedure :: set_gid      => unfitted_vef_iterator_set_gid
     
-    ! Updater: to be called each time the lid changes
-    procedure :: update_sub_triangulation    => unfitted_vef_iterator_update_sub_triangulation
-    
     ! Getters related with the subvefs
-    procedure :: get_num_subvefs      => unfitted_vef_iterator_get_num_subvefs
-    procedure :: get_num_subvef_nodes => unfitted_vef_iterator_get_num_subvef_nodes
-    procedure :: get_phys_coords_of_subvef  => unfitted_vef_iterator_get_phys_coords_of_subvef
-    procedure :: get_ref_coords_of_subvef   => unfitted_vef_iterator_get_ref_coords_of_subvef
+    procedure :: get_num_subvefs           => unfitted_vef_iterator_get_num_subvefs
+    procedure :: get_num_subvef_nodes      => unfitted_vef_iterator_get_num_subvef_nodes
+    procedure :: get_phys_coords_of_subvef => unfitted_vef_iterator_get_phys_coords_of_subvef
+    procedure :: get_ref_coords_of_subvef  => unfitted_vef_iterator_get_ref_coords_of_subvef
     
     ! Checkers
-    procedure :: is_cut      => unfitted_vef_iterator_is_cut
-    procedure :: is_interior => unfitted_vef_iterator_is_interior
-    procedure :: is_exterior => unfitted_vef_iterator_is_exterior
+    procedure :: is_cut             => unfitted_vef_iterator_is_cut
+    procedure :: is_interior        => unfitted_vef_iterator_is_interior
+    procedure :: is_exterior        => unfitted_vef_iterator_is_exterior
     procedure :: is_interior_subvef => unfitted_vef_iterator_is_interior_subvef
     procedure :: is_exterior_subvef => unfitted_vef_iterator_is_exterior_subvef
 
@@ -225,20 +212,14 @@ module unfitted_triangulations_names
       procedure :: setup_weighting_operator  => mc_dummy_coarse_fe_handler_setup_weighting_operator
   end type mc_dummy_coarse_fe_handler_t
 
-  ! We need this to create a fe space in marching_cubes_t to hold a discrete levelset function
-  type, extends(conditions_t) :: mc_dummy_conditions_t
-    contains
-      procedure :: get_num_components  => mc_dummy_conditions_get_num_components
-      procedure :: get_components_code    => mc_dummy_conditions_get_components_code
-      procedure :: get_function           => mc_dummy_conditions_get_function
-  end type mc_dummy_conditions_t
-
-  type :: marching_cubes_t
+  type, extends(unfitted_boundary_cutter_t) :: marching_cubes_t
     private
 
-    ! The underlying triangulation
-    class(triangulation_t), pointer :: triangulation => null()
-
+    ! Auxiliary private member variable required for optimization purposes
+    ! i.e., to avoid calling triangulation%get_num_dims() in many TBPs of 
+    ! this data type
+    integer(ip) :: num_dims = -1
+    
     ! The level set funciton
     class(level_set_function_t), pointer :: level_set_function => null()
 
@@ -250,10 +231,9 @@ module unfitted_triangulations_names
     type(block_layout_t)                  :: block_layout
 
     ! Auxiliary dummy things to create the fe space for the levelset
-    type(p_reference_fe_t), allocatable :: reference_fes(:) 
-    type(mc_dummy_coarse_fe_handler_t)  :: dummy_coarse_handler
-    type(mc_dummy_conditions_t)         :: dummy_conditions
-    type(p_l1_coarse_fe_handler_t), allocatable  :: dummy_coarse_handlers(:)
+    type(p_reference_fe_t),         allocatable :: reference_fes(:) 
+    type(mc_dummy_coarse_fe_handler_t)          :: dummy_coarse_handler
+    type(p_l1_coarse_fe_handler_t), allocatable :: dummy_coarse_handlers(:)
 
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases
@@ -280,55 +260,83 @@ module unfitted_triangulations_names
     integer(ip),   allocatable :: mc_case_x_cell(:)
     integer(ip),   allocatable :: mc_ptr_to_intersections(:)
     type(point_t), allocatable :: mc_intersection_points(:)
-    logical :: mc_runtime_init = .false.
+    logical                    :: mc_runtime_init = .false.
 
     ! Info related to the sub-tessellation
     ! When located on a cell, and the sub-triangulation is updated,
     ! these member variables contain info about the current sub-tessalation
-    integer(ip),        allocatable :: sub_cells_node_ids(:,:)
-    integer(ip),        allocatable :: unfitted_sub_facets_node_ids(:,:)
-    integer(ip),        allocatable :: fitted_sub_facets_node_ids_x_facet(:,:,:)
-    type(point_t),      allocatable :: subnodes_ref_coords(:)
-    logical,            allocatable :: sub_cell_has_been_reoriented(:)
-    logical :: mc_cell_info_init = .false.
-    integer(ip) :: current_cell_gid = -1
-    integer(ip) :: num_subcells
-    integer(ip) :: num_subfacets
-    integer(ip), allocatable :: subcells_status(:)
+    class(cell_iterator_t), pointer        :: current_cell => null()
+    integer(ip),               allocatable :: sub_cells_node_ids(:,:)
+    integer(ip),               allocatable :: unfitted_sub_facets_node_ids(:,:)
+    integer(ip),               allocatable :: fitted_sub_facets_node_ids_x_facet(:,:,:)
+    type(point_t),             allocatable :: subnodes_ref_coords(:)
+    logical,                   allocatable :: sub_cell_has_been_reoriented(:)
+    logical                                :: mc_cell_info_init = .false.
+    integer(ip)                            :: current_cell_gid = -1
+    integer(ip)                            :: num_current_cell_nodes = -1
+    integer(ip)                            :: num_current_cell_subcell_nodes = -1 
+    integer(ip)                            :: num_subcells
+    integer(ip)                            :: num_subfacets
+    integer(ip),               allocatable :: subcells_status(:)
     class(fe_cell_iterator_t), allocatable :: fe
-    real(rp), allocatable :: level_set_all_nodes(:)
-    integer(ip), allocatable :: subcell_facet_neigs(:,:)
+    class(reference_fe_t),         pointer :: reference_fe_geo
+    real(rp),                  allocatable :: level_set_all_nodes(:)
+    integer(ip),               allocatable :: subcell_facet_neigs(:,:)
     
     ! Auxiliary work data
     type(quadrature_t), allocatable :: sub_nodes_nodal_quadratures(:)
     type(cell_map_t),   allocatable :: sub_nodes_cell_maps(:)
+    
+    logical :: current_cell_sub_triangulation_updated = .false.
 
   contains
 
     ! Creation / deletion methods
-    procedure                  :: create                        => marching_cubes_create
-    procedure                  :: free                          => marching_cubes_free
+    procedure                  :: create         => marching_cubes_create
+    procedure                  :: free           => marching_cubes_free
 
     ! Getters (Implementation of the public interfaces of the unfitted triangulations)
-    procedure, non_overridable :: get_num_cut_cells                => marching_cubes_get_num_cut_cells
-    procedure, non_overridable :: get_num_interior_cells           => marching_cubes_get_num_interior_cells
-    procedure, non_overridable :: get_num_exterior_cells           => marching_cubes_get_num_exterior_cells
-    procedure, non_overridable :: get_max_num_subcells_in_cell     => marching_cubes_get_max_num_subcells_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subcell     => marching_cubes_get_max_num_nodes_in_subcell
-    procedure, non_overridable :: get_total_num_subcells           => marching_cubes_get_total_num_subcells
-    procedure, non_overridable :: get_max_num_subfacets_in_cell    => marching_cubes_get_max_num_subfacets_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subfacet    => marching_cubes_get_max_num_nodes_in_subfacet
-    procedure, non_overridable :: get_total_num_subfacets          => marching_cubes_get_total_num_subfacets
-    procedure, non_overridable :: get_total_num_fitted_sub_facets  => marching_cubes_get_total_num_fitted_sub_facets
-    procedure, non_overridable :: get_max_num_subnodes_in_cell     => marching_cubes_get_max_num_subnodes_in_cell
-   
+    procedure :: get_max_num_nodes_in_subcell     => marching_cubes_get_max_num_nodes_in_subcell
+    procedure :: get_max_num_nodes_in_subfacet    => marching_cubes_get_max_num_nodes_in_subfacet
+    procedure :: get_max_num_subnodes_in_cell     => marching_cubes_get_max_num_subnodes_in_cell
+    procedure :: update_sub_triangulation         => marching_cubes_update_sub_triangulation
+    procedure :: get_num_subcells                 => marching_cubes_get_num_subcells
+    procedure :: get_num_subcell_nodes            => marching_cubes_get_num_subcell_nodes
+    procedure :: get_phys_coords_of_subcell       => marching_cubes_get_phys_coords_of_subcell
+    procedure :: get_ref_coords_of_subcell        => marching_cubes_get_ref_coords_of_subcell
+    procedure :: get_num_subfacets                => marching_cubes_get_num_subfacets
+    procedure :: get_num_subfacet_nodes           => marching_cubes_get_num_subfacet_nodes
+    procedure :: get_phys_coords_of_subfacet      => marching_cubes_get_phys_coords_of_subfacet
+    procedure :: get_ref_coords_of_subfacet       => marching_cubes_get_ref_coords_of_subfacet
+    procedure :: is_cut                           => marching_cubes_is_cut
+    procedure :: is_interior                      => marching_cubes_is_interior
+    procedure :: is_exterior                      => marching_cubes_is_exterior
+    procedure :: is_interior_subcell              => marching_cubes_is_interior_subcell
+    procedure :: is_exterior_subcell              => marching_cubes_is_exterior_subcell
+    procedure :: get_num_fitted_subfacets         => marching_cubes_get_num_fitted_subfacets
+    procedure :: get_phys_coords_of_subvef        => marching_cubes_get_phys_coords_of_subvef
+    procedure :: get_ref_coords_of_subvef         => marching_cubes_get_ref_coords_of_subvef
+    procedure :: is_cut_facet                     => marching_cubes_is_cut_facet
+    procedure :: is_interior_facet                => marching_cubes_is_interior_facet
+    procedure :: is_exterior_facet                => marching_cubes_is_exterior_facet
+    procedure :: is_interior_subfacet             => marching_cubes_is_interior_subfacet
+    procedure :: is_exterior_subfacet             => marching_cubes_is_exterior_subfacet
+    
+    procedure, non_overridable :: set_current_cell => marching_cubes_set_current_cell
+       
     ! Getters related with the mc algorithm
     procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases
     
     ! Printers
     procedure :: print                     => marching_cubes_print
     
-    ! Private TBP
+    ! Private TBPs
+    procedure, non_overridable, private :: get_num_subnodes               => marching_cubes_get_num_subnodes
+    procedure, non_overridable, private :: is_inverted_subcell            => marching_cubes_is_inverted_subcell
+    procedure, non_overridable, private :: is_valid_submesh               => marching_cubes_is_valid_submesh
+    procedure, non_overridable, private :: generate_subcells              => marching_cubes_generate_subcells
+    procedure, non_overridable, private :: generate_subcells_status       => marching_cubes_generate_subcells_status
+    procedure, non_overridable, private :: generate_boundary_subfacets    => marching_cubes_generate_boundary_subfacets
     procedure, non_overridable, private :: fulfills_assumptions           => marching_cubes_fulfills_assumptions
     procedure, non_overridable, private :: mc_tables_create               => marching_cubes_mc_tables_create
     procedure, non_overridable, private :: mc_tables_free                 => marching_cubes_mc_tables_free
@@ -347,7 +355,7 @@ module unfitted_triangulations_names
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
-      type(marching_cubes_t) :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: boundary_cutter
     contains
       ! Creation / deletion methods
       generic             :: create                       => sut_create
@@ -360,18 +368,15 @@ module unfitted_triangulations_names
       procedure :: create_vef_iterator => sut_create_vef_iterator
 
       ! Getters
-      procedure, non_overridable, private :: get_marching_cubes   => sut_get_marching_cubes
+      procedure, non_overridable, private :: get_unfitted_boundary_cutter   => sut_get_unfitted_boundary_cutter
       procedure, non_overridable :: get_num_cut_cells             => sut_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => sut_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => sut_get_num_exterior_cells
-      procedure, non_overridable :: get_max_num_subcells_in_cell  => sut_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => sut_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_subcells     => sut_get_total_num_subcells
-      procedure, non_overridable :: get_max_num_subfacets_in_cell  => sut_get_max_num_subfacets_in_cell
-      procedure, non_overridable :: get_max_num_nodes_in_subfacet  => sut_get_max_num_nodes_in_subfacet
-      procedure, non_overridable :: get_total_num_subfacets     => sut_get_total_num_subfacets
+      procedure, non_overridable :: get_total_num_subcells        => sut_get_total_num_subcells
+      procedure, non_overridable :: get_max_num_nodes_in_subfacet => sut_get_max_num_nodes_in_subfacet
+      procedure, non_overridable :: get_total_num_subfacets       => sut_get_total_num_subfacets
       procedure, non_overridable :: get_total_num_fitted_sub_facets  => sut_get_total_num_fitted_sub_facets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell  => sut_get_max_num_subnodes_in_cell
 
       ! Printers
       procedure :: print                     => sut_print
@@ -380,7 +385,7 @@ module unfitted_triangulations_names
 
   type, extends(p4est_serial_triangulation_t) :: unfitted_p4est_serial_triangulation_t
     private
-      type(marching_cubes_t) :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: boundary_cutter
     contains
 
       ! Creation / deletion methods
@@ -395,18 +400,15 @@ module unfitted_triangulations_names
       procedure :: create_vef_iterator  => upst_create_vef_iterator
 
       ! Getters
-      procedure, non_overridable, private :: get_marching_cubes   => upst_get_marching_cubes
+      procedure, non_overridable, private :: get_unfitted_boundary_cutter   => upst_get_unfitted_boundary_cutter
       procedure, non_overridable :: get_num_cut_cells             => upst_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => upst_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => upst_get_num_exterior_cells
-      procedure, non_overridable :: get_max_num_subcells_in_cell  => upst_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => upst_get_max_num_nodes_in_subcell
       procedure, non_overridable :: get_total_num_subcells     => upst_get_total_num_subcells
-      procedure, non_overridable :: get_max_num_subfacets_in_cell  => upst_get_max_num_subfacets_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => upst_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets        => upst_get_total_num_subfacets
       procedure, non_overridable :: get_total_num_fitted_sub_facets=> upst_get_total_num_fitted_sub_facets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell   => upst_get_max_num_subnodes_in_cell
 
       ! Printers
       procedure :: print                     => upst_print
@@ -415,7 +417,7 @@ module unfitted_triangulations_names
 
   type, extends(par_triangulation_t) :: par_unfitted_triangulation_t
     private
-      type(marching_cubes_t) :: marching_cubes
+      class(unfitted_boundary_cutter_t), allocatable :: boundary_cutter
     contains
 
       ! Creation / deletion methods
@@ -429,17 +431,14 @@ module unfitted_triangulations_names
       !procedure :: create_vef_iterator           => put_create_vef_iterator
 
       ! Getters
-      procedure, non_overridable, private :: get_marching_cubes   => put_get_marching_cubes
+      procedure, non_overridable, private :: get_unfitted_boundary_cutter   => put_get_unfitted_boundary_cutter
       procedure, non_overridable :: get_num_cut_cells             => put_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => put_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => put_get_num_exterior_cells
-      procedure, non_overridable :: get_max_num_subcells_in_cell  => put_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => put_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_subcells     => put_get_total_num_subcells
-      procedure, non_overridable :: get_max_num_subfacets_in_cell  => put_get_max_num_subfacets_in_cell
-      procedure, non_overridable :: get_max_num_nodes_in_subfacet  => put_get_max_num_nodes_in_subfacet
-      procedure, non_overridable :: get_total_num_subfacets     => put_get_total_num_subfacets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell  => put_get_max_num_subnodes_in_cell
+      procedure, non_overridable :: get_total_num_subcells        => put_get_total_num_subcells
+      procedure, non_overridable :: get_max_num_nodes_in_subfacet => put_get_max_num_nodes_in_subfacet
+      procedure, non_overridable :: get_total_num_subfacets       => put_get_total_num_subfacets
 
       ! Printers
       procedure :: print                     => put_print

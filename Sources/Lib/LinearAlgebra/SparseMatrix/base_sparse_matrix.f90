@@ -847,7 +847,7 @@ module base_sparse_matrix_names
             import base_sparse_matrix_t
             import  rp
             class(base_sparse_matrix_t),  intent(in)    :: this
-            real(rp), allocatable,        intent(inout) :: diagonal(:)
+            real(rp)                   ,  intent(inout) :: diagonal(:)
         end subroutine base_sparse_matrix_extract_diagonal
 
         subroutine base_sparse_matrix_free_coords(this)
@@ -5124,7 +5124,7 @@ contains
     !< Return the diagonal of a coo sparse matrix
     !-----------------------------------------------------------------
         class(coo_sparse_matrix_t), intent(in)    :: this
-        real(rp), allocatable,      intent(inout) :: diagonal(:)
+        real(rp)                  , intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
         check(.false.)
     end subroutine coo_sparse_matrix_extract_diagonal

@@ -11,6 +11,7 @@ module par_test_poisson_params_names
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'
   character(len=*), parameter :: use_void_fes_key           = 'use_void_fes'
   character(len=*), parameter :: use_void_fes_case_key      = 'use_void_fes_case'
+  character(len=*), parameter :: preconditioner_type_key    = 'preconditioner_type'
 
   type, extends(parameter_handler_t) :: par_test_poisson_params_t
      private
@@ -24,12 +25,13 @@ module par_test_poisson_params_names
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_use_void_fes
        procedure, non_overridable             :: get_use_void_fes_case
+       procedure, non_overridable             :: get_preconditioner_type
        !procedure, non_overridable             :: get_num_dims
   end type par_test_poisson_params_t
 
   ! Types
   public :: par_test_poisson_params_t
-
+  
 contains
 
   !==================================================================================================
@@ -63,6 +65,7 @@ contains
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = use_void_fes_key                  , value =  .false.)                     ; check(error==0)
     error = list%set(key = use_void_fes_case_key             , value =  'popcorn')                   ; check(error==0)
+    error = list%set(key = preconditioner_type_key           , value =  'mlbddc')                    ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -81,6 +84,7 @@ contains
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = use_void_fes_key              , value = '--use-void-fes' )            ; check(error==0)
     error = switches%set(key = use_void_fes_case_key         , value = '--use-void-fes-case' )       ; check(error==0)
+    error = switches%set(key = preconditioner_type_key       , value = '--preconditioner-type' )     ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -98,6 +102,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = use_void_fes_key              , value = '-use-voids' )  ; check(error==0)
     error = switches_ab%set(key = use_void_fes_case_key         , value = '-use-voids-case' ); check(error==0)
+    error = switches_ab%set(key = preconditioner_type_key       , value = '-prec-type' )  ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -114,6 +119,7 @@ contains
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_key              , value  = 'Use a hybrid FE space formed by full and void FEs' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_case_key         , value  = 'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter` ' ); check(error==0)
+    error = helpers%set(key = preconditioner_type_key       , value  = 'Select preconditioner type. Possible values: `identity`, `jacobi`, `mlbddc`.' ); check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -136,6 +142,7 @@ contains
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_key              , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_case_key         , value = .false.) ; check(error==0)
+    error = required%set(key = preconditioner_type_key       , value = .false.) ; check(error==0)
 
   end subroutine par_test_poisson_params_define_parameters
 
@@ -245,5 +252,18 @@ contains
     error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
     assert(error==0)
   end function get_use_void_fes_case
+  
+  !==================================================================================================
+  function get_preconditioner_type(this)
+    implicit none
+    class(par_test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable                 :: get_preconditioner_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(preconditioner_type_key, 'string'))
+    error = list%GetAsString(key = preconditioner_type_key, string = get_preconditioner_type)
+    assert(error==0)
+  end function get_preconditioner_type
 
 end module par_test_poisson_params_names

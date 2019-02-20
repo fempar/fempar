@@ -53,10 +53,11 @@ module p4est_bindings_names
      !>
      !> @note (sc_)MPI is only initialized if p4est/sc was compiled without MPI support
      !=================================================================================================================================
-     subroutine F90_p4est_init(Fcomm) bind(c,name="F90_p4est_init")
+     subroutine F90_p4est_init(Fcomm,sc_log_level) bind(c,name="F90_p4est_init")
        use, intrinsic :: iso_c_binding
        implicit none
        integer, value, intent(in) :: Fcomm
+       integer, value, intent(in) :: sc_log_level
      end subroutine F90_p4est_init
 
      subroutine F90_p4est_finalize() bind(c,name="F90_p4est_finalize")

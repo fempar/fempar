@@ -63,10 +63,10 @@ module par_test_h_adaptive_poisson_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      
-#ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
-#endif  
+     ! Jacobi preconditioner
+     type(jacobi_preconditioner_t)             :: jacobi_preconditioner 
     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
@@ -355,9 +355,9 @@ end subroutine free_timers
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-#ifdef ENABLE_MKL    
-    call this%triangulation%setup_coarse_triangulation()
-#endif
+    if ( trim(this%test_params%get_preconditioner_type()) == 'mlbddc' ) then
+      call this%triangulation%setup_coarse_triangulation()
+    end if
    
    contains
      
@@ -445,9 +445,9 @@ end subroutine free_timers
     
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration() 
-#ifdef ENABLE_MKL    
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-#endif    
+    if ( trim(this%test_params%get_preconditioner_type()) == 'mlbddc' ) then   
+      call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    end if    
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -479,58 +479,10 @@ end subroutine free_timers
     integer(ip) :: ilev
     integer(ip) :: FPLError
     integer(ip) :: iparm(64)
-
-#ifdef ENABLE_MKL  
-    ! See https://software.intel.com/en-us/node/470298 for details
-    iparm      = 0 ! Init all entries to zero
-    iparm(1)   = 1 ! no solver default
-    iparm(2)   = 2 ! fill-in reordering from METIS
-    iparm(8)   = 2 ! numbers of iterative refinement steps
-    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    iparm(11)  = 1 ! use scaling 
-    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    iparm(21)  = 1 ! 1x1 + 2x2 pivots
-
-    plist => this%parameter_list 
-    if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-    end if
-    do ilev=1, this%par_environment%get_num_levels()-1
-       ! Set current level Dirichlet solver parameters
-       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-       
-       ! Set current level Neumann solver parameters
-       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-     
-       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
-       plist  => coarse 
-    end do
-    ! Set coarsest-grid solver parameters
-    FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
-    ! Set-up MLBDDC preconditioner
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-    call this%mlbddc%symbolic_setup()
-    call this%mlbddc%numerical_setup()
-#endif    
-   
+    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
-
+    
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     assert(FPLError == 0)
@@ -538,12 +490,68 @@ end subroutine free_timers
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     
-#ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_matrix(), this%mlbddc) 
-#else
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_matrix(), .identity. this%fe_affine_operator) 
-#endif   
+    select case (trim(this%test_params%get_preconditioner_type()))
+      case ('identity')
+        call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+      case ('jacobi')
+        call this%jacobi_preconditioner%create(this%fe_affine_operator)
+        call this%jacobi_preconditioner%symbolic_setup()
+        call this%jacobi_preconditioner%numerical_setup()
+        call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%jacobi_preconditioner )
+      case ('mlbddc')
+        ! See https://software.intel.com/en-us/node/470298 for details
+        iparm      = 0 ! Init all entries to zero
+        iparm(1)   = 1 ! no solver default
+        iparm(2)   = 2 ! fill-in reordering from METIS
+        iparm(8)   = 2 ! numbers of iterative refinement steps
+        iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+        iparm(11)  = 1 ! use scaling 
+        iparm(13)  = 1 ! use maximum weighted matching algorithm 
+        iparm(21)  = 1 ! 1x1 + 2x2 pivots
+
+        plist => this%parameter_list 
+        if ( this%par_environment%get_l1_size() == 1 ) then
+           FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
+           FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+           FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+           FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+        end if
+        do ilev=1, this%par_environment%get_num_levels()-1
+           ! Set current level Dirichlet solver parameters
+           dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+           FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
+           FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+           FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+           FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+           
+           ! Set current level Neumann solver parameters
+           neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+           FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
+           FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+           FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+           FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+         
+           coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+           plist  => coarse 
+        end do
+        ! Set coarsest-grid solver parameters
+        FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
+        FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+        FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+        FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+
+        ! Set-up MLBDDC preconditioner
+        call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+        call this%mlbddc%symbolic_setup()
+        call this%mlbddc%numerical_setup()
+        
+        call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
+      case default
+        mcheck(.false.,'Wrong type of preconditioner. Possible values: `identity`, `jacobi`, `mlbddc`.')
+    end select
+    
     call parameter_list%free()
+    
   end subroutine setup_solver
   
   
@@ -737,9 +745,8 @@ end subroutine free_timers
     integer(ip) :: i, istat
     
     call this%solution%free()
-#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-#endif    
+    call this%mlbddc%free()  
+    call this%jacobi_preconditioner%free() 
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
@@ -978,13 +985,13 @@ end subroutine free_timers
       write(*,'(a35,i22)') 'num_interface_dofs (sub-assembled):', nint(num_interface_dofs  , kind=ip )
     end if
  
-#ifdef ENABLE_MKL    
-    if (environment%am_i_lgt1_task()) then
-        coarse_fe_space => this%fe_space%get_coarse_fe_space()
-        num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
-        write(*,'(a35,i22)') 'num_coarse_dofs:', num_coarse_dofs
-    end if
-#endif    
+    if ( trim(this%test_params%get_preconditioner_type()) == 'mlbddc' ) then 
+      if (environment%am_i_lgt1_task()) then
+          coarse_fe_space => this%fe_space%get_coarse_fe_space()
+          num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
+          write(*,'(a35,i22)') 'num_coarse_dofs:', num_coarse_dofs
+      end if
+    end if 
 
   end subroutine print_info
   

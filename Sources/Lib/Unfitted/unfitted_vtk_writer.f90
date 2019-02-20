@@ -205,8 +205,6 @@ contains
         call cell%next(); cycle
       end if
 
-      call cell%update_sub_triangulation()
-
       call cell%get_nodes_coordinates( cell_coords )
 
       do ino = 1, num_cell_nodes !TODO is it possible to avoid loops like this one?
@@ -340,9 +338,7 @@ contains
       if (cell%is_ghost()) then
         call cell%next(); cycle
       end if
-  
-      call cell%update_sub_triangulation()
-  
+    
       do isubfacet = 1, cell%get_num_subfacets()
         call cell%get_phys_coords_of_subfacet(isubfacet,subfacet_coords)
   
@@ -468,8 +464,6 @@ contains
       if (.not. vef%is_facet()) then
         call vef%next(); cycle
       end if
-
-      call vef%update_sub_triangulation()
 
       call vef%get_nodes_coordinates( facet_coords )
 
@@ -857,8 +851,6 @@ contains
        if (fe%is_ghost()) then
          call fe%next(); cycle
        end if
-
-       call fe%update_sub_triangulation()
 
        sol_at_cell_eval_points(:) = 0.0
        do ino = 1, num_cell_eval_points

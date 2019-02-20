@@ -96,6 +96,7 @@ module fempar_names
   use par_block_array_names
   use par_sparse_matrix_names
   use mlbddc_names
+  use jacobi_preconditioner_names
   
   ! Integration 
   use reference_fe_names

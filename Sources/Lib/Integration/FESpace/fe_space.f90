@@ -128,7 +128,7 @@ module fe_space_names
     integer(ip) , allocatable                   :: fe_space_type_x_field(:)
     integer(ip) , allocatable                   :: num_dofs_x_field(:)
     type(dof_import_t)            , allocatable :: blocks_dof_import(:)
-    
+    logical                                     :: coarse_fe_space_set_up = .false.
     ! Pointer to data structure which is in charge of coarse DoF handling.
     ! It will be a nullified pointer on L1 tasks, and associated via target 
     ! allocation in the case of L2-Ln tasks.
@@ -138,10 +138,10 @@ module fe_space_names
     
     procedure, non_overridable                 :: get_num_fields                               => base_fe_space_get_num_fields
     procedure, non_overridable                 :: set_num_fields                               => base_fe_space_set_num_fields
-    procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
+    procedure, non_overridable                 :: get_fe_space_type                            => base_fe_space_get_fe_space_type
     procedure                                  :: get_num_blocks                               => base_fe_space_get_num_blocks
-    procedure                                  :: get_field_blocks                                => base_fe_space_get_field_blocks
-    procedure                                  :: get_field_coupling                              => base_fe_space_get_field_coupling
+    procedure                                  :: get_field_blocks                             => base_fe_space_get_field_blocks
+    procedure                                  :: get_field_coupling                           => base_fe_space_get_field_coupling
     procedure, non_overridable                 :: get_total_num_dofs                           => base_fe_space_get_total_num_dofs
     procedure, non_overridable                 :: get_field_num_dofs                           => base_fe_space_get_field_num_dofs
     procedure, non_overridable                 :: set_field_num_dofs                           => base_fe_space_set_field_num_dofs
@@ -150,9 +150,11 @@ module fe_space_names
     procedure, non_overridable                 :: get_total_num_interface_dofs                 => base_fe_space_get_total_num_interface_dofs
     procedure, non_overridable                 :: get_block_num_interior_dofs                  => base_fe_space_get_block_num_interior_dofs
     procedure, non_overridable                 :: get_block_num_interface_dofs                 => base_fe_space_get_block_num_interface_dofs
-    procedure, non_overridable                 :: get_block_dof_import                            => base_fe_space_get_block_dof_import
-    procedure, non_overridable                 :: get_coarse_fe_space                             => base_fe_space_get_coarse_fe_space
-    
+    procedure, non_overridable                 :: get_block_dof_import                         => base_fe_space_get_block_dof_import
+    procedure, non_overridable                 :: get_coarse_fe_space                          => base_fe_space_get_coarse_fe_space
+    procedure, non_overridable                 :: coarse_fe_space_is_set_up                    => base_fe_space_coarse_fe_space_is_set_up                  
+    procedure, non_overridable                 :: set_coarse_fe_space_is_set_up                => base_fe_space_set_coarse_fe_space_is_set_up                  
+
     ! These three TBPs are (currently) though to be overriden by subclasses.
     ! In the future, once we harmonize type(coarse_fe_space_t) and type(serial/par_fe_space_t),
     ! the code of these TBPs should be developed at this level, being valid for all subclasses.
@@ -196,7 +198,6 @@ module fe_space_names
     procedure, non_overridable           :: get_permutation_index   => base_fe_cell_iterator_get_permutation_index
     procedure, non_overridable           :: get_level               => base_fe_cell_iterator_get_level
     
-    procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => base_fe_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => base_fe_cell_iterator_get_phys_coords_of_subcell
@@ -267,9 +268,11 @@ module fe_space_names
     procedure, non_overridable          :: generate_own_dofs_vef_general              => fe_cell_iterator_generate_own_dofs_vef_general
     procedure, non_overridable          :: generate_own_dofs_vef_w_scratch_data       => fe_cell_iterator_generate_own_dofs_vef_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
-    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_general         => fci_generate_own_dofs_vef_component_wise_general
-    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_w_scratch_data  => fci_generate_own_dofs_vef_component_wise_w_scratch_data  
-
+    procedure, non_overridable          :: reset_gid_to_lid_map                       => fe_cell_iterator_reset_gid_to_lid_map    
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_general              => fci_generate_own_dofs_vef_component_wise_general
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_w_scratch_data       => fci_generate_own_dofs_vef_component_wise_w_scratch_data  
+    procedure, non_overridable          :: compute_gid_to_lid_ext_fe_dofs_num_cell_dofs_and_fe_dofs  => fci_compute_gid_to_lid_ext_fe_dofs_num_cell_dofs_and_fe_dofs
+    
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_general  => fci_fetch_own_dofs_vef_from_source_fe_general
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_w_scratch_data => fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data
@@ -393,12 +396,17 @@ module fe_space_names
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
 
+    procedure, non_overridable, private :: apply_constraints_array        => fe_cell_iterator_apply_constraints_array 
+    procedure, non_overridable, private :: apply_constraints_matrix       => fe_cell_iterator_apply_constraints_matrix 
+    procedure, non_overridable, private :: apply_constraints_matrix_array => fe_cell_iterator_apply_constraints_matrix_array
+    generic :: apply_constraints => apply_constraints_array,       &
+                                    apply_constraints_matrix,      &
+                                    apply_constraints_matrix_array
+				
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_scalar
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_vector
     generic :: evaluate_laplacian_fe_function => fe_cell_iterator_evaluate_laplacian_fe_function_scalar, &
     & fe_cell_iterator_evaluate_laplacian_fe_function_vector
-
-    procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
 
   end type fe_cell_iterator_t
    
@@ -457,7 +465,6 @@ module fe_space_names
      procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
      procedure, non_overridable          :: is_facet                   => base_fe_vef_iterator_is_facet
      
-     procedure, non_overridable          :: update_sub_triangulation  => base_fe_vef_iterator_update_sub_triangulation
      procedure, non_overridable          :: get_num_subvefs           => base_fe_vef_iterator_get_num_subvefs
      procedure, non_overridable          :: get_num_subvef_nodes      => base_fe_vef_iterator_get_num_subvef_nodes
      procedure, non_overridable          :: get_phys_coords_of_subvef => base_fe_vef_iterator_get_phys_coords_of_subvef
@@ -702,6 +709,8 @@ module fe_space_names
  
    contains
      procedure                           :: serial_fe_space_create_with_parameter_list
+     procedure                 , private :: get_fe_space_num_fields_from_pl              => serial_fe_space_get_fe_space_num_fields_from_pl
+     procedure                 , private :: get_fe_space_field_blocks_from_pl            => serial_fe_space_get_fe_space_field_blocks_from_pl
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
      generic                             :: create                                       => serial_fe_space_create_with_parameter_list,&
@@ -1000,9 +1009,11 @@ module fe_space_names
    procedure          :: serial_fe_space_create_with_parameter_list                => par_fe_space_serial_create_with_parameter_list
    procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
+   procedure          :: par_fe_space_create_with_parameter_list
    procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
    procedure          :: par_fe_space_create_different_ref_fes_between_cells
-   generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
+   generic                                     :: create                                          => par_fe_space_create_with_parameter_list, & 
+                                                                                                     par_fe_space_create_same_reference_fes_on_all_cells, &
                                                                                                      par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers

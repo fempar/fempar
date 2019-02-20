@@ -76,6 +76,8 @@ module block_sparse_matrix_names
      procedure :: free_in_stages                => block_sparse_matrix_free_in_stages
      procedure :: get_block                     => block_sparse_matrix_get_block
      procedure :: get_nblocks                   => block_sparse_matrix_get_nblocks
+     procedure :: extract_diagonal              => block_sparse_matrix_extract_diagonal
+     procedure :: get_sign                      => block_sparse_matrix_get_sign
      procedure :: apply                         => block_sparse_matrix_apply
      procedure :: apply_add                     => block_sparse_matrix_apply_add
      procedure, private :: create_vector_spaces => block_sparse_matrix_create_vector_spaces
@@ -272,6 +274,29 @@ contains
     block_sparse_matrix_get_nblocks = this%nblocks
   end function block_sparse_matrix_get_nblocks
 
+  
+  subroutine block_sparse_matrix_extract_diagonal(this, diagonal) 
+  !-----------------------------------------------------------------
+  !< Extract the diagonal entries of a matrix in a rank-1 array
+  !-----------------------------------------------------------------
+      class(block_sparse_matrix_t), intent(in)    :: this
+      real(rp)                    , intent(inout) :: diagonal(:)
+  !-----------------------------------------------------------------
+      mcheck(.false.,'block_sparse_matrix_extract_diagonal is not implemented')
+  end subroutine block_sparse_matrix_extract_diagonal
+  
+  
+  function block_sparse_matrix_get_sign(this) result(sign) 
+  !-----------------------------------------------------------------
+  !< Get the sign of the sparse matrix
+  !-----------------------------------------------------------------
+      class(block_sparse_matrix_t), intent(in) :: this
+      integer(ip)                              :: sign
+  !-----------------------------------------------------------------
+      mcheck(.false.,'block_sparse_matrix_get_sign is not implemented')
+  end function block_sparse_matrix_get_sign
+ 
+  
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
   subroutine block_sparse_matrix_apply(this,x,y)

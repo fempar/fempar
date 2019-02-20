@@ -24,12 +24,19 @@ then
       final_exit_code=1
      fi
 
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -exe 2"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -exe 2
-     # if [ $? -ne 0 ] 
-     # then
-     #  final_exit_code=1
-     # fi
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -prec-type jacobi"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -prec-type jacobi
+     if [ $? -ne 0 ] 
+     then
+      final_exit_code=1
+     fi
+     
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -prec-type identity"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -prec-type identity
+     if [ $? -ne 0 ] 
+     then
+      final_exit_code=1
+     fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 12 12 0"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 12 12 0

@@ -345,11 +345,6 @@ end function bst_cell_iterator_get_permutation_index
 !  bst_cell_iterator_get_num_vertices = reference_fe%get_num_n_faces_of_dim(0)
 !end function bst_cell_iterator_get_num_vertices
 
-subroutine bst_cell_iterator_update_sub_triangulation( this )
-  implicit none
-  class(bst_cell_iterator_t), intent(inout) :: this
-  mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end subroutine bst_cell_iterator_update_sub_triangulation
 
 function bst_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none

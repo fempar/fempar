@@ -239,12 +239,6 @@ function base_fe_cell_iterator_get_level(this)
   base_fe_cell_iterator_get_level = this%cell%get_level()
 end function base_fe_cell_iterator_get_level
 
-subroutine base_fe_cell_iterator_update_sub_triangulation( this )
-  implicit none
-  class(base_fe_cell_iterator_t), intent(inout) :: this
-  call this%cell%update_sub_triangulation()
-end subroutine base_fe_cell_iterator_update_sub_triangulation
-
 function base_fe_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this

@@ -305,14 +305,15 @@ contains
     call this%direct_solver%set_parameters_from_pl(parameter_list)
     call this%direct_solver%set_matrix(this%time_operator%get_matrix())
 
-    call this%nl_solver%create( convergence_criteria = abs_res_norm, &
-                                abs_tol = 1.0e-6_rp, &
-                                rel_tol = 1.0e-6_rp, &
-                                max_iters = 0_ip, &
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-06_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-06_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 0_ip); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = abs_res_norm); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key=nls_print_iteration_output_key, value=this%test_params%get_print_nonlinear_iteration())
+    assert(FPLError == 0)
+    call this%nl_solver%create( parameters    = this%parameter_list, & 
                                 linear_solver = this%direct_solver, &
-                                environment = this%fe_space%get_environment() , &
-                                fe_operator = this%time_operator%get_fe_operator(), &
-                                print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
+                                fe_operator   = this%time_operator%get_fe_operator())
     !* Setup iterative solver when MKL is not enabled
 #else
     FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
@@ -329,7 +330,6 @@ contains
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 10_ip, &
                                 linear_solver = this%iterative_linear_solver, &
-                                environment = this%fe_space%get_environment(),&
                                 fe_operator = this%time_operator%get_fe_operator(), &
                                 print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
 #endif

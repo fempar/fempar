@@ -143,9 +143,7 @@ SUBROUTINE resize(T,size,i)  ;\
   integer(ip) :: error, pos ;\
   assert (size>=0) ;\
   IF(.NOT.ALLOCATED(T%V_MEMBER_VARIABLE_NAME)) THEN ;\
-    IF(size>0)THEN            ;\
-      ALLOCATE( T%V_MEMBER_VARIABLE_NAME(size), STAT = error ) ; check( error == 0 ) ;\
-    ENDIF                     ;\
+    ALLOCATE( T%V_MEMBER_VARIABLE_NAME(size), STAT = error ) ; check( error == 0 ) ;\
     T%SIZE_MEMBER_VARIABLE_NAME = size             ;\
     T%CAPACITY_MEMBER_VARIABLE_NAME = size         ;\
     IF(PRESENT(i))THEN        ;\

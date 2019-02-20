@@ -255,7 +255,6 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
     call this%fe_cell_iterator_t%update_integration()
   else 
     if ( .not. this%is_integration_updated() ) then
-      call this%update_sub_triangulation()
       call this%update_cell_map()
       call this%update_cell_integrators()
 
@@ -285,7 +284,6 @@ subroutine unfitted_fe_cell_iterator_update_boundary_integration( this )
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
   assert(this%is_local())
-  call this%update_sub_triangulation()
   call this%update_cut_boundary_quadratures()
   call this%update_cut_boundary_cell_maps()
   call this%update_cut_boundary_cell_integrators()

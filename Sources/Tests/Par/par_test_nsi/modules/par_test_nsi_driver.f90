@@ -379,21 +379,18 @@ end subroutine free_timers
     FPLError = linear_pl%set(key = ils_max_num_iterations_key, value = 5000); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_atol_key, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
-    ! sbadia : For the moment identity preconditioner
     call this%linear_solver%set_operators( this%fe_operator%get_tangent(), this%mlbddc )
 
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-09_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-06_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 10); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = rel_r0_res_norm); assert(FPLError == 0)
+
     ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
-    call this%nonlinear_solver%create(convergence_criteria = rel_r0_res_norm, & 
-         &                                         abs_tol = 1.0e-6,  &
-         &                                         rel_tol = 1.0e-9, &
-         &                                       max_iters = 10   ,  &
-         &                                   linear_solver = this%linear_solver, &
-         &                                     environment = this%par_environment, &
-                                        fe_operator = this%fe_operator)  
-    
-
+    call this%nonlinear_solver%create(parameters = this%parameter_list, & 
+                                      linear_solver = this%linear_solver, &
+                                      fe_operator = this%fe_operator)  
   end subroutine setup_operators
-
    
   subroutine check_solution(this)
     implicit none
