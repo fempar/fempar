@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module lagrangian_gp_analytical_functions_names
+module lagrangian_fe_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -79,7 +79,7 @@ module lagrangian_gp_analytical_functions_names
      procedure :: get_gradient_space => solution_pressure_function_get_gradient_space
   end type solution_pressure_function_t  
 
-  type lagrangian_gp_analytical_functions_t
+  type lagrangian_fe_analytical_functions_t
      private
      type(source_term_t)       :: source_term
      type(boundary_function_t) :: boundary_function
@@ -88,17 +88,17 @@ module lagrangian_gp_analytical_functions_names
      type(solution_displacement_function_t) :: solution_displacement_function
      type(solution_stress_function_t)       :: solution_stress_function
    contains
-     procedure :: set_num_dims                     => lagrangian_gp_analytical_functions_set_num_dims
-     procedure :: set_solution_polynomial_order    => lgp_analytical_functions_set_solution_polynomial_order
-     procedure :: get_source_term                  => lagrangian_gp_analytical_functions_get_source_term
-     procedure :: get_boundary_function            => lagrangian_gp_analytical_functions_get_boundary_function
-     procedure :: get_solution_temperature_function  => lgpaf_get_solution_temperature_function
-     procedure :: get_solution_pressure_function     => lgpaf_get_solution_pressure_function
-     procedure :: get_solution_displacement_function => lgpaf_get_solution_displacement_function
-     procedure :: get_solution_stress_function       => lgpaf_get_solution_stress_function
-  end type lagrangian_gp_analytical_functions_t
+     procedure :: set_num_dims                     => lagrangian_fe_analytical_functions_set_num_dims
+     procedure :: set_solution_polynomial_order    => lfe_analytical_functions_set_solution_polynomial_order
+     procedure :: get_source_term                  => lagrangian_fe_analytical_functions_get_source_term
+     procedure :: get_boundary_function            => lagrangian_fe_analytical_functions_get_boundary_function
+     procedure :: get_solution_temperature_function  => lagrangian_af_get_solution_temperature_function
+     procedure :: get_solution_pressure_function     => lagrangian_af_get_solution_pressure_function
+     procedure :: get_solution_displacement_function => lagrangian_af_get_solution_displacement_function
+     procedure :: get_solution_stress_function       => lagrangian_af_get_solution_stress_function
+  end type lagrangian_fe_analytical_functions_t
 
-  public :: lagrangian_gp_analytical_functions_t
+  public :: lagrangian_fe_analytical_functions_t
 
 contains  
   
@@ -335,9 +335,9 @@ contains
   end subroutine solution_stress_function_get_value_space  
   
   !===============================================================================================
-  subroutine lagrangian_gp_analytical_functions_set_num_dims ( this, num_dims )
+  subroutine lagrangian_fe_analytical_functions_set_num_dims ( this, num_dims )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), intent(inout)    :: this
+    class(lagrangian_fe_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%boundary_function%set_num_dims(num_dims)
@@ -345,65 +345,65 @@ contains
     call this%solution_pressure_function%set_num_dims(num_dims)
     call this%solution_displacement_function%set_num_dims(num_dims)
     call this%solution_stress_function%set_num_dims(num_dims)
-  end subroutine lagrangian_gp_analytical_functions_set_num_dims 
+  end subroutine lagrangian_fe_analytical_functions_set_num_dims 
   
   !===============================================================================================
-  subroutine lgp_analytical_functions_set_solution_polynomial_order ( this, order )
+  subroutine lfe_analytical_functions_set_solution_polynomial_order ( this, order )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), intent(inout)    :: this
+    class(lagrangian_fe_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  order
     call this%source_term%set_polynomial_order(order)
     call this%boundary_function%set_polynomial_order(order)
     call this%solution_temperature_function%set_polynomial_order(order)
-  end subroutine lgp_analytical_functions_set_solution_polynomial_order 
+  end subroutine lfe_analytical_functions_set_solution_polynomial_order 
   
   !===============================================================================================
-  function lagrangian_gp_analytical_functions_get_source_term ( this )
+  function lagrangian_fe_analytical_functions_get_source_term ( this )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: lagrangian_gp_analytical_functions_get_source_term
-    lagrangian_gp_analytical_functions_get_source_term => this%source_term
-  end function lagrangian_gp_analytical_functions_get_source_term
+    class(lagrangian_fe_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: lagrangian_fe_analytical_functions_get_source_term
+    lagrangian_fe_analytical_functions_get_source_term => this%source_term
+  end function lagrangian_fe_analytical_functions_get_source_term
   
   !===============================================================================================
-  function lagrangian_gp_analytical_functions_get_boundary_function ( this )
+  function lagrangian_fe_analytical_functions_get_boundary_function ( this )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: lagrangian_gp_analytical_functions_get_boundary_function
-    lagrangian_gp_analytical_functions_get_boundary_function => this%boundary_function
-  end function lagrangian_gp_analytical_functions_get_boundary_function
+    class(lagrangian_fe_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: lagrangian_fe_analytical_functions_get_boundary_function
+    lagrangian_fe_analytical_functions_get_boundary_function => this%boundary_function
+  end function lagrangian_fe_analytical_functions_get_boundary_function
   
   !===============================================================================================
-  function lgpaf_get_solution_temperature_function ( this )
+  function lagrangian_af_get_solution_temperature_function ( this )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: lgpaf_get_solution_temperature_function
-    lgpaf_get_solution_temperature_function => this%solution_temperature_function
-  end function lgpaf_get_solution_temperature_function
+    class(lagrangian_fe_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: lagrangian_af_get_solution_temperature_function
+    lagrangian_af_get_solution_temperature_function => this%solution_temperature_function
+  end function lagrangian_af_get_solution_temperature_function
   
   !===============================================================================================
-  function lgpaf_get_solution_displacement_function ( this )
+  function lagrangian_af_get_solution_displacement_function ( this )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(vector_function_t), pointer :: lgpaf_get_solution_displacement_function
-    lgpaf_get_solution_displacement_function => this%solution_displacement_function
-  end function lgpaf_get_solution_displacement_function  
+    class(lagrangian_fe_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: lagrangian_af_get_solution_displacement_function
+    lagrangian_af_get_solution_displacement_function => this%solution_displacement_function
+  end function lagrangian_af_get_solution_displacement_function  
   
   !===============================================================================================
-  function lgpaf_get_solution_pressure_function ( this )
+  function lagrangian_af_get_solution_pressure_function ( this )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: lgpaf_get_solution_pressure_function 
-    lgpaf_get_solution_pressure_function  => this%solution_pressure_function 
-  end function lgpaf_get_solution_pressure_function     
+    class(lagrangian_fe_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: lagrangian_af_get_solution_pressure_function 
+    lagrangian_af_get_solution_pressure_function  => this%solution_pressure_function 
+  end function lagrangian_af_get_solution_pressure_function     
   
   !===============================================================================================
-  function lgpaf_get_solution_stress_function ( this )
+  function lagrangian_af_get_solution_stress_function ( this )
     implicit none
-    class(lagrangian_gp_analytical_functions_t), target, intent(in)    :: this
-    class(tensor_function_t), pointer :: lgpaf_get_solution_stress_function
-    lgpaf_get_solution_stress_function => this%solution_stress_function
-  end function lgpaf_get_solution_stress_function    
+    class(lagrangian_fe_analytical_functions_t), target, intent(in)    :: this
+    class(tensor_function_t), pointer :: lagrangian_af_get_solution_stress_function
+    lagrangian_af_get_solution_stress_function => this%solution_stress_function
+  end function lagrangian_af_get_solution_stress_function    
 
-end module lagrangian_gp_analytical_functions_names
+end module lagrangian_fe_analytical_functions_names
 !***************************************************************************************************
