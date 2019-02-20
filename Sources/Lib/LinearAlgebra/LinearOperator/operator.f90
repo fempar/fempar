@@ -555,6 +555,7 @@ contains
   subroutine lvalue_operator_create_vector_spaces(this)
     implicit none 
     class(lvalue_operator_t), intent(inout) :: this
+    call this%free_vector_spaces()
     if ( associated(this%op_referenced) ) then
       call this%op_referenced%domain_vector_space%clone(this%domain_vector_space)
       call this%op_referenced%range_vector_space%clone(this%range_vector_space)
@@ -1071,6 +1072,7 @@ contains
     implicit none
     class(binary_operator_t), intent(inout)    :: this
     assert( associated(this%op1) )
+    call this%free_vector_spaces()
     if ( associated(this%op1) ) then
       call this%op1%domain_vector_space%clone(this%domain_vector_space)
       call this%op1%range_vector_space%clone(this%range_vector_space)
@@ -1086,8 +1088,7 @@ contains
     if(associated(this%op2)) then
       call this%op2%reallocate_after_remesh()
     end if
-    ! After call reallocate_after_remesh the next step is update both vector spaces
-    call this%free_vector_spaces()
+    ! update vector spaces
     call this%create_vector_spaces()    
   end subroutine binary_operator_reallocate_after_remesh  
   
@@ -1104,14 +1105,14 @@ contains
     if(associated(this%op)) then
       call this%op%reallocate_after_remesh()
     end if
-    ! After call reallocate_after_remesh the next step is update both vector spaces
-    call this%free_vector_spaces()
+    ! update vector spaces
     call this%create_vector_spaces()
   end subroutine unary_operator_reallocate_after_remesh
 
   subroutine unary_operator_create_vector_spaces(this)
     implicit none
     class(unary_operator_t), intent(inout)    :: this
+    call this%free_vector_spaces()
     if ( associated(this%op) ) then
       call this%op%domain_vector_space%clone(this%domain_vector_space)
       call this%op%range_vector_space%clone(this%range_vector_space)
@@ -1153,6 +1154,7 @@ contains
     else
        check(.false.)
     end if
+    ! update vector spaces
     call this%create_vector_spaces()
   end subroutine lvalue_operator_reallocate_after_remesh
   

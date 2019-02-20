@@ -132,7 +132,8 @@ subroutine fe_operator_reallocate_after_remesh(this)
   
   call this%assembler%allocate_array()
   call this%assembler%init_array(0.0_rp)  
- 
+
+  ! update vector spaces
   call this%create_vector_spaces()
   call this%set_state(created)
 end subroutine fe_operator_reallocate_after_remesh
@@ -145,6 +146,7 @@ subroutine fe_operator_create_vector_spaces(this)
   type(vector_space_t), pointer                 :: matrix_domain_vector_space
   type(vector_space_t), pointer                 :: matrix_range_vector_space
   class(matrix_t)     , pointer :: matrix
+  call this%free_vector_spaces()
   matrix => this%assembler%get_matrix()
   matrix_domain_vector_space => matrix%get_domain_vector_space()
   matrix_range_vector_space => matrix%get_range_vector_space()

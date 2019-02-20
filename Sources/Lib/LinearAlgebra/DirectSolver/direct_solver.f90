@@ -215,6 +215,7 @@ contains
     !-----------------------------------------------------------------
         assert(.not. this%vector_spaces_are_created())
         assert(this%base_direct_solver%matrix_is_set())
+        call this%free_vector_spaces()
         matrix => this%base_direct_solver%get_matrix()
         matrix_domain_vector_space        => matrix%get_domain_vector_space()
         matrix_range_vector_space         => matrix%get_range_vector_space()

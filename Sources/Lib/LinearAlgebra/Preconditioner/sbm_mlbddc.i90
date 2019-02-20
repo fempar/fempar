@@ -54,6 +54,7 @@ subroutine mlbddc_create_vector_spaces (this)
   type(vector_space_t), pointer :: fe_nonlinear_operator_range_vector_space
   type(vector_space_t), pointer :: mlbddc_domain_vector_space
   type(vector_space_t), pointer :: mlbddc_range_vector_space
+  call this%free_vector_spaces()
   fe_nonlinear_operator_domain_vector_space => this%fe_nonlinear_operator%get_domain_vector_space()
   fe_nonlinear_operator_range_vector_space => this%fe_nonlinear_operator%get_range_vector_space()
   mlbddc_domain_vector_space => this%get_domain_vector_space()
