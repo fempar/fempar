@@ -611,7 +611,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
      call this%matrix%extract_diagonal(sub_assembled_w)
   
   case DEFAULT 
-     wassert(.false., 'H(curl) BDDC weighting function case not defined, using inverse of cardinality' ) 
+     wassert(.false., 'H(curl) BDDC weighting function case not defined, using cardinality' ) 
      sub_assembled_w = 1.0_rp 
   end select
 
@@ -1173,6 +1173,7 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
         call edge%set_gid( fine_edge_iterator%get_current() )
         call edge%get_cell_around(1, fe)
         mask(fe%get_vef_lid_from_gid(edge%get_gid())) = .true. 
+        
         call interpolator%evaluate_edge_unit_tangent_moments( mask, fe, elvec )
         call this%fine_edge_direction%get( key=edge%get_gid(), val=direction, stat=istat); check(istat==key_found) 
         if ( direction == opposite_to_coarse_edge ) then 
@@ -1405,13 +1406,14 @@ subroutine Hcurl_l1_count_coarse_edges_and_owned_fine_edges( this, par_fe_space,
   call memalloc( num_coarse_edges, num_fine_edges_x_coarse_edge, __FILE__, __LINE__ ) 
   num_fine_edges_x_coarse_edge = 0  
 
-  ! List all interior vertices belonging to the coarse edge, needed to discard vertices that do not 
-  ! belong to the coarse edge 
+  ! List all interior vertices belonging to fine edges within the coarse edge, 
+  ! needed to discard vertices that do not belong to the coarse edge because
+  ! they include a coupling to additional subdomains (i.e., corners) 
   allocate( edge_interior_vertices(num_coarse_edges), stat=istat); check(istat==0)
 
   ! Count number of active fine edges per coarse edge 
   iedge_coarse   = 0
-  call object%first() 
+  call object%first()
   do while ( .not. object%has_finished() )
      if ( object%get_dim() == 1 ) then 
         iedge_coarse = iedge_coarse + 1
