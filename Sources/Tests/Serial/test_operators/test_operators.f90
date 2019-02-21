@@ -37,47 +37,58 @@ implicit none
     type(serial_block_array_t)       :: BlockVec1
     type(serial_block_array_t)       :: BlockVec2
     type(lvalue_operator_t)          :: Op
-    type(serial_scalar_array_t)      :: op_result
-    real(rp)                         :: vector_values(3)
-    integer                          :: tam = 3
+    type(serial_scalar_array_t)      :: Op_result
+    !real(rp), allocatable            :: vector_values(:)
+    integer                          :: tam
+    integer                          :: itest
+    integer                          :: tam_initial = 3
+    integer                          :: tam_adapted = 4
     integer                          :: iters = 999
+    integer                          :: iter_reallocate = 500
+    
     integer                          :: i, j
 
     call FEMPAR_INIT()
 
-    call Mat%create(num_rows_and_cols=tam, symmetric_storage=.false., is_symmetric=.false., sign=SPARSE_MATRIX_SIGN_UNKNOWN, nz=6)
-    call Mat%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
-    call Mat%convert('CSR')
+    assert (iters > iter_reallocate)        
+    do itest = 1,2
+      tam = tam_initial
+      call Mat%free()
+      call Mat%create(num_rows_and_cols=tam, symmetric_storage=.false., is_symmetric=.false., sign=SPARSE_MATRIX_SIGN_UNKNOWN, nz=6)
+      call Mat%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
+      call Mat%convert('CSR')
 
-    call Vec1%create_and_allocate(tam)
-    call Vec2%create_and_allocate(tam)
-    call Vec1%init(1.0_rp)
-
-    vector_values = [4._rp, 3._rp,4._rp] 
-
-    call test_operators_apply(Mat, Vec1, Vec2, 999)
-    call test_operators_apply_Add(Mat, Vec1, Vec2, 999)
-
+      call create_arrays(Vec1,Vec2)
+      if (itest==1) then
+       call test_operators_apply(Mat, Vec1, Vec2, 999)
+      else
+       call test_operators_apply_Add(Mat, Vec1, Vec2, 999)
+      end if
+    enddo
     call Mat%free()
     call Vec1%free()
     call Vec2%free()
+    
+    ! Working with Block matrices   
+    do itest = 1,2  
+      tam = tam_initial 
+      call BlockMat%free()
+      call BlockMat%create(2, [tam,tam], [tam, tam], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
+      do i=1, BlockMat%get_nblocks()
+          do j=1, BlockMat%get_nblocks()
+              Block => BlockMat%get_block(i,j)
+              call Block%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
+          enddo
+      enddo
+      call BlockMat%compress_storage('CSR')
 
-    call BlockMat%create(2, [tam,tam], [tam, tam], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
-    do i=1, BlockMat%get_nblocks()
-        do j=1, BlockMat%get_nblocks()
-            Block => BlockMat%get_block(i,j)
-            call Block%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
-        enddo
+      call create_arrays(BlockVec1,BlockVec2)
+      if (itest==1) then
+        call test_operators_apply(BlockMat, BlockVec1, BlockVec2, 999)
+      else      
+        call test_operators_apply_add(BlockMat, BlockVec1, BlockVec2, 999)
+      end if
     enddo
-    call BlockMat%compress_storage('CSR')
-
-    call BlockVec1%create_and_allocate(2, [tam, tam])
-    call BlockVec2%create_and_allocate(2, [tam, tam])
-    call BlockVec1%init(1.0_rp)
-
-    call test_operators_apply(BlockMat, BlockVec1, BlockVec2, 999)
-    call test_operators_apply_add(BlockMat, BlockVec1, BlockVec2, 999)
-
     call BlockMat%free()
     call BlockVec1%free()
     call BlockVec2%free()
@@ -100,137 +111,153 @@ contains
     end subroutine
 
     subroutine test_operators_apply(Mat, x, y, iters)
-        class(matrix_t), intent(in)      :: Mat
-        class(vector_t), intent(in)      :: x
+        class(matrix_t), intent(inout)   :: Mat
+        class(vector_t), intent(inout)   :: x
         class(vector_t), intent(inout)   :: y
-        integer, intent(in)              :: iters
+        integer,  intent(in)             :: iters
         type(lvalue_operator_t)          :: Op
-        class(vector_t), allocatable     :: op_result
-        real(rp)                         :: vector_values(3)
-        integer                          :: tam = 3
+        class(vector_t), allocatable     :: Op_result
+        integer, allocatable             :: indices(:)
         integer                          :: i, j
+        real(rp), allocatable            :: vector_values(:)        
+        real(rp), allocatable            :: Mat_x_Mat_values(:)        
 
-        vector_values = [4._rp, 3._rp,4._rp] 
+        call memalloc(tam,indices,__FILE__,__LINE__)
+        indices = [1,2,3]
+    
+        call memalloc(tam,vector_values, __FILE__, __LINE__ ) 
+        vector_values  = [4._rp, 3._rp, 4._rp]         
 
-        allocate(op_result, mold=y)
-        select type(op_result)
-            type is (serial_scalar_array_t)
-                call op_result%create_and_allocate(tam)
-            type is (serial_block_array_t)
-                call op_result%create_and_allocate(y%get_num_blocks(), [tam, tam])
-            class default
-                check(.false.)
-        end select
+        call memalloc(tam,Mat_x_Mat_values, __FILE__, __LINE__ )
+        Mat_x_Mat_values = [16._rp, 10._rp, 16._rp]
+
+        call create_and_allocate_Op_results(Op_result,y,tam)
 
         do i=1, iters
             call Op%assign(Mat)
-            call Op%apply(x,y)
+            call Op%apply(x,y)           
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat + Mat
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 2.0*y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat - Mat
             y = Op * x
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 0.0*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat * Mat 
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp])
+                call Op_result%insert_subvector(j, tam, indices, y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = .minus. Mat
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], -y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, -y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = .identity. Mat
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values+1.0)
+                call Op_result%insert_subvector(j, tam, indices, 0.0*vector_values+1.0)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = 3.0*Mat
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 3.0*y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = 0.0*Mat
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 0.0*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat*3.0 
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 3.0*y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op =  .minus. Mat + Mat * .identity. Mat * 2.0 - Mat
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 0.0*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat * .identity. Mat * 2.0 - Mat
             Op = .minus. Mat + Op
             call Op%apply(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 0.0*vector_values)
             enddo
-            call check_vector_value(y, op_result)
-        enddo
+            call check_vector_value(y, Op_result)
 
+            if (i == iter_reallocate) then
+              ! Test update_after_remesh TBP of lvalue_operator_t
+              ! 1. Destroy sparse matrix and associated arrays and
+              !    generate new ones of different size
+              tam = tam_adapted
+              call create_adapted_sparse_matrix(Mat)
+              call create_arrays(x,y)
+              call adapt_vector_values_array(indices, vector_values, Mat_x_Mat_values, tam)
+              call create_and_allocate_Op_results(Op_result,y,tam)
+
+              ! 2. Update direct solver to reflect that the sparse matrix has changed 
+              !    (typically after AMR mesh adaptation, although not necessarily)
+              call Op%reallocate_after_remesh()
+            end if
+            
+        enddo
+        call memfree(indices, __FILE__, __LINE__)
+        call memfree(vector_values, __FILE__, __LINE__)
+        call memfree(Mat_x_Mat_values, __FILE__, __LINE__)
         call Op%free()
         call Op_result%free()
         deallocate(Op_result)
-
     end subroutine
 
-
     subroutine test_operators_apply_add(Mat, x, y, iters)
-        class(matrix_t), intent(in)      :: Mat
-        class(vector_t), intent(in)      :: x
+        class(matrix_t), intent(inout)   :: Mat
+        class(vector_t), intent(inout)   :: x
         class(vector_t), intent(inout)   :: y
         integer, intent(in)              :: iters
         type(lvalue_operator_t)          :: Op
-        class(vector_t), allocatable     :: op_result
-        real(rp)                         :: vector_values(3)
-        integer                          :: tam = 3
+        class(vector_t), allocatable     :: Op_result
+        integer, allocatable             :: indices(:)
         integer                          :: i, j
+        real(rp), allocatable            :: vector_values(:)        
+        real(rp), allocatable            :: Mat_x_Mat_values(:)  
 
-        vector_values = [4._rp, 3._rp,4._rp] 
+        call memalloc(tam,indices,__FILE__,__LINE__)
+        indices = [1,2,3]
+    
+        call memalloc(tam,vector_values, __FILE__, __LINE__ ) 
+        vector_values  = [4._rp, 3._rp, 4._rp]         
 
-        allocate(op_result, mold=y)
-        select type(op_result)
-            type is (serial_scalar_array_t)
-                call op_result%create_and_allocate(tam)
-            type is (serial_block_array_t)
-                call op_result%create_and_allocate(y%get_num_blocks(), [tam, tam])
-            class default
-                check(.false.)
-        end select
+        call memalloc(tam,Mat_x_Mat_values, __FILE__, __LINE__ )
+        Mat_x_Mat_values = [16._rp, 10._rp, 16._rp]
+
+        call create_and_allocate_Op_results(Op_result,y,tam)
 
         do i=1, iters
             call y%init(0.0_rp)
@@ -238,87 +265,198 @@ contains
             Op = 0.0*Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 0.0*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             call Op%assign(Mat)
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 1.0*y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 1.0*y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat + Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 3.0*y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat - Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
+                call Op_result%insert_subvector(j, tam, indices, 3.0*y%get_num_blocks()*vector_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat * Mat 
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp])
+                call Op_result%insert_subvector(j, tam, indices, 3.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = .minus. Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp])
+                call Op_result%insert_subvector(j, tam, indices, 2.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = .identity. Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+                call Op_result%insert_subvector(j, tam, indices, 2.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values+1.0)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = 3.0*Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 5.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+                call Op_result%insert_subvector(j, tam, indices, 5.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values+1.0)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat*3.0 
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+                call Op_result%insert_subvector(j, tam, indices, 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values+1.0)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op =  .minus. Mat + Mat * .identity. Mat * 2.0 - Mat
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+                call Op_result%insert_subvector(j, tam, indices, 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values+1.0)
             enddo
-            call check_vector_value(y, op_result)
+            call check_vector_value(y, Op_result)
 
             Op = Mat * .identity. Mat * 2.0 - Mat
             Op = .minus. Mat + Op
             call Op%apply_add(x,y)
             do j=1, y%get_num_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+                call Op_result%insert_subvector(j, tam, indices, 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*Mat_x_Mat_values+1.0)
             enddo
-            call check_vector_value(y, op_result)
-        enddo
+            call check_vector_value(y, Op_result)
+            
+            if (i == iter_reallocate) then
+              ! Test update_after_remesh TBP of lvalue_operator_t
+              ! 1. Destroy sparse matrix and associated arrays and
+              !    generate new ones of different size
+              tam = tam_adapted
+              call create_adapted_sparse_matrix(Mat)
+              call create_arrays(x,y)
+              call adapt_vector_values_array(indices, vector_values, Mat_x_Mat_values, tam)
+              call create_and_allocate_Op_results(Op_result,y,tam)
 
+              ! 2. Update direct solver to reflect that the sparse matrix has changed 
+              !    (typically after AMR mesh adaptation, although not necessarily)
+              call Op%reallocate_after_remesh()
+            end if
+            
+        enddo
+        call memfree(indices, __FILE__, __LINE__)
+        call memfree(vector_values, __FILE__, __LINE__)
+        call memfree(Mat_x_Mat_values, __FILE__, __LINE__)
         call Op%free()
         call Op_result%free()
         deallocate(Op_result)
-
     end subroutine
-
+    
+   subroutine create_arrays(array1,array2)
+     implicit none
+     class(vector_t),  intent(inout) :: array1
+     class(vector_t),  intent(inout) :: array2
+     select type(array1)
+         type is (serial_scalar_array_t)     
+           call Vec1%free()
+           call Vec1%create_and_allocate(Mat%get_num_rows())
+           call Vec1%init(1.0_rp)
+         type is (serial_block_array_t)
+           call BlockVec1%free()
+           call BlockVec1%create_and_allocate(2, [tam, tam])
+           call BlockVec1%init(1.0_rp)
+         class default
+           check(.false.)
+     end select
+     select type(array2)
+         type is (serial_scalar_array_t)
+           call Vec2%free()
+           call Vec2%create_and_allocate(Mat%get_num_cols())
+         type is (serial_block_array_t)
+           call BlockVec2%free()
+           call BlockVec2%create_and_allocate(2, [tam, tam])
+         class default
+           check(.false.)
+     end select
+   end subroutine create_arrays
+   
+   subroutine create_and_allocate_Op_results(Op_result,y,tam)
+     implicit none
+      class(vector_t), allocatable,  intent(inout) :: Op_result
+      class(vector_t),               intent(in)    :: y      
+      integer,                       intent(in)    :: tam
+      if (allocated(Op_result)) then
+        call Op_result%free()
+        deallocate(Op_result)
+      end if 
+      allocate(Op_result, mold=y)
+      select type(Op_result)
+         type is (serial_scalar_array_t)
+           call Op_result%create_and_allocate(tam)
+         type is (serial_block_array_t)
+           call Op_result%create_and_allocate(y%get_num_blocks(), [tam, tam])
+         class default
+           check(.false.)
+         end select
+   end subroutine create_and_allocate_Op_results
+        
+   subroutine adapt_vector_values_array(indices,vector_values,Mat_x_Mat_values,tam)
+     implicit none
+     integer,  allocatable,  intent(inout) :: indices(:)
+     real,     allocatable,  intent(inout) :: vector_values(:)
+     real,     allocatable,  intent(inout) :: Mat_x_Mat_values(:)
+     integer,                intent(in)    :: tam     
+     call memrealloc(tam,indices,__FILE__,__LINE__)
+     indices = [1,2,3,4]
+     call memrealloc(tam,vector_values,__FILE__,__LINE__)
+     vector_values = [8._rp, 4._rp, 6._rp, 5._rp]    
+     call memrealloc(tam,Mat_x_Mat_values,__FILE__,__LINE__)
+     Mat_x_Mat_values = [42._rp, 17._rp, 40._rp, 34._rp]        
+  end subroutine  adapt_vector_values_array
+    
+   subroutine create_adapted_sparse_matrix(Mat)
+     implicit none
+     class(matrix_t),       intent(inout)  :: Mat
+     call Mat%free()  
+     select type(Mat)
+       type is (sparse_matrix_t)
+         call Mat%create(num_rows_and_cols=tam_adapted, &
+                         symmetric_storage=.false., &
+                         is_symmetric=.false., &
+                         sign=SPARSE_MATRIX_SIGN_UNKNOWN, &
+                         nz=9)
+         call Mat%insert(nz=9, &
+                         ia=[1,1,1,2,2,3,3,4,4], &
+                         ja=[1,2,4,2,4,1,3,1,4], &
+                         val=[1.0,1.0,6.0,3.0,1.0,2.0,4.0,3.0,2.0])
+         call Mat%convert('CSR')
+       type is (block_sparse_matrix_t)
+         call Mat%create(2, [tam_adapted,tam_adapted], [tam_adapted, tam_adapted], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
+         do i=1, BlockMat%get_nblocks()
+            do j=1, BlockMat%get_nblocks()
+               Block => BlockMat%get_block(i,j)
+               call Block%insert(nz=9, &
+                         ia=[1,1,1,2,2,3,3,4,4], &
+                         ja=[1,2,4,2,4,1,3,1,4], &
+                         val=[1.0,1.0,6.0,3.0,1.0,2.0,4.0,3.0,2.0])
+            enddo
+         enddo
+         call BlockMat%compress_storage('CSR')
+       class default
+         check(.false.)
+       end select
+  end subroutine  create_adapted_sparse_matrix    
   
 end program test_operators
