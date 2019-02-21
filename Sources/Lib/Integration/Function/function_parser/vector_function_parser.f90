@@ -36,11 +36,6 @@ module vector_function_parser_names
 
     private
 
-
-    type :: p_scalar_function_parser_t
-        type(scalar_function_parser_t), pointer    :: function => null()
-    end type
-
     type, extends(vector_function_t) :: vector_function_parser_t
     private
         type(p_scalar_function_parser_t)  :: components(SPACE_DIM)
@@ -52,11 +47,6 @@ module vector_function_parser_names
         procedure :: get_value_space_time => vector_function_parser_get_value_space_time
         generic   :: create               => create_2D, create_3D        
     end type vector_function_parser_t
-
-  
-    interface vector_function_parser_t
-        module procedure vector_function_parser_constructor
-    end interface vector_function_parser_t
 
     public :: vector_function_parser_t
         
@@ -71,6 +61,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_2
     !----------------------------------------------------------------- 
         this%ncomponents = 2
+        call this%set_num_dims(2)
         this%components(1)%function => component_1
         this%components(2)%function => component_2
     end subroutine vector_function_parser_create_2D
@@ -86,6 +77,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_3
     !----------------------------------------------------------------- 
         this%ncomponents = 3
+        call this%set_num_dims(3)
         this%components(1)%function => component_1
         this%components(2)%function => component_2
         this%components(3)%function => component_3
@@ -102,7 +94,7 @@ contains
         real(rp)                                           :: tmp_result
         integer                                            :: i
     !-----------------------------------------------------------------
-        do i=1, this%ncomponents
+        do i=1, this%get_num_dims()
             call this%components(i)%function%get_value_space(point, tmp_result)
             call result%set(i, tmp_result)
         enddo
@@ -120,27 +112,10 @@ contains
         real(rp)                                       :: tmp_result
         integer                                        :: i
     !-----------------------------------------------------------------
-        do i=1, this%ncomponents
+        do i=1, this%get_num_dims()
             call this%components(i)%function%get_value_space_time(point, time,  tmp_result)
             call result%set(i, tmp_result)
         enddo
     end subroutine vector_function_parser_get_value_space_time
-
-
-    function vector_function_parser_constructor ( component_1, component_2, component_3 ) result(new_vector_function_parser)
-    !-----------------------------------------------------------------
-    !< vector analytical function constructor
-    !-----------------------------------------------------------------
-        type(scalar_function_parser_t),           intent(in) :: component_1
-        type(scalar_function_parser_t),           intent(in) :: component_2
-        type(scalar_function_parser_t), optional, intent(in) :: component_3
-        type(vector_function_parser_t)                       :: new_vector_function_parser
-    !-----------------------------------------------------------------
-        if(present(component_3)) then
-            call new_vector_function_parser%create(component_1, component_2, component_3)
-        else
-            call new_vector_function_parser%create(component_1, component_2)
-        endif
-    end function vector_function_parser_constructor
 
 end module vector_function_parser_names

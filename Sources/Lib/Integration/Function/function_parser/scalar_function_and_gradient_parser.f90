@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module scalar_function_gradient_parser_names
+module scalar_function_and_gradient_parser_names
     use types_names
     use field_names
     use function_names
@@ -37,72 +37,56 @@ module scalar_function_gradient_parser_names
 
     private
 
-    type, extends(scalar_function_t) :: scalar_function_gradient_parser_t
+    type, extends(scalar_function_t) :: scalar_function_and_gradient_parser_t
     private
         type(scalar_function_parser_t), pointer :: function => null()
         type(vector_function_parser_t), pointer :: gradient => null()
     contains
-        procedure :: create                       => scalar_function_gradient_parser_create
-        procedure :: get_value_space              => scalar_function_gradient_parser_get_value_space
-        procedure :: get_value_space_time         => scalar_function_gradient_parser_get_value_space_time
-    end type scalar_function_gradient_parser_t
+        procedure :: create                       => scalar_function_and_gradient_parser_create
+        procedure :: get_value_space              => scalar_function_and_gradient_parser_get_value_space
+        procedure :: get_value_space_time         => scalar_function_and_gradient_parser_get_value_space_time
+    end type scalar_function_and_gradient_parser_t
 
-  
-    interface scalar_function_gradient_parser_t
-        module procedure scalar_function_gradient_parser_constructor
-    end interface scalar_function_gradient_parser_t
-
-    public :: scalar_function_gradient_parser_t
+    public :: scalar_function_and_gradient_parser_t
 
 contains
 
-    subroutine scalar_function_gradient_parser_create(this, function, gradient)
+    subroutine scalar_function_and_gradient_parser_create(this, function, gradient)
     !-----------------------------------------------------------------
     !< Initialize the time independant scalar analytical function
     !-----------------------------------------------------------------
-        class(scalar_function_gradient_parser_t), intent(inout) :: this
-        type(scalar_function_parser_t), target,   intent(in)    :: function
-        type(vector_function_parser_t), target,   intent(in)    :: gradient
+        class(scalar_function_and_gradient_parser_t), intent(inout) :: this
+        type(scalar_function_parser_t), target,       intent(in)    :: function
+        type(vector_function_parser_t), target,       intent(in)    :: gradient
     !----------------------------------------------------------------- 
         this%function => function
         this%gradient => gradient
-    end subroutine scalar_function_gradient_parser_create
+    end subroutine scalar_function_and_gradient_parser_create
 
 
-    subroutine scalar_function_gradient_parser_get_value_space( this, point, result )
+    subroutine scalar_function_and_gradient_parser_get_value_space( this, point, result )
     !-----------------------------------------------------------------
     !< Evaluate the time independant scalar analytical function in a given point
     !-----------------------------------------------------------------
-        class(scalar_function_gradient_parser_t), intent(in)    :: this
-        type(point_t),                            intent(in)    :: point
-        real(rp),                                 intent(inout) :: result
+        class(scalar_function_and_gradient_parser_t), intent(in)    :: this
+        type(point_t),                                intent(in)    :: point
+        real(rp),                                     intent(inout) :: result
     !-----------------------------------------------------------------
         call this%function%get_value_space(point, result)
-    end subroutine scalar_function_gradient_parser_get_value_space
+    end subroutine scalar_function_and_gradient_parser_get_value_space
 
 
-    subroutine scalar_function_gradient_parser_get_value_space_time( this, point, time, result )
+    subroutine scalar_function_and_gradient_parser_get_value_space_time( this, point, time, result )
     !-----------------------------------------------------------------
     !< Evaluate the time dependant scalar function in a given point and time step
     !-----------------------------------------------------------------
-        class(scalar_function_gradient_parser_t), intent(in)    :: this
-        type(point_t),                            intent(in)    :: point
-        real(rp),                                 intent(in)    :: time
-        real(rp),                                 intent(inout) :: result
+        class(scalar_function_and_gradient_parser_t), intent(in)    :: this
+        type(point_t),                                intent(in)    :: point
+        real(rp),                                     intent(in)    :: time
+        real(rp),                                     intent(inout) :: result
     !-----------------------------------------------------------------
         call this%function%get_value_space_time(point, time, result)
-    end subroutine scalar_function_gradient_parser_get_value_space_time
+    end subroutine scalar_function_and_gradient_parser_get_value_space_time
 
 
-    function scalar_function_gradient_parser_constructor ( function, gradient ) result(new_scalar_function_gradient_parser)
-    !-----------------------------------------------------------------
-    !< scalar function parser constructor
-    !-----------------------------------------------------------------
-        type(scalar_function_parser_t),           intent(in)    :: function
-        type(vector_function_parser_t),           intent(in)    :: gradient
-        type(scalar_function_gradient_parser_t)                 :: new_scalar_function_gradient_parser
-    !-----------------------------------------------------------------
-        call new_scalar_function_gradient_parser%create(function, gradient)
-    end function scalar_function_gradient_parser_constructor
-
-end module scalar_function_gradient_parser_names
+end module scalar_function_and_gradient_parser_names

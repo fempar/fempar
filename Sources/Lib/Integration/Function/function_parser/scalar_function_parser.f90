@@ -45,12 +45,11 @@ module scalar_function_parser_names
         procedure :: get_value_space_time => scalar_function_parser_get_value_space_time
     end type scalar_function_parser_t
 
-  
-    interface scalar_function_parser_t
-        module procedure scalar_function_parser_constructor
-    end interface scalar_function_parser_t
+    type :: p_scalar_function_parser_t
+        type(scalar_function_parser_t), pointer    :: function => null()
+    end type
 
-    public :: scalar_function_parser_t
+    public :: scalar_function_parser_t, p_scalar_function_parser_t
 
 contains
 
@@ -97,16 +96,5 @@ contains
         result = this%equation%evaluate(values)
         assert(this%equation%Error == 0)
     end subroutine scalar_function_parser_get_value_space_time
-
-
-    function scalar_function_parser_constructor ( expression ) result(new_scalar_function_parser)
-    !-----------------------------------------------------------------
-    !< scalar function parser constructor
-    !-----------------------------------------------------------------
-        character(len=*),                   intent(in) :: expression
-        type(scalar_function_parser_t)                 :: new_scalar_function_parser
-    !-----------------------------------------------------------------
-        call new_scalar_function_parser%create(expression)
-    end function scalar_function_parser_constructor
 
 end module scalar_function_parser_names
