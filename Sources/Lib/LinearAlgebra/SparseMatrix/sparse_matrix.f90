@@ -1292,7 +1292,7 @@ contains
 
     subroutine sparse_matrix_apply_transpose(this,x,y) 
     !-----------------------------------------------------------------
-    !< Apply transpose matrix vector product y=op'*x
+    !< Apply transpose matrix vector product y=op^T*x
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
@@ -1306,7 +1306,7 @@ contains
 
    subroutine sparse_matrix_apply_transpose_add(this,x,y)
     !-----------------------------------------------------------------
-    !< Apply transpose matrix vector product y=op'*x
+    !< Apply-Add transpose matrix vector product y=y+op^T*x
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
