@@ -2211,7 +2211,7 @@ subroutine fe_cell_iterator_apply_constraints_array(this, elvec)
   call this%reset_gid_to_lid_map()
 
 end subroutine fe_cell_iterator_apply_constraints_array
-			
+   
 subroutine fe_cell_iterator_apply_constraints_matrix(this,elmat)
   implicit none
   class(fe_cell_iterator_t), intent(inout)    :: this

@@ -105,7 +105,7 @@ private
         procedure         :: apply_body                              => csr_sparse_matrix_apply_body
         procedure         :: apply_add_body                          => csr_sparse_matrix_apply_add_body
         procedure         :: apply_transpose_body                    => csr_sparse_matrix_apply_transpose_body
-		procedure         :: apply_transpose_add_body                => csr_sparse_matrix_apply_transpose_add_body 
+        procedure         :: apply_transpose_add_body                => csr_sparse_matrix_apply_transpose_add_body 
         procedure         :: apply_to_dense_matrix_body              => csr_sparse_matrix_apply_to_dense_matrix_body
         procedure         :: apply_transpose_to_dense_matrix_body    => csr_sparse_matrix_apply_transpose_to_dense_matrix_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
@@ -767,8 +767,8 @@ contains
         end select
         call x%CleanTemp()
     end subroutine csr_sparse_matrix_apply_transpose_body
-	
-	subroutine csr_sparse_matrix_apply_transpose_add_body(this,x,y) 
+ 
+ subroutine csr_sparse_matrix_apply_transpose_add_body(this,x,y) 
     !-----------------------------------------------------------------
     !< Apply transpose matrix vector product y=op'*x+y
     !-----------------------------------------------------------------

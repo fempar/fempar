@@ -122,25 +122,25 @@ module par_pb_bddc_maxwell_analytical_functions_names
   
   type par_pb_bddc_maxwell_analytical_functions_t
      private
-   type(resistivity_holder_t), pointer     :: resistivity(:)
-   type(permeability_holder_t), pointer    :: permeability(:) 
-	  type(boundary_function_Hx_t)            :: boundary_function_Hx
-	  type(boundary_function_Hy_t)            :: boundary_function_Hy
-	  type(boundary_function_Hz_t)            :: boundary_function_Hz
-   type(source_term_t)                     :: source_term
-   type(solution_t)                        :: solution
+     type(resistivity_holder_t), pointer     :: resistivity(:)
+     type(permeability_holder_t), pointer    :: permeability(:) 
+     type(boundary_function_Hx_t)            :: boundary_function_Hx
+     type(boundary_function_Hy_t)            :: boundary_function_Hy
+     type(boundary_function_Hz_t)            :: boundary_function_Hz
+     type(source_term_t)                     :: source_term
+     type(solution_t)                        :: solution
    contains
-   procedure :: set_num_dims                     => mn_set_num_dims
-   procedure :: set_resistivity                  => mn_set_resistivity_holder
-   procedure :: set_permeability                 => mn_set_permeability_holder 
-   ! Getters 
-   procedure :: get_resistivity                  => mn_get_resistivity
-   procedure :: get_permeability                 => mn_get_permeability 
-	  procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
-	  procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
-	  procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
-   procedure :: get_source_term                  => mn_get_source_term
-   procedure :: get_solution_function            => mn_get_solution_function
+     procedure :: set_num_dims                     => mn_set_num_dims
+     procedure :: set_resistivity                  => mn_set_resistivity_holder
+     procedure :: set_permeability                 => mn_set_permeability_holder 
+     ! Getters 
+     procedure :: get_resistivity                  => mn_get_resistivity
+     procedure :: get_permeability                 => mn_get_permeability 
+     procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
+     procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
+     procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+     procedure :: get_source_term                  => mn_get_source_term
+     procedure :: get_solution_function            => mn_get_solution_function
   end type par_pb_bddc_maxwell_analytical_functions_t
 
   public :: par_pb_bddc_maxwell_analytical_functions_t
@@ -205,11 +205,11 @@ contains
   
     select case ( this%coefficient_case )
     case ( constant ) 
-	     result = this%default_value 
+      result = this%default_value 
     case ( sinusoidal ) 
       result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(1))))
     case DEFAULT 
-    massert( .false. , 'Invalid resistivity coefficient case' ) 
+      massert( .false. , 'Invalid resistivity coefficient case' ) 
     end select 
 
   end subroutine resistivity_function_white_get_value_space
@@ -224,9 +224,9 @@ contains
     
     select case ( this%coefficient_case ) 
     case ( constant ) 
-    result = this%default_value
+      result = this%default_value
     case DEFAULT 
-    massert( .false., 'Black subdomains only allocate constant functions' ) 
+      massert( .false., 'Black subdomains only allocate constant functions' ) 
     end select 
   end subroutine resistivity_function_black_get_value_space
   
@@ -239,11 +239,11 @@ contains
 
     select case ( this%coefficient_case )
     case ( constant ) 
-	     result = this%default_value 
+      result = this%default_value 
     case ( sinusoidal ) 
       result = 10**( this%default_value*sin(this%num_peaks*pi*(point%get(2))))
     case DEFAULT 
-    massert( .false. , 'Invalid resistivity coefficient case' ) 
+      massert( .false. , 'Invalid resistivity coefficient case' ) 
     end select 
 
   end subroutine permeability_function_white_get_value_space
@@ -257,9 +257,9 @@ contains
  
     select case ( this%coefficient_case ) 
     case ( constant ) 
-    result = this%default_value
+      result = this%default_value
     case DEFAULT 
-    massert( .false., 'Black subdomains only allocate constant functions' ) 
+      massert( .false., 'Black subdomains only allocate constant functions' ) 
     end select 
     
   end subroutine permeability_function_black_get_value_space
@@ -270,8 +270,8 @@ contains
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-		real(rp) :: x,y,z 
-	   x = point%get(1); y=point%get(2); z=point%get(3)
+    real(rp) :: x,y,z 
+    x = point%get(1); y=point%get(2); z=point%get(3)
     result = 0.0_rp 
   end subroutine boundary_function_Hx_get_value_space
   
@@ -281,8 +281,8 @@ contains
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-		  real(rp) :: x,y,z 
-	   x = point%get(1); y=point%get(2); z=point%get(3)
+    real(rp) :: x,y,z 
+    x = point%get(1); y=point%get(2); z=point%get(3)
     result = 0.0_rp 
   end subroutine boundary_function_Hy_get_value_space
 
@@ -292,8 +292,8 @@ contains
     class(boundary_function_Hz_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-		  real(rp) :: x,y,z 
-	   x = point%get(1); y=point%get(2); z=point%get(3)
+    real(rp) :: x,y,z 
+    x = point%get(1); y=point%get(2); z=point%get(3)
     result = 0.0_rp
   end subroutine boundary_function_Hz_get_value_space
 
@@ -303,12 +303,9 @@ contains
     class(source_term_t)    , intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
- 
-	   real(rp) :: x,y,z 
-
-  	x = point%get(1); y=point%get(2); z=point%get(3)     
-  
-   call result%init(1.0_rp)
+    real(rp) :: x,y,z 
+    x = point%get(1); y=point%get(2); z=point%get(3)
+    call result%init(1.0_rp)
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -317,14 +314,14 @@ contains
     class(solution_t)       , intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-	
+ 
     real(rp) :: x,y,z 
-	   x = point%get(1); y=point%get(2); z=point%get(3) 
-	 ! call result%init(0.0_rp) 
-	 call result%set(1, -y ) 
-	 call result%set(2,  x ) 
-	 call result%set(3,  0.0_rp )
-	 
+    x = point%get(1); y=point%get(2); z=point%get(3) 
+    ! call result%init(0.0_rp) 
+    call result%set(1, -y ) 
+    call result%set(2,  x ) 
+    call result%set(3,  0.0_rp )
+  
   end subroutine solution_get_value_space
 
   !===============================================================================================
@@ -333,12 +330,12 @@ contains
     class(solution_t)   , intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     type(tensor_field_t), intent(inout) :: result
-	
-	real(rp) :: x,y,z 
-	x = point%get(1); y=point%get(2); z=point%get(3)
-	call result%init(0.0_rp) 	
-	call result%set(2,1, -1.0_rp)
-	call result%set(1,2,  1.0_rp)
+ 
+    real(rp) :: x,y,z 
+    x = point%get(1); y=point%get(2); z=point%get(3)
+    call result%init(0.0_rp)  
+    call result%set(2,1, -1.0_rp)
+    call result%set(1,2,  1.0_rp)
 
   end subroutine solution_get_gradient_space
   

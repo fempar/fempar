@@ -225,13 +225,13 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     x = point%get(1); y=point%get(2); z=point%get(3)     
     call result%init(0.0_rp) 
-				if ( this%n > 0.0_rp ) then  
+    if ( this%n > 0.0_rp ) then  
     call result%set(1, -y + 4.0_rp*(time**3.0_rp)*this%n*y*(time*time*(x*x+y*y))**(this%n-1.0_rp) )  
     call result%set(2,  x - 4.0_rp*(time**3.0_rp)*this%n*x*(time*time*(x*x+y*y))**(this%n-1.0_rp) )  
-				else 
-				call result%set(1, -y ) 
+    else 
+    call result%set(1, -y ) 
     call result%set(2,  x ) 
-				end if 
+    end if 
     call result%set(3,  0.0_rp )
 
   end subroutine source_term_get_value_space_time
@@ -280,7 +280,7 @@ contains
 
     real(rp) :: x,y,z 
     x = point%get(1); y=point%get(2); z=point%get(3)
-    call result%init(0.0_rp) 	
+    call result%init(0.0_rp)  
     call result%set(2,1, -1.0_rp )
     call result%set(1,2,  1.0_rp )
 
@@ -296,7 +296,7 @@ contains
 
     real(rp) :: x,y,z 
     x = point%get(1); y=point%get(2); z=point%get(3)
-    call result%init(0.0_rp) 	
+    call result%init(0.0_rp)  
     call result%set(2,1, -1.0_rp * time)
     call result%set(1,2,  1.0_rp * time)
 

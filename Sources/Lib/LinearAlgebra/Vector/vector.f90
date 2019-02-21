@@ -218,7 +218,7 @@ contains
       allocate(vector, mold=this, stat=istat); check(istat==0);
     end if
   end subroutine mold
-				 
+
   ! res <- op1 + op2
   function sum_vector(op1,op2) result (res)
     implicit none

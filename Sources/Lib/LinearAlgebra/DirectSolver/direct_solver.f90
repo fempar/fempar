@@ -292,7 +292,7 @@ contains
                     type is (serial_scalar_array_t)
                         call op%base_direct_solver%solve(x,y)
 #ifdef DEBUG
-            call op%base_direct_solver%check_solution(x,y)
+                        call op%base_direct_solver%evaluate_precision(x,y)
 #endif
                 class DEFAULT 
                     check(.false.) 
@@ -337,7 +337,7 @@ contains
       call op%base_direct_solver%solve(x, y)
 
 #ifdef DEBUG
-      call op%base_direct_solver%check_solution(x,y) 
+      call op%base_direct_solver%evaluate_precision(x,y) 
 #endif
 
     end subroutine direct_solver_solve_several_rhs
