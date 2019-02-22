@@ -59,7 +59,7 @@ contains
         type(vector_function_parser_t), target,       intent(in)    :: function
         type(tensor_function_parser_t), target,       intent(in)    :: gradient
     !----------------------------------------------------------------- 
-        assert(function%get_num_dim() == gradient%get_num_dim())
+        assert(function%get_num_dims() == gradient%get_num_dims())
         this%function => function
         this%gradient => gradient
     end subroutine vector_function_and_gradient_parser_create
