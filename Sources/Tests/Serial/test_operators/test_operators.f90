@@ -36,53 +36,38 @@ implicit none
     type(serial_scalar_array_t)      :: Vec2
     type(serial_block_array_t)       :: BlockVec1
     type(serial_block_array_t)       :: BlockVec2
-    type(lvalue_operator_t)          :: Op
-    type(serial_scalar_array_t)      :: Op_result
-    !real(rp), allocatable            :: vector_values(:)
-    integer                          :: tam
     integer                          :: itest
-    integer                          :: tam_initial = 3
+    integer                          :: tam
+    integer                          :: tam_init = 3
     integer                          :: tam_adapted = 4
     integer                          :: iters = 999
     integer                          :: iter_reallocate = 500
-    
     integer                          :: i, j
 
     call FEMPAR_INIT()
 
-    assert (iters > iter_reallocate)        
-    do itest = 1,2
-      tam = tam_initial
-      call Mat%free()
-      call Mat%create(num_rows_and_cols=tam, symmetric_storage=.false., is_symmetric=.false., sign=SPARSE_MATRIX_SIGN_UNKNOWN, nz=6)
-      call Mat%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
-      call Mat%convert('CSR')
+    assert (iters > iter_reallocate)
 
-      call create_arrays(Vec1,Vec2)
+    ! Working with sparse matrices   
+    do itest = 1,2
+      tam = tam_init
+      call create_matrix(Mat,tam)
+      call create_and_allocate_arrays(Vec1,Vec2,tam)
       if (itest==1) then
-       call test_operators_apply(Mat, Vec1, Vec2, 999)
+        call test_operators_apply(Mat, Vec1, Vec2, 999)
       else
-       call test_operators_apply_Add(Mat, Vec1, Vec2, 999)
+        call test_operators_apply_Add(Mat, Vec1, Vec2, 999)
       end if
     enddo
     call Mat%free()
     call Vec1%free()
     call Vec2%free()
     
-    ! Working with Block matrices   
+    ! Working with Block sparse matrices   
     do itest = 1,2  
-      tam = tam_initial 
-      call BlockMat%free()
-      call BlockMat%create(2, [tam,tam], [tam, tam], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
-      do i=1, BlockMat%get_nblocks()
-          do j=1, BlockMat%get_nblocks()
-              Block => BlockMat%get_block(i,j)
-              call Block%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
-          enddo
-      enddo
-      call BlockMat%compress_storage('CSR')
-
-      call create_arrays(BlockVec1,BlockVec2)
+      tam = tam_init 
+      call create_matrix(BlockMat,tam)
+      call create_and_allocate_arrays(BlockVec1,BlockVec2,tam)
       if (itest==1) then
         call test_operators_apply(BlockMat, BlockVec1, BlockVec2, 999)
       else      
@@ -92,8 +77,6 @@ implicit none
     call BlockMat%free()
     call BlockVec1%free()
     call BlockVec2%free()
-    call Op%free()
-    call Op_result%free()
 
     call FEMPAR_FINALIZE()
 
@@ -131,7 +114,7 @@ contains
         call memalloc(tam,Mat_x_Mat_values, __FILE__, __LINE__ )
         Mat_x_Mat_values = [16._rp, 10._rp, 16._rp]
 
-        call create_and_allocate_Op_results(Op_result,y,tam)
+        call create_and_allocate_result_operator(Op_result,y,tam)
 
         do i=1, iters
             call Op%assign(Mat)
@@ -217,10 +200,10 @@ contains
               ! 1. Destroy sparse matrix and associated arrays and
               !    generate new ones of different size
               tam = tam_adapted
-              call create_adapted_sparse_matrix(Mat)
-              call create_arrays(x,y)
-              call adapt_vector_values_array(indices, vector_values, Mat_x_Mat_values, tam)
-              call create_and_allocate_Op_results(Op_result,y,tam)
+              call create_adapted_sparse_matrix(Mat,tam)
+              call create_and_allocate_arrays(x,y,tam)
+              call create_and_allocate_result_operator(Op_result,y,tam)
+              call adapt_vector_values_array(indices, vector_values, Mat_x_Mat_values, tam)              
 
               ! 2. Update direct solver to reflect that the sparse matrix has changed 
               !    (typically after AMR mesh adaptation, although not necessarily)
@@ -257,7 +240,7 @@ contains
         call memalloc(tam,Mat_x_Mat_values, __FILE__, __LINE__ )
         Mat_x_Mat_values = [16._rp, 10._rp, 16._rp]
 
-        call create_and_allocate_Op_results(Op_result,y,tam)
+        call create_and_allocate_result_operator(Op_result,y,tam)
 
         do i=1, iters
             call y%init(0.0_rp)
@@ -345,10 +328,10 @@ contains
               ! 1. Destroy sparse matrix and associated arrays and
               !    generate new ones of different size
               tam = tam_adapted
-              call create_adapted_sparse_matrix(Mat)
-              call create_arrays(x,y)
-              call adapt_vector_values_array(indices, vector_values, Mat_x_Mat_values, tam)
-              call create_and_allocate_Op_results(Op_result,y,tam)
+              call create_adapted_sparse_matrix(Mat,tam)
+              call create_and_allocate_arrays(x,y,tam)
+              call create_and_allocate_result_operator(Op_result,y,tam)
+              call adapt_vector_values_array(indices, vector_values, Mat_x_Mat_values, tam)              
 
               ! 2. Update direct solver to reflect that the sparse matrix has changed 
               !    (typically after AMR mesh adaptation, although not necessarily)
@@ -364,10 +347,11 @@ contains
         deallocate(Op_result)
     end subroutine
     
-   subroutine create_arrays(array1,array2)
+   subroutine create_and_allocate_arrays(array1,array2,tam)
      implicit none
      class(vector_t),  intent(inout) :: array1
      class(vector_t),  intent(inout) :: array2
+     integer,          intent(in)    :: tam     
      select type(array1)
          type is (serial_scalar_array_t)     
            call Vec1%free()
@@ -390,9 +374,9 @@ contains
          class default
            check(.false.)
      end select
-   end subroutine create_arrays
+   end subroutine create_and_allocate_arrays
    
-   subroutine create_and_allocate_Op_results(Op_result,y,tam)
+   subroutine create_and_allocate_result_operator(Op_result,y,tam)
      implicit none
       class(vector_t), allocatable,  intent(inout) :: Op_result
       class(vector_t),               intent(in)    :: y      
@@ -410,7 +394,7 @@ contains
          class default
            check(.false.)
          end select
-   end subroutine create_and_allocate_Op_results
+   end subroutine create_and_allocate_result_operator
         
    subroutine adapt_vector_values_array(indices,vector_values,Mat_x_Mat_values,tam)
      implicit none
@@ -425,14 +409,39 @@ contains
      call memrealloc(tam,Mat_x_Mat_values,__FILE__,__LINE__)
      Mat_x_Mat_values = [42._rp, 17._rp, 40._rp, 34._rp]        
   end subroutine  adapt_vector_values_array
-    
-   subroutine create_adapted_sparse_matrix(Mat)
+
+   subroutine create_matrix(Mat,tam)
      implicit none
-     class(matrix_t),       intent(inout)  :: Mat
+     class(matrix_t),   intent(inout)  :: Mat
+     integer,           intent(in)     :: tam
      call Mat%free()  
      select type(Mat)
        type is (sparse_matrix_t)
-         call Mat%create(num_rows_and_cols=tam_adapted, &
+         call Mat%create(num_rows_and_cols=tam, symmetric_storage=.false., is_symmetric=.false., sign=SPARSE_MATRIX_SIGN_UNKNOWN, nz=6)
+         call Mat%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
+         call Mat%convert('CSR')
+       type is (block_sparse_matrix_t)
+         call BlockMat%create(2, [tam,tam], [tam, tam], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
+         do i=1, BlockMat%get_nblocks()
+            do j=1, BlockMat%get_nblocks()
+               Block => BlockMat%get_block(i,j)
+               call Block%insert(nz=6, ia=[1,1,2,2,3,3], ja=[1,3,1,2,1,3], val=[1.0,3.0,1.0,2.0,1.0,3.0])
+            enddo
+         enddo
+         call BlockMat%compress_storage('CSR')
+       class default
+         check(.false.)
+       end select
+  end subroutine create_matrix
+  
+   subroutine create_adapted_sparse_matrix(Mat,tam)
+     implicit none
+     class(matrix_t),       intent(inout)  :: Mat
+     integer,               intent(in)     :: tam     
+     call Mat%free()  
+     select type(Mat)
+       type is (sparse_matrix_t)
+         call Mat%create(num_rows_and_cols=tam, &
                          symmetric_storage=.false., &
                          is_symmetric=.false., &
                          sign=SPARSE_MATRIX_SIGN_UNKNOWN, &
@@ -443,7 +452,7 @@ contains
                          val=[1.0,1.0,6.0,3.0,1.0,2.0,4.0,3.0,2.0])
          call Mat%convert('CSR')
        type is (block_sparse_matrix_t)
-         call Mat%create(2, [tam_adapted,tam_adapted], [tam_adapted, tam_adapted], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
+         call Mat%create(2, [tam,tam], [tam, tam], [.false.,.false.], [.false.,.false.], [SPARSE_MATRIX_SIGN_UNKNOWN,SPARSE_MATRIX_SIGN_UNKNOWN])
          do i=1, BlockMat%get_nblocks()
             do j=1, BlockMat%get_nblocks()
                Block => BlockMat%get_block(i,j)
@@ -457,6 +466,6 @@ contains
        class default
          check(.false.)
        end select
-  end subroutine  create_adapted_sparse_matrix    
+  end subroutine create_adapted_sparse_matrix    
   
 end program test_operators
