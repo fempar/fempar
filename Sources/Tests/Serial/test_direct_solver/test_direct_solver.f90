@@ -92,7 +92,7 @@ implicit none
         ! 1. Destroy sparse matrix and associated arrays and 
         !    generate new ones of different size
         call create_adapted_sparse_matrix()
-        call create_arrays()
+        call create_arrays() 
 
         ! 2. Update direct solver to reflect that the sparse matrix has changed 
         !    (typically after AMR mesh adaptation, although not necessarily)
@@ -102,6 +102,9 @@ implicit none
 #endif
     enddo
 
+    call create_sparse_matrix()
+    call create_arrays()
+    
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! UMFPACK
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -124,7 +127,7 @@ implicit none
             call direct_solver%set_parameters_from_pl(direct_solver_params)
         endif
 
-        call solve_and_check_solution_single_rhs()
+        call solve_and_check_solution_single_rhs(exact_solution)
         call solve_and_check_solution_multiple_rhs()
 
         if(i/=iters) then
