@@ -4711,108 +4711,34 @@ end subroutine par_fe_space_update_after_refine_coarsen
 
 subroutine par_fe_space_project_field_cell_to_ref_fes(this)
   implicit none
-  class(par_fe_space_t), intent(inout) :: this
+  class(par_fe_space_t),       intent(inout) :: this
   class(triangulation_t)       , pointer     :: triangulation
-  type(std_vector_integer_ip_t), pointer     :: refinement_and_coarsening_flags
-  class(fe_cell_iterator_t)    , allocatable :: new_fe
-  class(reference_fe_t)        , pointer     :: reference_fe
   integer(ip)                  , pointer     :: p_field_cell_to_ref_fes_field_id(:)
-  type(std_vector_integer_ip_t), allocatable :: old_field_cell_to_ref_fes(:)
-  integer(ip)                                :: num_children_x_cell
-  integer(ip)                                :: subcell_id, old_cell_lid, new_cell_lid
   integer(ip)                                :: field_id
-  integer(ip)                                :: transformation_flag
-  integer(ip)                                :: old_reference_fe_id
-  integer(ip)                                :: old_num_local_cells, old_num_ghost_cells
-  class(p4est_base_triangulation_t), pointer :: p4est_triangulation
-  class(environment_t)           , pointer :: environment
-  type(cell_import_t)              , pointer :: cell_import
+  class(environment_t)         , pointer     :: environment
+  type(cell_import_t)          , pointer     :: cell_import
   integer(ip) :: istat
- 
-#ifdef ENABLE_P4EST  
-  triangulation => this%get_triangulation()
-  select type(triangulation)
-  class is (p4est_base_triangulation_t)
-    refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
-    p4est_triangulation             => triangulation
-  class default
-    assert(.false.)
-  end select
-  
-  call this%create_fe_cell_iterator(new_fe)
-  reference_fe => new_fe%get_reference_fe_geo()
-  num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
-  old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
-  
-  ! We have to resize the this%field_cell_to_ref_fes(:) corresponding to all fields
-  ! at once before the next loop, because it is a precondition of fe_cell_iterator_t%set_gid()
-  ! to work
-  allocate(old_field_cell_to_ref_fes(this%num_fields), stat=istat); check(istat==0)
-  do field_id = 1,this%num_fields
-    call old_field_cell_to_ref_fes(field_id)%copy(this%field_cell_to_ref_fes(field_id))
-    call this%field_cell_to_ref_fes(field_id)%resize(0)
-    call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells(),1)
-  end do 
-
+   
+  triangulation => this%get_triangulation() 
   environment => triangulation%get_environment()
   cell_import => triangulation%get_cell_import() 
   
+  call this%serial_fe_space_t%project_field_cell_to_ref_fes()
+  
   do field_id = 1,this%num_fields
-    old_cell_lid = 1
-    new_cell_lid = 1
-    p_field_cell_to_ref_fes_field_id => this%field_cell_to_ref_fes(field_id)%get_pointer()
-    do while ( old_cell_lid .le. old_num_local_cells )
-      transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-      old_reference_fe_id  = old_field_cell_to_ref_fes(field_id)%get(old_cell_lid)
-      call new_fe%set_gid(new_cell_lid)
-      if ( transformation_flag == do_nothing ) then
-        p_field_cell_to_ref_fes_field_id(new_fe%get_gid()) = old_reference_fe_id
-        new_cell_lid = new_cell_lid + 1
-      else if ( transformation_flag == refinement ) then
-        do subcell_id = 0,num_children_x_cell-1
-          p_field_cell_to_ref_fes_field_id(new_fe%get_gid()) = old_reference_fe_id
-          new_cell_lid = new_cell_lid + 1
-          call new_fe%set_gid(new_cell_lid)
-        end do
-      else if ( transformation_flag == coarsening ) then
-        do subcell_id = 1,num_children_x_cell-1
-          old_cell_lid = old_cell_lid + 1
-          if ( old_reference_fe_id /= old_field_cell_to_ref_fes(field_id)%get(old_cell_lid) ) then
-            massert(.false.,'Coarsened subcells do not have the same reference FE id')
-          end if
-        end do
-        p_field_cell_to_ref_fes_field_id(new_fe%get_gid()) = old_reference_fe_id
-        new_cell_lid = new_cell_lid + 1
-      else
-        massert(.false.,'Unrecognised refinement and coarsening flag')
-      end if
-      old_cell_lid = old_cell_lid + 1
-    end do
+     p_field_cell_to_ref_fes_field_id => this%field_cell_to_ref_fes(field_id)%get_pointer()
     
-    call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), & 
-                                              cell_import%get_neighbours_ids(), & 
-                                              cell_import%get_rcv_ptrs(),       & 
-                                              cell_import%get_rcv_leids(),      & 
-                                              cell_import%get_num_neighbours(), & 
-                                              cell_import%get_neighbours_ids(), & 
-                                              cell_import%get_snd_ptrs(),       & 
-                                              cell_import%get_snd_leids(),      & 
-                                              p_field_cell_to_ref_fes_field_id, & 
-                                              p_field_cell_to_ref_fes_field_id )
+     call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), & 
+                                               cell_import%get_neighbours_ids(), & 
+                                               cell_import%get_rcv_ptrs(),       & 
+                                               cell_import%get_rcv_leids(),      & 
+                                               cell_import%get_num_neighbours(), & 
+                                               cell_import%get_neighbours_ids(), & 
+                                               cell_import%get_snd_ptrs(),       & 
+                                               cell_import%get_snd_leids(),      & 
+                                               p_field_cell_to_ref_fes_field_id, & 
+                                               p_field_cell_to_ref_fes_field_id )
   end do
-  
-  massert ( (new_cell_lid - 1) == this%triangulation%get_num_local_cells(), 'Loop in old cells failed to visit all new cells' )
-  call this%free_fe_cell_iterator(new_fe)
-
-  do field_id=1, this%num_fields
-    call old_field_cell_to_ref_fes(field_id)%free()
-  end do  
-  deallocate(old_field_cell_to_ref_fes, stat=istat); check(istat==0)
-  
-#else  
-  call this%not_enabled_error()
-#endif  
 end subroutine par_fe_space_project_field_cell_to_ref_fes
 
 subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this ) 

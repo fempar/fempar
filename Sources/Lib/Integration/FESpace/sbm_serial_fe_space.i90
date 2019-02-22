@@ -3999,7 +3999,7 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   type(std_vector_integer_ip_t), pointer     :: refinement_and_coarsening_flags
   class(fe_cell_iterator_t)    , allocatable :: new_fe
   class(reference_fe_t)        , pointer     :: reference_fe
-  type(std_vector_integer_ip_t)              :: old_field_cell_to_ref_fes
+  type(std_vector_integer_ip_t), allocatable :: old_field_cell_to_ref_fes(:)
   integer(ip)                                :: num_children_x_cell
   integer(ip)                                :: subcell_id, old_cell_lid, new_cell_lid
   integer(ip)                                :: field_id
@@ -4007,7 +4007,8 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   integer(ip)                                :: old_reference_fe_id
   integer(ip)                                :: old_num_local_cells, old_num_ghost_cells
   class(p4est_base_triangulation_t), pointer :: p4est_triangulation 
- 
+  integer(ip) :: istat
+   
 #ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   select type(triangulation)
@@ -4023,15 +4024,23 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
   old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
   old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
+  
+  ! We have to resize the this%field_cell_to_ref_fes(:) corresponding to all fields
+  ! at once before the next loop, because it is a precondition of fe_cell_iterator_t%set_gid()
+  ! to work
+  allocate(old_field_cell_to_ref_fes(this%num_fields), stat=istat); check(istat==0)
+  do field_id = 1,this%num_fields
+    call old_field_cell_to_ref_fes(field_id)%copy(this%field_cell_to_ref_fes(field_id))
+    call this%field_cell_to_ref_fes(field_id)%resize(0)
+    call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells(),1)
+  end do   
+  
   do field_id = 1,this%num_fields
     old_cell_lid = 1
     new_cell_lid = 1
-    call old_field_cell_to_ref_fes%copy(this%field_cell_to_ref_fes(field_id))
-    call this%field_cell_to_ref_fes(field_id)%resize(0)
-    call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells(),1)
     do while ( old_cell_lid .le. old_num_local_cells )
       transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-      old_reference_fe_id  = old_field_cell_to_ref_fes%get(old_cell_lid)
+      old_reference_fe_id  = old_field_cell_to_ref_fes(field_id)%get(old_cell_lid)
       call new_fe%set_gid(new_cell_lid)
       if ( transformation_flag == do_nothing ) then
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
@@ -4045,7 +4054,7 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1
           old_cell_lid = old_cell_lid + 1
-          if ( old_reference_fe_id /= old_field_cell_to_ref_fes%get(old_cell_lid) ) then
+          if ( old_reference_fe_id /= old_field_cell_to_ref_fes(field_id)%get(old_cell_lid) ) then
             massert(.false.,'Coarsened subcells do not have the same reference FE id')
           end if
         end do
@@ -4060,7 +4069,10 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   
   massert ( (new_cell_lid - 1) == this%triangulation%get_num_local_cells(), 'Loop in old cells failed to visit all new cells' )
   call this%free_fe_cell_iterator(new_fe)
-  call old_field_cell_to_ref_fes%free()
+  do field_id=1, this%num_fields
+    call old_field_cell_to_ref_fes(field_id)%free()
+  end do  
+  deallocate(old_field_cell_to_ref_fes, stat=istat); check(istat==0)  
 #else  
   call this%not_enabled_error()
 #endif  
