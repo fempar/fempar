@@ -88,7 +88,7 @@ module par_test_hts_driver_names
      type(resistivity_field_generator_t)    :: resistivity_field_generator 
      real(rp), allocatable                  :: set_id_cell_vector(:)
      real(rp), allocatable                  :: rank_cell_vector(:) 
-     type(output_handler_t)                 :: oh	
+     type(output_handler_t)                 :: oh 
 
      ! Timers
      type(timer_t) :: timer_triangulation
@@ -483,9 +483,9 @@ contains
        call this%fe_space%create( triangulation       = this%triangulation,      &
             reference_fes       = this%reference_fes,      &
             coarse_fe_handlers  = this%coarse_fe_handlers, & 
-            conditions          = this%maxwell_conditions  )			
+            conditions          = this%maxwell_conditions  )   
 
-    elseif ( .not. this%test_params%get_is_analytical_solution() ) then 		
+    elseif ( .not. this%test_params%get_is_analytical_solution() ) then   
        call this%hts_conditions%set_num_dims(this%triangulation%get_num_dims())
 
        ! Set-up Dirichlet boundary conditions  
@@ -827,7 +827,7 @@ contains
              call fe_cell_function%get_value(qpoin, H_value)
              call fe_cell_function%compute_curl(qpoin, H_curl)
           
-             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 		
+             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin)   
              resistivity                       = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
              this%average_permeability(set_id) = this%average_permeability(set_id) + this%test_params%get_air_permeability()*factor
              this%average_resistivity(set_id)  = this%average_resistivity(set_id)  + resistivity%get(1,1)*factor
@@ -977,7 +977,7 @@ contains
 
           ! Integrate cell contribution to H_y, x·J_z average 
           do qpoin=1, num_quad_points
-             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
+             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin)                
              call fe_cell_function_current%get_value(qpoin, H_value)
              call fe_cell_function_current%compute_curl(qpoin, H_curl)
              ! Average magnetic field 
@@ -1037,10 +1037,10 @@ contains
        write(*,*) ' Happ', H_app/(Jc*h_b)
        write(*,*) ' Hx', this%test_params%get_hts_permeability()*(Hx_average/hts_volume-Happ*e_x)/(Jc*h_b)
        write(*,*) ' Hz', this%test_params%get_hts_permeability()*(Hz_average/hts_volume-Happ*e_z)/(Jc*h_b)
-       write(*,*) ' Halpha', this%test_params%get_hts_permeability()*(Halpha_average/hts_volume-Happ*e_alpha)/(Jc*h_b)																										                     
+       write(*,*) ' Halpha', this%test_params%get_hts_permeability()*(Halpha_average/hts_volume-Happ*e_alpha)/(Jc*h_b)                                               
        write(*,*) ' Mx', (Mx/2.0_rp/hts_volume)/(Jc*h_b)
        write(*,*) ' Mz', (Mz/2.0_rp/hts_volume)/(Jc*h_b) 
-       write(*,*) ' Malpha', (Malpha/2.0_rp/hts_volume)/(Jc*h_b)			
+       write(*,*) ' Malpha', (Malpha/2.0_rp/hts_volume)/(Jc*h_b)   
        write(*,*) ' Q_JE', Q_JE
        write(*,*) ' HTS volume', hts_volume 
        write(*,*) ' --------------------------------------------------------' 
@@ -1216,7 +1216,7 @@ contains
 
   subroutine free(this)
     implicit none
-    class(par_test_hts_fe_driver_t), target, intent(inout) :: this							
+    class(par_test_hts_fe_driver_t), target, intent(inout) :: this       
     integer(ip) :: i, istat
 
     call this%H_current%free() 

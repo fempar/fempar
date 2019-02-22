@@ -89,7 +89,7 @@ contains
   procedure, non_overridable             :: get_air_resistivity
   procedure, non_overridable             :: get_hts_permeability
   procedure, non_overridable             :: get_hts_resistivity
-  procedure, non_overridable 	           :: get_critical_current           
+  procedure, non_overridable             :: get_critical_current           
   procedure, non_overridable             :: get_critical_electric_field   
   procedure, non_overridable             :: get_nonlinear_exponent
   procedure, non_overridable             :: get_hts_device_type 

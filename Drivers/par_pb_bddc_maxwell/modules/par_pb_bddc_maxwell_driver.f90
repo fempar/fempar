@@ -686,7 +686,7 @@ contains
 
           ! Integrate cell contribution to averages 
           do qpoin=1, num_quad_points
-             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
+             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
              ! Average magnetic field 
              this%average_permeability(set_id) = this%average_permeability(set_id) + permeability(qpoin)*factor 
              this%average_resistivity(set_id)  = this%average_resistivity(set_id)  + resistivity(qpoin)*factor
@@ -778,8 +778,8 @@ contains
 
   subroutine write_solution(this)
     implicit none
-    class(par_pb_bddc_maxwell_fe_driver_t), intent(in)    :: this
-    type(output_handler_t)                             :: oh	
+    class(par_pb_bddc_maxwell_fe_driver_t), intent(in) :: this
+    type(output_handler_t)                             :: oh
     real(rp), allocatable                              :: set_id_cell_vector(:)
     real(rp), allocatable                              :: set_id_rank(:)
     integer(ip)                                        :: i, istat

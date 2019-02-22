@@ -44,13 +44,13 @@ module par_pb_bddc_maxwell_discrete_integration_names
   
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
    type(par_pb_bddc_maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
-	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
+   type(fe_function_t)                 , pointer :: fe_function          => NULL()
    integer(ip)                                   :: integration_type
    character(len=:), allocatable                 :: materials_distribution_case 
    contains
      procedure :: set_analytical_functions
      procedure :: set_materials_distribution_case 
-	    procedure :: set_fe_function 
+     procedure :: set_fe_function 
      procedure :: set_integration_type 
      procedure :: integrate_galerkin 
   end type maxwell_cG_discrete_integration_t
@@ -95,7 +95,7 @@ contains
     class(serial_fe_space_t)                , intent(inout) :: fe_space
     class(assembler_t)                      , intent(inout) :: assembler
 
-	   ! FE space traversal-related data types
+    ! FE space traversal-related data types
     class(fe_cell_iterator_t) , allocatable :: fe
 
     ! FE integration-related data types
@@ -121,30 +121,30 @@ contains
     integer(ip)                            :: material_id 
     
     assert (associated(this%analytical_functions)) 
-	   assert (associated(this%fe_function))
+    assert (associated(this%fe_function))
 
     ! Extract analytical functions 
     source_term         => this%analytical_functions%get_source_term()
-	   resistivity_holder  => this%analytical_functions%get_resistivity()
+    resistivity_holder  => this%analytical_functions%get_resistivity()
     permeability_holder => this%analytical_functions%get_permeability()
     
-	   call fe_space%set_up_cell_integration()
+    call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
     
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-	   call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
-	
-   	quad            => fe%get_quadrature()
-	   num_quad_points = quad%get_num_quadrature_points()
-	   allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
+ 
+    quad            => fe%get_quadrature()
+    num_quad_points = quad%get_num_quadrature_points()
+    allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
     call memalloc( num_quad_points, resistivity, __FILE__, __LINE__ )
     call memalloc( num_quad_points, permeability, __FILE__, __LINE__ )
 
     do while ( .not. fe%has_finished())
     
        if ( fe%is_local() ) then  
-	   
+    
           ! Update FE-integration related data structures
           call fe%update_integration()
 
@@ -152,11 +152,11 @@ contains
           quad            => fe%get_quadrature()
           num_quad_points =  quad%get_num_quadrature_points()
           num_dofs        =  fe%get_num_dofs()
-		          
+            
           ! Get quadrature coordinates to evaluate source_term
-										quad_coords => fe%get_quadrature_points_coordinates()
-		  
-		        ! Evaluate analytical functions at quadrature points 
+          quad_coords => fe%get_quadrature_points_coordinates()
+    
+          ! Evaluate analytical functions at quadrature points 
           select case ( this%materials_distribution_case )
           case ( homogeneous, heterogeneous )
           material_id = 1
@@ -184,13 +184,13 @@ contains
              end do
              
              do idof = 1, num_dofs
-			               ! F_K(i) = (f(i),phi_i)
+                ! F_K(i) = (f(i),phi_i)
                 elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint)
              end do
           end do
            
           ! Apply boundary conditions
-		        call fe%assembly( this%fe_function, elmat, elvec, assembler )
+          call fe%assembly( this%fe_function, elmat, elvec, assembler )
        elseif ( this%integration_type == preconditioner ) then 
        
           ! Update FE-integration related data structures
@@ -210,7 +210,7 @@ contains
           num_dofs        =  fe%get_num_dofs()
             
           ! Get quadrature coordinates to evaluate source_term
-										quad_coords => fe%get_quadrature_points_coordinates()
+          quad_coords => fe%get_quadrature_points_coordinates()
           call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)   
                             
           ! Compute element matrix and vector
@@ -229,12 +229,12 @@ contains
           end do
           
           ! Assemble elmat to active DoFs on ghost cells 
-		          call fe%assembly( elmat, assembler )
+            call fe%assembly( elmat, assembler )
        end if 
        call fe%next()
     end do
     
-	call fe_space%free_fe_cell_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
     deallocate (shape_values, stat=istat);       check(istat==0)
     deallocate (shape_curls, stat=istat);        check(istat==0)

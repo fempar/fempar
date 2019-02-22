@@ -53,15 +53,15 @@ module hts_discrete_integration_names
   real(rp)                          :: critical_electric_field 
   real(rp)                          :: critical_current
   real(rp)                          :: nonlinear_exponent
-		logical                           :: is_analytical_solution 
+  logical                           :: is_analytical_solution 
   character(len=:), allocatable     :: hts_device_type 
 contains
-		procedure :: set_evaluation_point => hts_discrete_integration_set_evaluation_point
+  procedure :: set_evaluation_point => hts_discrete_integration_set_evaluation_point
   procedure :: integrate_galerkin   => hts_discrete_integration_integrate  
   procedure :: integrate_residual   => hts_discrete_integration_integrate_residual  
   procedure :: integrate_tangent    => hts_discrete_integration_integrate_tangent   
-		procedure :: set_terms_to_integrate
-		procedure :: set_analytical_functions
+  procedure :: set_terms_to_integrate
+  procedure :: set_analytical_functions
   procedure :: set_fe_functions 
   procedure :: set_theta_method 
   procedure :: set_parameter_values 
@@ -79,14 +79,14 @@ contains
      class(vector_t)                     ,intent(in)     :: evaluation_point
      call this%H_current%set_free_dof_values(evaluation_point)
   end subroutine hts_discrete_integration_set_evaluation_point
-		
-		  subroutine set_terms_to_integrate(this,terms_to_integrate)
+  
+    subroutine set_terms_to_integrate(this,terms_to_integrate)
      implicit none
      class(hts_discrete_integration_t)   ,intent(inout)  :: this
      character(*)                        ,intent(in)     :: terms_to_integrate
      this%terms_to_integrate = terms_to_integrate
   end subroutine set_terms_to_integrate  
-		
+  
 subroutine set_analytical_functions ( this, source_term )
  implicit none
  class(hts_discrete_integration_t)    ,intent(inout)  :: this
@@ -177,7 +177,7 @@ subroutine hts_discrete_integration_integrate_tangent ( this, fe_space, assemble
  assert (associated(this%source_term)) 
  assert (associated(this%H_previous))
  assert (associated(this%H_current))
-	
+ 
  call fe_space%set_up_cell_integration()
  call fe_space%create_fe_cell_iterator(fe)
  call fe_cell_function_previous%create(fe_space, 1)
@@ -247,7 +247,7 @@ subroutine hts_discrete_integration_integrate_tangent ( this, fe_space, assemble
 
        ! Apply boundary conditions
        call fe%assembly( elmat, assembler )
-						
+      
     end if
     call fe%next()
  end do
@@ -302,7 +302,7 @@ subroutine hts_discrete_integration_integrate_residual ( this, fe_space, assembl
  assert (associated(this%source_term)) 
  assert (associated(this%H_previous))
  assert (associated(this%H_current))
-	
+ 
  call fe_space%set_up_cell_integration()
  call fe_space%create_fe_cell_iterator(fe)
  call fe_cell_function_previous%create(fe_space, 1)
@@ -350,18 +350,18 @@ subroutine hts_discrete_integration_integrate_residual ( this, fe_space, assembl
 
           resistivity  = this%compute_resistivity( H_current_values(qpoint), H_current_curl_values(qpoint), fe%get_set_id() )           
           permeability = this%air_permeability
-										
+          
 
-          do idof = 1, num_dofs									
+          do idof = 1, num_dofs         
              ! R_K(i) = A(u)*u - F  
              elvec(idof) = elvec(idof) + factor * permeability/time_factor * shape_values(idof,qpoint) * H_current_values(qpoint)  &
                                        + factor * resistivity * shape_curls(idof, qpoint) * H_current_curl_values(qpoint)          &  
                                        - factor * (source_term_values(qpoint,1) + permeability/time_factor*H_previous_values(qpoint)) * shape_values(idof,qpoint)
           end do
        end do
-					      
+           
        call fe%assembly(elvec, assembler)
-							
+       
     end if
     call fe%next()
  end do
@@ -399,11 +399,11 @@ function compute_resistivity(this, H_value, curl_H, material) result(resistivity
      if ( material == air ) then ! Air domain 
      resistivity = this%air_resistivity
      else if ( material > air ) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
-	 if ( n>0 ) then 
+  if ( n>0 ) then 
      resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-14_rp
-	 else 
-	 resistivity = this%hts_resistivity
-	 end if 
+  else 
+  resistivity = this%hts_resistivity
+  end if 
      else 
         massert(.false., 'Invalid material' ) 
      end if

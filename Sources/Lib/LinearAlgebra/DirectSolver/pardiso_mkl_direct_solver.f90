@@ -67,21 +67,21 @@ module pardiso_mkl_direct_solver_names
         logical                     :: forced_matrix_type    = .false.
     contains
     private
-        procedure, public :: free_clean_body             => pardiso_mkl_direct_solver_free_clean_body
-        procedure, public :: free_symbolic_body          => pardiso_mkl_direct_solver_free_symbolic_body
-        procedure, public :: free_numerical_body         => pardiso_mkl_direct_solver_free_numerical_body
-        procedure         :: initialize                  => pardiso_mkl_direct_solver_initialize
-        procedure         :: set_defaults                => pardiso_mkl_direct_solver_set_defaults
-        procedure         :: set_matrix_type_from_matrix => pardiso_mkl_direct_solver_set_matrix_type_from_matrix
-        procedure, public :: set_parameters_from_pl      => pardiso_mkl_direct_solver_set_parameters_from_pl
-        procedure, public :: symbolic_setup_body         => pardiso_mkl_direct_solver_symbolic_setup_body
-        procedure, public :: numerical_setup_body        => pardiso_mkl_direct_solver_numerical_setup_body
-        procedure, public :: solve_single_rhs_body       => pardiso_mkl_direct_solver_solve_single_rhs_body
-        procedure, public :: solve_several_rhs_body      => pardiso_mkl_direct_solver_solve_several_rhs_body
-		procedure, public :: check_solution_single_rhs   => pardiso_mkl_direct_solver_check_solution_single_rhs 
-		procedure, public :: check_solution_several_rhs  => pardiso_mkl_direct_solver_check_solution_several_rhs
+        procedure, public :: free_clean_body                 => pardiso_mkl_direct_solver_free_clean_body
+        procedure, public :: free_symbolic_body              => pardiso_mkl_direct_solver_free_symbolic_body
+        procedure, public :: free_numerical_body             => pardiso_mkl_direct_solver_free_numerical_body
+        procedure         :: initialize                      => pardiso_mkl_direct_solver_initialize
+        procedure         :: set_defaults                    => pardiso_mkl_direct_solver_set_defaults
+        procedure         :: set_matrix_type_from_matrix     => pardiso_mkl_direct_solver_set_matrix_type_from_matrix
+        procedure, public :: set_parameters_from_pl          => pardiso_mkl_direct_solver_set_parameters_from_pl
+        procedure, public :: symbolic_setup_body             => pardiso_mkl_direct_solver_symbolic_setup_body
+        procedure, public :: numerical_setup_body            => pardiso_mkl_direct_solver_numerical_setup_body
+        procedure, public :: solve_single_rhs_body           => pardiso_mkl_direct_solver_solve_single_rhs_body
+        procedure, public :: solve_several_rhs_body          => pardiso_mkl_direct_solver_solve_several_rhs_body
+        procedure, public :: evaluate_precision_single_rhs   => pardiso_mkl_direct_solver_evaluate_precision_single_rhs 
+        procedure, public :: evaluate_precision_several_rhs  => pardiso_mkl_direct_solver_evaluate_precision_several_rhs
 #ifndef ENABLE_MKL
-        procedure         :: not_enabled_error           => pardiso_mkl_direct_solver_not_enabled_error
+        procedure         :: not_enabled_error               => pardiso_mkl_direct_solver_not_enabled_error
 #endif
     end type
 
@@ -475,11 +475,11 @@ contains
         call op%not_enabled_error()
 #endif
     end subroutine pardiso_mkl_direct_solver_solve_several_rhs_body
-	
-    subroutine pardiso_mkl_direct_solver_check_solution_single_rhs(op, x, y)
-      class(pardiso_mkl_direct_solver_t),  intent(inout) :: op
-      type(serial_scalar_array_t), intent(in)     :: x
-      type(serial_scalar_array_t), intent(inout)  :: y
+ 
+    subroutine pardiso_mkl_direct_solver_evaluate_precision_single_rhs(this, x, y)
+      class(pardiso_mkl_direct_solver_t), intent(inout) :: this
+      type(serial_scalar_array_t)       , intent(in)    :: x
+      type(serial_scalar_array_t)       , intent(in)    :: y
 
       type(sparse_matrix_t),  pointer :: matrix
       type(serial_scalar_array_t)     :: r
@@ -487,17 +487,16 @@ contains
       real(rp),               pointer :: x_real(:)
       real(rp)                        :: err
       character(len=10)               :: serr
-      real(rp),             parameter :: tol = 1.0e-10
 
-      matrix => op%get_matrix()
+      matrix => this%get_matrix()
       call r%clone(x)
       call r%scal(-1.0,x)
 
       r_real => r%get_entries()
       x_real => x%get_entries()
 
-      ! Check depending on the regular or the transposed system	  	  
-      if ( op%pardiso_mkl_iparm(12) == 2 ) then
+      ! Check depending on the regular or the transposed system
+      if ( this%pardiso_mkl_iparm(12) == 2 ) then
          call matrix%apply_transpose_add(y,r)
       else 
          call matrix%apply_add(y,r)
@@ -507,18 +506,16 @@ contains
       if (maxval(abs(x_real))>0) then
          err = maxval(abs(r_real))/maxval(abs(x_real))
       end if
-      write(serr,'(e10.3)') err                              
-      wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
-      call r%free()	
-
-    end subroutine pardiso_mkl_direct_solver_check_solution_single_rhs
-	
-    subroutine pardiso_mkl_direct_solver_check_solution_several_rhs(op, x, y)
-      class(pardiso_mkl_direct_solver_t),  intent(inout) :: op
-      real(rp),                            intent(inout) :: x(:, :)
-      real(rp),                            intent(inout) :: y(:, :)
-
-      type(sparse_matrix_t),  pointer                :: matrix
+      write(serr,'(e10.3)') err
+      wassert( maxval(abs(r_real))<=evaluate_precision_required_precision*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+      call r%free()
+    end subroutine pardiso_mkl_direct_solver_evaluate_precision_single_rhs
+ 
+    subroutine pardiso_mkl_direct_solver_evaluate_precision_several_rhs(this, x, y)
+      class(pardiso_mkl_direct_solver_t),  intent(inout) :: this
+      real(rp),                            intent(in)    :: x(:,:)
+      real(rp),                            intent(in)    :: y(:,:)
+      type(sparse_matrix_t),  pointer :: matrix
       type(serial_scalar_array_t)     :: xarr
       type(serial_scalar_array_t)     :: yarr
       type(serial_scalar_array_t)     :: rarr
@@ -529,9 +526,7 @@ contains
       integer(ip)                     :: i
       real(rp)                        :: err
       character(len=10)               :: serr
-      real(rp),             parameter :: tol = 1.0e-10
-
-      matrix => op%get_matrix()
+      matrix => this%get_matrix()
 
       nrhs = size(x,2)
       call xarr%create_and_allocate(size(x,1))
@@ -544,7 +539,7 @@ contains
          x_real(:) = x(:,i)
          y_real(:) = y(:,i)
          call rarr%scal(-1.0,xarr)
-         if (op%pardiso_mkl_iparm(12) == 2 ) then ! transposed system 
+         if (this%pardiso_mkl_iparm(12) == 2 ) then ! transposed system 
             call matrix%apply_transpose_add(yarr,rarr)
          else ! Regular system 
             call matrix%apply_add(yarr,rarr)
@@ -554,13 +549,12 @@ contains
             err = maxval(abs(r_real))/maxval(abs(x_real))
          end if
          write(serr,'(e10.3)') err
-         wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+         wassert( maxval(abs(r_real))<=evaluate_precision_required_precision*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
       end do
       call xarr%free()
       call yarr%free()
       call rarr%free()
-
-    end subroutine pardiso_mkl_direct_solver_check_solution_several_rhs
+    end subroutine pardiso_mkl_direct_solver_evaluate_precision_several_rhs
 
 
     subroutine pardiso_mkl_direct_solver_free_clean_body(this)

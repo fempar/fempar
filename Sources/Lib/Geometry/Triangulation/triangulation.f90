@@ -1147,7 +1147,7 @@ module triangulation_names
      generic                             :: create                              => par_triangulation_create
      procedure, private                  :: par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_gids     => par_triangulation_allocate_and_fill_lst_vefs_gids 
-	    procedure, nopass, non_overridable  :: generate_non_consecutive_vef_ggid    => par_triangulation_generate_non_consecutive_vef_ggid
+     procedure, nopass, non_overridable  :: generate_non_consecutive_vef_ggid    => par_triangulation_generate_non_consecutive_vef_ggid
   end type par_triangulation_t
     
   ! These parameter constants are used in order to generate a unique (non-consecutive) 

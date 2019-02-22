@@ -631,10 +631,9 @@ module reference_fe_names
      procedure :: get_num_own_dofs_n_face => reference_fe_get_num_own_dofs_n_face
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
      procedure :: translate_dof_lid_n_face_to_dof_lid_cell => rfe_translate_dof_lid_n_face_to_dof_lid_cell
-
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
-	 
+
      procedure :: compute_permutation_index     => reference_fe_compute_permutation_index
      procedure :: permute_dof_LID_n_face        => reference_fe_permute_dof_LID_n_face
      procedure :: get_normal_orientation_factor => reference_fe_get_normal_orientation_factor
