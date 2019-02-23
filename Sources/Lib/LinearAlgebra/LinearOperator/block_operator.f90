@@ -62,15 +62,16 @@ use iso_c_binding
      integer(ip)                       :: nblocks, mblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
    contains
-     procedure  :: create             => block_operator_create
-     procedure  :: set_block          => block_operator_set_block
-     procedure  :: set_block_to_zero  => block_operator_set_block_to_zero
-     procedure  :: free               => block_operator_free
-     procedure  :: get_block          => block_operator_get_block
-     procedure  :: apply              => block_operator_apply
-     procedure  :: apply_add          => block_operator_apply_add
-     procedure  :: is_linear          => block_operator_is_linear
-     procedure  :: update_matrix      => block_operator_update_matrix
+     procedure  :: create                  => block_operator_create
+     procedure  :: set_block               => block_operator_set_block
+     procedure  :: set_block_to_zero       => block_operator_set_block_to_zero
+     procedure  :: free                    => block_operator_free
+     procedure  :: get_block               => block_operator_get_block
+     procedure  :: apply                   => block_operator_apply
+     procedure  :: apply_add               => block_operator_apply_add
+     procedure  :: is_linear               => block_operator_is_linear
+     procedure  :: update_matrix           => block_operator_update_matrix
+     procedure  :: reallocate_after_remesh => block_operator_reallocate_after_remesh
   end type block_operator_t
 
 
@@ -165,6 +166,19 @@ contains
       end do
     end do
   end subroutine block_operator_update_matrix
+
+  subroutine block_operator_reallocate_after_remesh(this)
+    implicit none
+    class(block_operator_t), intent(inout)    :: this
+    integer(ip) :: iblk, jblk
+    do iblk=1, this%mblocks
+      do jblk=1, this%nblocks
+         if (associated(this%blocks(iblk,jblk)%p_op)) then
+            call this%blocks(iblk,jblk)%p_op%reallocate_after_remesh()
+         end if
+      end do
+    end do
+  end subroutine block_operator_reallocate_after_remesh
   
   subroutine block_operator_create (bop, mblocks, nblocks)
     implicit none

@@ -61,6 +61,7 @@ use iso_c_binding
      procedure  :: apply_add          => block_preconditioner_l_apply_add
      procedure  :: is_linear          => block_preconditioner_l_is_linear
      procedure  :: update_matrix      => block_preconditioner_l_update_matrix
+     procedure  :: reallocate_after_remesh => block_preconditioner_l_reallocate_after_remesh
   end type block_preconditioner_l_t
 
 
@@ -168,6 +169,19 @@ contains
        end do       
     end do
   end subroutine block_preconditioner_l_update_matrix
+  
+  subroutine block_preconditioner_l_reallocate_after_remesh(this)
+    implicit none
+    class(block_preconditioner_l_t), intent(inout)    :: this
+    integer(ip) :: iblk, jblk
+    do iblk=1, this%nblocks        
+       do jblk=1, iblk-1
+         if (associated(this%blocks(iblk,jblk)%p_op)) then
+            call this%blocks(iblk,jblk)%p_op%reallocate_after_remesh()
+         end if
+       end do       
+    end do
+  end subroutine block_preconditioner_l_reallocate_after_remesh
  
   subroutine block_preconditioner_l_create (bop, nblocks)
     implicit none
