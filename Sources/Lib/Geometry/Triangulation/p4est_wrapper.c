@@ -122,12 +122,33 @@ void F90_p4est_connectivity_new_unitsquare(p4est_connectivity_t **p4est_connecti
   P4EST_ASSERT (p4est_connectivity_is_valid (*p4est_connectivity));
 }
 
+
 void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivity)
 {
   F90_p8est_connectivity_destroy(p8est_connectivity);
   *p8est_connectivity = p8est_connectivity_new_unitcube();
   P4EST_ASSERT (p8est_connectivity_is_valid (*p8est_connectivity));
 }
+
+
+void F90_p4est_connectivity_scale ( p4est_connectivity_t ** p4est_conn,
+                                    double                * bounding_box_limits )
+{
+    int bound;
+    const int num_dims = 3;
+    const int bin_base = 2;
+    
+    for ( int ivertex = 0; ivertex < (*p4est_conn)->num_vertices; ivertex ++ )
+    {
+        for ( int idim = 0; idim < 3; idim ++ )
+        {
+            bound = (int)(ivertex / (int)pow(bin_base,idim) ) % bin_base ;
+            (*p4est_conn)->vertices [ ivertex * num_dims + idim ] = bounding_box_limits[ bound * num_dims + idim ];
+        }
+    }
+    
+}
+
 
 #ifdef SC_ENABLE_MPI
 void F90_p4est_new ( const MPI_Fint Fcomm, 

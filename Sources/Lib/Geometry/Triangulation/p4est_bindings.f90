@@ -83,6 +83,15 @@ module p4est_bindings_names
      end subroutine F90_p8est_connectivity_new_unitcube
      
      !=================================================================================================================================
+     !> summary: Scales p4est connectivity with bounding box limits
+     !=================================================================================================================================
+     subroutine F90_p4est_connectivity_scale(p4est_connectivity,bounding_box_limits) bind(c,name="F90_p4est_connectivity_scale")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr)       , intent(inout)  :: p4est_connectivity
+       type(c_ptr), value, intent(in)     :: bounding_box_limits
+     end subroutine F90_p4est_connectivity_scale
+     !=================================================================================================================================
      !> summary: Creates unrefined p4est (it will contain a single root octant)
      !=================================================================================================================================
      subroutine F90_p4est_new(mpi_comm, p4est_connectivity, p4est) bind(c,name="F90_p4est_new")
