@@ -467,6 +467,8 @@ module p4est_triangulation_names
     integer(ip) :: previous_num_local_cells = -1
     integer(ip) :: previous_num_ghost_cells = -1
     
+    logical     :: clear_refinement_and_coarsening_flags_pending = .false.
+    
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
     real(rp)                            :: bounding_box_limits(1:SPACE_DIM,2)
     type(std_vector_point_t)            :: per_cell_vertex_coordinates

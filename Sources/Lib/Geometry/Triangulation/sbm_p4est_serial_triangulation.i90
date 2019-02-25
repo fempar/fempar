@@ -217,6 +217,8 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%free_reference_fe_geo_scratch_data()
   !call this%free_environment()
   
+  this%clear_refinement_and_coarsening_flags_pending = .false.
+  
   call triangulation_free(this)
 #else
   call this%not_enabled_error()

@@ -4227,13 +4227,6 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   call fe_function%create(this)
   fe_function = transformed_fe_function
   call this%update_hanging_dof_values(fe_function)
-    
-  select type(triangulation)
-  class is (p4est_serial_triangulation_t)
-    call triangulation%clear_refinement_and_coarsening_flags()
-  class default
-    assert(.false.)
-  end select
   
   call this%free_fe_cell_iterator(new_fe)
   call transformed_fe_function%free()
@@ -4398,13 +4391,6 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
     call this%update_hanging_dof_values(fe_functions(ifunc)%p)
   
   end do
-  
-  select type(triangulation)
-  class is (p4est_serial_triangulation_t)
-    call triangulation%clear_refinement_and_coarsening_flags()
-  class default
-    assert(.false.)
-  end select
   
   call this%free_fe_cell_iterator(new_fe)
   call transformed_fe_function%free()

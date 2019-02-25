@@ -338,6 +338,9 @@ subroutine p4est_cell_iterator_set_for_coarsening(this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
   assert ( .not. this%is_ghost() )
+  if (this%p4est_triangulation%clear_refinement_and_coarsening_flags_pending) then
+     call this%p4est_triangulation%clear_refinement_and_coarsening_flags()
+  end if
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), coarsening)
 end subroutine p4est_cell_iterator_set_for_coarsening
 
@@ -346,6 +349,9 @@ subroutine p4est_cell_iterator_set_for_refinement(this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
   assert ( .not. this%is_ghost() )
+  if (this%p4est_triangulation%clear_refinement_and_coarsening_flags_pending) then
+     call this%p4est_triangulation%clear_refinement_and_coarsening_flags()
+  end if 
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), refinement)
 end subroutine p4est_cell_iterator_set_for_refinement
 
@@ -354,6 +360,9 @@ subroutine p4est_cell_iterator_set_for_do_nothing(this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
   assert ( .not. this%is_ghost() )
+  if (this%p4est_triangulation%clear_refinement_and_coarsening_flags_pending) then
+     call this%p4est_triangulation%clear_refinement_and_coarsening_flags()
+  end if 
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
 end subroutine p4est_cell_iterator_set_for_do_nothing
 
