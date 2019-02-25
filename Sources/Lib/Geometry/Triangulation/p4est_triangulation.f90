@@ -560,7 +560,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: fill_ghost_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_local_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
-    procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure, private        , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_weights                                 => p4est_bt_clear_cell_weights
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set

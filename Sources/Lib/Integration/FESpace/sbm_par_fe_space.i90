@@ -5241,10 +5241,6 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
                                                 p_new_fe_function_nodal_values, &
                                                 this%ptr_dofs_x_fe(1)%get_pointer(), &
                                                 this%ptr_dofs_x_fe(1)%get_pointer() )  
-      
-        
-        
-      call p4est_par_triangulation%clear_refinement_and_coarsening_flags()
         
       call fe_function%create(this)
       call this%create_fe_cell_iterator(fe)
@@ -5492,8 +5488,6 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
         end do
       
       end do
-      
-      call p4est_par_triangulation%clear_refinement_and_coarsening_flags()
       
       do field_id = 1,this%num_fields
         call old_ptr_dofs_x_fe(field_id)%free()
