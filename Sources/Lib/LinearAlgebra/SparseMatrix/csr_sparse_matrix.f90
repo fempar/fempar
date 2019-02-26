@@ -68,6 +68,9 @@ private
         procedure         :: allocate_symbolic                       => csr_sparse_matrix_allocate_symbolic
         procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
+        procedure, public :: scal                                    => csr_sparse_matrix_scal
+        procedure, public :: add                                     => csr_sparse_matrix_add
+        procedure, public :: copy                                    => csr_sparse_matrix_copy
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
         procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
         procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
@@ -102,6 +105,7 @@ private
         procedure         :: apply_body                              => csr_sparse_matrix_apply_body
         procedure         :: apply_add_body                          => csr_sparse_matrix_apply_add_body
         procedure         :: apply_transpose_body                    => csr_sparse_matrix_apply_transpose_body
+        procedure         :: apply_transpose_add_body                => csr_sparse_matrix_apply_transpose_add_body 
         procedure         :: apply_to_dense_matrix_body              => csr_sparse_matrix_apply_to_dense_matrix_body
         procedure         :: apply_transpose_to_dense_matrix_body    => csr_sparse_matrix_apply_transpose_to_dense_matrix_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
@@ -763,6 +767,53 @@ contains
         end select
         call x%CleanTemp()
     end subroutine csr_sparse_matrix_apply_transpose_body
+ 
+ subroutine csr_sparse_matrix_apply_transpose_add_body(this,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply transpose matrix vector product y=op'*x+y
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)    :: this
+        class(vector_t),            intent(in)    :: x
+        class(vector_t) ,           intent(inout) :: y 
+    !-----------------------------------------------------------------
+        real(rp), pointer :: x_entries(:)
+        real(rp), pointer :: y_entries(:)
+        
+        call x%GuardTemp()
+        select type(x)
+            class is (serial_scalar_array_t)
+                select type(y)
+                    class is(serial_scalar_array_t)
+                        x_entries => x%get_entries()
+                        y_entries => y%get_entries()
+                        if (this%get_symmetric_storage()) then
+                            call matvec_symmetric_storage(              &
+                                        num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 1.0_rp,              &
+                                        y        = y_entries )
+                        else
+                            call transpose_matvec(num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(),           &
+                                        irp      = this%irp,                      &
+                                        ja       = this%ja,                       &
+                                        val      = this%val,                      &
+                                        alpha    = 1.0_rp,                        &
+                                        x        = x_entries,                     &
+                                        beta     = 1.0_rp,                        &
+                                        y        = y_entries )
+                    end if
+                end select
+            class DEFAULT
+                check(.false.)
+        end select
+        call x%CleanTemp()
+    end subroutine csr_sparse_matrix_apply_transpose_add_body
 
 
     subroutine csr_sparse_matrix_apply_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
@@ -977,8 +1028,109 @@ contains
     !-----------------------------------------------------------------
         if(allocated(this%val)) this%val(1:this%get_nnz()) = val
     end subroutine csr_sparse_matrix_initialize_values
-
-
+    
+    
+   subroutine csr_sparse_matrix_scal(this, val)
+    !-----------------------------------------------------------------
+    !< Scal CSR values
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout)  :: this
+        real(rp),                   intent(in)     :: val
+    !-----------------------------------------------------------------
+        if(allocated(this%val)) this%val(1:this%get_nnz()) = val*this%val(1:this%get_nnz())
+    end subroutine csr_sparse_matrix_scal
+    
+    subroutine csr_sparse_matrix_add(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Sum CSR values this = alpha*op1 + beta*op2
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(inout)  :: this
+        real(rp),                    intent(in)     :: alpha
+        class(base_sparse_matrix_t), intent(in)     :: op1
+        real(rp),                    intent(in)     :: beta
+        class(base_sparse_matrix_t), intent(in)     :: op2
+    !-----------------------------------------------------------------
+        type(csr_sparse_matrix_t) :: tmp1, tmp2
+        select type(op1)
+        class is (csr_sparse_matrix_t) 
+           select type(op2)
+           class is (csr_sparse_matrix_t) 
+              call csr_sparse_matrix_add_csr (this, alpha, op1, beta, op2 )
+           class DEFAULT
+              call op2%copy_to_fmt(tmp2)
+              call csr_sparse_matrix_add_csr (this, alpha, op1, beta, tmp2)
+           end select
+        class DEFAULT
+           select type(op2)
+           class is (csr_sparse_matrix_t) 
+              call op1%copy_to_fmt( tmp1 )
+              call csr_sparse_matrix_add_csr ( this, alpha, tmp1, beta, op2 )
+              call tmp1%free()
+           class DEFAULT
+              call op1%copy_to_fmt( tmp1 )
+              call op2%copy_to_fmt( tmp2 )
+              call csr_sparse_matrix_add_csr ( this, alpha, tmp1, beta, tmp2 )
+              call tmp1%free()
+              call tmp2%free()
+           end select
+        end select
+    end subroutine csr_sparse_matrix_add
+    
+    subroutine csr_sparse_matrix_add_csr(this, alpha, op1, beta, op2)
+      implicit none
+      type(csr_sparse_matrix_t),  intent(inout) :: this
+      real(rp),                    intent(in)   :: alpha
+      type(csr_sparse_matrix_t), intent(in)     :: op1
+      real(rp),                    intent(in)   :: beta
+      type(csr_sparse_matrix_t), intent(in)     :: op2
+     
+      ! Check preconditions
+      assert( op1%state_is_assembled() .and. op2%state_is_assembled() )
+      massert( op1%get_nnz() == op2%get_nnz(), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' ) 
+      massert( all( op1%irp ==  op2%irp ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
+      massert( all( op1%ja(1:op1%get_nnz()) ==  op2%ja(1:op2%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and op2 must have the same sparsity pattern' )
+    
+      if ( this%state_is_assembled() ) then
+        massert( op1%get_nnz() == this%get_nnz(), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' ) 
+        massert( all( op1%irp ==  this%irp ), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' )
+        massert( all( op1%ja(1:op1%get_nnz()) ==  this%ja(1:this%get_nnz()) ), 'csr_sparse_matrix_add :: op1 and this must have the same sparsity pattern' )
+      else
+        call this%copy_from_fmt(op1)
+      end if   
+      
+      if ( alpha == 0.0_rp .and. beta == 0.0_rp ) then
+         this%val(1:this%get_nnz()) =  0.0_rp
+      else if ( alpha == 0.0_rp ) then
+         this%val(1:this%get_nnz()) =  beta*op2%val(1:this%get_nnz())
+      else if ( beta  == 0.0_rp ) then
+         this%val(1:this%get_nnz()) =  alpha*op1%val(1:this%get_nnz())
+      else
+         this%val(1:this%get_nnz()) = alpha*op1%val(1:op1%get_nnz()) + beta*op2%val(1:op2%get_nnz())          
+      end if 
+    end subroutine csr_sparse_matrix_add_csr
+    
+    subroutine csr_sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Copy CSR values this = op
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t),  intent(inout)  :: this
+        class(base_sparse_matrix_t), intent(in)     :: op
+    !-----------------------------------------------------------------
+      select type(op)
+      class is (csr_sparse_matrix_t) 
+         if ( this%state_is_assembled() ) then
+           massert( op%get_nnz() == this%get_nnz(), 'csr_sparse_matrix_add :: op and this must have the same sparsity pattern' ) 
+           massert( all( op%irp ==  this%irp ), 'csr_sparse_matrix_add :: op and this must have the same sparsity pattern' )
+           massert( all( op%ja(1:op%get_nnz()) ==  this%ja(1:this%get_nnz()) ), 'csr_sparse_matrix_add :: op and this must have the same sparsity pattern' )
+           this%val(1:this%get_nnz()) = op%val(1:op%get_nnz())   
+         else
+           call this%copy_from_fmt(op)
+         end if
+      class DEFAULT
+         call this%copy_from_fmt(op)
+      end select
+    end subroutine csr_sparse_matrix_copy
+       
     subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------
     !< Update the values and entries in the sparse matrix
@@ -4081,7 +4233,7 @@ contains
     !< Return the diagonal of a CSR sparse matrix
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(in)    :: this
-        real(rp),   allocatable,    intent(inout) :: diagonal(:)
+        real(rp)                  , intent(inout) :: diagonal(:)
         integer(ip)                               :: diagonal_size
         integer(ip)                               :: row
         integer(ip)                               :: row_start_offset
@@ -4089,10 +4241,8 @@ contains
         integer(ip)                               :: col_offset_in_row
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
-        if(allocated(diagonal)) deallocate(diagonal)
         diagonal_size = min(this%get_num_rows(), this%get_num_cols())
-        allocate(diagonal(diagonal_size))
-
+        assert(diagonal_size == size(diagonal))
         do row=1, diagonal_size
             row_start_offset = this%irp(row)
             row_end_offset = this%irp(row+1)-1

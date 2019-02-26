@@ -69,7 +69,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      class(level_set_function_t), allocatable :: level_set_function
 
      ! Discrete weak problem integration-related data type instances 
-     type(serial_unfitted_hp_adaptive_fe_space_t) :: fe_space 
+     type(serial_unfitted_fe_space_t)             :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      
      type(poisson_unfitted_cG_discrete_integration_t) :: poisson_cG_integration
@@ -84,6 +84,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      type(fe_affine_operator_t)                   :: fe_affine_operator
      
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                       :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
 #else     
@@ -94,7 +95,9 @@ module test_unfitted_h_adaptive_poisson_driver_names
      type(fe_function_t)                       :: solution
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
      procedure        , private :: set_cells_for_refinement
@@ -125,6 +128,20 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
 
   subroutine setup_levelset(this)
     implicit none
@@ -138,9 +155,9 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent   (key = struct_hex_triang_num_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
@@ -187,7 +204,7 @@ contains
     end if
 
     ! Create the triangulation, with the levelset function
-    call this%triangulation%create(this%parameter_list,this%level_set_function)
+    call this%triangulation%create(this%parameter_list,this%level_set_function, this%serial_environment)
 
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
@@ -574,7 +591,7 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -592,9 +609,9 @@ contains
        assert(.false.) 
     end select
 #else    
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
@@ -1170,7 +1187,6 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
     call this%fill_cells_set()

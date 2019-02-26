@@ -26,11 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine p4est_par_triangulation_create (this, parameters, environment)
+subroutine p4est_par_triangulation_create (this, environment, parameters)
   implicit none
   class(p4est_par_triangulation_t), target, intent(inout) :: this
+  type(environment_t)             , target, intent(in)    :: environment
   type(ParameterList_t)                   , intent(inout) :: parameters
-  type(environment_t),    optional, target, intent(in)    :: environment
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t)      , pointer :: p_environment
@@ -42,22 +42,25 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   real(rp)   , allocatable :: bounding_box_limits(:)
   character(len=:), allocatable :: subparts_coupling_criteria 
   character(1) :: dummy_string
+  integer(ip) :: p4est_log_level
   
 #ifdef ENABLE_P4EST
   call this%free()
   
   call this%set_single_octree_mesh(.true.)
-  
-  if(present(environment)) then
-     call this%set_environment(environment)
-     p_environment => this%get_environment()
-  else
-     istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-     istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
-     call this%allocate_environment()
-     p_environment => this%get_environment()
-     call p_environment%create(parameters)
-  end if
+
+  call this%set_environment(environment)
+  p_environment => this%get_environment()
+  ! if(present(environment)) then
+  !    call this%set_environment(environment)
+  !    p_environment => this%get_environment()
+  ! else
+  !    istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+  !    istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
+  !    call this%allocate_environment()
+  !    p_environment => this%get_environment()
+  !    call p_environment%create(parameters)
+  ! end if
 
   if( parameters%isPresent(subparts_coupling_criteria_key) ) then
      massert(parameters%isAssignable(subparts_coupling_criteria_key, dummy_string), 'Subparts coupling criteria not found or un-usable')
@@ -69,15 +72,15 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
      
   if ( p_environment%am_i_l1_task() ) then  
      ! Get num_dims from FPL
-     massert(parameters%isAssignable(num_dims_key, num_dims), 'num_dims not found or un-usable')
-     istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
+     massert(parameters%isAssignable(struct_hex_triang_num_dims_key, num_dims), 'num_dims not found or un-usable')
+     istat = parameters%get(key = struct_hex_triang_num_dims_key, value = num_dims); assert(istat==0)
      call this%set_num_dims(num_dims)
-     if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
-       istat = parameters%GetShape(key = hex_mesh_domain_limits_key, shape = array_size); check(istat==0)
+     if( parameters%isPresent(key = struct_hex_triang_domain_limits_key) ) then
+       istat = parameters%GetShape(key = struct_hex_triang_domain_limits_key, shape = array_size); check(istat==0)
        assert(array_size(1) >= 2*this%get_num_dims())
        call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)
-       assert(parameters%isAssignable(hex_mesh_domain_limits_key, bounding_box_limits))
-       istat = parameters%get(key = hex_mesh_domain_limits_key , value = bounding_box_limits); check(istat==0)
+       assert(parameters%isAssignable(struct_hex_triang_domain_limits_key, bounding_box_limits))
+       istat = parameters%get(key = struct_hex_triang_domain_limits_key , value = bounding_box_limits); check(istat==0)
        do idime = 1,this%get_num_dims()
          this%bounding_box_limits(idime,1) = bounding_box_limits(2*idime-1)
          this%bounding_box_limits(idime,2) = bounding_box_limits(2*idime)
@@ -88,13 +91,22 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
        this%bounding_box_limits(:,1) = 0.0_rp
        this%bounding_box_limits(:,2) = 1.0_rp
      end if
+     
+     if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
+      assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
+      istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
+     else
+      p4est_log_level = FEMPAR_SC_LP_DEFAULT
+     end if
 
      call this%reference_fe_geo%create( topology_hex, &
                                         this%get_num_dims(), &
                                         1, &
                                         field_type_scalar, & 
                                         conformity=.true.)  
-     
+    
+     call this%allocate_and_gen_reference_fe_geo_scratch_data()
+ 
      context => p_environment%get_l1_context()
      select type(context)
      class is (mpi_context_t)
@@ -102,7 +114,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
      class default
        mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
      end select
-     call F90_p4est_init(mpi_context%get_icontxt())
+     call F90_p4est_init(mpi_context%get_icontxt(),p4est_log_level)
      
      if ( this%get_num_dims() == 2 ) then
         call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
@@ -112,8 +124,6 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_cell_import()
         call this%update_cell_ggids()
         call this%update_cell_myparts()
-        call this%comm_cell_ggids()
-        call this%comm_cell_myparts()
         call this%extend_p4est_topology_arrays_to_ghost_cells()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
         call this%fill_x_cell_vertex_coordinates()
@@ -132,8 +142,6 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_cell_import()
         call this%update_cell_ggids()
         call this%update_cell_myparts()
-        call this%comm_cell_ggids()
-        call this%comm_cell_myparts()
         call this%extend_p4est_topology_arrays_to_ghost_cells()
         call this%find_missing_corner_neighbours()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
@@ -219,26 +227,12 @@ subroutine p4est_par_triangulation_free ( this)
         cell_import => this%get_cell_import()
         call cell_import%free()
 
-        if ( this%get_num_ghost_cells() == 0 ) then
-          nullify(this%quad_to_quad)
-          nullify(this%quad_to_face)
-          nullify(this%quad_to_half)
-          nullify(this%quad_to_corner)
-          nullify(this%quad_to_half_by_edge)
-        else
-          deallocate(this%quad_to_quad)
-          deallocate(this%quad_to_face)
-          if ( associated(this%quad_to_half) ) then 
-            deallocate(this%quad_to_half)
-          end if  
-          deallocate(this%quad_to_corner)
-          if ( this%get_num_dims() == 3 ) then
-            if ( associated(this%quad_to_half_by_edge) ) then
-              deallocate(this%quad_to_half_by_edge)
-            end if
-          end if
-        end if 
-
+        if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+        if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+        if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+        if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+        if (associated(this%quad_to_half_by_edge) ) deallocate(this%quad_to_half_by_edge)
+        
         if (allocated(this%quad_coords)) &
              call memfree(this%quad_coords, __FILE__, __LINE__)
 
@@ -262,6 +256,7 @@ subroutine p4est_par_triangulation_free ( this)
         this%bounding_box_limits = 0.0_rp
         
         call this%reference_fe_geo%free()
+        call this%free_reference_fe_geo_scratch_data()
         
         context => p_environment%get_l1_context()
         select type(context)
@@ -335,12 +330,20 @@ subroutine p4est_par_triangulation_redistribute ( this )
   if ( p_environment%am_i_l1_task() ) then
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%cell_weights%get_pointer()
-      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p4est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if 
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old) 
       call F90_p4est_partition(this%p4est)
     else if ( this%get_num_dims() == 3 ) then
       user_pointer => this%cell_weights%get_pointer()
-      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p8est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old) 
       call F90_p8est_partition(this%p4est)
     end if
@@ -350,18 +353,21 @@ subroutine p4est_par_triangulation_redistribute ( this )
     call this%update_cell_import()
     call this%update_cell_ggids()
     call this%update_cell_myparts()
-    call this%comm_cell_ggids()
-    call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%fill_x_cell_vertex_coordinates()
     call this%update_migration_control_data(p4est_old)
     call this%set_up_lst_itfc_vefs()
+
     call this%migrate_cell_set_ids()
     call this%migrate_cell_weights()
     call this%migrate_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
+    call this%comm_cell_set_ids()
+    call this%comm_cell_wise_vef_set_ids(this%new_vef_set_ids)
+    call this%fill_ghost_cells_from_cell_wise_vef_set_ids(this%new_vef_set_ids)
+
     if ( this%get_num_dims() == 2 ) then
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
@@ -468,7 +474,6 @@ subroutine p4est_par_triangulation_migrate_cell_set_ids(this)
   call old_cell_set_ids%copy(this%cell_set_ids)
   call this%cell_set_ids%resize(0)
   call this%cell_set_ids%resize(this%get_num_local_cells()+this%get_num_ghost_cells(),-1)
-  
   p_old_cell_set_ids => old_cell_set_ids%get_pointer()
   p_cell_set_ids     => this%cell_set_ids%get_pointer()
   do i=1, this%get_num_local_cells()
@@ -479,18 +484,6 @@ subroutine p4est_par_triangulation_migrate_cell_set_ids(this)
   call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
                                            this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
                                            p_old_cell_set_ids, p_cell_set_ids )
- 
-  ! Retrieve set IDs from ghost cells
-  cell_import => this%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_cell_set_ids, p_cell_set_ids )  
   call old_cell_set_ids%free()
 #else
   call this%not_enabled_error()
@@ -524,18 +517,6 @@ subroutine p4est_par_triangulation_migrate_cell_weights(this)
   call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
                                            this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
                                            p_old_cell_weights, p_cell_weights )
- 
-  ! Retrieve set IDs from ghost cells
-  cell_import => this%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_cell_weights, p_cell_weights )  
   call old_cell_weights%free()
 #else
   call this%not_enabled_error()
@@ -605,33 +586,9 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
   call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
                                            this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
                                            p_old_vef_set_ids, p_new_vef_set_ids, num_vefs )
-  
-  ! Retrieve set IDs from ghost cells
-  cell_import => this%get_cell_import()
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_new_vef_set_ids, p_new_vef_set_ids, num_vefs )  
 
-  call cell%create(this)
-  call vef%create(this)
-  call cell%first()
-  do while ( .not. cell%has_finished() )
-    base_pos_new    = this%get_ptr_vefs_x_cell(cell%get_gid())-1
-    do vef_lid=1, num_vefs
-      call cell%get_vef(vef_lid,vef)
-      new_vef_set_id  = p_new_vef_set_ids(base_pos_new+vef_lid)
-      call vef%set_set_id(new_vef_set_id)
-    end do
-    call cell%next()
-  end do
-  call cell%free()
-  call vef%free()
+  call this%fill_local_cells_from_cell_wise_vef_set_ids(this%new_vef_set_ids)
+  
 #else
   call this%not_enabled_error()
 #endif

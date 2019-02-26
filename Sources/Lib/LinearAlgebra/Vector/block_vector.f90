@@ -68,7 +68,7 @@ module block_vector_names
   end type p_vector_t
 
   ! Added type(block_vector_t) as a new implementation of class(vector_t).
-  ! type(block_vector_t) is the only type compatible with type(block_vector_t).
+  ! type(block_vector_t) is the only type compatible with type(block_operator_t).
   ! Therefore, if one aims to solve a linear system by means of an, e.g., block
   ! LU recursive preconditioned GMRES, then both the right hand side, and sought-after
   ! solution have to be provided to abstract_gmres as type(block_vector_t) instances.
@@ -98,10 +98,13 @@ module block_vector_names
      procedure :: axpby => block_vector_axpby
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
+     procedure :: comm => block_vector_comm
      procedure :: same_vector_space => block_vector_same_vector_space
      procedure :: get_num_blocks
      procedure :: extract_subvector => block_vector_extract_subvector
      procedure :: insert_subvector => block_vector_insert_subvector
+     procedure :: entrywise_product => block_vector_entrywise_product
+     procedure :: entrywise_invert => block_vector_entrywise_invert
   end type block_vector_t
 
   ! Types
@@ -385,12 +388,16 @@ contains
    select type(op2)
    class is (block_vector_t)
      assert(op2%state==assembled)
-     call op1%free()
-     call op1%create(op2%nblocks) 
+     if ( op1%same_vector_space(op2) ) then
+       call op1%free()
+       call op1%create(op2%nblocks)
+     end if   
      do iblk=1, op2%nblocks
-       allocate(op1%blocks(iblk)%vector, mold=op2%blocks(iblk)%vector)
-       call op1%blocks(iblk)%vector%default_initialization()
-       op1%blocks(iblk)%allocated = .true. 
+       if ( .not. associated(op1%blocks(iblk)%vector) ) then
+         allocate(op1%blocks(iblk)%vector, mold=op2%blocks(iblk)%vector)
+         call op1%blocks(iblk)%vector%default_initialization()
+         op1%blocks(iblk)%allocated = .true. 
+       end if 
        call op1%blocks(iblk)%vector%clone(op2%blocks(iblk)%vector) 
      end do
    class default
@@ -400,29 +407,45 @@ contains
    call op2%CleanTemp()
  end subroutine block_vector_clone
  
+ ! op <- comm(op), i.e. fully assembled op <- subassembled op 
+ subroutine block_vector_comm(op)
+   implicit none
+   class(block_vector_t), intent(inout) :: op 
+
+   ! Locals
+   integer(ip) :: ib
+   assert(op%state == blocks_container_created)
+   do ib=1,op%nblocks
+      call op%blocks(ib)%vector%comm()
+   end do
+
+ end subroutine block_vector_comm 
+ 
  function block_vector_same_vector_space(this,vector)
    implicit none
    class(block_vector_t), intent(in) :: this
    class(vector_t), intent(in) :: vector
    logical :: block_vector_same_vector_space
    integer(ip) :: iblk
-   assert(this%state==assembled)
    block_vector_same_vector_space = .false.
-   select type(vector)
-   class is (block_vector_t)
-     assert(vector%state==assembled)
-     block_vector_same_vector_space = (this%nblocks == vector%nblocks)
-     if ( block_vector_same_vector_space ) then
-       do iblk=1, this%nblocks
-          assert(associated(this%blocks(iblk)%vector))
-          assert(associated(vector%blocks(iblk)%vector))
-          block_vector_same_vector_space = this%blocks(iblk)%vector%same_vector_space(vector%blocks(iblk)%vector)
-          if ( .not. block_vector_same_vector_space ) then
-            exit
-          end if
-       end do
-     end if
-   end select
+   if ( this%state==assembled ) then
+     select type(vector)
+     class is (block_vector_t)
+       if (vector%state==assembled) then
+         block_vector_same_vector_space = (this%nblocks == vector%nblocks)
+         if ( block_vector_same_vector_space ) then
+           do iblk=1, this%nblocks
+            assert(associated(this%blocks(iblk)%vector))
+            assert(associated(vector%blocks(iblk)%vector))
+            block_vector_same_vector_space = this%blocks(iblk)%vector%same_vector_space(vector%blocks(iblk)%vector)
+            if ( .not. block_vector_same_vector_space ) then
+              exit
+            end if
+          end do
+        end if
+       end if
+     end select
+   end if
  end function block_vector_same_vector_space
  
  function get_num_blocks(this) result(res)
@@ -469,5 +492,41 @@ contains
    assert( .false. )
    
  end subroutine block_vector_insert_subvector
+ 
+ subroutine block_vector_entrywise_product(op1,op2,op3)
+   implicit none
+   class(block_vector_t), intent(inout) :: op1
+   class(vector_t)      , intent(in)    :: op2
+   class(vector_t)      , intent(in)    :: op3
+   integer(ip) :: ib
+   massert( op1%state == assembled, 'bv_entrywise_product: op1 is not assembled' )
+   select type ( op2 )
+     class is ( block_vector_t )
+       massert( op2%state == assembled, 'bv_entrywise_product: op2 is not assembled' )
+       massert( op2%nblocks == op1%nblocks, 'bv_entrywise_product: op2 and op1 have different number of blocks' )
+       select type ( op3 )
+         class is ( block_vector_t )
+           massert( op3%state == assembled, 'bv_entrywise_product: op3 is not assembled' )
+           massert( op3%nblocks == op1%nblocks, 'bv_entrywise_product: op3 and op1 have different number of blocks' )
+           do ib=1,op1%nblocks
+             call op1%blocks(ib)%vector%entrywise_product(op2%blocks(ib)%vector,op3%blocks(ib)%vector)
+           end do
+         class default
+           mcheck(.false.,'bv_entrywise_product: unsupported op3 class')
+       end select
+     class default
+       mcheck(.false.,'bv_entrywise_product: unsupported op2 class')
+   end select
+ end subroutine block_vector_entrywise_product
+ 
+ subroutine block_vector_entrywise_invert(op1)
+   implicit none
+   class(block_vector_t), intent(inout) :: op1
+   integer(ip) :: ib
+   massert( op1%state == assembled, 'bv_entrywise_invert: op1 is not assembled' )
+   do ib=1,op1%nblocks
+     call op1%blocks(ib)%vector%entrywise_invert()
+   end do
+ end subroutine block_vector_entrywise_invert
  
 end module block_vector_names

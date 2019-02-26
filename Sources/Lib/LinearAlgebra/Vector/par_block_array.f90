@@ -77,6 +77,8 @@ module par_block_array_names
      procedure :: get_num_blocks => par_block_array_get_num_blocks
      procedure :: extract_subvector => par_block_array_extract_subvector
      procedure :: insert_subvector  => par_block_array_insert_subvector
+     procedure :: entrywise_product => par_block_array_entrywise_product
+     procedure :: entrywise_invert  => par_block_array_entrywise_invert
   end type par_block_array_t
 
   ! Types
@@ -369,13 +371,14 @@ contains
     p => op1
     if(associated(p,op2)) return ! It's aliasing
     
-    assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
        class is (par_block_array_t)
        assert(op2%state == blocks_container_created)
-       call op1%free()
-       call op1%create(op2%nblocks)
+       if ( op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%nblocks)
+       end if 
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
@@ -386,7 +389,7 @@ contains
     call op2%CleanTemp()
   end subroutine par_block_array_clone
 
-  ! op <- comm(op)
+  ! op <- comm(op), i.e. fully assembled op <- subassembled op 
   subroutine par_block_array_comm(op)
     implicit none
     class(par_block_array_t), intent(inout) :: op 
@@ -436,20 +439,22 @@ contains
     integer(ip) :: iblk
     
     par_block_array_same_vector_space = .false.
-    assert ( this%state == blocks_container_created )
-    select type(vector)
-    class is (par_block_array_t)
-      assert ( vector%state == blocks_container_created )
-      par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-      if ( par_block_array_same_vector_space ) then
-        do iblk=1, this%nblocks
-           par_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-           if ( .not. par_block_array_same_vector_space ) then
-             exit
-           end if
-        end do
-      end if
-    end select
+    if ( this%state == blocks_container_created ) then
+      select type(vector)
+      class is (par_block_array_t)
+        if (vector%state == blocks_container_created ) then
+          par_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+          if ( par_block_array_same_vector_space ) then
+            do iblk=1, this%nblocks
+             par_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+             if ( .not. par_block_array_same_vector_space ) then
+              exit
+             end if
+            end do
+          end if
+        end if 
+      end select
+    end if 
   end function par_block_array_same_vector_space
  
   !=============================================================================
@@ -493,5 +498,41 @@ contains
    assert( .false. )
    
  end subroutine par_block_array_insert_subvector
+  
+ subroutine par_block_array_entrywise_product(op1,op2,op3)
+   implicit none
+   class(par_block_array_t), intent(inout) :: op1
+   class(vector_t)         , intent(in)    :: op2
+   class(vector_t)         , intent(in)    :: op3
+   integer(ip) :: ib
+   massert( op1%state == blocks_container_created, 'pba_entrywise_product: op1 blocks are not created' )
+   select type ( op2 )
+     class is ( par_block_array_t )
+       massert( op2%state == blocks_container_created, 'pba_entrywise_product: op2 blocks are not created' )
+       massert( op2%nblocks == op1%nblocks, 'pba_entrywise_product: op2 and op1 have different number of blocks' )
+       select type ( op3 )
+         class is ( par_block_array_t )
+           massert( op3%state == blocks_container_created, 'pba_entrywise_product: op3 blocks are not created' )
+           massert( op3%nblocks == op1%nblocks, 'pba_entrywise_product: op3 and op1 have different number of blocks' )
+           do ib=1,op1%nblocks
+             call op1%blocks(ib)%entrywise_product(op2%blocks(ib),op3%blocks(ib))
+           end do
+         class default
+           mcheck(.false.,'pba_entrywise_product: unsupported op3 class')
+       end select
+     class default
+       mcheck(.false.,'pba_entrywise_product: unsupported op2 class')
+   end select
+ end subroutine par_block_array_entrywise_product
+ 
+ subroutine par_block_array_entrywise_invert(op1)
+   implicit none
+   class(par_block_array_t), intent(inout) :: op1
+   integer(ip) :: ib
+   massert( op1%state == blocks_container_created, 'pba_entrywise_invert: op1 blocks are not created' )
+   do ib=1,op1%nblocks
+     call op1%blocks(ib)%entrywise_invert()
+   end do
+ end subroutine par_block_array_entrywise_invert
  
 end module par_block_array_names

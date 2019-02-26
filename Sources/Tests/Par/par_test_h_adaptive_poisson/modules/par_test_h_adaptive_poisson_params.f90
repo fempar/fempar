@@ -16,6 +16,7 @@ module par_test_h_adaptive_poisson_params_names
   character(len=*), parameter :: use_void_fes_key               = 'use_void_fes'
   character(len=*), parameter :: use_void_fes_case_key          = 'use_void_fes_case'
   character(len=*), parameter :: coupling_criteria_key          = 'coupling_criteria'
+  character(len=*), parameter :: preconditioner_type_key        = 'preconditioner_type'
   
   ! Meshing parameters 
   character(len=*), parameter :: refinement_pattern_case_key   = 'refinement_pattern_case'
@@ -43,6 +44,7 @@ module par_test_h_adaptive_poisson_params_names
        procedure, non_overridable             :: get_num_refinements 
        procedure, non_overridable             :: get_min_num_refinements
        procedure, non_overridable             :: get_subparts_coupling_criteria 
+       procedure, non_overridable             :: get_preconditioner_type
        !procedure, non_overridable             :: get_num_dims
   end type par_test_h_adaptive_poisson_params_t
 
@@ -71,41 +73,40 @@ contains
     error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
     error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
     error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
-    error = list%set(key = num_dims_key          , value =  2)                   ; check(error==0)
-    error = list%set(key = num_cells_x_dir_key       , value =  [12,12,12])          ; check(error==0)
-    error = list%set(key = is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
-    error = list%set(key = num_levels_key              , value =  3)                   ; check(error==0)
-    error = list%set(key = num_parts_x_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_dims_key          , value =  2)                   ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_cells_dir       , value =  [12,12,12])          ; check(error==0)
+    error = list%set(key = struct_hex_triang_is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_levels_key              , value =  3)                   ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_parts_x_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
-    error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
-    error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
+    error = list%set(key = triang_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = use_void_fes_key                  , value =  .false.)                     ; check(error==0)
     error = list%set(key = use_void_fes_case_key             , value =  'popcorn')                   ; check(error==0)
-    error = list%set(key = refinement_pattern_case_key       , value = inner_region  )          ; check(error==0)
+    error = list%set(key = refinement_pattern_case_key       , value = inner_region  )          ; check(error==0)   
     error = list%set(key = domain_limits_key                 , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
     error = list%set(key = inner_region_size_key , value = [0.1,0.1,0.1]) ; check(error==0)
     error = list%set(key = num_refinements_key               , value = 3) ; check(error==0)
     error = list%set(key = min_num_refinements_key           , value = 1) ; check(error==0)
     error = list%set(key = coupling_criteria_key    , value = loose_coupling) ; check(error==0) 
-
+    error = list%set(key = preconditioner_type_key           , value =  'mlbddc')                    ; check(error==0)
+    
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
     error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
     error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
-    error = switches%set(key = num_dims_key      , value = '--dim')                      ; check(error==0)
-    error = switches%set(key = num_cells_x_dir_key   , value = '--num_cells')          ; check(error==0)
-    error = switches%set(key = num_levels_key          , value = '--num_levels')         ; check(error==0)
-    error = switches%set(key = num_parts_x_dir_key   , value = '--num_parts_x_dir')  ; check(error==0)
+    error = switches%set(key = struct_hex_triang_num_dims_key      , value = '--dim')                      ; check(error==0)
+    error = switches%set(key = struct_hex_triang_num_cells_dir   , value = '--num_cells')          ; check(error==0)
+    error = switches%set(key = struct_hex_triang_num_levels_key          , value = '--num_levels')         ; check(error==0)
+    error = switches%set(key = struct_hex_triang_num_parts_x_dir_key   , value = '--num_parts_x_dir')  ; check(error==0)
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )   ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
-    error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
-    error = switches%set(key = execution_context_key         , value = '--execution_context'    )    ; check(error==0)
+    error = switches%set(key = triang_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
@@ -117,19 +118,19 @@ contains
     error = switches%set(key = num_refinements_key    , value = '--num_refinements') ; check(error==0)
     error = switches%set(key = min_num_refinements_key, value = '--min_num_refinements') ; check(error==0)
     error = switches%set(key = coupling_criteria_key, value = '--subparts_coupling_criteria') ; check(error==0)
-
+    error = switches%set(key = preconditioner_type_key       , value = '--preconditioner-type' )     ; check(error==0)
+    
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
-    error = switches_ab%set(key = num_dims_key   , value = '-dm')      ; check(error==0)
-    error = switches_ab%set(key = num_cells_x_dir_key, value = '-n')        ; check(error==0) 
-    error = switches_ab%set(key = num_levels_key       , value = '-l')        ; check(error==0)
-    error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
+    error = switches_ab%set(key = struct_hex_triang_num_dims_key   , value = '-dm')      ; check(error==0)
+    error = switches_ab%set(key = struct_hex_triang_num_cells_dir, value = '-n')        ; check(error==0) 
+    error = switches_ab%set(key = struct_hex_triang_num_levels_key       , value = '-l')        ; check(error==0)
+    error = switches_ab%set(key = struct_hex_triang_num_parts_x_dir_key, value = '-np')       ; check(error==0)
     error = switches_ab%set(key = reference_fe_geo_order_key , value = '-gorder')   ; check(error==0)
     error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
-    error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
-    error = switches_ab%set(key = execution_context_key      , value = '-exe')       ; check(error==0)
+    error = switches_ab%set(key = triang_generate_key , value = '-tt')       ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
@@ -141,14 +142,15 @@ contains
     error = switches_ab%set(key = num_refinements_key        , value = '-num_refs')    ; check(error==0)
     error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
     error = switches_ab%set(key = coupling_criteria_key    , value = '-subparts_coupling')    ; check(error==0)
-
+    error = switches_ab%set(key = preconditioner_type_key       , value = '-prec-type' )  ; check(error==0)
+    
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
     error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
-    error = helpers%set(key = num_dims_key       , value = 'Number of space dimensions')               ; check(error==0)
-    error = helpers%set(key = num_cells_x_dir_key    , value = 'Number of cells per dir')                  ; check(error==0)
-    error = helpers%set(key = num_levels_key           , value = 'Number of levels')                         ; check(error==0)
-    error = helpers%set(key = num_parts_x_dir_key    , value = 'Number of parts per dir and per level')    ; check(error==0)
+    error = helpers%set(key = struct_hex_triang_num_dims_key       , value = 'Number of space dimensions')               ; check(error==0)
+    error = helpers%set(key = struct_hex_triang_num_cells_dir    , value = 'Number of cells per dir')                  ; check(error==0)
+    error = helpers%set(key = struct_hex_triang_num_levels_key           , value = 'Number of levels')                         ; check(error==0)
+    error = helpers%set(key = struct_hex_triang_num_parts_x_dir_key    , value = 'Number of parts per dir and per level')    ; check(error==0)
     error = helpers%set(key = reference_fe_geo_order_key     , value = 'Order of the triangulation reference fe')  ; check(error==0)
     error = helpers%set(key = reference_fe_order_key         , value = 'Order of the fe space reference fe')       ; check(error==0)
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')             ; check(error==0)
@@ -163,30 +165,25 @@ contains
     error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell') ; check(error==0)
     error = helpers%set(key = min_num_refinements_key , value = 'Minimum number of adaptive mesh refinements for any cell') ; check(error==0)
     error = helpers%set(key = coupling_criteria_key, value = 'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly') ; check(error==0)
- 
+    error = helpers%set(key = preconditioner_type_key       , value  = 'Select preconditioner type. Possible values: `identity`, `jacobi`, `mlbddc`.' ); check(error==0) 
+    
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
-    error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
+    error = helpers%set(key = triang_generate_key     , value = msg)  ; check(error==0)
     
-    msg = 'serial (*) or mpi (*) context?'
-    write(msg(9:9),'(i1)') serial_context
-    write(msg(20:20),'(i1)') mpi_context
-    error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
 
-    
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
-    error = required%set(key = num_dims_key      , value = .false.) ; check(error==0)
-    error = required%set(key = num_cells_x_dir_key   , value = .false.) ; check(error==0)
-    error = required%set(key = num_levels_key          , value = .false.) ; check(error==0)
-    error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
+    error = required%set(key = struct_hex_triang_num_dims_key      , value = .false.) ; check(error==0)
+    error = required%set(key = struct_hex_triang_num_cells_dir   , value = .false.) ; check(error==0)
+    error = required%set(key = struct_hex_triang_num_levels_key          , value = .false.) ; check(error==0)
+    error = required%set(key = struct_hex_triang_num_parts_x_dir_key   , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_geo_order_key    , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
-    error = required%set(key = triangulation_generate_key    , value = .false.) ; check(error==0)
-    error = required%set(key = execution_context_key         , value = .false.) ; check(error==0)
+    error = required%set(key = triang_generate_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
@@ -198,6 +195,7 @@ contains
     error = required%set(key = num_refinements_key,                 value = .false.)  ; check(error==0)
     error = required%set(key = min_num_refinements_key,             value = .false.)  ; check(error==0)
     error = required%set(key = coupling_criteria_key,               value = .false.)  ; check(error==0)
+    error = required%set(key = preconditioner_type_key       , value = .false.) ; check(error==0)
 
   end subroutine par_test_h_adaptive_poisson_params_define_parameters
 
@@ -277,8 +275,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
-    error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
+    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
+    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
 
@@ -388,4 +386,17 @@ contains
     assert(error==0)
   end function get_subparts_coupling_criteria
 
+  !==================================================================================================
+  function get_preconditioner_type(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable                            :: get_preconditioner_type
+    type(ParameterList_t), pointer                           :: list
+    integer(ip)                                              :: error
+    list  => this%get_values()
+    assert(list%isAssignable(preconditioner_type_key, 'string'))
+    error = list%GetAsString(key = preconditioner_type_key, string = get_preconditioner_type)
+    assert(error==0)
+  end function get_preconditioner_type
+  
 end module par_test_h_adaptive_poisson_params_names

@@ -104,7 +104,7 @@ subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,face
   type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   ! Allocate the arrays of the interpolation
-  call facet_interpolation%create(this%num_dims,this%node_array%num_nodes, &
+  call facet_interpolation%create(this%num_dims,this%num_shape_functions, &
        & local_quadrature%num_quadrature_points )
 
   ! Fill the values of the shape functions
@@ -496,7 +496,19 @@ subroutine void_reference_fe_evaluate_fe_function_tensor( this,                 
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  check(.false.)
+  integer(ip) :: i, istat
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+  end if
+  ! Required by output_handler_t (visualization purposes)
+  do i=1, size(quadrature_points_values)
+    call quadrature_points_values(i)%init(0.0_rp)
+  end do
 end subroutine void_reference_fe_evaluate_fe_function_tensor
 
 !==================================================================================================

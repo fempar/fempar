@@ -211,7 +211,6 @@ subroutine uim_init_cut_integration( this )
   do while (.not. fe%has_finished())
     if (fe%is_local()) then
       if (fe%is_cut()) then
-        call fe%update_sub_triangulation()
         num_subcells = fe%get_num_subcells()
         assert(num_subcells>0)
         call this%num_sub_cells_to_pos%put( key=num_subcells, val=max_pos, stat=istat )
@@ -354,7 +353,6 @@ subroutine uim_init_cut_boundary_integration( this )
   do while (.not. fe%has_finished())
     if (fe%is_local()) then
       if (fe%is_cut()) then
-        call fe%update_sub_triangulation()
         num_subfacets = fe%get_num_subfacets()
         assert(num_subfacets>0)
         call this%num_unfitted_sub_facets_to_pos%put( key=num_subfacets, val=max_pos, stat=istat )
@@ -501,7 +499,6 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   do while (.not. fe_facet%has_finished())
     if (fe_facet%is_local()) then
       if (fe_facet%is_cut()) then
-        call fe_facet%update_sub_triangulation()
         num_subfacets = fe_facet%get_num_subvefs()
         assert(num_subfacets>0)
         call this%num_fitted_sub_facets_to_pos%put( key=num_subfacets, val=max_pos, stat=istat )

@@ -66,11 +66,14 @@ module serial_block_array_names
      procedure :: axpby             => serial_block_array_axpby
      procedure :: nrm2              => serial_block_array_nrm2
      procedure :: clone             => serial_block_array_clone
+     procedure :: comm              => serial_block_array_comm
      procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages    => serial_block_array_free_in_stages
      procedure :: get_num_blocks => serial_block_array_get_num_blocks
      procedure :: extract_subvector => serial_block_array_extract_subvector
      procedure :: insert_subvector  => serial_block_array_insert_subvector
+     procedure :: entrywise_product => serial_block_array_entrywise_product
+     procedure :: entrywise_invert  => serial_block_array_entrywise_invert
   end type serial_block_array_t
   
   ! Types
@@ -333,8 +336,10 @@ contains
     select type(op2)
        class is (serial_block_array_t)
        assert(op2%state == blocks_container_created)
-       call op1%free()
-       call op1%create(op2%nblocks)
+       if ( .not. op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%nblocks)
+       end if 
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
@@ -345,6 +350,13 @@ contains
     call op2%CleanTemp()
   end subroutine serial_block_array_clone
 
+  ! op <- comm(op), i.e. fully assembled op <- subassembled op 
+  subroutine serial_block_array_comm(op)
+    implicit none
+    class(serial_block_array_t), intent(inout) :: op 
+    ! Serial block array is already fully assembled
+  end subroutine serial_block_array_comm
+  
   !=============================================================================
   subroutine serial_block_array_free_in_stages(this,action)
     implicit none
@@ -379,23 +391,25 @@ contains
     class(vector_t), intent(in) :: vector
     logical :: serial_block_array_same_vector_space
     integer(ip) :: iblk
-    assert ( this%state == blocks_container_created )
     serial_block_array_same_vector_space = .false.
-    select type(vector)
-    class is (serial_block_array_t)
-      assert ( vector%state == blocks_container_created )
-      serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-      if ( serial_block_array_same_vector_space ) then
-        do iblk=1, this%nblocks
-           serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-           if ( .not. serial_block_array_same_vector_space ) then
-             exit
-           end if
-        end do
-      end if
-    end select
+    if (this%state == blocks_container_created ) then
+      select type(vector)
+      class is (serial_block_array_t)
+        if ( vector%state == blocks_container_created ) then
+          serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+          if ( serial_block_array_same_vector_space ) then
+            do iblk=1, this%nblocks
+               serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+               if ( .not. serial_block_array_same_vector_space ) then
+                 exit
+               end if
+            end do
+          end if
+        end if 
+      end select
+    end if 
   end function serial_block_array_same_vector_space
- 
+
   !=============================================================================
   function serial_block_array_get_num_blocks(this) result(res)
     implicit none 
@@ -446,4 +460,40 @@ contains
     
   end subroutine serial_block_array_insert_subvector
 
+  subroutine serial_block_array_entrywise_product(op1,op2,op3)
+    implicit none
+    class(serial_block_array_t), intent(inout) :: op1
+    class(vector_t)            , intent(in)    :: op2
+    class(vector_t)            , intent(in)    :: op3
+    integer(ip) :: ib
+    massert( op1%state == blocks_container_created, 'sba_entrywise_product: op1 blocks are not created' )
+    select type ( op2 )
+      class is ( serial_block_array_t )
+        massert( op2%state == blocks_container_created, 'sba_entrywise_product: op2 blocks are not created' )
+        massert( op2%nblocks == op1%nblocks, 'sba_entrywise_product: op2 and op1 have different number of blocks' )
+        select type ( op3 )
+          class is ( serial_block_array_t )
+            massert( op3%state == blocks_container_created, 'sba_entrywise_product: op3 blocks are not created' )
+            massert( op3%nblocks == op1%nblocks, 'sba_entrywise_product: op3 and op1 have different number of blocks' )
+            do ib=1,op1%nblocks
+              call op1%blocks(ib)%entrywise_product(op2%blocks(ib),op3%blocks(ib))
+            end do
+          class default
+            mcheck(.false.,'sba_entrywise_product: unsupported op3 class')
+        end select
+      class default
+        mcheck(.false.,'sba_entrywise_product: unsupported op2 class')
+    end select
+  end subroutine serial_block_array_entrywise_product
+  
+  subroutine serial_block_array_entrywise_invert(op1)
+    implicit none
+    class(serial_block_array_t), intent(inout) :: op1
+    integer(ip) :: ib
+    massert( op1%state == blocks_container_created, 'sba_entrywise_invert: op1 blocks are not created' )
+    do ib=1,op1%nblocks
+      call op1%blocks(ib)%entrywise_invert()
+    end do
+  end subroutine serial_block_array_entrywise_invert
+  
 end module serial_block_array_names

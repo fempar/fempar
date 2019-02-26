@@ -135,9 +135,15 @@ module field_names
   public :: operator(*), operator(+), operator(-), assignment(=)
   public :: double_contract, cross_product, symmetric_part, trace
   public :: init_vector_field_2D_array
+  public :: init_vector_field_1D_array_plain_2D_array
+  public :: init_vector_field_1D_array_minus_plain_2D_array
   public :: fill_vector_field_2D_array_with_4D_plain_array
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
   public :: compute_point_1D_array_lin_comb_with_3D_plain_array
+  public :: evaluate_gradient_fe_function_scalar
+  public :: compute_3D_plain_array_lin_comb_with_point_1D_array
+  public :: apply_2D_plain_array_to_vector_field
+  public :: gather_facet_vertex_coordinates_from_cell_vertex_coordinates
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -634,7 +640,6 @@ contains
     end do
   end function trace
   
-  
   ! "Friend" subroutines of reference_fe_t implementors that are here for optimization purposes.
   ! We assume that the actual arguments passed to the dummy arguments fulfill the preconditions
   ! encompassed in the asserts(...). Thus, they cannot be considered a generally applicable 
@@ -652,7 +657,35 @@ contains
       end do 
     end do
   end subroutine init_vector_field_2D_array
- 
+  
+  subroutine init_vector_field_1D_array_plain_2D_array(plain_2D_array,vector_field_1D_array)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(inout) :: vector_field_1D_array(:)
+    integer(ip) :: i,j
+    assert ( size(plain_2D_array,1) == SPACE_DIM )
+    assert ( size(plain_2D_array,2) == size(vector_field_1D_array) )
+    do j=1,size(vector_field_1D_array)
+      do i=1,SPACE_DIM
+        vector_field_1D_array(j)%value(i) = plain_2D_array(i,j)
+      end do 
+    end do
+  end subroutine init_vector_field_1D_array_plain_2D_array
+  
+  subroutine init_vector_field_1D_array_minus_plain_2D_array(plain_2D_array,vector_field_1D_array)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(inout) :: vector_field_1D_array(:)
+    integer(ip) :: i,j
+    assert ( size(plain_2D_array,1) == SPACE_DIM )
+    assert ( size(plain_2D_array,2) == size(vector_field_1D_array) )
+    do j=1,size(vector_field_1D_array)
+      do i=1,SPACE_DIM
+        vector_field_1D_array(j)%value(i) = -plain_2D_array(i,j)
+      end do 
+    end do
+  end subroutine init_vector_field_1D_array_minus_plain_2D_array
+  
   subroutine fill_vector_field_2D_array_with_4D_plain_array ( plain_array, vector_field_2D_array )
     implicit none
     real(rp)            , intent(in)    :: plain_array(:,:,:,:)
@@ -708,9 +741,80 @@ contains
     end do
   end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
   
+  subroutine evaluate_gradient_fe_function_scalar (shape_derivatives,nodal_values,gradients)
+    implicit none
+    real(rp)            , intent(in)    :: shape_derivatives(:,:,:,:)
+    real(rp)            , intent(in)    :: nodal_values(:)
+    type(vector_field_t), intent(inout) :: gradients(:)
+    integer(ip) :: qpoint, inode, idime
+    assert ( size(shape_derivatives,4) <= size(gradients) )
+    assert ( size(shape_derivatives,3) <= size(nodal_values) )
+    do qpoint = 1, size(shape_derivatives,4)
+      gradients(qpoint)%value = 0.0_rp
+      do inode=1,size(shape_derivatives,3)
+        do idime = 1, SPACE_DIM
+          gradients(qpoint)%value(idime) = gradients(qpoint)%value(idime) + &
+                 nodal_values(inode)*shape_derivatives(1,idime,inode,qpoint)
+        end do 
+      end do
+    end do 
+  end subroutine evaluate_gradient_fe_function_scalar
+
+  subroutine compute_3D_plain_array_lin_comb_with_point_1D_array( plain_array, point_1D_array_in, plain_array_out)
+    implicit none
+    real(rp)            , intent(in)    :: plain_array(:,:,:,:)
+    type(point_t)       , intent(in)    :: point_1D_array_in(:)
+    real(rp)            , intent(inout) :: plain_array_out(:,:,:)
+    
+    integer(ip) :: i, j, k, l
+    real(rp)    :: alpha
+
+    assert (size(point_1D_array_in) == size(plain_array,3))
+    assert (size(plain_array,1) >= 1)
+    
+    do i=1, size(plain_array,4) !quadrature points
+       do j=1, SPACE_DIM !num dimensions
+         plain_array_out(:,j,i) = 0.0_rp
+         do k=1, size(plain_array,3) !num nodes
+            alpha = plain_array(1,j,k,i)
+            do l = 1, SPACE_DIM
+              plain_array_out(l,j,i) = plain_array_out(l,j,i) + alpha * point_1D_array_in(k)%value(l)
+            end do
+         end do 
+      end do
+    end do
+    
+  end subroutine compute_3D_plain_array_lin_comb_with_point_1D_array
+
+  subroutine apply_2D_plain_array_to_vector_field(plain_2D_array, vector_field, vector_field_out)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(in)    :: vector_field
+    type(vector_field_t), intent(inout) :: vector_field_out
+    integer(ip)  :: i,j
+    assert (size(plain_2D_array,1) == SPACE_DIM)
+    assert (size(plain_2D_array,2) == SPACE_DIM)
+    vector_field_out%value(:) = 0.0_rp
+    do j = 1, SPACE_DIM
+       do i = 1,  SPACE_DIM
+          vector_field_out%value(i) = vector_field_out%value(i) + plain_2D_array(i,j)*vector_field%value(j)
+       end do
+    end do
+
+  end subroutine apply_2D_plain_array_to_vector_field
+  
+  subroutine gather_facet_vertex_coordinates_from_cell_vertex_coordinates ( facet_vertex_ids, &
+                                                                            cell_vertex_coordinates, &
+                                                                            facet_vertex_coordinates )
+    implicit none
+    integer(ip)  , intent(in)    :: facet_vertex_ids(:)
+    type(point_t), intent(in)    :: cell_vertex_coordinates(:)
+    type(point_t), intent(inout) :: facet_vertex_coordinates(:)
+    integer(ip) :: i
+    assert ( size(facet_vertex_ids) == size(facet_vertex_coordinates) )
+    do i=1, size(facet_vertex_ids)
+      facet_vertex_coordinates(i)%value = cell_vertex_coordinates(facet_vertex_ids(i))%value
+    end do 
+  end subroutine gather_facet_vertex_coordinates_from_cell_vertex_coordinates
+  
 end module field_names
-
-
-
-
-

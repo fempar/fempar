@@ -54,15 +54,16 @@ use iso_c_binding
      integer(ip)                       :: nblocks
      type(p_abs_operator_t), allocatable :: blocks(:,:)
    contains
-     procedure  :: create             => block_preconditioner_u_create
-     procedure  :: set_block          => block_preconditioner_u_set_block
-     procedure  :: set_block_to_zero  => block_preconditioner_u_set_block_to_zero
-     procedure  :: free               => block_preconditioner_u_free
-     procedure  :: get_block          => block_preconditioner_u_get_block
-     procedure  :: apply              => block_preconditioner_u_apply
-     procedure  :: apply_add          => block_preconditioner_u_apply_add
-     procedure  :: is_linear          => block_preconditioner_u_is_linear
-     procedure  :: update_matrix      => block_preconditioner_u_update_matrix
+     procedure  :: create                  => block_preconditioner_u_create
+     procedure  :: set_block               => block_preconditioner_u_set_block
+     procedure  :: set_block_to_zero       => block_preconditioner_u_set_block_to_zero
+     procedure  :: free                    => block_preconditioner_u_free
+     procedure  :: get_block               => block_preconditioner_u_get_block
+     procedure  :: apply                   => block_preconditioner_u_apply
+     procedure  :: apply_add               => block_preconditioner_u_apply_add
+     procedure  :: is_linear               => block_preconditioner_u_is_linear
+     procedure  :: update_matrix           => block_preconditioner_u_update_matrix
+     procedure  :: reallocate_after_remesh => block_preconditioner_u_reallocate_after_remesh
    end type block_preconditioner_u_t
 
 
@@ -168,6 +169,19 @@ contains
        end do       
     end do
   end subroutine block_preconditioner_u_update_matrix
+  
+  subroutine block_preconditioner_u_reallocate_after_remesh(this)
+    implicit none
+    class(block_preconditioner_u_t), intent(inout)    :: this
+    integer(ip) :: iblk, jblk
+    do iblk=this%nblocks, 1, -1         
+       do jblk=this%nblocks, iblk+1,-1
+         if (associated(this%blocks(iblk,jblk)%p_op)) then
+            call this%blocks(iblk,jblk)%p_op%reallocate_after_remesh()
+         end if
+       end do       
+    end do
+  end subroutine block_preconditioner_u_reallocate_after_remesh
 
   subroutine block_preconditioner_u_create (bop, nblocks)
     implicit none

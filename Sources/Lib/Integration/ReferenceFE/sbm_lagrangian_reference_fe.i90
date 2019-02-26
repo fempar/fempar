@@ -47,7 +47,7 @@ subroutine lagrangian_reference_fe_create ( this, topology, num_dims, order, fie
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_lagrangian )
   call this%fill()
-  call this%create_nodal_quadrature()
+
 
 end subroutine lagrangian_reference_fe_create
 
@@ -171,6 +171,7 @@ subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature,
   call aux_reference_fe%p%create_interpolation ( quadrature, edget_interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_edget_interpolation
+
 !==================================================================================================
 subroutine lagrangian_reference_fe_apply_cell_map( this, &
                                                    cell_ressemblance, &
@@ -878,14 +879,7 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar( this,  
     allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
   end if
   
-  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
-     call quadrature_points_values(qpoint)%init(0.0_rp)
-     do inode = 1, actual_cell_interpolation%num_shape_functions
-        call this%get_gradient(actual_cell_interpolation,inode,qpoint,gradient_shape)
-        quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
-             &                             gradient_shape * nodal_values(inode)
-     end do
-  end do
+  call evaluate_gradient_fe_function_scalar(actual_cell_interpolation%shape_derivatives,nodal_values,quadrature_points_values)
 
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
 
@@ -1003,8 +997,13 @@ subroutine lagrangian_reference_fe_free ( this )
   ! lagrangian_reference_fe_t variables
   if(allocated(this%node_component_array)) & 
        call memfree(this%node_component_array,__FILE__,__LINE__)
+  if ( allocated(this%change_basis_matrix) ) &
+       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+  this%basis_changed = .false.
   if(allocated(this%node_array_component)) & 
        call memfree(this%node_array_component,__FILE__,__LINE__)
+  if(allocated(this%coarsening_projection_operator)) & 
+       call memfree(this%coarsening_projection_operator,__FILE__,__LINE__)       
    call this%nodal_quadrature%free()    
   call reference_fe_free ( this )
 end subroutine lagrangian_reference_fe_free
@@ -1092,8 +1091,72 @@ subroutine lagrangian_reference_fe_fill (this)
         c = c+1
      end do
   end do
-
+  
+  call this%fill_h_refinement_permutations()
+  call this%scalar_to_multicomp_coarsening_projection_operator()
 end subroutine lagrangian_reference_fe_fill
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_invert_change_basis_matrix(this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout) :: this 
+
+  integer(ip) :: error
+  integer(ip), allocatable :: ipiv(:)
+  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
+  integer(ip) :: i, num_shape_functions_x_component
+
+  num_shape_functions_x_component = this%num_shape_functions
+  assert ( allocated(this%change_basis_matrix) )
+  assert ( size(this%change_basis_matrix,1) == num_shape_functions_x_component )
+  assert ( size(this%change_basis_matrix,2) == num_shape_functions_x_component )
+
+  ! Solve linear system with several RHS
+  ! Compute LU factorization of this%change_basis_matrix
+#ifdef ENABLE_LAPACK
+  call memalloc ( num_shape_functions_x_component, ipiv, __FILE__,__LINE__ )
+
+  call memalloc ( num_shape_functions_x_component, & 
+       num_shape_functions_x_component, &
+       inverse_change_basis_matrix, &
+       __FILE__,__LINE__ )
+
+  call DGETRF( num_shape_functions_x_component, & 
+       num_shape_functions_x_component, &
+       this%change_basis_matrix, &
+       num_shape_functions_x_component, &
+       ipiv, &
+       error )
+  check ( error == 0 )
+
+  inverse_change_basis_matrix = 0.0_rp
+  do i=1, num_shape_functions_x_component
+     inverse_change_basis_matrix(i,i) = 1.0_rp
+  end do
+
+  call DGETRS( 'N', & 
+       num_shape_functions_x_component, &
+       num_shape_functions_x_component, &
+       this%change_basis_matrix, &
+       num_shape_functions_x_component, &
+       ipiv, &
+       inverse_change_basis_matrix, &
+       num_shape_functions_x_component, &
+       error )
+  check ( error == 0 )
+
+  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
+
+  call memmovealloc(inverse_change_basis_matrix, &
+       this%change_basis_matrix, __FILE__, __LINE__ )
+  call memfree ( ipiv, __FILE__,__LINE__ )
+#else
+  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
+  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
+  check(.false.)
+#endif 
+
+end subroutine lagrangian_reference_fe_invert_change_basis_matrix
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations (this)
@@ -1216,8 +1279,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
        phy%shape_derivatives=0.0_rp
        do ilocs=1,phy%num_quadrature_points
         do inode=1,size(phy%shape_functions,2)
-           do idime=1,ndime
-              do jdime=1,ndime
+           do idime=1,SPACE_DIM
+              do jdime=1,SPACE_DIM
                  phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
                       + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
               end do
@@ -1240,7 +1303,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
   !
   if(phy%my_duties%compute_second_derivatives_is_assigned()) then
      massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'Second derivatives mapping to physical space require a map with Jacobian inverse') 
-     if ( cell_ressemblance == no_ressemblance ) then
+     if ( cell_ressemblance == no_ressemblance .or. cell_ressemblance == is_scaled_and_translated ) then
         call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
         call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
         call memalloc(ntens,wvec1,__FILE__,__LINE__)
@@ -1250,12 +1313,11 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
               do itens = 1, ntens
                  wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
               end do
-              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+              call vetoma(ndime,ntens,wvec1,wmat1(1,1,inode))
            end do
            ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
            do inode=1,nnode
-              call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-                   &        ndime,ndime)
+              call btdbma(ndime,SPACE_DIM,ndime,ndime,ndime,wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs),wmat2(1,1,inode))
            end do
            if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
               ! Add second cartesian derivatives of the map times 
@@ -1287,9 +1349,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
         call memfree(wmat1,__FILE__,__LINE__)
         call memfree(wmat2,__FILE__,__LINE__)
         call memfree(wvec1,__FILE__,__LINE__)
-     else if ( cell_ressemblance == is_scaled_and_translated ) then
-        massert (.false., "lagrangian_reference_fe_apply_cell_map_to_interpolation :: 2nd derivatives optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
-     end if
+        wassert (cell_ressemblance == is_scaled_and_translated, "lagrangian_reference_fe_apply_cell_map_to_interpolation :: 2nd derivatives optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
+     end if    
   end if
 end subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation
 
@@ -1317,6 +1378,38 @@ subroutine lagrangian_reference_fe_get_h_refinement_coefficient ( this, ishape_f
   real(rp)                                , intent(inout) :: coefficient
   massert(.false.,'Note: you are calling get_h_refinement_coefficient on a type extension of reference_fe_t where it is not implemented.')
 end subroutine lagrangian_reference_fe_get_h_refinement_coefficient
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_fill_h_refinement_interpolation (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lagrangian_reference_fe_fill_h_refinement_interpolation
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_fill_h_refinement_permutations (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lagrangian_reference_fe_fill_h_refinement_permutations
+
+!==================================================================================================
+subroutine lrf_fill_scalar_coarsening_projection_operator (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lrf_fill_scalar_coarsening_projection_operator
+
+!==================================================================================================
+subroutine lrf_scalar_to_multicomp_coarsening_projection_operator (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this
+  ! This TBP has to be implemented in a type extension of this data type if one wants to 
+  ! support h-adaptivity for the FE represented by the type extension
+end subroutine lrf_scalar_to_multicomp_coarsening_projection_operator
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
@@ -1552,6 +1645,18 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         i = i + 1 
      enddo
   end if
+
+  ! Create nodal quadrature
+  call this%create_nodal_quadrature()
+  
+  ! Compute change basis
+  call this%change_basis()
+
+  ! Compute h_refinement_interpolation
+  call this%fill_h_refinement_interpolation()
+  
+  ! Fill coarsening projection operator for scalar fields
+  call this%fill_scalar_coarsening_projection_operator()
   
 contains
   recursive function count_n_faces_in_n_face(i, visited) result (num_n_faces)

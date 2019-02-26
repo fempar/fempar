@@ -69,17 +69,21 @@ subroutine cell_integrator_free( this )
   call this%interpolation_reference_cell%free()
   call this%interpolation_real_cell%free()
   nullify(this%reference_fe)
+  this%last_visited_cell_lev = -1    
   this%num_quadrature_points = 0
   this%num_shape_functions = 0
 end subroutine cell_integrator_free
 
 !==================================================================================================
-subroutine cell_integrator_update( this, cell_ressemblance, cell_map, scaling_factor )
+subroutine cell_integrator_update( this, cell_lev, cell_ressemblance, cell_map, scaling_factor )
   implicit none
   class(cell_integrator_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: cell_lev  
   integer(ip)             , intent(in)    :: cell_ressemblance
   type(cell_map_t)        , intent(in)    :: cell_map
   real(rp), optional      , intent(in)    :: scaling_factor
+  assert ( cell_lev >= 0 ) 
+  this%last_visited_cell_lev = cell_lev
   call this%reference_fe%apply_cell_map(cell_ressemblance, &
                                         cell_map, &
                                         this%interpolation_reference_cell, &
@@ -120,6 +124,14 @@ subroutine cell_integrator_update_interpolation_restricted_to_facet( this, quadr
   call reference_fe%create_interpolation_restricted_to_facet( facet_lid, subfacet_lid, quadrature, this%interpolation_reference_cell )
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_update_interpolation_restricted_to_facet
+
+!==================================================================================================
+function cell_integrator_get_last_visited_cell_lev( this )
+  implicit none
+  class(cell_integrator_t)     , intent(in)    :: this
+  integer(ip)  ::  cell_integrator_get_last_visited_cell_lev
+  cell_integrator_get_last_visited_cell_lev = this%last_visited_cell_lev
+end function cell_integrator_get_last_visited_cell_lev
 
 !==================================================================================================
 function cell_integrator_get_interpolation_reference_cell(this)
@@ -433,27 +445,26 @@ subroutine vecpro(v1,v2,v3,n)
 
 end subroutine vecpro
 
-subroutine invmtx(a,b,deter,nsize)
+subroutine invmtx(ld, n, a, b, deter)
   !-----------------------------------------------------------------------
   !
-  ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
-  ! inverse is stored in B. Its determinant is DETER
+  ! This routine inverts a square matrix A -> Mat(ld,n). The
+  ! inverse is stored in B(ld,n). Its determinant is deter
   !    
   !-----------------------------------------------------------------------
   implicit none
-  integer(ip), intent(in)  :: nsize
-  real(rp),    intent(in)  :: a(nsize,nsize)
-  real(rp),    intent(out) :: b(nsize,nsize),deter
-  integer(ip)              :: isize,jsize
+  integer(ip), intent(in)  :: ld, n
+  real(rp),    intent(in)  :: a(ld,*)
+  real(rp),    intent(out) :: b(ld,*)
+  real(rp),    intent(out) :: deter
+  integer(ip)              :: isize,jsize,i,j
   real(rp)                 :: denom,t1,t2,t3,t4
-
-  select case (nsize)
-
+    
+  select case (n)
   case(1)
      deter=a(1,1)
      if(deter==0.0_rp) return
      b(1,1) = 1.0_rp/a(1,1)
-
   case(2)
      deter=a(1,1)*a(2,2)-a(2,1)*a(1,2)
      if(deter/=0.0_rp) then
@@ -537,49 +548,52 @@ subroutine invmtx(a,b,deter,nsize)
      b(4,4) =(  a(1,1)*a(2,2)*a(3,3) + a(1,2)*a(2,3)*a(3,1)&
           + a(1,3)*a(2,1)*a(3,2) - a(1,3)*a(2,2)*a(3,1)&
           - a(1,2)*a(2,1)*a(3,3) - a(1,1)*a(2,3)*a(3,2))*denom
-
   case default
-     b=a
-     call invert(b,nsize,nsize)
+     do j=1,n
+       do i=1,n
+         b(i,j)=a(i,j)
+       end do 
+     end do 
+     call invert(ld,n,b)
   end select
 
 end subroutine invmtx
 
 !-----------------------------------------------------------------------
-subroutine invert(a,nmax,ndm)
+subroutine invert(ld,n,a)
   !-----------------------------------------------------------------------
   !
-  ! This routine performs the inversion of a ndm*ndm square matrix 
-  ! or just part of it (nmax*nmax)
+  ! This routine performs the inversion of a n*n square matrix 
+  ! with leading dimension ld
   !
   !-----------------------------------------------------------------------
   implicit none
-  integer(ip), intent(in)    :: ndm,nmax
-  real(rp),    intent(inout) :: a(ndm,ndm)
+  integer(ip), intent(in)    :: ld,n
+  real(rp),    intent(inout) :: a(ld,n)
   real(rp)                   :: d
-  integer(ip)                :: n,j,i
+  integer(ip)                :: k,j,i
 
-  do n = 1,nmax
-     d = a(n,n)
-     do j = 1,nmax
-        a(n,j) = -a(n,j)/d
+  do k = 1,n
+     d = a(k,k)
+     do j = 1,n
+        a(k,j) = -a(k,j)/d
      end do
-     do i = 1,nmax
-        if(n/=i) then
-           do j = 1,nmax
-              if(n/=j) a(i,j) = a(i,j) +a(i,n)*a(n,j)
+     do i = 1,n
+        if(k/=i) then
+           do j = 1,n
+              if(k/=j) a(i,j) = a(i,j) +a(i,k)*a(k,j)
            end do
         end if
-        a(i,n) = a(i,n)/d
+        a(i,k) = a(i,k)/d
      end do
-     a(n,n) = 1.0_rp/d
+     a(k,k) = 1.0_rp/d
   end do
 
 end subroutine invert
 
 
 !-----------------------------------------------------------------------
-subroutine vetoma(vecto,xmatr,ndime,ntens)
+subroutine vetoma(ndime,ntens,vecto,xmatr)
   !-----------------------------------------------------------------------
   !                                      
   ! This routine stores a vector VECTO as a symmetric matrix XMATR
@@ -610,23 +624,23 @@ subroutine vetoma(vecto,xmatr,ndime,ntens)
 end subroutine vetoma
 
 !-----------------------------------------------------------------------
-subroutine btdbma(aglob,aloca,bmatr,n1,n2)
+subroutine btdbma(ldaloca,ldbmatr,ldaglob,n1,n2,aloca,bmatr,aglob)
   !-----------------------------------------------------------------------
   !                                      
-  ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
-  ! matrices (Ag := aglob, Al := aloca, B := bmatr). The dimensions are
-  ! Al -> Mat(n1,n1), Ag -> Mat(n2,n2), B -> Mat(n2,n1) 
+  ! This routine computes aglob = bmatr^t aloca bmatr. The dimensions are
+  ! aloca -> Mat(n1,n1), bmatr -> Mat(n2,n1), aglob -> Mat(n2,n2).
   !
   !-----------------------------------------------------------------------
   implicit none
+  integer(ip), intent(in)  :: ldaloca,ldbmatr,ldaglob
   integer(ip), intent(in)  :: n1,n2
-  real(rp)   , intent(in)  :: aloca(n1,n1), bmatr(n1,n2)
-  real(rp)   , intent(out) :: aglob(n2,n2)
+  real(rp)   , intent(in)  :: aloca(ldaloca,n1), bmatr(ldbmatr,n2)
+  real(rp)   , intent(out) :: aglob(ldaglob,n2)
   integer(ip)              :: i,j,k,l
 
   do i=1,n2
      do j=1,n2
-        aglob(i,j)=0.0
+        aglob(i,j)=0.0_rp
         do k=1,n1
            do l=1,n1
               aglob(i,j)=aglob(i,j)+bmatr(k,i)*aloca(k,l)*bmatr(l,j)
@@ -647,6 +661,7 @@ subroutine assign_cell_integrator( this, other )
   this%num_shape_functions = other%num_shape_functions
   this%num_quadrature_points = other%num_quadrature_points
   this%reference_fe => other%reference_fe
+  this%last_visited_cell_lev = other%last_visited_cell_lev
   call this%interpolation_reference_cell%copy(other%interpolation_reference_cell)
   call this%interpolation_real_cell%copy(other%interpolation_real_cell)
 end subroutine assign_cell_integrator

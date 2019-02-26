@@ -60,34 +60,6 @@ subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, p
 end subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator
 
 !========================================================================================
-function mc_dummy_conditions_get_num_components(this)
-  implicit none
-  class(mc_dummy_conditions_t), intent(in) :: this
-  integer(ip) :: mc_dummy_conditions_get_num_components
-  mc_dummy_conditions_get_num_components = 1
-end function mc_dummy_conditions_get_num_components
-
-!========================================================================================
-subroutine mc_dummy_conditions_get_components_code(this, boundary_id, components_code)
-  implicit none
-  class(mc_dummy_conditions_t), intent(in)  :: this
-  integer(ip)                 , intent(in)  :: boundary_id
-  logical                     , intent(out) :: components_code(:)
-  assert ( size(components_code) == 1 )
-  components_code(1) = .false.
-end subroutine mc_dummy_conditions_get_components_code
-
-!========================================================================================
-subroutine mc_dummy_conditions_get_function ( this, boundary_id, component_id, function )
-  implicit none
-  class(mc_dummy_conditions_t), target,  intent(in)  :: this
-  integer(ip),                           intent(in)  :: boundary_id
-  integer(ip),                           intent(in)  :: component_id
-  class(scalar_function_t),     pointer, intent(out) :: function
-  mcheck(.false.,'This procedure should have never been called!')
-end subroutine mc_dummy_conditions_get_function
-
-!========================================================================================
 subroutine marching_cubes_create(this, triangulation, level_set_function)
   implicit none
   class(marching_cubes_t),            target,  intent(inout)  :: this
@@ -95,8 +67,9 @@ subroutine marching_cubes_create(this, triangulation, level_set_function)
   class(level_set_function_t),        target,  intent(in)     :: level_set_function
   type(environment_t), pointer           :: environment
   call this%free()
+  this%num_dims = triangulation%get_num_dims()
   environment => triangulation%get_environment()
-  this%triangulation => triangulation
+  call this%set_triangulation(triangulation)
   if ( environment%am_i_l1_task() ) then
     assert(this%fulfills_assumptions())
     this%level_set_function => level_set_function
@@ -110,104 +83,22 @@ end subroutine marching_cubes_create
 !========================================================================================
 subroutine marching_cubes_free(this)
   implicit none
-  class(marching_cubes_t), target, intent(inout) :: this
+  class(marching_cubes_t), intent(inout) :: this
   call this%subnodes_data_free()
   call this%mc_runtime_info_free()
   call this%discrete_levelset_free()
   call this%mc_tables_free()
-  this%triangulation => null()
+  call this%nullify_triangulation()
   this%level_set_function => null()
+  nullify(this%current_cell)
   this%mc_tables_init = .false.
   this%mc_runtime_init   = .false.
   this%mc_cell_info_init = .false.
-  this%current_cell_gid = -1
+  this%current_cell_gid = -1_ip
+  this%num_current_cell_nodes = -1_ip
+  this%num_dims = -1_ip
+  this%current_cell_sub_triangulation_updated = .false.
 end subroutine marching_cubes_free
-
-!========================================================================================
-function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-
-  integer(ip) :: num_cut_cells
-  class(cell_iterator_t), allocatable  :: cell
-
-  num_cut_cells = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_cut() ) then
-      num_cut_cells = num_cut_cells + 1_ip
-    end if
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_num_cut_cells
-
-!========================================================================================
-function marching_cubes_get_num_interior_cells( this ) result ( num_interior_cells )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: num_interior_cells
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  num_interior_cells = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_interior() ) then
-      num_interior_cells = num_interior_cells + 1_ip
-    end if
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_num_interior_cells
-
-!========================================================================================
-function marching_cubes_get_num_exterior_cells( this ) result ( num_exterior_cells )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: num_exterior_cells
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  num_exterior_cells = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_exterior() ) then
-      num_exterior_cells = num_exterior_cells + 1_ip
-    end if
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_num_exterior_cells
-
-!========================================================================================
-function marching_cubes_get_max_num_subcells_in_cell( this ) result ( max_subcells_in_cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: max_subcells_in_cell
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  max_subcells_in_cell = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_local() ) then
-      if ( cell%is_cut() ) then
-        call cell%update_sub_triangulation()
-        max_subcells_in_cell = max(max_subcells_in_cell,cell%get_num_subcells())
-      end if
-    end if
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_max_num_subcells_in_cell
 
 !========================================================================================
 function marching_cubes_get_max_num_nodes_in_subcell( this ) result ( max_nodes_in_subcell )
@@ -218,52 +109,6 @@ function marching_cubes_get_max_num_nodes_in_subcell( this ) result ( max_nodes_
 end function marching_cubes_get_max_num_nodes_in_subcell
 
 !========================================================================================
-function marching_cubes_get_total_num_subcells( this ) result ( total_num )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: total_num
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  total_num = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if (cell%is_ghost()) then
-      call cell%next(); cycle
-    end if
-    call cell%update_sub_triangulation()
-    total_num = total_num + cell%get_num_subcells()
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_total_num_subcells
-
-!========================================================================================
-function marching_cubes_get_max_num_subfacets_in_cell( this ) result ( max_subfacets_in_cell )
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: max_subfacets_in_cell
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  max_subfacets_in_cell = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_local() ) then
-      if ( cell%is_cut() ) then
-        call cell%update_sub_triangulation()
-        max_subfacets_in_cell = max(max_subfacets_in_cell,cell%get_num_subfacets())
-      end if
-    end if
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_max_num_subfacets_in_cell
-
-!========================================================================================
 function marching_cubes_get_max_num_nodes_in_subfacet( this ) result ( max_nodes_in_subfacet)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
@@ -272,53 +117,13 @@ function marching_cubes_get_max_num_nodes_in_subfacet( this ) result ( max_nodes
 end function marching_cubes_get_max_num_nodes_in_subfacet
 
 !========================================================================================
-function marching_cubes_get_total_num_subfacets( this ) result ( total_num )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: total_num
-
-  class(cell_iterator_t), allocatable  :: cell
-
-  total_num = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
-  do while ( .not. cell%has_finished() )
-    call cell%update_sub_triangulation()
-    total_num = total_num + cell%get_num_subfacets()
-    call cell%next()
-  end do
-  call this%triangulation%free_cell_iterator(cell)
-
-end function marching_cubes_get_total_num_subfacets
-
-!========================================================================================
-function marching_cubes_get_total_num_fitted_sub_facets( this ) result ( total_num )
-
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: total_num
-
-  class(vef_iterator_t), allocatable  :: vef
-
-  total_num = 0_ip
-  call this%triangulation%create_vef_iterator(vef)
-  do while ( .not. vef%has_finished() )
-    if ( vef%is_facet() ) then
-      call vef%update_sub_triangulation()
-      total_num = total_num + vef%get_num_subvefs()
-    end if
-    call vef%next()
-  end do
-  call this%triangulation%free_vef_iterator(vef)
-
-end function marching_cubes_get_total_num_fitted_sub_facets
-
-!========================================================================================
 function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subnodes_in_cell
-  max_subnodes_in_cell = this%triangulation%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
+  class(triangulation_t), pointer :: triangulation
+  triangulation => this%get_triangulation()
+  max_subnodes_in_cell = triangulation%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
 end function marching_cubes_get_max_num_subnodes_in_cell
 
 !========================================================================================
@@ -330,27 +135,600 @@ function marching_cubes_get_num_mc_cases(this) result (mc_cases)
 end function marching_cubes_get_num_mc_cases
 
 !========================================================================================
+subroutine marching_cubes_update_sub_triangulation( this )
+  implicit none
+  class(marching_cubes_t)     :: this
+  integer(ip)                 :: num_subnodes
+  integer(ip)                 :: num_nodes
+  integer(ip)                 :: num_intersections
+  integer(ip)                 :: i1
+  integer(ip)                 :: i2
+  integer(ip)                 :: mc_case
+  integer(ip)                 :: num_dim
+  integer(ip)                 :: ipo
+  integer(ip)                 :: idi
+  integer(ip)                 :: subcell
+  integer(ip)                 :: subfacet
+  real(rp),           pointer :: points_in_quadrature(:,:)
+  type(point_t),      pointer :: phys_cell_coords(:)
+  integer(ip)                 :: subcell_nodes(4)
+  integer(ip)                 :: subfacet_nodes(3)
+  type(quadrature_t), pointer :: nodal_quadrature
+  integer(ip)                 :: facet
+  logical                     :: is_valid_submesh
+  logical                     :: has_inverted_subcells
+  if ( .not. this%current_cell_sub_triangulation_updated ) then
+     assert( this%is_cut(this%current_cell) )
+
+     assert( this%mc_runtime_init )
+     assert( this%mc_cell_info_init )
+     
+     num_subnodes        = this%get_num_subnodes()
+     num_dim             = this%num_dims
+     num_intersections   = num_subnodes - this%num_current_cell_nodes
+     
+     assert( num_subnodes > this%num_current_cell_nodes )
+     
+     ! Recover the sub-points coordinates on the ref space
+     this%reference_fe_geo => this%current_cell%get_reference_fe()
+     assert ( num_subnodes <= size( this%subnodes_ref_coords ) )
+     nodal_quadrature      => this%reference_fe_geo%get_nodal_quadrature()
+     call nodal_quadrature%get_coordinates_as_points(this%subnodes_ref_coords(1: this%num_current_cell_nodes))
+     i1                 =  this%mc_ptr_to_intersections( this%current_cell_gid )
+     i2                 =  this%mc_ptr_to_intersections( this%current_cell_gid + 1 ) - 1
+     this%subnodes_ref_coords(this%num_current_cell_nodes+1:num_subnodes) = this%mc_intersection_points( i1 : i2 )
+     
+     ! Recover connectivities of the sub-cells
+     mc_case                      = this%mc_case_x_cell( this%current_cell_gid )
+     this%num_subcells            = this%mc_table_num_sub_cells_x_case(mc_case)
+     this%sub_cells_node_ids(:,:) = 0
+     do subcell = 1, this%num_subcells
+        this%sub_cells_node_ids( : , subcell ) = &
+             this%mc_table_sub_cells_node_ids_x_case( :, subcell, mc_case )
+     end do
+     
+     ! Recover connectivities of the sub-faces
+     this%unfitted_sub_facets_node_ids(:,:) = 0
+     this%num_subfacets                     = this%mc_table_num_unfitted_sub_facets_x_case(mc_case)
+     do subfacet=1,this%num_subfacets
+        this%unfitted_sub_facets_node_ids(:,subfacet) = &
+             this%mc_table_unfitted_sub_facets_node_ids_x_case( :, subfacet , mc_case )
+     end do
+     
+     ! Recover the status of the sub-cells
+     this%subcells_status( : )                     = 0_ip
+     this%subcells_status( 1 : this%num_subcells ) = this%mc_table_sub_cells_status_x_case( 1 : this%num_subcells, mc_case )
+
+     ! Recover connectivities of the fitted sub facets at each facet
+     this%fitted_sub_facets_node_ids_x_facet( : , : , : ) = 0
+     do subfacet = 1, this%mc_table_max_num_fitted_sub_facets_in_facet
+        do facet = 1, this%mc_table_num_facets
+           this%fitted_sub_facets_node_ids_x_facet( : , subfacet, facet ) = &
+                this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet( : , subfacet, facet, mc_case )
+        end do
+     end do
+
+     ! Fix non-valid sub-cells and inverted sub-cells and sub-faces (only in 3D HEXAHEDRA)
+     if ( this%num_dims == 3 ) then
+        if ( this%reference_fe_geo%get_topology() == topology_hex ) then
+           ! Check valid sub-triangulation 
+           is_valid_submesh = this%is_valid_submesh()
+           
+           ! If not valid: redo Delaunay triangulation
+           if ( .not. is_valid_submesh ) then
+              call this%generate_subcells()
+              call this%generate_subcells_status()
+           end if
+       
+           ! Search for inverted sub-cells and reorient them
+           this%sub_cell_has_been_reoriented(:) = .false.
+           has_inverted_subcells                = .false.
+           do subcell=1,this%num_subcells
+              if ( this%is_inverted_subcell( subcell ) ) then
+                 has_inverted_subcells                        = .true.
+                 this%sub_cell_has_been_reoriented( subcell ) = .true.
+                 subcell_nodes( : )                           = this%sub_cells_node_ids(:,subcell)
+                 this%sub_cells_node_ids( : , subcell )       = subcell_nodes( [ 1, 3, 2, 4 ] )
+                 assert( .not. this%is_inverted_subcell( subcell ) )
+              end if
+           end do
+           
+           ! If any inverted sub-cell found or the sub-triangulation was invalid:
+           ! find again the boundary faces
+           if ( has_inverted_subcells .or. ( .not. is_valid_submesh ) ) then 
+              call this%generate_boundary_subfacets()
+           end if
+        end if
+        massert( this%is_valid_submesh(), 'unfitted_cell_iterator::update_sub_triangulation: Non-valid cut cell sub-triangulation' )
+     end if
+     
+     ! Update the quadrature
+     assert( num_dim      == this%sub_nodes_nodal_quadratures(mc_case)%get_num_dims())
+     assert( num_subnodes == this%sub_nodes_nodal_quadratures(mc_case)%get_num_quadrature_points())
+     points_in_quadrature => this%sub_nodes_nodal_quadratures(mc_case)%get_coordinates()
+     do ipo = 1, num_subnodes
+        do idi = 1, num_dim
+           points_in_quadrature( idi, ipo ) = this%subnodes_ref_coords( ipo )%get( idi )
+        end do
+     end do
+     
+     ! Prepare the fe map
+     call this%sub_nodes_cell_maps( mc_case )%update_interpolation( & 
+          this%sub_nodes_nodal_quadratures(mc_case), this%reference_fe_geo )
+     phys_cell_coords => this%sub_nodes_cell_maps( mc_case )%get_coordinates()
+     call this%current_cell%get_nodes_coordinates( phys_cell_coords )
+     call this%sub_nodes_cell_maps( mc_case )%compute_quadrature_points_coordinates()
+     
+     ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
+     this%current_cell_sub_triangulation_updated = .true.
+  end if
+end subroutine marching_cubes_update_sub_triangulation
+
+
+!========================================================================================
+function marching_cubes_get_num_subcells( this, cell ) result ( num_subcells )
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  class(cell_iterator_t) , intent(in) :: cell
+  integer(ip) :: num_subcells
+  assert( this%mc_tables_init )
+  assert( this%mc_cell_info_init )
+  assert( this%is_cut(cell) )
+  call this%set_current_cell(cell)
+  ! In order to determine the number of subcells in the current (cut) cell
+  ! we require to call update_sub_triangulation(). Recall that, in the
+  ! case of hexahedral background meshes, it may happen that the standard marching cubes 
+  ! algorithm leads to an invalid subtriangulation. In such a case, we need to call QHULL
+  ! in order to create an in-situ Delaunay triangulation, which in turn may lead to a number
+  ! of subcells different from the one corresponding to the matching marching cubes case
+  call this%update_sub_triangulation()
+  num_subcells = this%num_subcells
+end function marching_cubes_get_num_subcells
+
+
+!========================================================================================
+function marching_cubes_get_num_subcell_nodes( this, cell ) result ( num_nodes_subcell )
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  class(cell_iterator_t) , intent(in) :: cell
+  integer(ip) :: num_nodes_subcell
+  assert(this%mc_tables_init)
+  assert(this%mc_cell_info_init)
+  assert( this%is_cut(cell) )
+  call this%set_current_cell(cell)
+  num_nodes_subcell = this%mc_table_num_nodes_in_sub_cell
+end function marching_cubes_get_num_subcell_nodes
+
+!========================================================================================
+subroutine marching_cubes_get_phys_coords_of_subcell( this, cell, subcell, points)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip)            , intent(in)    :: subcell
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip) :: mc_case
+  type(point_t), pointer :: subnodes_phys_coords(:)
+  assert(this%mc_runtime_init)
+  assert(this%mc_cell_info_init)
+  assert( size(points) == this%get_num_subcell_nodes(cell))
+  assert( this%is_cut(cell) )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells(cell))  )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
+  points(:) = subnodes_phys_coords(this%sub_cells_node_ids(:,subcell))
+end subroutine marching_cubes_get_phys_coords_of_subcell
+
+!========================================================================================
+subroutine marching_cubes_get_ref_coords_of_subcell( this, cell, subcell, points)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip)            , intent(in)    :: subcell
+  type(point_t)          , intent(inout) :: points(:)
+  assert(this%mc_runtime_init)
+  assert(this%mc_cell_info_init)
+  assert( size(points) == this%get_num_subcell_nodes(cell))
+  assert( this%is_cut(cell)  )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells(cell) ) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  points(:) = this%subnodes_ref_coords(this%sub_cells_node_ids(:,subcell))
+end subroutine marching_cubes_get_ref_coords_of_subcell
+
+!========================================================================================
+function marching_cubes_get_num_subfacets( this, cell ) result ( num_subfacets )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip) :: num_subfacets
+  assert(this%mc_tables_init)
+  assert(this%mc_cell_info_init)
+  assert(this%is_cut(cell))
+  call this%set_current_cell(cell)
+  ! In order to determine the number of subfacets in the current (cut) cell
+  ! we require to call update_sub_triangulation(). Recall that, in the
+  ! case of hexahedral background meshes, it may happen that the standard marching cubes 
+  ! algorithm leads to an invalid subtriangulation. In such a case, we need to call QHULL
+  ! in order to create an in-situ Delaunay triangulation, which in turn may lead to a number
+  ! of subfacets different from the one corresponding to the matching marching cubes case
+  call this%update_sub_triangulation()
+  num_subfacets = this%num_subfacets
+end function marching_cubes_get_num_subfacets
+
+!========================================================================================
+function marching_cubes_get_num_subfacet_nodes( this, cell ) result ( num_nodes_subfacet )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip) :: num_nodes_subfacet
+  assert(this%mc_tables_init)
+  assert(this%mc_cell_info_init)
+  assert(this%is_cut(cell))
+  call this%set_current_cell(cell)
+  num_nodes_subfacet = this%mc_table_num_nodes_in_sub_facet
+end function marching_cubes_get_num_subfacet_nodes
+
+!========================================================================================
+subroutine marching_cubes_get_phys_coords_of_subfacet( this, cell, subfacet, points )
+  implicit none
+  class(marching_cubes_t),  intent(in)    :: this
+  class(cell_iterator_t) ,  intent(in)    :: cell
+  integer(ip),              intent(in)    :: subfacet
+  type(point_t),            intent(inout) :: points(:)
+  integer(ip)               :: mc_case
+  type(point_t),    pointer :: subnodes_phys_coords(:)
+  assert(this%mc_runtime_init)
+  assert(this%mc_cell_info_init)
+  assert(size(points) ==  this%get_num_subfacet_nodes(cell))
+  assert(this%is_cut(cell))
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets(cell) ) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
+  points(:) = subnodes_phys_coords(this%unfitted_sub_facets_node_ids(:,subfacet))
+end subroutine marching_cubes_get_phys_coords_of_subfacet
+
+!========================================================================================
+subroutine marching_cubes_get_ref_coords_of_subfacet( this, cell, subfacet, points )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip)            , intent(in)    :: subfacet
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip)            :: mc_case
+  assert(this%mc_runtime_init)
+  assert(this%mc_cell_info_init)
+  assert( size(points) == this%get_num_subfacet_nodes(cell))
+  assert(this%is_cut(cell))
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets(cell) ) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  points(:) = this%subnodes_ref_coords(this%unfitted_sub_facets_node_ids(:,subfacet))
+end subroutine marching_cubes_get_ref_coords_of_subfacet
+
+!========================================================================================
+function marching_cubes_is_cut( this, cell ) result ( is_cut )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  logical :: is_cut
+  integer(ip) :: mc_case
+  integer(ip) :: num_mc_cases
+  assert( this%mc_runtime_init )
+  call this%set_current_cell(cell)
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  num_mc_cases = this%mc_table_num_cases
+  is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
+end function marching_cubes_is_cut
+
+!========================================================================================
+function marching_cubes_is_interior( this, cell ) result ( is_interior )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
+  logical :: is_interior
+  integer(ip) :: mc_case
+  integer(ip) :: num_mc_cases
+  assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  num_mc_cases = this%mc_table_num_cases
+  is_interior = ( mc_case == num_mc_cases )
+end function marching_cubes_is_interior
+
+!========================================================================================
+function marching_cubes_is_exterior( this, cell ) result ( is_exterior )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
+  logical :: is_exterior
+  integer(ip) :: mc_case
+  assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  is_exterior = ( mc_case == 1_ip )
+end function marching_cubes_is_exterior
+
+!========================================================================================
+function marching_cubes_is_interior_subcell( this, cell, subcell ) result ( is_in )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
+  integer(ip), intent(in) :: subcell
+  logical :: is_in
+  integer(ip) :: num_subcells
+  integer(ip) :: pos
+  assert(this%mc_runtime_init)
+  assert(this%is_cut(cell))
+  assert( ( 1_ip <= subcell) .and. subcell <= this%get_num_subcells(cell) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  pos = this%subcells_status(subcell)
+  is_in = ( pos == -1_ip )
+end function marching_cubes_is_interior_subcell
+
+!========================================================================================
+function marching_cubes_is_exterior_subcell( this, cell, subcell ) result ( is_out )
+  implicit none
+  class(marching_cubes_t), intent(in)  :: this
+  class(cell_iterator_t) , intent(in)  :: cell
+  integer(ip), intent(in) :: subcell
+  logical :: is_out
+  integer(ip) :: num_subcells
+  integer(ip) :: pos
+  assert(this%mc_runtime_init)
+  assert(this%is_cut(cell))
+  assert( ( 1_ip <= subcell) .and. subcell <= this%get_num_subcells(cell) )
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  pos = this%subcells_status( subcell )
+  is_out = ( pos == 1_ip )
+end function marching_cubes_is_exterior_subcell
+
+!========================================================================================
+function marching_cubes_get_num_subnodes( this ) result (num_subnodes)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip) :: num_subnodes
+  integer(ip) :: mc_case
+  assert(this%mc_tables_init)
+  mc_case      = this%mc_case_x_cell( this%current_cell_gid )
+  num_subnodes = this%mc_table_num_cut_edges_x_case(mc_case) + this%num_current_cell_nodes
+end function marching_cubes_get_num_subnodes
+
+
+!========================================================================================
+function marching_cubes_get_num_fitted_subfacets ( this, cell, facet_lid ) result (num_fitted_subfacets)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  class(cell_iterator_t) , intent(in) :: cell
+  integer(ip),             intent(in) :: facet_lid
+  integer(ip) :: num_fitted_subfacets
+  integer(ip) :: mc_case
+  call this%set_current_cell(cell)
+  mc_case              = this%mc_case_x_cell( this%current_cell_gid )
+  num_fitted_subfacets = this%mc_table_num_fitted_sub_facets_x_case_and_facet( facet_lid, mc_case )
+end function marching_cubes_get_num_fitted_subfacets
+
+!========================================================================================
+subroutine marching_cubes_get_phys_coords_of_subvef ( this, cell, facet_lid, subvef, points )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip)            , intent(in)    :: facet_lid
+  integer(ip)            , intent(in)    :: subvef
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip)            :: mc_case
+  type(point_t), pointer :: subnodes_phys_coords(:)
+  assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  subnodes_phys_coords => this%sub_nodes_cell_maps(mc_case)%get_quadrature_points_coordinates()
+  points(:) = subnodes_phys_coords(this%fitted_sub_facets_node_ids_x_facet(:, subvef, facet_lid ))
+end subroutine marching_cubes_get_phys_coords_of_subvef
+
+!========================================================================================
+subroutine marching_cubes_get_ref_coords_of_subvef ( this, cell, facet_lid, subvef, points )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip)            , intent(in)    :: facet_lid
+  integer(ip)            , intent(in)    :: subvef
+  type(point_t)          , intent(inout) :: points(:)
+  integer(ip) :: mc_case
+  integer(ip) :: num_dims
+  integer(ip) :: dime1
+  integer(ip) :: dime2
+  integer(ip) :: ipoint
+  integer(ip) :: cell_to_facet_coords_2d(4)
+  integer(ip) :: cell_to_facet_coords_3d(2,6)
+  class(reference_fe_t), pointer :: reference_fe
+  assert(this%mc_runtime_init)
+  call this%set_current_cell(cell)
+  call this%update_sub_triangulation()
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  points(:) = this%subnodes_ref_coords(this%fitted_sub_facets_node_ids_x_facet( :, subvef, facet_lid ))
+  num_dims = this%num_dims
+  
+  reference_fe => cell%get_reference_fe()
+  select case (reference_fe%get_topology())
+    case ( topology_tet )
+     cell_to_facet_coords_2d(1:3) = [1,2,1]
+     cell_to_facet_coords_3d(:,1:4) = reshape(&
+                                                           [1,2,&
+                                                            1,3,&
+                                                            2,3,&
+                                                            1,2],[2,4])
+    case ( topology_hex )
+     cell_to_facet_coords_2d(:) = [1,1,2,2]
+     cell_to_facet_coords_3d(:,:) = reshape(&
+                                                           [1,2,&
+                                                            1,2,&
+                                                            1,3,&
+                                                            1,3,&
+                                                            2,3,&
+                                                            2,3],[2,6])
+   case DEFAULT
+     mcheck(.false., 'get_ref_coords_of_subvef::unfitted_vef_iterator: Only hex and tet lagrangian reference FE' )
+   end select
+  
+  if (num_dims == 2) then
+    dime1 = cell_to_facet_coords_2d(facet_lid)
+    do ipoint = 1, size(points)
+      call points(ipoint)%set(1, points(ipoint)%get(dime1))
+      call points(ipoint)%set(2, 0.0_rp)
+      call points(ipoint)%set(3, 0.0_rp)
+    end do
+  else if (num_dims == 3) then
+    dime1 = cell_to_facet_coords_3d(1,facet_lid)
+    dime2 = cell_to_facet_coords_3d(2,facet_lid)
+    do ipoint = 1, size(points)
+      call points(ipoint)%set(1, points(ipoint)%get(dime1))
+      call points(ipoint)%set(2, points(ipoint)%get(dime2))
+      call points(ipoint)%set(3, 0.0_rp)
+    end do
+  else
+    mcheck(.false.,'get_ref_coords_of_subvef::unfitted_vef_iterator: Only for 2D and 3D')
+  end if
+  
+end subroutine marching_cubes_get_ref_coords_of_subvef
+
+!========================================================================================
+function marching_cubes_is_cut_facet ( this, cell, facet_lid ) result ( is_cut )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip),             intent(in)    :: facet_lid
+  logical :: is_cut
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  call this%set_current_cell(cell)
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  istat   = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
+  is_cut  = (istat == 0_ip)
+end function marching_cubes_is_cut_facet
+
+
+!========================================================================================
+function marching_cubes_is_interior_facet ( this, cell, facet_lid ) result ( is_interior )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip),             intent(in)    :: facet_lid
+  logical :: is_interior
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  call this%set_current_cell(cell)
+  mc_case     = this%mc_case_x_cell( this%current_cell_gid )
+  istat       = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
+  is_interior = (istat == -1_ip)
+end function marching_cubes_is_interior_facet
+
+!========================================================================================
+function marching_cubes_is_exterior_facet ( this, cell, facet_lid ) result ( is_exterior )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip),             intent(in)    :: facet_lid
+  logical :: is_exterior
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  call this%set_current_cell(cell)
+  mc_case     = this%mc_case_x_cell( this%current_cell_gid )
+  istat       = this%mc_table_facet_status_x_case_and_facet( facet_lid, mc_case )
+  is_exterior = (istat == 1_ip)
+end function marching_cubes_is_exterior_facet
+
+!========================================================================================
+function marching_cubes_is_interior_subfacet ( this, cell, facet_lid, subvef ) result ( is_in)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip),             intent(in)    :: facet_lid
+  integer(ip),             intent(in)    :: subvef
+  logical :: is_in
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  call this%set_current_cell(cell)
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  istat   = this%mc_table_fitted_sub_facets_status_x_case_and_facet( subvef, facet_lid, mc_case )
+  is_in   = (istat == -1_ip)
+end function marching_cubes_is_interior_subfacet
+
+!========================================================================================
+function marching_cubes_is_exterior_subfacet ( this, cell, facet_lid, subvef ) result ( is_out )
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  class(cell_iterator_t) , intent(in)    :: cell
+  integer(ip),             intent(in)    :: facet_lid
+  integer(ip),             intent(in)    :: subvef
+  logical :: is_out
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+  call this%set_current_cell(cell)
+  mc_case = this%mc_case_x_cell( this%current_cell_gid )
+  istat   = this%mc_table_fitted_sub_facets_status_x_case_and_facet( subvef, facet_lid, mc_case )
+  is_out  = (istat == 1_ip)
+end function marching_cubes_is_exterior_subfacet
+
+!========================================================================================
+subroutine marching_cubes_set_current_cell ( this, cell ) 
+  implicit none
+  class(marching_cubes_t)                       :: this
+  class(cell_iterator_t), target, intent(in)    :: cell
+  
+  ! If a client calls "set_current_cell" with the same cell
+  ! used in a previous call to "set_current_cell", then don't
+  ! touch the current_cell_sub_triangulation_updated member
+  ! variable
+  if ( cell%get_gid() /= this%current_cell_gid ) then
+    this%current_cell_sub_triangulation_updated = .false.
+  end if 
+  this%current_cell => cell
+  if ( .not. cell%has_finished() ) then 
+     this%current_cell_gid = cell%get_gid()
+     this%num_current_cell_nodes   = cell%get_num_nodes()
+  else
+     this%current_cell_gid = -1_ip
+     this%num_current_cell_nodes   = -1_ip
+  end if    
+end subroutine marching_cubes_set_current_cell
+
+!========================================================================================
 subroutine marching_cubes_print ( this )
 
   implicit none
   class(marching_cubes_t), intent(in)    :: this
 
-  class(cell_iterator_t), allocatable  :: cell
-  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subfacet_coords
-  integer(ip) :: inode, isubcell, isubfacet
+  class(cell_iterator_t), allocatable :: cell
+  type(point_t),          allocatable :: cell_coords(:)
+  type(point_t),          allocatable :: subcell_coords(:)
+  type(point_t),          allocatable :: subfacet_coords(:)
+  integer(ip)                         :: inode
+  integer(ip)                         :: isubcell
+  integer(ip)                         :: isubfacet
+  class(triangulation_t), pointer :: triangulation
+  
+  triangulation => this%get_triangulation()
 
   ! Print basic info of triangulation
   write(*,*) " "
   write (*,'(a)') '**** print type(marching_cubes_t) [begin] ****'
   write(*,*) " "
-  write (*,'(a,i10)') 'num_dims:           ', this%triangulation%get_num_dims()
-  write (*,'(a,i10)') 'num_cells:                ', this%triangulation%get_num_cells()
-  write (*,'(a,i10)') 'num_local_cells:          ', this%triangulation%get_num_local_cells()
-  write (*,'(a,i10)') 'num_ghost_cells:          ', this%triangulation%get_num_ghost_cells()
+  write (*,'(a,i10)') 'num_dims:           ', triangulation%get_num_dims()
+  write (*,'(a,i10)') 'num_cells:                ', triangulation%get_num_cells()
+  write (*,'(a,i10)') 'num_local_cells:          ', triangulation%get_num_local_cells()
+  write (*,'(a,i10)') 'num_ghost_cells:          ', triangulation%get_num_ghost_cells()
   write (*,'(a,i10)') 'num_cut_cells:            ', this%get_num_cut_cells()
   write (*,'(a,i10)') 'num_interior_cells:       ', this%get_num_interior_cells()
   write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
-  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_num_shape_functions()
+  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', triangulation%get_max_num_shape_functions()
   write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
   write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
   write (*,'(a,i10)') 'max_num_subfacets_in_cell: ', this%get_max_num_subfacets_in_cell()
@@ -359,7 +737,7 @@ subroutine marching_cubes_print ( this )
   write(*,*) " "
 
   ! Print basic info of cells
-  call this%triangulation%create_cell_iterator(cell)
+  call triangulation%create_cell_iterator(cell)
   write(*,'(7a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
   do while ( .not. cell%has_finished() )
     write(*,'(i20,3L20,3i20)') cell%get_gid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
@@ -368,7 +746,7 @@ subroutine marching_cubes_print ( this )
   end do
   write(*,*) " "
 
-  call memalloc( this%triangulation%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
+  call memalloc( triangulation%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subfacet()  , subfacet_coords, __FILE__, __LINE__ )
 
@@ -376,8 +754,6 @@ subroutine marching_cubes_print ( this )
   write(*,'(3a7,7a11)') 'id', 'scid', 'sfid', 'x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'etc.'
   call cell%first()
   do while ( .not. cell%has_finished() )
-    ! TODO where is the safe place to put this update?
-    call cell%update_sub_triangulation()
     call cell%get_nodes_coordinates( cell_coords )
     write (*,'(i7,2a7,20(2x,e9.2))'  ) cell%get_gid(), ' ', ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
     do isubcell = 1, cell%get_num_subcells()
@@ -398,11 +774,247 @@ subroutine marching_cubes_print ( this )
  call memfree( cell_coords   , __FILE__, __LINE__ )
  call memfree( subcell_coords, __FILE__, __LINE__ )
  call memfree( subfacet_coords, __FILE__, __LINE__ )
- call this%triangulation%free_cell_iterator(cell)
+ call triangulation%free_cell_iterator(cell)
 
 end subroutine marching_cubes_print
 
 ! Private TBP
+
+!========================================================================================
+function marching_cubes_is_inverted_subcell(this,subcell) result (is_inverted)
+
+  implicit none
+  class(marching_cubes_t), target, intent(in) :: this
+  integer(ip),                     intent(in) :: subcell
+  logical :: is_inverted
+
+  type(point_t)        :: Xe(4)
+  type(vector_field_t) :: u,v,w
+  integer(ip), pointer :: Te(:)
+  real(rp)             :: vol
+
+  ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
+  ! Check it
+  assert( 1 <= subcell .and. subcell <= this%num_subcells )
+  assert( this%get_num_subcell_nodes(this%current_cell) == 4)
+  assert( this%num_dims == 3)
+
+  ! Get connectivities and coordinates
+  ! We assume that update_triangulation was called for this cell
+  Te => this%sub_cells_node_ids(:,subcell)
+  Xe(:) = this%subnodes_ref_coords(Te)
+
+  ! Compute (signed) volume
+  u = Xe(2) - Xe(1)
+  v = Xe(3) - Xe(1)
+  w = Xe(4) - Xe(1)
+  vol = w*cross_product(u,v)
+
+  ! Check if inverted
+  is_inverted = vol < 0.0_rp
+
+end function marching_cubes_is_inverted_subcell
+
+!========================================================================================
+function marching_cubes_is_valid_submesh(this) result ( is_valid_submesh )
+
+  implicit none
+  class(marching_cubes_t), target, intent(in) :: this
+  logical :: is_valid_submesh
+
+  integer(ip)          :: subcell
+  type(point_t)        :: Xe(4)
+  type(vector_field_t) :: u,v,w
+  integer(ip), pointer :: Te(:)
+  real(rp)             :: vol
+  real(rp),  parameter :: volume_reference_fe_hex = 8.0_rp
+  real(rp),  parameter :: volume_reference_fe_tet = 1.0_rp/6.0_rp
+  real(rp),  parameter :: tol_volume =  1.0e-13_rp
+  ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
+  ! Check it
+  assert( this%get_num_subcell_nodes(this%current_cell) == 4 )
+  assert( this%num_dims == 3 )
+
+  vol = 0.0_rp
+  do subcell=1,this%num_subcells
+
+    ! Get connectivities and coordinates
+    ! We assume that update_triangulation was called for this cell
+    Te => this%sub_cells_node_ids(:,subcell)
+    Xe(:) = this%subnodes_ref_coords(Te)
+
+    ! Compute volume
+    u = Xe(1) - Xe(4)
+    v = Xe(2) - Xe(4)
+    w = Xe(3) - Xe(4)
+    vol = vol + volume_reference_fe_tet*abs(u*cross_product(v,w))
+  end do
+
+  if ( this%reference_fe_geo%get_topology() == topology_hex ) then
+    is_valid_submesh = ( abs( vol-volume_reference_fe_hex ) < tol_volume )
+  else if ( this%reference_fe_geo%get_topology() == topology_tet ) then
+    is_valid_submesh = ( abs( vol-volume_reference_fe_tet ) < tol_volume )
+  end if
+end function marching_cubes_is_valid_submesh
+
+!========================================================================================
+subroutine marching_cubes_generate_subcells(this)
+
+  implicit none
+  class(marching_cubes_t), target, intent(inout) :: this
+
+#ifdef ENABLE_QHULL
+
+  integer(ip) :: ierror
+  real(qh_coordT), allocatable :: points(:,:)
+  integer(qh_int),    pointer  :: cells(:,:)
+  integer(ip),       parameter :: num_dims = 3
+  integer(ip)                  :: num_points
+  integer(ip)                  :: num_cells
+  integer(ip)                  :: ipoin
+  integer(ip)                  :: idime
+
+  assert(this%num_dims == num_dims)
+  assert(qh_int == ip)
+  assert(qh_coordT == rp)
+
+  ! Convert point coordinates to an intrinsic Fortran array
+  num_points = this%get_num_subnodes()
+  call memalloc(num_dims,num_points,points,__FILE__,__LINE__)
+  do ipoin = 1,num_points
+    do idime = 1, num_dims
+      points(idime,ipoin) = this%subnodes_ref_coords(ipoin)%get(idime)
+    end do
+  end do
+
+  ! Compute number of cells in the Delaunay triangulation
+  num_cells = 0
+  ierror = delaunay_init_and_compute_f90(num_dims, num_points, points, num_cells)
+  check(ierror == 0)
+  this%num_subcells = num_cells
+  call this%reallocate_nsubcells_arrays()
+  
+
+  ! Fill in the cells connectivities
+  cells => this%sub_cells_node_ids
+  cells(:,:) = 0
+  check(num_cells <= size(cells,2))
+  ierror = delaunay_fill_cells_f90(num_dims, num_cells, cells)
+  check(ierror == 0)
+
+  ! Clean up
+  ierror = delaunay_free_f90()
+  check(ierror == 0)
+  call memfree(points,__FILE__,__LINE__)
+
+#else
+
+  mcheck(.false.,'This subroutine needs ENABLE_QHULL')
+
+#endif
+
+end subroutine marching_cubes_generate_subcells
+
+!========================================================================================
+subroutine marching_cubes_generate_subcells_status(this)
+
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+
+  integer(ip)            :: isubcell
+  integer(ip)            :: inode
+  real(rp),      pointer :: levelset_nodal_values(:)
+  real(rp)               :: phi
+  integer(ip), parameter :: field_id = 1
+
+  ! By default the sub-cells are outside
+  this%subcells_status(:) = 0_ip
+  this%subcells_status( 1 : this%num_subcells ) = 1_ip
+
+  ! Recover the values of the levelset function on the subnodes
+  this%level_set_all_nodes(:) = 0.0_rp
+  call this%fe%set_gid( this%current_cell_gid )
+  call this%fe_levelset%gather_nodal_values( this%fe, field_id, this%level_set_all_nodes )
+  
+  assert( this%fe_space%get_num_fields()==field_id )
+
+  ! Set as interior the sub-cells that touches an interior point
+  do isubcell = 1, this%num_subcells
+    do inode = 1, this%get_num_subcell_nodes(this%current_cell)
+      phi = this%level_set_all_nodes( this%sub_cells_node_ids( inode, isubcell ) )
+      if ( phi < 0 ) then
+        this%subcells_status( isubcell ) = -1_ip
+        exit
+      end if
+    end do
+  end do
+  
+
+end subroutine marching_cubes_generate_subcells_status
+
+!========================================================================================
+subroutine marching_cubes_generate_boundary_subfacets(this)
+
+  implicit none
+  class(marching_cubes_t), target, intent(inout) :: this
+
+  integer(ip), parameter :: nbef = 4
+  integer(ip), parameter :: nbfn = 3
+  integer(ip), parameter :: FACETS(nbfn,nbef) = reshape([1,2,3, 1,4,2, 1,3,4, 2,4,3],[nbfn,nbef])
+                                                        ![1,3,2, 1,2,4, 2,3,4, 1,4,3]
+  integer(ip)          :: iscell
+  integer(ip)          :: isfacet
+  integer(ip)          :: nsfacet
+  integer(ip), pointer :: Te(:)
+  integer(ip)          :: ineig
+
+  assert(this%num_dims == 3)
+
+  ! Reset the sub-facets nodes ids
+  this%unfitted_sub_facets_node_ids(:,:) = 0
+
+  ! Find the neighbors in the sub-mesh
+  this%subcell_facet_neigs(:,:) = -1
+  call find_facets_neighbors_in_mesh(&
+    T      =  this%sub_cells_node_ids,&
+    nbel   =  this%num_subcells,&
+    facets =  FACETS,&
+    nbef   =  nbef,&
+    neigs  =  this%subcell_facet_neigs)
+
+  nsfacet = 0
+  ! Loop in interior sub-cells
+  do iscell = 1,this%num_subcells
+    if (this%subcells_status(iscell)==-1) then
+      Te => this%sub_cells_node_ids(:,iscell)
+
+      ! Loop in interior sub-cells
+      do isfacet = 1, nbef
+        ineig = this%subcell_facet_neigs(isfacet,iscell)
+        assert(ineig /= -1)
+
+        ! If the neig along this facet is exterior, then take the facets node ids
+        if (ineig>0) then
+          if (this%subcells_status(ineig)==1) then
+            nsfacet = nsfacet + 1
+            ! memrealloc is here since the number of subfacets is determined by delaunay and cannot be known beforehand
+            call memrealloc_if_more_space_needed ( &
+                 this%get_max_num_nodes_in_subfacet(), &
+                 nsfacet, &
+                 this%unfitted_sub_facets_node_ids, &
+                __FILE__, __LINE__ )
+            this%unfitted_sub_facets_node_ids(:,nsfacet) = Te(FACETS(:,isfacet))
+          end if
+        end if
+
+      end do
+
+    end if
+  end do
+  this%num_subfacets = nsfacet
+
+end subroutine marching_cubes_generate_boundary_subfacets
+
 
 !========================================================================================
 function marching_cubes_fulfills_assumptions(this) result (fulfills)
@@ -410,15 +1022,14 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
   class(marching_cubes_t), intent(in) :: this
   logical :: fulfills
 
-  class(cell_iterator_t), allocatable  :: cell
-  class(reference_fe_t), pointer :: reference_fe_geo
-  character(:),                 allocatable :: topology
+  class(cell_iterator_t),      allocatable  :: cell
+  class(reference_fe_t),            pointer :: reference_fe_geo
   integer(ip)                               :: num_dim, num_dim_tmp, p_order
 
-  ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
+  ! Preconditions: All cells in the mesh are either first-order tri/qua or first-order tet/hex
   fulfills = .true.
-  call this%triangulation%create_cell_iterator(cell)
-  num_dim  = this%triangulation%get_num_dims()
+  call this%create_cell_iterator(cell)
+  num_dim  = this%num_dims
   if ( (num_dim .ne. 2) .and. (num_dim .ne. 3) ) fulfills = .false.
   do while ( .not. cell%has_finished() )
     if (cell%is_local()) then
@@ -427,13 +1038,11 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
       if (num_dim .ne. num_dim_tmp) fulfills = .false.
       p_order  = reference_fe_geo%get_order()
       if (p_order .ne. 1_ip) fulfills = .false.
-      topology = reference_fe_geo%get_topology()
-      if (topology .ne. topology_hex) fulfills = .false.
       if (.not. fulfills) exit
     end if
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell)
 
 end function marching_cubes_fulfills_assumptions
 
@@ -442,33 +1051,68 @@ subroutine marching_cubes_mc_tables_create(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  integer(ip) :: num_dim
+  class(reference_fe_t), pointer :: ref_fe
+  integer(ip)                    :: num_vertices
+  integer(ip)                    :: num_dim
+  
+  class(triangulation_t), pointer :: triangulation
+  triangulation => this%get_triangulation()
 
   ! To be safe
   call this%mc_tables_free()
 
   ! Get element type, we assume hex-like topology
-  num_dim  = this%triangulation%get_num_dims()
+  mcheck( triangulation%get_num_reference_fes() == 1_ip, 'marching_cubes::mc_tables_create: Implememntation pending for hybrid meshes' )
+  ref_fe       => triangulation%get_reference_fe(ref_fe_geo_id = 1_ip)
+  num_vertices =  ref_fe%get_num_vertices()
+  num_dim      =  this%num_dims
 
+  
   ! Fill in the sizes of the tables
   if (num_dim == 2_ip) then
-    this%mc_table_num_cases         = MC_QUA4_NUM_CASES
-    this%mc_table_num_facets         = MC_QUA4_NUM_FACETS
-    this%mc_table_max_num_sub_cells  = MC_QUA4_MAX_NUM_SUBCELLS
-    this%mc_table_max_num_unfitted_sub_facets  = MC_QUA4_MAX_NUM_SUBFACES
-    this%mc_table_max_num_fitted_sub_facets_in_facet = MC_QUA4_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
-    this%mc_table_max_num_cut_edges = MC_QUA4_MAX_NUM_CUT_EDGES
-    this%mc_table_num_nodes_in_sub_cell = MC_QUA4_NUM_NODES_PER_SUBCELL
-    this%mc_table_num_nodes_in_sub_facet = MC_QUA4_NUM_NODES_PER_SUBFACE
+    if ( num_vertices == 3_ip ) then
+       this%mc_table_num_cases                          = MC_TRI3_NUM_CASES
+       this%mc_table_num_facets                         = MC_TRI3_NUM_FACETS
+       this%mc_table_max_num_sub_cells                  = MC_TRI3_MAX_NUM_SUBCELLS
+       this%mc_table_max_num_unfitted_sub_facets        = MC_TRI3_MAX_NUM_SUBFACES
+       this%mc_table_max_num_fitted_sub_facets_in_facet = MC_TRI3_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
+       this%mc_table_max_num_cut_edges                  = MC_TRI3_MAX_NUM_CUT_EDGES
+       this%mc_table_num_nodes_in_sub_cell              = MC_TRI3_NUM_NODES_PER_SUBCELL
+       this%mc_table_num_nodes_in_sub_facet             = MC_TRI3_NUM_NODES_PER_SUBFACE
+    else if ( num_vertices == 4_ip ) then
+       this%mc_table_num_cases                          = MC_QUA4_NUM_CASES
+       this%mc_table_num_facets                         = MC_QUA4_NUM_FACETS
+       this%mc_table_max_num_sub_cells                  = MC_QUA4_MAX_NUM_SUBCELLS
+       this%mc_table_max_num_unfitted_sub_facets        = MC_QUA4_MAX_NUM_SUBFACES
+       this%mc_table_max_num_fitted_sub_facets_in_facet = MC_QUA4_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
+       this%mc_table_max_num_cut_edges                  = MC_QUA4_MAX_NUM_CUT_EDGES
+       this%mc_table_num_nodes_in_sub_cell              = MC_QUA4_NUM_NODES_PER_SUBCELL
+       this%mc_table_num_nodes_in_sub_facet             = MC_QUA4_NUM_NODES_PER_SUBFACE
+    end if
+  else if (num_dim == 3_ip) then
+    if ( num_vertices == 4_ip ) then
+       this%mc_table_num_cases                          = MC_TET4_NUM_CASES
+       this%mc_table_num_facets                         = MC_TET4_NUM_FACETS
+       this%mc_table_max_num_sub_cells                  = MC_TET4_MAX_NUM_SUBCELLS
+       this%mc_table_max_num_unfitted_sub_facets        = MC_TET4_MAX_NUM_SUBFACES
+       this%mc_table_max_num_fitted_sub_facets_in_facet = MC_TET4_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
+       this%mc_table_max_num_cut_edges                  = MC_TET4_MAX_NUM_CUT_EDGES
+       this%mc_table_num_nodes_in_sub_cell              = MC_TET4_NUM_NODES_PER_SUBCELL
+       this%mc_table_num_nodes_in_sub_facet             = MC_TET4_NUM_NODES_PER_SUBFACE
+    else if ( num_vertices == 8_ip ) then
+       this%mc_table_num_cases                          = MC_HEX8_NUM_CASES
+       this%mc_table_num_facets                         = MC_HEX8_NUM_FACETS
+       this%mc_table_max_num_sub_cells                  = MC_HEX8_MAX_NUM_SUBCELLS
+       this%mc_table_max_num_unfitted_sub_facets        = MC_HEX8_MAX_NUM_SUBFACES
+       this%mc_table_max_num_fitted_sub_facets_in_facet = MC_HEX8_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
+       this%mc_table_max_num_cut_edges                  = MC_HEX8_MAX_NUM_CUT_EDGES
+       this%mc_table_num_nodes_in_sub_cell              = MC_HEX8_NUM_NODES_PER_SUBCELL
+       this%mc_table_num_nodes_in_sub_facet             = MC_HEX8_NUM_NODES_PER_SUBFACE
+    else 
+       mcheck( .false. , 'marching_cubes::mc_tables_create: Non-supported mesh element type' )
+    end if
   else
-    this%mc_table_num_cases         = MC_HEX8_NUM_CASES
-    this%mc_table_num_facets         = MC_HEX8_NUM_FACETS
-    this%mc_table_max_num_sub_cells  = MC_HEX8_MAX_NUM_SUBCELLS
-    this%mc_table_max_num_unfitted_sub_facets  = MC_HEX8_MAX_NUM_SUBFACES
-    this%mc_table_max_num_fitted_sub_facets_in_facet = MC_HEX8_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
-    this%mc_table_max_num_cut_edges = MC_HEX8_MAX_NUM_CUT_EDGES
-    this%mc_table_num_nodes_in_sub_cell = MC_HEX8_NUM_NODES_PER_SUBCELL
-    this%mc_table_num_nodes_in_sub_facet = MC_HEX8_NUM_NODES_PER_SUBFACE
+    mcheck( .false. , 'marching_cubes::mc_tables_create: Non-supported mesh dimensions' )
   end if
 
   ! Now, we know the sizes and can allocate
@@ -504,119 +1148,144 @@ subroutine marching_cubes_mc_tables_create(this)
 
   ! Fill tables for the selected element type
   if (num_dim == 2_ip) then
-    this%mc_table_num_sub_cells_x_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
-    this%mc_table_num_unfitted_sub_facets_x_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
-    this%mc_table_num_cut_edges_x_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
-    this%mc_table_sub_cells_status_x_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,:) = MC_QUA4_NUM_SUB_FACETS_PER_CASE_AND_FACET(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,:) = MC_QUA4_FACET_TYPE_PER_CASE_AND_FACET(:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,:) = MC_QUA4_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET(:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,:) = MC_QUA4_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(:,:,:,:)
+     if ( num_vertices == 3_ip ) then
+        this%mc_table_num_sub_cells_x_case(:)                              = MC_TRI3_NUM_SUBCELLS_PER_CASE(:)
+        this%mc_table_num_unfitted_sub_facets_x_case(:)                    = MC_TRI3_NUM_SUBFACES_PER_CASE(:)
+        this%mc_table_num_cut_edges_x_case(:)                              = MC_TRI3_NUM_CUT_EDGES_PER_CASE(:)
+        this%mc_table_sub_cells_status_x_case(:,:)                         = MC_TRI3_INOUT_SUBCELLS_PER_CASE(:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,:)                     = MC_TRI3_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,:)           = MC_TRI3_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,:)          = MC_TRI3_NUM_SUB_FACETS_PER_CASE_AND_FACET(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,:)                   = MC_TRI3_FACET_TYPE_PER_CASE_AND_FACET(:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,:)     = MC_TRI3_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET(:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,:) = MC_TRI3_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(:,:,:,:)
+     else if ( num_vertices == 4_ip ) then
+        this%mc_table_num_sub_cells_x_case(:)                              = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
+        this%mc_table_num_unfitted_sub_facets_x_case(:)                    = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
+        this%mc_table_num_cut_edges_x_case(:)                              = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
+        this%mc_table_sub_cells_status_x_case(:,:)                         = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,:)                     = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,:)           = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,:)          = MC_QUA4_NUM_SUB_FACETS_PER_CASE_AND_FACET(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,:)                   = MC_QUA4_FACET_TYPE_PER_CASE_AND_FACET(:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,:)     = MC_QUA4_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET(:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,:) = MC_QUA4_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(:,:,:,:)
+     end if
   else
-    this%mc_table_num_sub_cells_x_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
-    this%mc_table_num_unfitted_sub_facets_x_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
-    this%mc_table_num_cut_edges_x_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
-    !this%mc_table_inout_subcells_x_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
-    !this%mc_table_subcell_node_ids_x_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
-    !this%mc_table_subfacet_node_ids_x_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
-    this%mc_table_sub_cells_node_ids_x_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
-    this%mc_table_sub_cells_status_x_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
-    this%mc_table_sub_cells_status_x_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
-    this%mc_table_sub_cells_status_x_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
-    this%mc_table_sub_cells_status_x_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
-    this%mc_table_sub_cells_status_x_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
-    this%mc_table_sub_cells_status_x_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
-    this%mc_table_sub_cells_status_x_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
-    this%mc_table_sub_cells_status_x_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
-    this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,1:36) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL1(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,37:72) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL2(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,73:108) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL3(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,109:144) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,145:180) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,181:216) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,217:252) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL7(:,:)
-    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,253:256) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL8(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,1:36) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL1(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,37:72) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL2(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,73:108) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL3(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,109:144) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL4(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,145:180) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL5(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,181:216) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL6(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,217:252) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL7(:,:)
-    this%mc_table_facet_status_x_case_and_facet(:,253:256) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL8(:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,1:45) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL1(:,:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,46:90) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL2(:,:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,91:135) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL3(:,:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,136:180) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,181:225) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:,:)
-    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,226:256) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,1:9) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL1(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,10:18) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL2(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,19:27) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL3(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,28:36) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL4(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,37:45) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL5(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,46:54) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL6(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,55:63) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL7(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,64:72) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL8(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,73:81) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL9(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,82:90) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL10(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,91:99) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL11(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,100:108) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL12(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,109:117) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL13(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,118:126) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL14(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,127:135) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL15(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,136:144) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL16(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,145:153) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL17(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,154:162) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL18(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,163:171) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL19(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,172:180) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL20(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,181:189) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL21(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,190:198) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL22(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,199:207) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL23(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,208:216) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL24(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,217:225) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL25(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,226:234) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL26(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,235:243) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL27(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,244:252) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL28(:,:,:,:)
-    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,253:256) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL29(:,:,:,:)
-
-  endif
+     if ( num_vertices == 4_ip ) then
+        this%mc_table_num_sub_cells_x_case(:)                              = MC_TET4_NUM_SUBCELLS_PER_CASE(:)
+        this%mc_table_num_unfitted_sub_facets_x_case(:)                    = MC_TET4_NUM_SUBFACES_PER_CASE(:)
+        this%mc_table_num_cut_edges_x_case(:)                              = MC_TET4_NUM_CUT_EDGES_PER_CASE(:)
+        this%mc_table_sub_cells_status_x_case(:,:)                         = MC_TET4_INOUT_SUBCELLS_PER_CASE(:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,:)                     = MC_TET4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,:)           = MC_TET4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,:)          = MC_TET4_NUM_SUB_FACETS_PER_CASE_AND_FACET(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,:)                   = MC_TET4_FACET_TYPE_PER_CASE_AND_FACET(:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,:)     = MC_TET4_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET(:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,:) = MC_TET4_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(:,:,:,:)
+     else if ( num_vertices == 8_ip ) then 
+        this%mc_table_num_sub_cells_x_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
+        this%mc_table_num_unfitted_sub_facets_x_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
+        this%mc_table_num_cut_edges_x_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
+        !this%mc_table_inout_subcells_x_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
+        !this%mc_table_subcell_node_ids_x_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+        !this%mc_table_subfacet_node_ids_x_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
+        this%mc_table_sub_cells_node_ids_x_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
+        this%mc_table_sub_cells_status_x_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
+        this%mc_table_sub_cells_status_x_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
+        this%mc_table_sub_cells_status_x_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
+        this%mc_table_sub_cells_status_x_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
+        this%mc_table_sub_cells_status_x_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
+        this%mc_table_sub_cells_status_x_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
+        this%mc_table_sub_cells_status_x_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
+        this%mc_table_sub_cells_status_x_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
+        this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,1:36) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL1(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,37:72) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL2(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,73:108) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL3(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,109:144) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,145:180) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,181:216) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,217:252) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL7(:,:)
+        this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,253:256) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL8(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,1:36) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL1(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,37:72) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL2(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,73:108) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL3(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,109:144) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL4(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,145:180) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL5(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,181:216) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL6(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,217:252) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL7(:,:)
+        this%mc_table_facet_status_x_case_and_facet(:,253:256) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL8(:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,1:45) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL1(:,:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,46:90) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL2(:,:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,91:135) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL3(:,:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,136:180) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,181:225) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:,:)
+        this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,226:256) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,1:9) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL1(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,10:18) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL2(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,19:27) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL3(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,28:36) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL4(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,37:45) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL5(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,46:54) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL6(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,55:63) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL7(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,64:72) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL8(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,73:81) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL9(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,82:90) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL10(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,91:99) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL11(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,100:108) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL12(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,109:117) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL13(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,118:126) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL14(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,127:135) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL15(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,136:144) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL16(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,145:153) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL17(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,154:162) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL18(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,163:171) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL19(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,172:180) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL20(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,181:189) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL21(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,190:198) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL22(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,199:207) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL23(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,208:216) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL24(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,217:225) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL25(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,226:234) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL26(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,235:243) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL27(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,244:252) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL28(:,:,:,:)
+        this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,253:256) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET_BL29(:,:,:,:)
+     end if
+  end if
 
   this%mc_tables_init = .true.
 
@@ -657,32 +1326,31 @@ subroutine marching_cubes_discrete_levelset_create(this)
   integer(ip) :: istat
 
   ! Create the reference fe
-  call this%triangulation%create_cell_iterator(cell)
+  call this%create_cell_iterator(cell)
   ref_fe_geo => cell%get_reference_fe()
   allocate(this%reference_fes(1),stat=istat); check(istat==0)
   this%reference_fes(1) =  make_reference_fe ( topology = ref_fe_geo%get_topology(), &
                                                fe_type = fe_type_lagrangian, &
-                                               num_dims = this%triangulation%get_num_dims(), &
+                                               num_dims = this%num_dims, &
                                                order = ref_fe_geo%get_max_order(), &
                                                field_type = field_type_scalar, &
                                                conformity = .true., &
                                                continuity = .true. )
-  call this%triangulation%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell)
 
   ! Create the fe space
-  triangulation => this%triangulation
+  triangulation => this%get_triangulation()
   select type(triangulation)
     type is(serial_unfitted_triangulation_t)
 
      allocate(serial_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
-     call this%fe_space%create(triangulation     = this%triangulation, &
+     call this%fe_space%create(triangulation     = triangulation, &
                                reference_fes     = this%reference_fes )
 
     type is(unfitted_p4est_serial_triangulation_t)
 
       allocate(serial_fe_space_t :: this%fe_space, stat=istat); check(istat==0)
-      call this%fe_space%create(triangulation     = this%triangulation, &
-                                conditions        = this%dummy_conditions, &
+      call this%fe_space%create(triangulation     = triangulation, &
                                 reference_fes     = this%reference_fes )
 
     type is(par_unfitted_triangulation_t)
@@ -694,8 +1362,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
       fe_space => this%fe_space
       select type (fe_space)
       class is (par_fe_space_t)
-        call fe_space%create(triangulation      = this%triangulation, &
-                             conditions         = this%dummy_conditions, &
+        call fe_space%create(triangulation      = triangulation, &
                              reference_fes      = this%reference_fes , &
                              coarse_fe_handlers = this%dummy_coarse_handlers)
     class default
@@ -777,18 +1444,18 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
   ! Get the nodal coordinates in the reference element
   call this%fe_space%create_fe_cell_iterator(fe)
-  call this%triangulation%create_cell_iterator(cell)
+  call this%create_cell_iterator(cell)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
   call nodal_quadrature%get_coordinates_as_points( Xe_ref )
-  call this%triangulation%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell)
 
   ! Check that the length of the edge is ok
-  DX = Xe_ref(1) - Xe_ref(2)
-  if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
-  massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
+  !DX = Xe_ref(1) - Xe_ref(2)
+  !if (this%num_dims<3) call DX%set(3,0.0_rp)
+  !massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
 
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
 
@@ -833,11 +1500,11 @@ subroutine marching_cubes_discrete_levelset_fix(this)
           ! fix the levelset on the corresponding node
 
           DX = Xe_ref(nodes_in_edge(1)) - X_intersection
-          if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
+          if (this%num_dims<3) call DX%set(3,0.0_rp)
           if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(1)) = 0.0_rp
 
           DX = Xe_ref(nodes_in_edge(2)) - X_intersection
-          if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
+          if (this%num_dims<3) call DX%set(3,0.0_rp)
           if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(2)) = 0.0_rp
 
         end if
@@ -942,6 +1609,9 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   real(rp)    :: phi_node, phi_edge(num_nodes_in_edge)
   integer(ip) :: field_id
   type(quadrature_t), pointer :: nodal_quadrature
+  class(triangulation_t), pointer :: triangulation
+  
+  triangulation => this%get_triangulation()
 
   ! To be safe
   call this%mc_runtime_info_free()
@@ -951,16 +1621,16 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
   ! Get the nodal coordinates in the reference element
   call this%fe_space%create_fe_cell_iterator(fe)
-  call this%triangulation%create_cell_iterator(cell)
+  call this%create_cell_iterator(cell)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
   call nodal_quadrature%get_coordinates_as_points( Xe_ref )
-  call this%triangulation%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell)
 
   ! Allocate and fill marching cube cases
-  num_cells = this%triangulation%get_num_local_cells()
+  num_cells = triangulation%get_num_local_cells()
   call memalloc (num_cells, this%mc_case_x_cell, __FILE__, __LINE__ )
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
   do while ( .not. fe%has_finished() )
@@ -976,9 +1646,9 @@ subroutine marching_cubes_mc_runtime_info_create(this)
       if ( num_nodes_outside == 0_ip ) then
         ! This is to avoid to set as cut an element that has negative and zero nodes 
         ! (which is in fact a full interior element)
-        this%mc_case_x_cell(fe%get_gid()) = this%mc_table_num_cases
+        this%mc_case_x_cell( fe%get_gid() ) = this%mc_table_num_cases
       else
-        this%mc_case_x_cell(fe%get_gid()) = icase + 1
+        this%mc_case_x_cell( fe%get_gid() ) = icase + 1
       end if
     end if
     call fe%next()
@@ -1077,9 +1747,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   integer(ip) :: istat, icase
   class(cell_iterator_t), allocatable  :: cell
   class(reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet
-  integer(ip), parameter :: safety_offset = 5
-  integer(ip), parameter :: num_facets_tet = 4
+  integer(ip) :: n_subfacets, n_subnodes,  n_nodes_subfacet
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
@@ -1091,10 +1759,10 @@ subroutine marching_cubes_subnodes_data_create( this )
   allocate( this%sub_nodes_cell_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
-  call this%triangulation%create_cell_iterator(cell)
+  call this%create_cell_iterator(cell)
   do icase=1, this%get_num_mc_cases()
     n_subnodes =  this%mc_table_num_cut_edges_x_case(icase) + cell%get_num_nodes()
-    call this%sub_nodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dims(),n_subnodes)
+    call this%sub_nodes_nodal_quadratures(icase)%create(this%num_dims,n_subnodes)
   end do
 
   ! Initialize each one of the cell_maps
@@ -1104,26 +1772,64 @@ subroutine marching_cubes_subnodes_data_create( this )
   end do
 
   !Allocate place holders for the sub-mesh
-  n_subcells      = this%mc_table_max_num_sub_cells + safety_offset
-  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets + safety_offset
+  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets
   n_subnodes      = this%get_max_num_subnodes_in_cell()
-  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
   n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
-  call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
+  call this%allocate_nsubcells_arrays()
   call memalloc(n_subnodes,this%level_set_all_nodes,__FILE__,__LINE__)
-  call memalloc(n_subcells,this%subcells_status,__FILE__,__LINE__)
-  if (this%triangulation%get_num_dims()==3) then
-    call memalloc(num_facets_tet,n_subcells,this%subcell_facet_neigs,__FILE__,__LINE__)
-  end if
   call memalloc(n_nodes_subfacet,n_subfacets,this%unfitted_sub_facets_node_ids,__FILE__,__LINE__)
   call memalloc(n_nodes_subfacet,this%mc_table_max_num_fitted_sub_facets_in_facet,this%mc_table_num_facets,this%fitted_sub_facets_node_ids_x_facet,__FILE__,__LINE__)
-  call memalloc(n_subcells,this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
   call this%fe_space%create_fe_cell_iterator(this%fe)
 
-  call this%triangulation%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell)
   this%mc_cell_info_init = .true.
 end subroutine marching_cubes_subnodes_data_create
+
+
+!========================================================================================
+subroutine marching_cubes_allocate_nsubcells_arrays( this )
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip)                            :: n_subcells
+  integer(ip)                            :: n_nodes_subcell
+  integer(ip),                parameter  :: num_facets_tet = 4
+  n_subcells      = this%mc_table_max_num_sub_cells
+  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
+  call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
+  call memalloc(n_subcells,this%subcells_status,__FILE__,__LINE__)
+  if (this%num_dims==3) then
+    call memalloc(num_facets_tet,n_subcells,this%subcell_facet_neigs,__FILE__,__LINE__)
+  end if
+  call memalloc(n_subcells,this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
+end subroutine marching_cubes_allocate_nsubcells_arrays
+
+
+!========================================================================================
+subroutine marching_cubes_reallocate_nsubcells_arrays( this )
+  implicit none
+  class(marching_cubes_t), intent(inout) :: this
+  integer(ip)                            :: n_subcells
+  integer(ip)                            :: n_nodes_subcell
+  integer(ip),                parameter  :: num_facets_tet = 4  
+   
+  n_subcells      = this%num_subcells 
+  n_nodes_subcell = this%get_max_num_nodes_in_subcell()
+  call memrealloc_if_more_space_needed(n_nodes_subcell,&
+                                       n_subcells,this%sub_cells_node_ids,&
+                                       __FILE__,__LINE__)
+  call memrealloc_if_more_space_needed(n_subcells,&
+                                       this%subcells_status,& 
+                                       __FILE__,__LINE__)
+  if (this%num_dims==3) then
+    call memrealloc_if_more_space_needed(num_facets_tet,&
+                                         n_subcells,&
+                                         this%subcell_facet_neigs,__FILE__,__LINE__)
+  end if
+  call memrealloc_if_more_space_needed(n_subcells,&
+                                       this%sub_cell_has_been_reoriented,&
+                                       __FILE__,__LINE__)
+end subroutine marching_cubes_reallocate_nsubcells_arrays
 
 !========================================================================================
 subroutine marching_cubes_subnodes_data_free( this )

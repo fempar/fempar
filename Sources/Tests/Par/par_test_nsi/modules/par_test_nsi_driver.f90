@@ -219,19 +219,21 @@ subroutine free_timers(this)
     call this%timer_solver_run%free()
 end subroutine free_timers
 
-!========================================================================================
-  subroutine setup_environment(this)
+  
+  !========================================================================================
+  subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
+    class(execution_context_t)                    , intent(in)    :: world_context
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create (this%parameter_list)
+    call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
+  
 
 !========================================================================================
   subroutine setup_triangulation(this)
@@ -240,7 +242,7 @@ end subroutine free_timers
     class(vef_iterator_t), allocatable :: vef
     logical :: fixed_pressure
     
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create(this%par_environment, this%parameter_list)
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        fixed_pressure = .false.
        call this%triangulation%create_vef_iterator(vef)
@@ -359,13 +361,13 @@ end subroutine free_timers
     plist => this%parameter_list 
     do ilev=1, this%par_environment%get_num_levels()-1
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
-    FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
     
     call this%mlbddc%create(this%fe_operator, this%parameter_list)    
     
@@ -373,25 +375,22 @@ end subroutine free_timers
     call this%linear_solver%create(this%fe_space%get_environment())
     call this%linear_solver%set_type_from_string(lgmres_name)
     call linear_pl%init()
-    FPLError = linear_pl%set(key = ils_rtol, value = 1.0e-12_rp); assert(FPLError == 0)
-    FPLError = linear_pl%set(key = ils_max_num_iterations, value = 5000); assert(FPLError == 0)
-    FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_rtol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_max_num_iterations_key, value = 5000); assert(FPLError == 0)
+    FPLError = linear_pl%set(key = ils_atol_key, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
-    ! sbadia : For the moment identity preconditioner
     call this%linear_solver%set_operators( this%fe_operator%get_tangent(), this%mlbddc )
 
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-09_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-06_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 10); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = rel_r0_res_norm); assert(FPLError == 0)
+
     ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
-    call this%nonlinear_solver%create(convergence_criteria = rel_r0_res_norm, & 
-         &                                         abs_tol = 1.0e-6,  &
-         &                                         rel_tol = 1.0e-9, &
-         &                                       max_iters = 10   ,  &
-         &                                   linear_solver = this%linear_solver, &
-         &                                     environment = this%par_environment, &
-                                        fe_operator = this%fe_operator)  
-    
-
+    call this%nonlinear_solver%create(parameters = this%parameter_list, & 
+                                      linear_solver = this%linear_solver, &
+                                      fe_operator = this%fe_operator)  
   end subroutine setup_operators
-
    
   subroutine check_solution(this)
     implicit none

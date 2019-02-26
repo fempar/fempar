@@ -189,7 +189,7 @@ contains
        fe_function_gradients_left  => this%fe_facet_function%get_quadrature_points_gradients(1)
        fe_function_gradients_right => this%fe_facet_function%get_quadrature_points_gradients(2)
        do qpoint = 1, num_quad_points
-         call fe_facet%get_normals(qpoint,normals)
+         call fe_facet%get_normal(qpoint,normals)
          jump = normals(1) * fe_function_gradients_left(qpoint) + &
                 normals(2) * fe_function_gradients_right(qpoint)
          factor   = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)

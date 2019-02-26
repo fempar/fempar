@@ -74,8 +74,10 @@ module par_test_poisson_error_estimator_driver_names
      
    contains
      procedure          :: run_simulation
-     procedure, private :: parse_command_line_parameters
-     procedure, private :: setup_environment
+     procedure          :: parse_command_line_parameters
+     procedure          :: free_command_line_parameters
+     procedure          :: setup_environment
+     procedure          :: free_environment
      procedure, private :: setup_triangulation
      procedure, private :: set_cells_for_uniform_refinement
      procedure, private :: setup_reference_fes
@@ -104,22 +106,38 @@ contains
     call this%par_test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
-  subroutine setup_environment(this)
+  !========================================================================================
+  subroutine free_command_line_parameters(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
+    call this%par_test_params%free()
+    call this%parameter_list%free()
+  end subroutine free_command_line_parameters
+  
+  !========================================================================================
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
+    class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
     istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
-    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    istat = this%parameter_list%set(key = num_levels_key, value = 2) ; check(istat==0)
-    call this%par_environment%create(this%parameter_list)
+    istat = this%parameter_list%set(key = struct_hex_triang_num_levels_key, value = 2) ; check(istat==0)
+    call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
+  
+  !========================================================================================
+  subroutine free_environment(this)
+    implicit none
+    class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
+    call this%par_environment%free()
+  end subroutine free_environment
   
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
-    integer(ip)                        :: i
-    call this%triangulation%create(this%parameter_list,this%par_environment)
+    integer(ip)                        :: i, istat
+    call this%triangulation%create(this%par_environment,this%parameter_list)
     if ( .not. this%par_test_params%get_use_void_fes() .and. this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_vef_iterator(vef)
       do while ( .not. vef%has_finished() )
@@ -355,7 +373,7 @@ contains
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
-       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -363,14 +381,14 @@ contains
     do ilev=1, this%par_environment%get_num_levels()-1
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -379,7 +397,7 @@ contains
        plist  => coarse 
     end do
     ! Set coarsest-grid solver parameters
-    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
@@ -394,9 +412,9 @@ contains
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     
@@ -496,8 +514,6 @@ contains
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
-    call this%setup_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_coarse_fe_handlers()
@@ -537,9 +553,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%parameter_list%free()
-    call this%par_test_params%free()
-    call this%par_environment%free()
   end subroutine free
   
 end module par_test_poisson_error_estimator_driver_names

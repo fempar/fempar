@@ -76,7 +76,7 @@ private
         procedure, non_overridable ::         create_vector_spaces             => sparse_matrix_create_vector_spaces
         procedure, non_overridable, public :: get_pointer_to_base_matrix       => sparse_matrix_get_pointer_to_base_matrix
         procedure, non_overridable, public :: get_nnz                          => sparse_matrix_get_nnz
-        procedure, non_overridable, public :: get_sign                         => sparse_matrix_get_sign
+        procedure,                  public :: get_sign                         => sparse_matrix_get_sign
         procedure, non_overridable, public :: get_num_rows                     => sparse_matrix_get_num_rows
         procedure, non_overridable, public :: get_num_cols                     => sparse_matrix_get_num_cols
         procedure, non_overridable, public :: is_diagonal                      => sparse_matrix_is_diagonal
@@ -86,6 +86,9 @@ private
         procedure, non_overridable, public :: is_symmetric                     => sparse_matrix_is_symmetric
         procedure,                  public :: allocate                         => sparse_matrix_allocate
         procedure,                  public :: init                             => sparse_matrix_init
+        procedure,                  public :: scal                             => sparse_matrix_scal
+        procedure,                  public :: add                              => sparse_matrix_add
+        procedure,                  public :: copy                             => sparse_matrix_copy
         procedure,                  public :: free_in_stages                   => sparse_matrix_free_in_stages  
         generic,                    public :: create                           => sparse_matrix_create_square, &
                                                                                   sparse_matrix_create_rectangular
@@ -130,6 +133,7 @@ private
         procedure,                  public :: apply                            => sparse_matrix_apply
         procedure,                  public :: apply_add                        => sparse_matrix_apply_add
         procedure,                  public :: apply_transpose                  => sparse_matrix_apply_transpose
+        procedure,                  public :: apply_transpose_add              => sparse_matrix_apply_transpose_add 
         procedure,                  public :: apply_to_dense_matrix            => sparse_matrix_apply_to_dense_matrix
         procedure,                  public :: apply_transpose_to_dense_matrix  => sparse_matrix_apply_transpose_to_dense_matrix
         procedure, non_overridable, public :: print                            => sparse_matrix_print
@@ -298,7 +302,7 @@ contains
     end function sparse_matrix_get_nnz
 
 
-    function sparse_matrix_get_sign(this) result( sign)
+    function sparse_matrix_get_sign(this) result(sign)
     !-----------------------------------------------------------------
     !< Get the sign of the sparse matrix
     !-----------------------------------------------------------------
@@ -323,7 +327,7 @@ contains
 
     subroutine sparse_matrix_init(this, alpha)
     !-----------------------------------------------------------------
-    !< Initialize matrix values only if is in a assembled stage
+    !< Initialize matrix entries only if is in a assembled stage
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
         real(rp),               intent(in)    :: alpha
@@ -331,8 +335,59 @@ contains
         assert(allocated(this%State))
         call this%State%initialize_values(alpha)
     end subroutine sparse_matrix_init
-
-
+    
+    subroutine sparse_matrix_scal(this, alpha)
+    !-----------------------------------------------------------------
+    !< Scale matrix entries (even if still uncompressed) 
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        real(rp),               intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%scal(alpha)
+    end subroutine sparse_matrix_scal
+    
+    subroutine sparse_matrix_add(this, alpha, op1, beta, op2)
+    !-----------------------------------------------------------------
+    !< Add two matrices
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        real(rp),               intent(in)    :: alpha
+        class(matrix_t),        intent(in)    :: op1
+        real(rp),               intent(in)    :: beta
+        class(matrix_t),        intent(in)    :: op2
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        select type(op1)
+        class is (sparse_matrix_t) 
+           select type(op2)
+           class is (sparse_matrix_t) 
+              assert(allocated(op1%State))
+              assert(allocated(op2%State))
+              call this%State%add(alpha,op1%State,beta,op2%State)
+           class DEFAULT
+           end select
+        class DEFAULT
+        end select        
+    end subroutine sparse_matrix_add
+    
+    subroutine sparse_matrix_copy(this, op)
+    !-----------------------------------------------------------------
+    !< Copy matrix
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        class(matrix_t),        intent(in)    :: op
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        select type(op)
+        class is (sparse_matrix_t)       
+           assert(allocated(op%State))
+           call this%State%copy(op%State)
+        class DEFAULT
+           assert( .false. )
+        end select
+    end subroutine sparse_matrix_copy
+    
     subroutine sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------
     !< Create vector spaces
@@ -1196,10 +1251,10 @@ contains
 
     subroutine sparse_matrix_extract_diagonal(this, diagonal) 
     !-----------------------------------------------------------------
-    !< Apply matrix vector product y=op*x
+    !< Extract the diagonal entries of a matrix in a rank-1 array
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(in)    :: this
-        real(rp), allocatable,  intent(inout) :: diagonal(:)
+        class(sparse_matrix_t), intent(in)     :: this
+        real(rp)              ,  intent(inout) :: diagonal(:)
     !-----------------------------------------------------------------
         assert(allocated(this%State))
         call this%State%extract_diagonal(diagonal)
@@ -1237,7 +1292,7 @@ contains
 
     subroutine sparse_matrix_apply_transpose(this,x,y) 
     !-----------------------------------------------------------------
-    !< Apply transpose matrix vector product y=op'*x
+    !< Apply transpose matrix vector product y=op^T*x
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
@@ -1248,6 +1303,20 @@ contains
         call this%abort_if_not_in_range(x)
         call this%State%apply_transpose(x,y)
     end subroutine sparse_matrix_apply_transpose
+
+   subroutine sparse_matrix_apply_transpose_add(this,x,y)
+    !-----------------------------------------------------------------
+    !< Apply-Add transpose matrix vector product y=y+op^T*x
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: this
+        class(vector_t),        intent(in)    :: x
+        class(vector_t),        intent(inout) :: y 
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%abort_if_not_in_domain(y)
+        call this%abort_if_not_in_range(x)
+        call this%State%apply_transpose_add(x,y)
+    end subroutine sparse_matrix_apply_transpose_add
 
 
     subroutine sparse_matrix_apply_to_dense_matrix(this, n, alpha, LDB, b, beta, LDC, c) 

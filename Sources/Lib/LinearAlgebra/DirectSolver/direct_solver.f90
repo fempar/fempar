@@ -58,6 +58,7 @@ private
         procedure, non_overridable, public :: set_matrix              => direct_solver_set_matrix
         procedure, non_overridable, public :: replace_matrix          => direct_solver_replace_matrix
         procedure,                  public :: update_matrix           => direct_solver_update_matrix
+        procedure,                  public :: reallocate_after_remesh => direct_solver_reallocate_after_remesh
         procedure, non_overridable         :: create_vector_spaces    => direct_solver_create_vector_spaces
         procedure, non_overridable, public :: symbolic_setup          => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup         => direct_solver_numerical_setup
@@ -109,8 +110,8 @@ contains
     !-----------------------------------------------------------------
         ! check if DIRECT_SOLVER_TYPE is present and is a scalar string
         ! in the given parameter list,
-        assert(parameter_list%isAssignable(direct_solver_type, 'string')) 
-        FPLError = parameter_list%GetAsString(Key=direct_solver_type, String=name)
+        assert(parameter_list%isAssignable(dls_type_key, 'string')) 
+        FPLError = parameter_list%GetAsString(Key=dls_type_key, String=name)
         assert(FPLError == 0)
         call this%set_type(name)
     end subroutine direct_solver_set_type_from_pl
@@ -190,6 +191,17 @@ contains
       if(.not. same_nonzero_pattern) call this%free_vector_spaces()
     end subroutine direct_solver_update_matrix
     
+    subroutine direct_solver_reallocate_after_remesh(this)
+    !-----------------------------------------------------------------
+    !< reallocate after remesh
+    !< Not same_nonzero_pattern. The workspace must be reallocated
+    !-----------------------------------------------------------------
+        class(direct_solver_t),        intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%update_matrix(.false.)
+        call this%create_vector_spaces()
+    end subroutine direct_solver_reallocate_after_remesh    
+    
     subroutine direct_solver_create_vector_spaces ( this ) 
     !-----------------------------------------------------------------
     !< Clone vector spaces from matrix vector spaces
@@ -203,6 +215,7 @@ contains
     !-----------------------------------------------------------------
         assert(.not. this%vector_spaces_are_created())
         assert(this%base_direct_solver%matrix_is_set())
+        call this%free_vector_spaces()
         matrix => this%base_direct_solver%get_matrix()
         matrix_domain_vector_space        => matrix%get_domain_vector_space()
         matrix_range_vector_space         => matrix%get_range_vector_space()
@@ -279,6 +292,7 @@ contains
         real(rp),             parameter :: tol = 1.0e-10
 #endif
 
+        call x%GuardTemp()
         assert(associated(op%base_direct_solver))
         assert(op%base_direct_solver%matrix_is_set())
         if(.not. op%vector_spaces_are_created()) &
@@ -312,7 +326,7 @@ contains
             class DEFAULT
                 check(.false.)
         end select
-
+        call x%CleanTemp()
 
     end subroutine direct_solver_solve_single_rhs
 

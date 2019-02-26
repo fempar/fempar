@@ -59,18 +59,16 @@ module assembler_names
   abstract interface
      
      subroutine assembly_array_interface( this,           & 
-                                          num_fields,  &
+                                          num_fields,     &
                                           field_blocks,   &
-                                          field_coupling, &
-                                          num_dofs,    &
-                                          fe_dofs,       &
+                                          num_dofs,       &
+                                          fe_dofs,        &
                                           elvec )
        import :: assembler_t, rp, ip, i1p_t
        implicit none
        class(assembler_t) , intent(inout) :: this
        integer(ip)                     , intent(in)    :: num_fields
        integer(ip)                     , intent(in)    :: field_blocks(num_fields)
-       logical                         , intent(in)    :: field_coupling(num_fields,num_fields)
        integer(ip)                     , intent(in)    :: num_dofs(num_fields)
        type(i1p_t)                     , intent(in)    :: fe_dofs(num_fields)
        real(rp)                        , intent(in)    :: elvec(:)

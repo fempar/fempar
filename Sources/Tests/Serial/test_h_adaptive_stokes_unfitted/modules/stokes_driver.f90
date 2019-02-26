@@ -65,12 +65,13 @@ module stokes_driver_names
      type(ParameterList_t)                        :: parameter_list
      type(unfitted_p4est_serial_triangulation_t)  :: triangulation
      class(level_set_function_t), allocatable     :: level_set_function
-     type(serial_unfitted_hp_adaptive_fe_space_t) :: fe_space 
+     type(serial_unfitted_fe_space_t)             :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(stokes_cG_discrete_integration_t)       :: cG_integration
      type(stokes_conditions_t)                    :: conditions
      type(stokes_analytical_functions_t)          :: analytical_functions
      type(fe_affine_operator_t)                   :: fe_affine_operator
+     type(environment_t)                          :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                        :: direct_solver
      type(iterative_linear_solver_t)              :: iterative_linear_solver
@@ -81,7 +82,9 @@ module stokes_driver_names
 
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
      procedure        , private :: fill_cells_set
@@ -108,6 +111,20 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(stokes_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(stokes_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
 
   subroutine setup_levelset(this)
     implicit none
@@ -121,9 +138,9 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent   (key = struct_hex_triang_num_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
@@ -182,7 +199,7 @@ contains
     logical :: active_found, innactive_found
 
     ! Create the triangulation, with the levelset function
-    call this%triangulation%create(this%parameter_list,this%level_set_function)
+    call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )
@@ -591,7 +608,7 @@ contains
 #ifdef ENABLE_MKL
 
     if (this%test_params%get_lin_solver_type()=='pardiso') then
-      FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+      FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
       FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_sin)
       FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
       iparm = 0
@@ -616,9 +633,9 @@ contains
       end select
 
     else if (this%test_params%get_lin_solver_type()=='minres') then
-      FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-4_rp)
-      FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 100)
-      FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 5000000)
+      FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-4_rp)
+      FPLError = FPLError + parameter_list%set(key = ils_output_frequency_key, value = 100)
+      FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations_key, value = 5000000)
       assert(FPLError == 0)
       call this%iterative_linear_solver%create(this%fe_space%get_environment())
       call this%iterative_linear_solver%set_type_from_string(minres_name)
@@ -629,9 +646,9 @@ contains
     end if
     
 #else    
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-    FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 5)
-    FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 50000)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
+    FPLError = FPLError + parameter_list%set(key = ils_output_frequency_key, value = 5)
+    FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations_key, value = 50000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(minres_name)
@@ -1132,10 +1149,6 @@ contains
     class(stokes_driver_t), intent(inout) :: this
 
     call this%free()
-
-    write(*,*) 'parse_command_line_parameters ...'; flush(stdout)
-    call this%parse_command_line_parameters()
-    write(*,*) 'parse_command_line_parameters ... OK'; flush(stdout)
 
     write(*,*) 'setup_levelset ...'; flush(stdout)
     call this%setup_levelset()

@@ -31,26 +31,20 @@ module poisson_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
-
-  type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims 
-  end type base_scalar_function_t
   
-  type, extends(base_scalar_function_t) :: source_term_t
+  type, extends(scalar_function_t) :: source_term_t
     private 
    contains
      procedure :: get_value_space    => source_term_get_value_space
   end type source_term_t
 
-  type, extends(base_scalar_function_t) :: boundary_function_t
+  type, extends(scalar_function_t) :: boundary_function_t
     private
    contains
      procedure :: get_value_space => boundary_function_get_value_space
   end type boundary_function_t
 
-  type, extends(base_scalar_function_t) :: solution_function_t
+  type, extends(scalar_function_t) :: solution_function_t
     private 
    contains
      procedure :: get_value_space    => solution_function_get_value_space
@@ -69,16 +63,9 @@ module poisson_analytical_functions_names
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
   end type poisson_analytical_functions_t
 
-  public :: poisson_analytical_functions_t, base_scalar_function_t
+  public :: poisson_analytical_functions_t, scalar_function_t
 
 contains  
-
-  subroutine base_scalar_function_set_num_dims ( this, num_dims )
-    implicit none
-    class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
-  end subroutine base_scalar_function_set_num_dims
 
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
@@ -86,10 +73,10 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 ) 
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 ) 
+    if ( this%get_num_dims() == 2 ) then
       result = -4.0_rp 
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = -6.0_rp 
     end if  
   end subroutine source_term_get_value_space
@@ -100,10 +87,10 @@ contains
     class(boundary_function_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1)**2+ point%get(2)**2 ! x*2+y*2
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1)**2+ point%get(2)**2 + point%get(3)**2
     end if  
   end subroutine boundary_function_get_value_space 
@@ -114,10 +101,10 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1)**2+ point%get(2)**2 ! x*2+y*2 
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1)**2+ point%get(2)**2 + point%get(3)**2
     end if  
       
@@ -129,11 +116,11 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       call result%set( 1, point%get(1)*2 ) !call result%set( 1, 1.0_rp ) 
       call result%set( 2, point%get(2)*2 ) !call result%set( 2, 1.0_rp )
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       call result%set( 1, point%get(1)*2 ) 
       call result%set( 2, point%get(2)*2 )
       call result%set( 3, point%get(3)*2 )

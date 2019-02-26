@@ -124,34 +124,51 @@ module fe_operator_names
      logical                           , allocatable :: diagonal_blocks_symmetric(:)
      integer(ip)                       , allocatable :: diagonal_blocks_sign(:)
    contains
-     procedure          :: create                      => fe_operator_create
-     procedure          :: free                        => fe_operator_free
-     procedure          :: set_evaluation_point        => fe_operator_set_evaluation_point  
-     procedure          :: reallocate_after_remesh     => fe_operator_reallocate_after_remesh
-
-     procedure          :: compute_tangent             => fe_operator_compute_tangent
-     procedure          :: compute_residual            => fe_operator_compute_residual
-     procedure, private :: compute_internal_residual   => fe_operator_compute_internal_residual
-     procedure          :: force_compute               => fe_operator_force_compute
+     procedure          :: create                                => fe_operator_create
+     procedure          :: free                                  => fe_operator_free
+     procedure          :: set_evaluation_point                  => fe_operator_set_evaluation_point  
+     procedure          :: reallocate_after_remesh               => fe_operator_reallocate_after_remesh
+                                                                
+     procedure          :: compute_tangent                       => fe_operator_compute_tangent
+     procedure          :: compute_residual                      => fe_operator_compute_residual
+     procedure, private :: compute_internal_residual             => fe_operator_compute_internal_residual
+     procedure          :: force_compute                         => fe_operator_force_compute
+                                                                
+     procedure          :: apply                                 => fe_operator_apply
+     procedure          :: apply_add                             => fe_operator_apply_add
+     procedure          :: is_linear                             => fe_operator_is_linear
+                                                                
+     procedure          :: get_tangent                           => fe_operator_get_tangent 
+     procedure          :: get_matrix                            => fe_operator_get_matrix
+     procedure          :: get_translation                       => fe_operator_get_translation
+     procedure          :: get_fe_space                          => fe_operator_get_fe_space
+     procedure          :: get_trial_fe_space                    => fe_operator_get_trial_fe_space
+     procedure          :: get_discrete_integration              => fe_operator_get_discrete_integration
+     procedure          :: get_domain_vector_space               => fe_operator_get_domain_vector_space
+     procedure          :: get_range_vector_space                => fe_operator_get_range_vector_space
+     procedure          :: get_environment                       => fe_operator_get_environment
      
-     procedure          :: apply                       => fe_operator_apply
-     procedure          :: apply_add                   => fe_operator_apply_add
-     procedure          :: is_linear                   => fe_operator_is_linear
-
-     procedure          :: get_tangent                 => fe_operator_get_tangent 
-     procedure          :: get_matrix                  => fe_operator_get_matrix
-     procedure          :: get_translation             => fe_operator_get_translation
-     procedure          :: get_fe_space                => fe_operator_get_fe_space
-     procedure          :: get_discrete_integration    => fe_operator_get_discrete_integration
-     procedure          :: get_domain_vector_space     => fe_operator_get_domain_vector_space
-     procedure          :: get_range_vector_space      => fe_operator_get_range_vector_space
-
-     procedure          :: abort_if_not_in_range       => fe_operator_abort_if_not_in_range
-     procedure          :: abort_if_not_in_domain      => fe_operator_abort_if_not_in_domain
-
-     procedure, private :: create_serial_assembler     => fe_operator_create_serial_assembler
-     procedure, private :: create_par_assembler        => fe_operator_create_par_assembler
-     procedure, private :: create_vector_spaces        => fe_operator_create_vector_spaces
+     procedure          :: get_diagonal_blocks_symmetric_storage => fe_operator_get_diagonal_blocks_symmetric_storage
+     procedure          :: get_diagonal_blocks_symmetric         => fe_operator_get_diagonal_blocks_symmetric
+     procedure          :: get_diagonal_blocks_sign              => fe_operator_get_diagonal_blocks_sign
+     procedure          :: get_sparse_matrix_storage_format      => fe_operator_get_sparse_matrix_storage_format
+     procedure          :: get_state                             => fe_operator_get_state
+     procedure          :: get_current_evaluation_point          => fe_operator_get_current_evaluation_point
+     procedure          :: get_assembler                         => fe_operator_get_assembler
+     
+     procedure          :: allocate_state                        => fe_operator_allocate_state
+     procedure          :: deallocate_state                      => fe_operator_deallocate_state
+     procedure          :: set_state                             => fe_operator_set_state
+     
+     
+     procedure          :: abort_if_not_in_range                 => fe_operator_abort_if_not_in_range
+     procedure          :: abort_if_not_in_domain                => fe_operator_abort_if_not_in_domain
+                                                               
+     procedure, private :: create_serial_assembler               => fe_operator_create_serial_assembler
+     procedure, private :: create_par_assembler                  => fe_operator_create_par_assembler
+     procedure, private :: create_members_serial_assembler       => fe_operator_create_members_serial_assembler
+     procedure, private :: create_members_par_assembler          => fe_operator_create_members_par_assembler
+     procedure, private :: create_vector_spaces                  => fe_operator_create_vector_spaces
   end type fe_operator_t
   
 type, extends(fe_operator_t):: fe_affine_operator_t

@@ -1,0 +1,160 @@
+#!/bin/bash
+
+
+abs_path=`dirname $(readlink -f $0)`
+script_name=`basename $0`
+#
+# To write this script we used:
+# https://stackoverflow.com/questions/402377/using-getopts-in-bash-shell-script-to-get-long-and-short-command-line-options
+#
+# We assume compilers and variables can be found by cmake, i.e.
+# that approrpriate environment variables have been set (we suggest
+# using environment modules). If this is not the case, it can be
+# done here, e.g., modifying these lines:
+#source /opt/intel/bin/compilervars.sh intel64
+#export HDF5_ROOT=/opt/hdf5/1.10.0/GNU/6.2.0/openmpi/1.8.4
+#export MKLROOT=/opt/intel/mkl
+#
+usage()
+{
+cat << EOF
+usage: $script_name [options]
+
+This script create modules from bash commands, access to env2 is needed.
+
+OPTIONS:
+   -h --help 
+        Show this message
+   -n --name 
+        Complete name of the module, e.g., gcc/5.4.0.
+   -c --command
+        Command to set the environment required, in between single quotes (').  
+   --moduleinfo
+        Information about the module.
+   --modulehelp 
+        Help information about the module.
+   --moduledir
+        Directory of the module files.
+   --moduleincomp
+        List of incompatible modules separed by #
+   --modulerequired
+        List of required modules separed by #
+   --templatedir
+        Directory of the module_template
+EOF
+}
+# NOTE: This requires GNU getopt.
+TEMP=`getopt -o hc:n: --long help,command:,name:,moduleinfo:,modulehelp:,moduledir:,moduleincomp:,modulerequired:,templatedir: -n '$script_name' -- "$@"`
+if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+#echo "$TEMP"
+eval set -- "$TEMP"
+
+
+## Default data
+lst_module_incomp=""
+lst_module_required=""
+module_info="Information about the module here"
+module_help="Help about the module here"
+template_dir=$abs_path
+modules_dir=$(pwd)
+
+# Flag reading
+c_flag_present=0
+n_flag_present=0
+while true; do
+    case "$1" in
+	-h | --help )     usage; exit 1;;
+	-c | --command ) 
+            c_flag_present=1
+            module_command=$2
+            shift 2;;
+	-n | --name ) 
+            n_flag_present=1
+            module_full_name=$2
+            shift 2;;
+        --moduleinfo )         module_info=$2; shift 2;;
+        --modulehelp )         module_help=$2; shift 2;;
+        --moduledir )          modules_dir=$2; shift 2;;
+        --moduleincomp )       lst_module_incomp=$2; shift 2;;
+        --modulerequired )     lst_module_required=$2; shift 2;;
+        --template_dir )       template_dir=$2; shift 2;;
+	-- ) shift; break ;;
+	* ) break ;;
+    esac
+done
+
+if [[ "$c_flag_present" -eq 0 ||  "$n_flag_present" -eq 0 ]]
+then
+  echo "E: Module name and command must be present." $'\n'
+  usage
+  exit
+fi
+
+## Script
+num_module_required=$(echo $lst_module_required | sed "s:#:\n:g" | wc -l)
+num_module_incomp=$(echo $lst_module_incomp | sed "s:#:\n:g" | wc -l)
+module_template=$template_dir/module_template
+
+cd $modules_dir
+deep=$(( $(echo $module_full_name | sed "s:/:\n:g" | wc -l) -1 )) 
+if [[ "$deep" -ge 1 ]] 
+then
+  mkdir -p $(echo $module_full_name | cut -d/ -f1-$deep )
+fi
+sed -n '1,/begin_additional/ p' $module_template | sed "s:begin_additional::g">  $module_full_name
+
+
+sed  -i "s:template:$module_full_name:g"       $module_full_name
+sed  -i "s:moduleFullName:$module_full_name:g" $module_full_name
+sed  -i "s:moduleInfo:$module_info:g"          $module_full_name
+sed  -i "s:moduleHelp:$module_help:g"          $module_full_name
+
+
+sed -n '/begin_additional/,/end_additional/ p' $module_template | head -n 2 | sed "s:begin_additional:Load and unload additional modules:g"  >> $module_full_name
+
+i='1'
+while [ $i -le $num_module_incomp ]
+do
+  module_incomp=$(echo $lst_module_incomp|cut -f$i -d#)
+  if [ "$module_incomp" != "" ] 
+  then
+    sed -n '/begin_additional/,/end_additional/ p' $module_template | grep moduleIncomp | sed "s:moduleIncomp:$module_incomp:g" >>  $module_full_name
+  fi
+  let i=i+1
+done
+
+i='1'
+while [ $i -le $num_module_required ]
+do
+  module_required=$(echo $lst_module_required|cut -f$i -d#)
+  if [ "$module_required" != "" ] 
+  then
+    sed -n '/begin_additional/,/end_additional/ p' $module_template | grep moduleRequired | sed "s:moduleRequired:$module_required:g" >>  $module_full_name
+  fi
+  let i=i+1
+done
+
+sed -n '/begin_additional/,/end_additional/ p' $module_template | tail -n 2 | sed "s:end_additional::g" >> $module_full_name
+sed -n '/end_additional/,$ p' $module_template | sed "s:end_additional::g" >> $module_full_name
+echo '##' $module_command >> $module_full_name
+echo '##'                 >> $module_full_name
+echo                      >> $module_full_name
+
+
+echo $module_command > temporal_script.sh
+chmod +x temporal_script.sh
+
+env2 -from bash -to modulecmd "temporal_script.sh" | sort >> $module_full_name
+
+rm temporal_script.sh
+
+sed -i '/PATH/ s/setenv/prepend-path/g' $module_full_name
+if [ $(echo $module_full_name | sed "s:/::g" | cut -c1-3) == "ifc" ]
+then
+ sed  -i '/\/mpi/ s/prepend/append/g'         $module_full_name
+ sed  -i '/\/mkl/ s/prepend/append/g'         $module_full_name
+fi
+
+cd - > /dev/null

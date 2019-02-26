@@ -34,16 +34,22 @@ module matrix_names
 
   type, abstract, extends(operator_t) :: matrix_t
   contains
-     procedure (allocate_interface)       , deferred :: allocate
-     procedure (init_interface)           , deferred :: init
-     procedure (free_in_stages_interface) , deferred :: free_in_stages
-     procedure (create_iterator_interface), deferred :: create_iterator
+     procedure (allocate_interface)        , deferred :: allocate
+     procedure (init_interface)            , deferred :: init
+     procedure (scal_interface)            , deferred :: scal
+     procedure (add_interface)             , deferred :: add
+     procedure (copy_interface)            , deferred :: copy
+     procedure (free_in_stages_interface)  , deferred :: free_in_stages
+     procedure (create_iterator_interface) , deferred :: create_iterator
+     procedure (extract_diagonal_interface), deferred :: extract_diagonal
+     procedure (get_sign_interface)        , deferred :: get_sign
      
-     procedure :: is_linear => matrix_is_linear
+     procedure :: is_linear               => matrix_is_linear
+     procedure :: reallocate_after_remesh => matrix_reallocate_after_remesh
      ! This subroutine is an instance of the Template Method pattern with
      ! free_in_stages being the primitive method. According to this pattern,
      ! template methods cannot be overrided by subclasses
-     procedure :: free => matrix_free_template_method
+     procedure :: free                    => matrix_free_template_method
   end type matrix_t
 
   type, abstract :: matrix_iterator_t
@@ -72,6 +78,34 @@ module matrix_names
        class(matrix_t)       , intent(inout) :: this
        real(rp)              , intent(in)    :: alpha
      end subroutine init_interface
+     ! Scal the entries of the matrix up
+     subroutine scal_interface(this, alpha) 
+       import :: matrix_t
+       import :: rp
+       implicit none
+       class(matrix_t)       , intent(inout) :: this
+       real(rp)              , intent(in)    :: alpha
+     end subroutine scal_interface
+     ! Performs this = alpha*op1 + beta*op2
+     subroutine add_interface(this, alpha, op1, beta, op2) 
+       import :: matrix_t
+       import :: rp
+       implicit none
+       class(matrix_t)       , intent(inout) :: this
+       real(rp)              , intent(in)    :: alpha
+       class(matrix_t)       , intent(in)    :: op1
+       real(rp)              , intent(in)    :: beta
+       class(matrix_t)       , intent(in)    :: op2
+     end subroutine add_interface
+     !Copy matrix
+     subroutine copy_interface(this, op) 
+       import :: matrix_t
+       import :: rp
+       implicit none
+       class(matrix_t)       , intent(inout) :: this
+       class(matrix_t)       , intent(in)    :: op
+     end subroutine copy_interface
+     
      ! Progressively free a matrix_t in three stages: action={free_numeric,free_symbolic,free_clean}
      subroutine free_in_stages_interface(this,action) 
        import :: matrix_t, ip
@@ -93,6 +127,28 @@ module matrix_names
        class(matrix_iterator_t), allocatable, intent(inout) :: iterator
        !-----------------------------------------------------------------
      end subroutine create_iterator_interface
+     
+     subroutine extract_diagonal_interface(this, diagonal)
+       !-----------------------------------------------------------------
+       !< Extract the diagonal entries of a matrix in a rank-1 array
+       !-----------------------------------------------------------------
+       import :: matrix_t
+       import :: rp
+       class(matrix_t), intent(in)    :: this
+       real(rp)       , intent(inout) :: diagonal(:)
+       !-----------------------------------------------------------------
+     end subroutine extract_diagonal_interface
+     
+     function get_sign_interface(this) result(sign)
+       !-----------------------------------------------------------------
+       !< Get the sign of the sparse matrix
+       !-----------------------------------------------------------------
+       import :: matrix_t
+       import :: ip
+       class(matrix_t), intent(in) :: this
+       integer(ip)                 :: sign
+       !-----------------------------------------------------------------
+     end function get_sign_interface
   end interface
   
   !-----------------------------------------------------------------
@@ -176,6 +232,11 @@ contains
     logical :: matrix_is_linear
     matrix_is_linear = .true. 
   end function matrix_is_linear
+  
+  subroutine matrix_reallocate_after_remesh(this)
+    implicit none
+    class(matrix_t), intent(inout) :: this
+  end subroutine matrix_reallocate_after_remesh
 
   subroutine matrix_free_template_method ( this )
     implicit none

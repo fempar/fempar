@@ -107,7 +107,7 @@ contains
     allocate( this%coordinates_quadrature(1:this%num_quadrature_points), stat = istat ); check(istat==0)
 
     call memalloc( this%num_quadrature_points, this%det_jacobian, __FILE__,__LINE__ )
-    call memalloc( this%num_dims, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
+    call memalloc( SPACE_DIM, this%num_quadrature_points, this%normals, __FILE__,__LINE__  )
     
     this%reference_fe_geometry => reference_fe_geometry
 
@@ -132,11 +132,12 @@ contains
   end subroutine piecewise_cell_map_free
 
 !========================================================================================
-  subroutine piecewise_cell_map_update_facet_map( this, quadrature )
+  subroutine piecewise_cell_map_update_facet_map( this, quadrature, cell_map_det_jacobian_is_positive )
 
     implicit none
-    class  (piecewise_cell_map_t),        intent(inout) :: this
+    class  (piecewise_cell_map_t),      intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
+    logical,                            intent(in)    :: cell_map_det_jacobian_is_positive
 
     ! The arguments quadrature is needed only
     ! because the cell_map_update_facet_map requires them, ...
@@ -147,7 +148,9 @@ contains
     real(rp), pointer :: normal_vecs(:,:)
     real(rp) :: reorientation_factor
     
-    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(facet_lid = 1)
+    reorientation_factor = this%reference_fe_geometry%get_normal_orientation_factor(&
+                                                      facet_lid = 1_ip,&
+                                                      cell_map_det_jacobian_is_positive = cell_map_det_jacobian_is_positive)
 
     do imap = 1, this%num_sub_maps
 
@@ -238,7 +241,7 @@ contains
    type(vector_field_t), intent(inout) :: normal
    integer(ip) :: idime
    assert ( allocated(this%normals) )
-   do idime = 1, this%num_dims
+   do idime = 1, SPACE_DIM
      call normal%set(idime,this%normals(idime,qpoint))
    end do
   end subroutine  piecewise_cell_map_get_normal

@@ -28,48 +28,38 @@
 
 !========================================================================================
 subroutine unfitted_vef_iterator_create ( this, triangulation )
-  
   implicit none
   class(unfitted_vef_iterator_t)           , intent(inout) :: this
   class(triangulation_t)            , target, intent(in)    :: triangulation
-
-  class(marching_cubes_t), pointer :: marching_cubes
-
+  class(unfitted_boundary_cutter_t), pointer :: boundary_cutter
   call this%free()
-  
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)
-    marching_cubes => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call this%bst_vef_iterator_t%create(triangulation)
   class is (unfitted_p4est_serial_triangulation_t)
-    marching_cubes => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call vef_iterator_create(this,triangulation)
   class is (par_unfitted_triangulation_t)
-    marching_cubes => triangulation%get_marching_cubes()
+    boundary_cutter => triangulation%get_unfitted_boundary_cutter()
     call this%bst_vef_iterator_t%create(triangulation)
   class default
     check(.false.)
   end select
-  
-  assert(associated(marching_cubes%triangulation))
-  this%marching_cubes => marching_cubes
-  call this%marching_cubes%triangulation%create_cell_iterator(this%unfitted_cell)  
+  this%boundary_cutter => boundary_cutter
+  call this%boundary_cutter%create_cell_iterator(this%unfitted_cell)
   call this%update_unfitted_cell()
-
 end subroutine unfitted_vef_iterator_create
 
 !========================================================================================
 subroutine unfitted_vef_iterator_free ( this )
   implicit none
   class(unfitted_vef_iterator_t), intent(inout) :: this
-
-  if (associated(this%marching_cubes)) then
-    assert(associated(this%marching_cubes%triangulation))
-    call this%marching_cubes%triangulation%free_cell_iterator(this%unfitted_cell)
+  if (associated(this%boundary_cutter)) then
+    call this%boundary_cutter%free_cell_iterator(this%unfitted_cell)
   end if
-  this%marching_cubes => null()
+  this%boundary_cutter => null()
   call this%bst_vef_iterator_t%free()
-
 end subroutine unfitted_vef_iterator_free
 
 !========================================================================================
@@ -98,162 +88,68 @@ subroutine unfitted_vef_iterator_set_gid(this,gid)
 end subroutine unfitted_vef_iterator_set_gid
 
 !========================================================================================
-subroutine unfitted_vef_iterator_update_sub_triangulation( this )
-  implicit none
-  class(unfitted_vef_iterator_t), intent(inout) :: this
-  call this%unfitted_cell%update_sub_triangulation()
-end subroutine unfitted_vef_iterator_update_sub_triangulation
-
-!========================================================================================
 function unfitted_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   implicit none
-
   class(unfitted_vef_iterator_t), intent(in)    :: this
   integer(ip) :: num_subvefs
-
   integer(ip) :: mc_case
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  num_subvefs = this%marching_cubes%mc_table_num_fitted_sub_facets_x_case_and_facet(this%facet_lid,mc_case)
-
+  num_subvefs = this%boundary_cutter%get_num_fitted_subfacets( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_get_num_subvefs
 
 !========================================================================================
 function unfitted_vef_iterator_get_num_subvef_nodes( this ) result ( num_nodes_subvef )
-
   implicit none
   class(unfitted_vef_iterator_t), intent(in)    :: this
   integer(ip) :: num_nodes_subvef
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  num_nodes_subvef = this%unfitted_cell%get_num_subfacet_nodes()
-
+  num_nodes_subvef = this%boundary_cutter%get_num_subfacet_nodes(this%unfitted_cell)
 end function unfitted_vef_iterator_get_num_subvef_nodes
 
 !========================================================================================
 subroutine unfitted_vef_iterator_get_phys_coords_of_subvef( this, subvef, points )
-
   implicit none
   class(unfitted_vef_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subvef
-  type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip) :: num_nodes_subfacet, mc_case
-  type(point_t), pointer :: subnodes_phys_coords(:)
-  type(cell_map_t), pointer :: cell_map
-  integer(ip), pointer ::  subfacet_node_ids(:)
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  integer(ip),                    intent(in)    :: subvef
+  type(point_t),                  intent(inout) :: points(:)
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subfacet = this%unfitted_cell%get_num_subfacet_nodes()
-  assert( size(points) == num_nodes_subfacet)
+  assert( size(points) == this%unfitted_cell%get_num_subfacet_nodes())
   assert(this%is_cut())
-  assert( (1_ip <= subvef) .and. (subvef <= this%get_num_subvefs())  )
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  cell_map => this%marching_cubes%sub_nodes_cell_maps(mc_case)
-  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
-  subfacet_node_ids =>  this%marching_cubes%fitted_sub_facets_node_ids_x_facet(:,subvef,this%facet_lid)
-  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
-
+  assert( (1_ip <= subvef) .and. (subvef <= this%get_num_subvefs()) )
+  call this%boundary_cutter%get_phys_coords_of_subvef ( this%unfitted_cell, this%facet_lid, subvef, points )
 end subroutine unfitted_vef_iterator_get_phys_coords_of_subvef
 
 !========================================================================================
 subroutine unfitted_vef_iterator_get_ref_coords_of_subvef( this, subvef, points )
-
   implicit none
   class(unfitted_vef_iterator_t), intent(in)    :: this
   integer(ip),                     intent(in)    :: subvef
   type(point_t),                   intent(inout) :: points(:)
-
-  integer(ip) :: num_nodes_subfacet, mc_case
-  type(point_t), pointer :: subnodes_ref_coords(:)
-  type(cell_map_t), pointer :: cell_map
-  integer(ip), pointer ::  subfacet_node_ids(:)
-  integer(ip) :: num_dims,dime1,dime2
-  integer(ip) :: ipoint
-  class(reference_fe_t), pointer :: reference_fe
-  integer(ip), parameter :: cell_to_facet_coords_2d(4) = [1,1,2,2]
-  integer(ip), parameter :: cell_to_facet_coords_3d(2,6) = reshape(&
-                                                           [1,2,&
-                                                            1,2,&
-                                                            1,3,&
-                                                            1,3,&
-                                                            2,3,&
-                                                            2,3],[2,6])
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-#ifdef DEBUG
-  reference_fe => this%unfitted_cell%get_reference_fe()
-  select type(reference_fe)
-    class is (hex_lagrangian_reference_fe_t)
-    class default
-      massert(.false.,'Only for hex geometrical reference FEs')
-  end select
-#endif  
-
-  assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subfacet = this%unfitted_cell%get_num_subfacet_nodes()
-  assert( size(points) == num_nodes_subfacet)
+  assert( size(points) == this%unfitted_cell%get_num_subfacet_nodes())
   assert(this%is_cut())
-  assert( (1_ip <= subvef) .and. (subvef <= this%get_num_subvefs())  )
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
-  subfacet_node_ids =>  this%marching_cubes%fitted_sub_facets_node_ids_x_facet(:,subvef,this%facet_lid)
-  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
-  num_dims = this%marching_cubes%triangulation%get_num_dims()
-  if (num_dims == 2) then
-    dime1 = cell_to_facet_coords_2d(this%facet_lid)
-    do ipoint = 1, size(points)
-      call points(ipoint)%set(1, points(ipoint)%get(dime1))
-      call points(ipoint)%set(2, 0.0_rp)
-      call points(ipoint)%set(3, 0.0_rp)
-    end do
-  else if (num_dims == 3) then
-    dime1 = cell_to_facet_coords_3d(1,this%facet_lid)
-    dime2 = cell_to_facet_coords_3d(2,this%facet_lid)
-    do ipoint = 1, size(points)
-      call points(ipoint)%set(1, points(ipoint)%get(dime1))
-      call points(ipoint)%set(2, points(ipoint)%get(dime2))
-      call points(ipoint)%set(3, 0.0_rp)
-    end do
-  else
-    mcheck(.false.,'Only for 2D and 3D')
-  end if 
-
+  assert((1_ip <= subvef) .and. (subvef <= this%get_num_subvefs()))
+  call this%boundary_cutter%get_ref_coords_of_subvef ( this%unfitted_cell, &
+                                                       this%facet_lid, subvef, points )
 end subroutine unfitted_vef_iterator_get_ref_coords_of_subvef
 
 !========================================================================================
 function unfitted_vef_iterator_is_cut( this ) result ( is_cut )
-
   implicit none
   class(unfitted_vef_iterator_t), intent(in)    :: this
   logical :: is_cut
-
-  integer(ip) :: mc_case
-  integer(ip) :: istat
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
-  is_cut = (istat == 0_ip)
-
+  is_cut = this%boundary_cutter%is_cut_facet( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_is_cut
 
 !========================================================================================
@@ -261,18 +157,12 @@ function unfitted_vef_iterator_is_interior( this ) result ( is_interior )
   implicit none
   class(unfitted_vef_iterator_t), intent(in)  :: this
   logical :: is_interior
-
   integer(ip) :: mc_case
   integer(ip) :: istat
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
-  is_interior = (istat == -1_ip)
-
+  is_interior = this%boundary_cutter%is_interior_facet( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_is_interior
 
 !========================================================================================
@@ -280,38 +170,26 @@ function unfitted_vef_iterator_is_exterior( this ) result ( is_exterior )
   implicit none
   class(unfitted_vef_iterator_t), intent(in)  :: this
   logical :: is_exterior
-
   integer(ip) :: mc_case
   integer(ip) :: istat
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
-  is_exterior = (istat == 1_ip)
-
+  is_exterior = this%boundary_cutter%is_exterior_facet( this%unfitted_cell, this%facet_lid )
 end function unfitted_vef_iterator_is_exterior
 
 !========================================================================================
 function unfitted_vef_iterator_is_interior_subvef( this, subvef ) result ( is_in )
   implicit none
-  class(unfitted_vef_iterator_t), intent(in)  :: this
-  integer(ip), intent(in) :: subvef
+  class(unfitted_vef_iterator_t), intent(in) :: this
+  integer(ip)                   , intent(in) :: subvef
   logical :: is_in
-
   integer(ip) :: mc_case
   integer(ip) :: istat
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  istat = this%marching_cubes%mc_table_fitted_sub_facets_status_x_case_and_facet(subvef,this%facet_lid,mc_case)
-  is_in = (istat == -1_ip)
-
+  is_in = this%boundary_cutter%is_interior_subfacet( this%unfitted_cell, this%facet_lid, subvef )
 end function unfitted_vef_iterator_is_interior_subvef
 
 !========================================================================================
@@ -320,31 +198,21 @@ function unfitted_vef_iterator_is_exterior_subvef( this, subvef ) result ( is_ou
   class(unfitted_vef_iterator_t), intent(in)  :: this
   integer(ip), intent(in) :: subvef
   logical :: is_out
-
   integer(ip) :: mc_case
   integer(ip) :: istat
-
-  massert(this%is_facet(),'This procedure is only implemeted for facets')
-  assert(associated(this%marching_cubes))
+  massert(this%is_facet(),'This procedure is only implemented for facets')
+  assert(associated(this%boundary_cutter))
   assert(allocated(this%unfitted_cell))
-
-  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
-  istat = this%marching_cubes%mc_table_fitted_sub_facets_status_x_case_and_facet(subvef,this%facet_lid,mc_case)
-  is_out = (istat == 1_ip)
-
+  is_out = this%boundary_cutter%is_exterior_subfacet( this%unfitted_cell, this%facet_lid, subvef )
 end function unfitted_vef_iterator_is_exterior_subvef
 
 !========================================================================================
 subroutine unfitted_vef_iterator_update_unfitted_cell(this)
-
   implicit none
   class(unfitted_vef_iterator_t), target, intent(inout)  :: this
-
   integer(ip) :: vef_lid
   class(reference_fe_t), pointer :: reference_fe
-
   class(triangulation_t), pointer  :: triangulation
-
   if (.not. allocated(this%unfitted_cell)) return
   triangulation => this%unfitted_cell%get_triangulation()
   assert(associated(triangulation))
@@ -355,7 +223,6 @@ subroutine unfitted_vef_iterator_update_unfitted_cell(this)
           return
       end select
   end select
-
   if (.not. this%has_finished()) then
     call this%get_cell_around(1,this%unfitted_cell)
     assert(this%unfitted_cell%is_local())
@@ -363,7 +230,4 @@ subroutine unfitted_vef_iterator_update_unfitted_cell(this)
     reference_fe =>  this%unfitted_cell%get_reference_fe()
     this%facet_lid = vef_lid - reference_fe%get_first_facet_id() + 1
   end if
-
 end subroutine unfitted_vef_iterator_update_unfitted_cell
-
-

@@ -73,6 +73,7 @@ module test_h_adaptive_poisson_driver_names
      type(fe_affine_operator_t)                   :: fe_affine_operator
      
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                          :: serial_environment
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                        :: direct_solver
 #else     
@@ -83,7 +84,9 @@ module test_h_adaptive_poisson_driver_names
      type(fe_function_t)                          :: solution
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: set_cells_for_refinement
      procedure        , private :: set_cells_for_coarsening
@@ -114,6 +117,20 @@ contains
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
+  subroutine setup_environment(this, world_context)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    class(execution_context_t)  , intent(in)    :: world_context
+    integer(ip) :: ierr
+    call this%serial_environment%create(world_context, this%parameter_list)
+  end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
+  
   subroutine setup_triangulation(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
@@ -139,7 +156,7 @@ contains
     integer(ip), parameter :: num_nodes_x_cell = 4
     integer(ip) :: i
     
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%serial_environment,this%parameter_list)
     
     if ( .not. this%test_params%get_use_void_fes() ) then
       call this%triangulation%create_vef_iterator(vef)
@@ -489,10 +506,8 @@ contains
     
     do i=1,3
        
-       if ( i == 2 ) then 
-         if (this%triangulation%get_num_dims() == 2) then
-           call this%set_cells_for_coarsening()
-         end if
+       if ( i == 2 ) then
+         call this%set_cells_for_coarsening()
        else
          call this%set_cells_for_refinement()
        end if
@@ -570,7 +585,7 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -588,9 +603,9 @@ contains
        assert(.false.) 
     end select
 #else    
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
@@ -868,7 +883,6 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this    
     call this%free()
-    call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()

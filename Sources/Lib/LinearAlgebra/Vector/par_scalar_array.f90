@@ -95,6 +95,8 @@ module par_scalar_array_names
      procedure :: get_num_blocks      => par_scalar_array_get_num_blocks
      procedure :: extract_subvector      => par_scalar_array_extract_subvector
      procedure :: insert_subvector       => par_scalar_array_insert_subvector
+     procedure :: entrywise_product      => par_scalar_array_entrywise_product
+     procedure :: entrywise_invert       => par_scalar_array_entrywise_invert
   end type par_scalar_array_t
 
 
@@ -480,8 +482,10 @@ contains
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
-       call op1%free()
-       call op1%create(op2%p_env, op2%dof_import)
+       if ( .not. op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%p_env, op2%dof_import)
+       end if 
        if(.not. op2%p_env%am_i_l1_task()) return
        call op1%serial_scalar_array%clone ( op2%serial_scalar_array )
        class default
@@ -491,7 +495,7 @@ contains
     call op2%CleanTemp()
   end subroutine par_scalar_array_clone
 
-  ! op <- comm(op)
+  ! op <- comm(op), i.e. fully assembled op <- subassembled op 
   subroutine par_scalar_array_comm(op)
     implicit none
     class(par_scalar_array_t), intent(inout) :: op
@@ -628,5 +632,31 @@ contains
    end if
    end subroutine par_scalar_array_insert_subvector
   
+  subroutine par_scalar_array_entrywise_product(op1,op2,op3)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op1
+    class(vector_t)          , intent(in)    :: op2
+    class(vector_t)          , intent(in)    :: op3
+    select type ( op2 )
+    class is ( par_scalar_array_t )
+      select type ( op3 )
+        class is ( par_scalar_array_t )
+          if( .not. op1%p_env%am_i_l1_task() ) return
+          call op1%serial_scalar_array%entrywise_product( op2%serial_scalar_array, & 
+                                                          op3%serial_scalar_array )
+        class default
+          mcheck(.false.,'psa_entrywise_product: unsupported op3 class')
+      end select
+      class default
+        mcheck(.false.,'psa_entrywise_product: unsupported op2 class')
+    end select
+  end subroutine par_scalar_array_entrywise_product
+  
+  subroutine par_scalar_array_entrywise_invert(op1)
+    implicit none
+    class(par_scalar_array_t), intent(inout) :: op1
+    if( .not. op1%p_env%am_i_l1_task() ) return
+    call op1%serial_scalar_array%entrywise_invert()
+  end subroutine par_scalar_array_entrywise_invert
 
 end module par_scalar_array_names

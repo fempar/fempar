@@ -27,24 +27,59 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine fe_facet_iterator_create ( this, fe_space, vef )
-  implicit none
-  class(fe_facet_iterator_t), target, intent(inout) :: this
-  class(serial_fe_space_t) , target, intent(in)    :: fe_space
-  class(vef_iterator_t)    , intent(in)            :: vef
-  call this%free()
-  call this%fe_vef_iterator_t%create(fe_space,vef)
-  call this%allocate_scratch_data()
-  call this%first()
-end subroutine fe_facet_iterator_create
+   implicit none
+   class(fe_facet_iterator_t), target, intent(inout) :: this
+   class(serial_fe_space_t) , target, intent(in)    :: fe_space
+   class(vef_iterator_t)    , intent(in)            :: vef
+   integer(ip) :: istat
+   call this%free()
+   call aux_create_facet(this,fe_space,vef)
+   call this%first()
+ end subroutine fe_facet_iterator_create
+
+subroutine aux_create_facet(this,fe_space,vef)
+   implicit none
+   class(fe_facet_iterator_t), intent(inout) :: this
+   class(serial_fe_space_t)  , intent(in)    :: fe_space
+   class(vef_iterator_t)     , intent(in)    :: vef
+   class(triangulation_t), pointer :: triangulation
+   call this%fe_vef_iterator_t%create(fe_space,vef)
+   call this%allocate_scratch_data()
+   call this%set_integration_updated(.false.)
+   triangulation => this%fe_space%get_triangulation()
+   massert ( (triangulation%get_num_reference_fes() == 1), "FE_FACET_ITERATOR does NOT support mixed cells topology. All triangulation cells MUST have the same topology.")
+   this%ref_fe_geo => triangulation%get_reference_fe(1)
+   this%facet_integration_is_set_up = fe_space%get_facet_integration_is_set_up()
+   if ( this%facet_integration_is_set_up       .and. & 
+        fe_space%facet_quadratures%size() == 2 .and. & 
+        fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) then
+     this%single_quad_facet_map_facet_integs = .true.
+     assert ( fe_space%facet_maps%size() == 2 ) 
+   else
+     this%single_quad_facet_map_facet_integs = .false.
+   end if 
+   call this%set_single_octree_mesh(triangulation%is_single_octree_mesh())
+end subroutine aux_create_facet 
 
 subroutine fe_facet_iterator_free ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
   integer(ip) :: istat
+  call aux_free_facet(this)
+end subroutine fe_facet_iterator_free
+
+subroutine aux_free_facet(this)
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
   call this%fe_vef_iterator_t%free()
   this%facet_gid = -1
   call this%free_scratch_data()
-end subroutine fe_facet_iterator_free
+  this%facet_integration_is_set_up = .false.
+  this%single_quad_facet_map_facet_integs = .false.
+  call this%set_integration_updated(.false.)
+  call this%set_single_octree_mesh(.false.)
+  nullify(this%ref_fe_geo)
+end subroutine aux_free_facet
 
 subroutine fe_facet_iterator_allocate_scratch_data ( this )
   implicit none
@@ -82,24 +117,42 @@ end subroutine fe_facet_iterator_free_scratch_data
 subroutine fe_facet_iterator_first ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
+  call aux_first_facet(this)
+  if ( .not. this%has_finished() ) then
+    call this%update_fes_around()
+    if ( this%facet_integration_is_set_up ) then
+      call this%update_facet_maps()
+      call this%update_facet_integrators()
+    end if 
+  end if
+  call this%set_integration_updated(.false.)
+end subroutine fe_facet_iterator_first
+
+subroutine aux_first_facet ( this ) 
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
   this%facet_gid = 1
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_gid( &
       this%fe_space%facet_gids%get(this%facet_gid) )
-    call this%update_fes_around()
   end if
+end subroutine aux_first_facet
   
-end subroutine fe_facet_iterator_first
-
 subroutine fe_facet_iterator_next ( this )
   implicit none
-  class(fe_facet_iterator_t) , intent(inout)      :: this
+  class(fe_facet_iterator_t) , intent(inout)      :: this 
   this%facet_gid = this%facet_gid + 1
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_gid( &
       this%fe_space%facet_gids%get(this%facet_gid) )
     call this%update_fes_around()
+    if ( this%facet_integration_is_set_up ) then
+      call this%update_facet_maps()
+      call this%update_facet_integrators()
+    end if 
   end if
+  
+  call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_next
 
 function fe_facet_iterator_has_finished ( this )
@@ -114,10 +167,24 @@ subroutine fe_facet_iterator_set_gid ( this, gid )
   class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: gid
   assert ( gid >= 1 .and. gid <= this%fe_space%facet_gids%size() )
-  this%facet_gid = gid
-  call this%base_fe_vef_iterator_t%set_gid(this%fe_space%facet_gids%get(gid))
-  call this%update_fes_around()
+  call aux_set_gid_facet(this,gid)
+  call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_set_gid
+
+subroutine aux_set_gid_facet(this,gid)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: gid
+  this%facet_gid = gid
+  if ( gid >=1 .and. gid <= this%fe_space%facet_gids%size() ) then
+    call this%base_fe_vef_iterator_t%set_gid(this%fe_space%facet_gids%get(gid))
+    call this%update_fes_around()
+    if ( this%facet_integration_is_set_up ) then
+     call this%update_facet_maps()
+     call this%update_facet_integrators()
+    end if
+  end if 
+end subroutine aux_set_gid_facet
 
 function fe_facet_iterator_get_gid (this) result(facet_gid)
   implicit none
@@ -189,49 +256,92 @@ end subroutine fe_facet_iterator_update_fes_around
 subroutine fe_facet_iterator_update_integration( this )
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this 
-  integer(ip)                      :: icell_around, field_id
-  integer(ip)                      :: facet_lpos_within_cells_around(2)
-  integer(ip)                      :: subfacet_lid_within_cells_around(2)
-  type(point_t)          , pointer :: coords(:)
-  type(quadrature_t)     , pointer :: quadrature
+  integer(ip)                       :: icell_around, field_id
+  integer(ip)                       :: facet_lpos_within_cells_around(2)
+  integer(ip)                       :: subfacet_lid_within_cells_around(2)
+  integer(ip)                       :: cell_ressemblance(2)
+  integer(ip)                       :: this_get_lev, prev_get_lev
+  real(rp)                          :: scaling_factor(2)
+  type(point_t)           , pointer :: coords(:)
+  type(quadrature_t)      , pointer :: quadrature
   type(facet_integrator_t), pointer :: facet_integrator
+  integer(ip) :: cell_lev(2)
+  integer(ip) :: num_neighbours
   
-  class(reference_fe_t), pointer :: reference_fe_geo
+  if ( .not. this%is_integration_updated() ) then
+    coords => this%facet_maps%get_facet_coordinates()
+    call this%get_nodes_coordinates(coords)
   
-  call this%update_facet_maps()
-  coords => this%facet_maps%get_facet_coordinates()
-  call this%get_nodes_coordinates(coords)
-
-
-  quadrature => this%get_quadrature() 
+    quadrature => this%get_quadrature() 
+    do icell_around=1, this%get_num_cells_around()
+      facet_lpos_within_cells_around(icell_around) = &
+      this%get_lpos_within_cell_around(icell_around) - this%ref_fe_geo%get_first_facet_id() + 1
+      subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
+      coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
+                                                          facet_lpos_within_cells_around(icell_around), &
+                                                          subfacet_lid_within_cells_around(icell_around))
+      call this%fes_around(icell_around)%p%get_nodes_coordinates(coords)
+      
+      cell_lev(icell_around) = this%fes_around(icell_around)%p%get_level()
+      
+      cell_ressemblance(icell_around) = no_ressemblance
+      scaling_factor(icell_around) = 1.0_rp
+      if ( this%single_octree_mesh ) then
+        this_get_lev = cell_lev(icell_around)
+        prev_get_lev = this%facet_maps%get_last_visited_cell_lev(icell_around, &
+                                                                  facet_lpos_within_cells_around(icell_around), &
+                                                                  subfacet_lid_within_cells_around(icell_around))
+        if ( prev_get_lev >= 0 ) then
+          if ( this_get_lev == prev_get_lev ) then
+            cell_ressemblance(icell_around) = is_only_translated
+          else
+            cell_ressemblance(icell_around) = is_scaled_and_translated
+            scaling_factor(icell_around) = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+          end if
+        end if
+      end if
+    end do
   
-  do icell_around=1, this%get_num_cells_around()
-    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
-    facet_lpos_within_cells_around(icell_around) = &
-      this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
-    subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
-    coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
-                                                 facet_lpos_within_cells_around(icell_around), &
-                                                 subfacet_lid_within_cells_around(icell_around))
-    call this%fes_around(icell_around)%p%get_nodes_coordinates(coords)
-  end do
-
-  reference_fe_geo => this%fes_around(1)%p%get_reference_fe_geo()
-  
-  call this%facet_maps%update(facet_lpos_within_cells_around,   &
-                       subfacet_lid_within_cells_around, &
-                       quadrature,                       &
-                       reference_fe_geo)
-  
-  call this%update_facet_integrators()
-  do field_id = 1, this%fe_space%get_num_fields()
-
-     call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+    call this%facet_maps%update( cell_lev, &
+                                 facet_lpos_within_cells_around,   &
                                  subfacet_lid_within_cells_around, &
-                                 this%facet_maps, &             
-                                 this%get_facet_permutation_index())
-  end do
+                                 quadrature,                       &
+                                 this%ref_fe_geo,                  &
+                                 cell_ressemblance,                &
+                                 scaling_factor)
   
+    do field_id = 1, this%fe_space%get_num_fields()
+      num_neighbours = this%get_num_cells_around()
+      if (this%facet_integrators(field_id)%p%get_is_at_boundary() ) then 
+        num_neighbours = 1
+      end if
+      do icell_around=1, num_neighbours
+        cell_ressemblance(icell_around) = no_ressemblance
+        scaling_factor(icell_around) = 1.0_rp
+        if ( this%single_octree_mesh ) then
+          this_get_lev = cell_lev(icell_around)
+          prev_get_lev = this%facet_integrators(field_id)%p%get_last_visited_cell_lev(icell_around, &
+                                                                  facet_lpos_within_cells_around(icell_around), &
+                                                                  subfacet_lid_within_cells_around(icell_around))
+          if ( prev_get_lev >= 0 ) then
+            if ( this_get_lev == prev_get_lev ) then
+              cell_ressemblance(icell_around) = is_only_translated
+            else
+              cell_ressemblance(icell_around) = is_scaled_and_translated
+              scaling_factor(icell_around) = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+            end if
+          end if
+        end if
+      end do 
+      call this%facet_integrators(field_id)%p%update(cell_lev, &
+                                                     facet_lpos_within_cells_around,  &
+                                                     subfacet_lid_within_cells_around, &
+                                                     this%facet_maps, &             
+                                                     this%get_facet_permutation_index(), &
+                                                     cell_ressemblance, scaling_factor )
+    end do
+    call this%set_integration_updated(.true.)
+  end if
 end subroutine fe_facet_iterator_update_integration
 
 subroutine fe_facet_iterator_assembly_array ( this,    &
@@ -251,7 +361,6 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   do ineigh = 1, this%get_num_cells_around()
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                 this%fe_space%get_field_blocks(),               &
-                                                this%fe_space%get_field_coupling(),             &
                                                 this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
                                                 this%fes_around(ineigh)%p%fe_dofs,               &
                                                 facevec(:,ineigh) )
@@ -289,41 +398,87 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
 end subroutine fe_facet_iterator_assembly_matrix
 
 subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
-                                                    facemat, &
-                                                    facevec, &
-                                                    assembler )
+                                                     facemat, &
+                                                     facevec, &
+                                                     assembler )
   implicit none
-  class(fe_facet_iterator_t)      , intent(inout) :: this
-  real(rp)                       , intent(in)    :: facemat(:,:,:,:)
-  real(rp)                       , intent(in)    :: facevec(:,:)
-  class(assembler_t), intent(inout) :: assembler
+  class(fe_facet_iterator_t), intent(inout) :: this
+  real(rp)                  , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                  , intent(in)    :: facevec(:,:)
+  class(assembler_t)        , intent(inout) :: assembler
   
   integer(ip) :: ineigh, jneigh
- 
+  
+  logical     :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  integer(ip) :: i, j
+  
   do ineigh = 1, this%get_num_cells_around()
     call this%fes_around(ineigh)%p%update_assembly_scratch_data()
   end do
   call this%clear_fe_dofs_ghost_full_local_void()
   
-  
-  do ineigh = 1, this%get_num_cells_around()
-    do jneigh = 1, this%get_num_cells_around()
-      call assembler%assembly_matrix( this%fe_space%num_fields,                   &
-                                                   this%fe_space%get_field_blocks(),              &
-                                                   this%fe_space%get_field_coupling(),            &
-                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
-                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
-                                                   this%fes_around(ineigh)%p%fe_dofs,              &
-                                                   this%fes_around(jneigh)%p%fe_dofs,              &
-                                                   facemat(:,:,ineigh,jneigh) )
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+    do ineigh = 1, this%get_num_cells_around()
+      if ( this%fes_around(ineigh)%p%has_hanging_dofs(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+      end if
     end do
-    call assembler%assembly_array( this%fe_space%num_fields,                    &
-                                                  this%fe_space%get_field_blocks(),               &
-                                                  this%fe_space%get_field_coupling(),             &
-                                                  this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
-                                                  this%fes_around(ineigh)%p%fe_dofs,               &
-                                                  facevec(:,ineigh) )
   end do
+  
+  if ( no_hanging_node_constraints ) then
+    
+    do ineigh = 1, this%get_num_cells_around()
+      do jneigh = 1, this%get_num_cells_around()
+        call assembler%assembly_matrix( this%fe_space%num_fields,                        &
+                                        this%fe_space%get_field_blocks(),                &
+                                        this%fe_space%get_field_coupling(),              &
+                                        this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                        this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                        this%fes_around(ineigh)%p%fe_dofs,               &
+                                        this%fes_around(jneigh)%p%fe_dofs,               &
+                                        facemat(:,:,ineigh,jneigh) )
+      end do
+      call assembler%assembly_array( this%fe_space%num_fields,                        &
+                                     this%fe_space%get_field_blocks(),                &
+                                     this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                     this%fes_around(ineigh)%p%fe_dofs,               &
+                                     facevec(:,ineigh) )
+    end do
+    
+  else
+    
+    do ineigh = 1, this%get_num_cells_around()
+      ! RMK: Not applying constraints on the crossed terms
+      call this%fes_around(ineigh)%p%apply_constraints( facemat(:,:,ineigh,ineigh), & 
+                                                        facevec(:,ineigh) )
+    end do
+    
+    do ineigh = 1, this%get_num_cells_around()
+      do jneigh = 1, this%get_num_cells_around()
+        ! RMK: Not assembling crossed terms
+        if ( ineigh == jneigh ) then
+          call assembler%assembly_matrix( this%fe_space%num_fields,                        &
+                                          this%fe_space%get_field_blocks(),                &
+                                          this%fe_space%get_field_coupling(),              &
+                                          this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                          this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                          this%fes_around(ineigh)%p%fe_dofs,               &
+                                          this%fes_around(jneigh)%p%fe_dofs,               &
+                                          this%fes_around(ineigh)%p%extended_elmat%a )
+        end if
+      end do
+      call assembler%assembly_array( this%fe_space%num_fields,                        &
+                                     this%fe_space%get_field_blocks(),                &
+                                     this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                     this%fes_around(ineigh)%p%fe_dofs,               &
+                                     this%fes_around(ineigh)%p%extended_elvec%a  )
+    
+    end do
+    
+  end if
   
 end subroutine fe_facet_iterator_assembly_matrix_array
 
@@ -362,7 +517,6 @@ subroutine fe_facet_iterator_assembly_matrix_array_with_strong_bcs (&
     end do
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                   this%fe_space%get_field_blocks(),               &
-                                                  this%fe_space%get_field_coupling(),             &
                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
                                                   this%fes_around(ineigh)%p%fe_dofs,               &
                                                   facevec(:,ineigh) )
@@ -500,22 +654,25 @@ function fe_facet_iterator_get_quadrature ( this )
   integer(ip) :: facet_quadratures_position_key
   integer(ip) :: facet_quadratures_position
   integer(ip) :: reference_fes_geo_id(2)
-   
-  reference_fes_geo_id(2) = 0 
-  do icell_around = 1, this%get_num_cells_around()
-     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
-  end do
+  if ( this%single_quad_facet_map_facet_integs ) then
+    fe_facet_iterator_get_quadrature => this%fe_space%facet_quadratures%get_pointer(1)
+  else
+    reference_fes_geo_id(2) = 0 
+    do icell_around = 1, this%get_num_cells_around()
+       reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
+    end do
   
-  facet_quadratures_position_key = &
-       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
+    facet_quadratures_position_key = &
+         this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_geo_id(1), &
                                                                reference_fes_geo_id(2) )
        
-  call this%fe_space%facet_quadratures_position%get(key=facet_quadratures_position_key, &
+    call this%fe_space%facet_quadratures_position%get(key=facet_quadratures_position_key, &
                                                       val=facet_quadratures_position, &
                                                       stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_facet_iterator_get_quadrature => this%fe_space%facet_quadratures%get_pointer(facet_quadratures_position)
+    assert ( .not. istat == key_not_found )
+    fe_facet_iterator_get_quadrature => this%fe_space%facet_quadratures%get_pointer(facet_quadratures_position)
+  end if 
 end function fe_facet_iterator_get_quadrature
 
 !==================================================================================================
@@ -527,22 +684,7 @@ function fe_facet_iterator_get_facet_map(this)
   integer(ip)                           :: facet_maps_position_key
   integer(ip)                           :: facet_maps_position
   integer(ip)                           :: reference_fes_geo_id(2)
-   
-  reference_fes_geo_id(2) = 0 
-  do icell_around = 1, this%get_num_cells_around()
-     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
-  end do
-  
-  facet_maps_position_key = &
-       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
-                                                               reference_fes_geo_id(1), &
-                                                               reference_fes_geo_id(2) )
-       
-  call this%fe_space%facet_quadratures_position%get(key=facet_maps_position_key, &
-                                                      val=facet_maps_position, &
-                                                      stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_facet_iterator_get_facet_map => this%fe_space%facet_maps%get_pointer(facet_maps_position)
+  fe_facet_iterator_get_facet_map => this%facet_maps
 end function fe_facet_iterator_get_facet_map
 
 
@@ -555,21 +697,27 @@ subroutine fe_facet_iterator_update_facet_maps(this)
   integer(ip)                           :: facet_maps_position
   integer(ip)                           :: reference_fes_geo_id(2)
    
-  reference_fes_geo_id(2) = 0 
-  do icell_around = 1, this%get_num_cells_around()
-     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
-  end do
-  
-  facet_maps_position_key = &
-       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
+  if ( this%single_quad_facet_map_facet_integs ) then
+    this%facet_maps => this%fe_space%facet_maps%get_pointer(1)
+    if ( .not. (this%facet_maps%get_is_at_boundary() .eqv. this%is_at_boundary()) ) then
+      this%facet_maps => this%fe_space%facet_maps%get_pointer(2)
+    end if 
+  else 
+    reference_fes_geo_id(2) = 0 
+    do icell_around = 1, this%get_num_cells_around()
+       reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
+    end do
+    facet_maps_position_key = &
+         this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_geo_id(1), &
                                                                reference_fes_geo_id(2) )
        
-  call this%fe_space%facet_quadratures_position%get(key=facet_maps_position_key, &
+    call this%fe_space%facet_quadratures_position%get(key=facet_maps_position_key, &
                                                       val=facet_maps_position, &
                                                       stat=istat)
-  assert ( .not. istat == key_not_found )
-  this%facet_maps => this%fe_space%facet_maps%get_pointer(facet_maps_position)
+    assert ( .not. istat == key_not_found )
+    this%facet_maps => this%fe_space%facet_maps%get_pointer(facet_maps_position)
+  end if 
 end subroutine fe_facet_iterator_update_facet_maps
 
 !==================================================================================================
@@ -582,25 +730,7 @@ function fe_facet_iterator_get_facet_integrator(this, field_id)
   integer(ip)                           :: facet_integrators_position_key
   integer(ip)                           :: facet_integrators_position
   integer(ip)                           :: reference_fes_id(2)
-  
-  assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
- 
-  reference_fes_id(2) = 0 
-  do icell_around = 1, this%get_num_cells_around()
-     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
-  end do
-  
-  facet_integrators_position_key = &
-       this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
-                                                               reference_fes_id(1), &
-                                                               reference_fes_id(2) )
-       
-  call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
-                                                      val=facet_integrators_position, &
-                                                      stat=istat)
-  assert ( .not. istat == key_not_found )
-  
-  fe_facet_iterator_get_facet_integrator => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
+  fe_facet_iterator_get_facet_integrator => this%facet_integrators(field_id)%p
 end function fe_facet_iterator_get_facet_integrator
 
 !==================================================================================================
@@ -613,23 +743,29 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
   integer(ip)                           :: reference_fes_id(2)
   integer(ip)                           :: field_id
   
-  do field_id = 1, this%fe_space%num_fields
-     reference_fes_id(2) = 0 
-     do icell_around = 1, this%get_num_cells_around()
-        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
-     end do
-     facet_integrators_position_key = &
-        this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
+  if ( this%fe_space%num_fields == 1 .and. this%single_quad_facet_map_facet_integs ) then
+    this%facet_integrators(1)%p => this%fe_space%facet_integrators%get_pointer(1)
+    if ( .not. (this%facet_integrators(1)%p%get_is_at_boundary() .eqv. this%is_at_boundary()) ) then
+      this%facet_integrators(1)%p => this%fe_space%facet_integrators%get_pointer(2)
+    end if
+  else
+    do field_id = 1, this%fe_space%num_fields
+       reference_fes_id(2) = 0
+       do icell_around = 1, this%get_num_cells_around()
+         reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
+       end do
+       facet_integrators_position_key = &
+         this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_id(1), &
                                                                reference_fes_id(2) )
        
-     call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
-                                                      val=facet_integrators_position, &
-                                                      stat=istat)
-     assert ( .not. istat == key_not_found )
-  
-     this%facet_integrators(field_id)%p => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
-  end do
+       call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
+                                                         val=facet_integrators_position, &
+                                                        stat=istat)
+       assert ( .not. istat == key_not_found )
+       this%facet_integrators(field_id)%p => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
+    end do
+  end if   
 end subroutine fe_facet_iterator_update_facet_integrators
 
 !==================================================================================================
@@ -679,12 +815,10 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around
   integer(ip)                               :: facet_lpos_within_cell_around
-  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip)                    :: vef_gid_of_face
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
     facet_lpos_within_cell_around = this%get_improper_cell_around_ivef(1)
   else
-    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
     vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
     assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face) /= -1 )
     facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
@@ -722,12 +856,28 @@ function fe_facet_iterator_get_det_jacobian ( this, i )
 end function fe_facet_iterator_get_det_jacobian
 
 !=================================================================================================
-subroutine fe_facet_iterator_get_normals (this, qpoint, normal)
+subroutine fe_facet_iterator_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  real(rp)                  , intent(inout) :: det_jacobians(:)
+  call this%facet_maps%get_det_jacobians(det_jacobians)
+end subroutine fe_facet_iterator_get_det_jacobians
+
+!=================================================================================================
+subroutine fe_facet_iterator_get_normal (this, qpoint, normal)
   implicit none
   class(fe_facet_iterator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: qpoint
   type(vector_field_t)    , intent(out)   :: normal(2)
-  call this%facet_maps%get_normals(qpoint, normal)
+  call this%facet_maps%get_normal(qpoint, normal)
+end subroutine fe_facet_iterator_get_normal
+
+!=================================================================================================
+subroutine fe_facet_iterator_get_normals (this, normals)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  type(vector_field_t)      , intent(inout) :: normals(:,:)
+  call this%facet_maps%get_normals(normals)
 end subroutine fe_facet_iterator_get_normals
 
 !==================================================================================================
@@ -738,6 +888,14 @@ function fe_facet_iterator_compute_characteristic_length(this,qpoint)
   real(rp) :: fe_facet_iterator_compute_characteristic_length
   fe_facet_iterator_compute_characteristic_length = this%facet_maps%compute_characteristic_length(qpoint)
 end function fe_facet_iterator_compute_characteristic_length
+
+!==================================================================================================
+subroutine fe_facet_iterator_compute_characteristic_lengths(this,characteristic_lengths)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  real(rp)                  , intent(inout) :: characteristic_lengths(:)
+  call this%facet_maps%compute_characteristic_lengths(characteristic_lengths)
+end subroutine fe_facet_iterator_compute_characteristic_lengths
 
 !==================================================================================================
 function fe_facet_iterator_get_fes_around(this)
@@ -902,3 +1060,35 @@ function fe_facet_iterator_get_current_qpoints_perm ( this, neighbour_id, field_
   field_id_=1; if (present(field_id)) field_id_ = field_id
   fe_facet_iterator_get_current_qpoints_perm => this%facet_integrators(field_id_)%p%get_current_qpoints_perm(neighbour_id)
 end function fe_facet_iterator_get_current_qpoints_perm
+
+!==================================================================================================
+function fe_facet_iterator_is_integration_updated ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  logical :: fe_facet_iterator_is_integration_updated
+  fe_facet_iterator_is_integration_updated = this%integration_updated
+end function fe_facet_iterator_is_integration_updated
+
+!==================================================================================================
+subroutine fe_facet_iterator_set_integration_updated ( this, integration_updated )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: integration_updated
+  this%integration_updated = integration_updated
+end subroutine fe_facet_iterator_set_integration_updated
+
+!==================================================================================================
+function fe_facet_iterator_is_single_octree_mesh ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  logical :: fe_facet_iterator_is_single_octree_mesh
+  fe_facet_iterator_is_single_octree_mesh = this%single_octree_mesh
+end function fe_facet_iterator_is_single_octree_mesh
+
+!==================================================================================================
+subroutine fe_facet_iterator_set_single_octree_mesh ( this, single_octree_mesh )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: single_octree_mesh
+  this%single_octree_mesh = single_octree_mesh
+end subroutine fe_facet_iterator_set_single_octree_mesh

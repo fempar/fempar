@@ -1,0 +1,211 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!===================================================================================================
+subroutine error_norms_tensor_create (this, fe_space, field_id)
+  implicit none
+  class(error_norms_tensor_t)     , intent(inout) :: this
+  class(serial_fe_space_t), target, intent(in)    :: fe_space
+  integer(ip)                     , intent(in)    :: field_id
+
+  integer(ip)                      :: istat
+  class(environment_t), pointer    :: environment
+  type(fe_cell_function_duties_t)  :: cell_duties
+  
+  call this%free()
+
+  ! Set up cell duties
+  call cell_duties%assign_evaluate_values(.true.)
+  call cell_duties%assign_evaluate_gradients(.false.)  
+  
+  this%field_id = field_id
+  this%fe_space => fe_space
+  !call this%fe_cell_function%create(fe_space, field_id, cell_duties)
+  call this%fe_cell_function%create(fe_space, field_id)
+  environment => this%fe_space%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     allocate(this%work_array_values(this%fe_space%get_max_num_quadrature_points(),1), stat=istat)
+     check(istat==0)
+  end if
+end subroutine error_norms_tensor_create
+
+!===================================================================================================
+subroutine error_norms_tensor_free (this)
+  implicit none
+  class(error_norms_tensor_t), intent(inout) :: this
+  integer(ip) :: istat
+  this%field_id = 0
+  nullify(this%fe_space)
+  call this%fe_cell_function%free()
+  
+  if (allocated(this%work_array_values)) then
+     deallocate(this%work_array_values, stat=istat)
+     check(istat==0)
+  end if
+  
+end subroutine error_norms_tensor_free
+
+!===================================================================================================
+function error_norms_tensor_compute (this, exact_solution, fe_function, norm_type, exponent, time ) result(norm)
+  implicit none
+  class(error_norms_tensor_t), intent(inout) :: this
+  class(tensor_function_t)   , intent(in)    :: exact_solution
+  type(fe_function_t)        , intent(in)    :: fe_function
+  character(*)               , intent(in)    :: norm_type
+  integer(ip), optional      , intent(in)    :: exponent
+  real(rp)   , optional      , intent(in)    :: time
+  real(rp)                                   :: norm
+
+  ! Local variables
+  real(rp)                               :: exponent_
+  real(rp)                               :: time_(1)
+  class(fe_cell_iterator_t), allocatable :: fe
+  real(rp)                               :: values_cell_contribution, values_norm
+  class(environment_t), pointer          :: environment
+  
+  assert ( error_tensor_norm_is_supported(norm_type) )
+
+  environment => this%fe_space%get_environment()
+  if ( environment%am_i_l1_task() ) then 
+     exponent_ = error_norm_determine_exponent(norm_type, exponent)
+     values_norm      = 0.0_rp
+     call this%fe_space%create_fe_cell_iterator(fe)
+     do while(.not.fe%has_finished())
+        if ( fe%is_local() ) then
+           call fe%update_integration()
+           call this%fe_cell_function%update(fe, fe_function)
+           call this%compute_cell_contribution( fe, &
+                                                exact_solution, & 
+                                                norm_type, &
+                                                exponent_, &
+                                                values_cell_contribution, &
+                                                time)
+           call update_norm(norm_type, values_cell_contribution, values_norm)
+        end if
+        call fe%next() 
+     end do
+     call this%fe_space%free_fe_cell_iterator(fe)
+     call finalize_norm(environment, norm_type, exponent_, values_norm, 0.0_rp, norm)
+  end if
+end function error_norms_tensor_compute
+
+subroutine error_norms_tensor_compute_cell_contribution (this, &
+                                                         fe, & 
+                                                         exact_solution, & 
+                                                         norm_type, & 
+                                                         exponent, &
+                                                         values_cell_contribution, & 
+                                                         time )
+  implicit none
+  class(error_norms_tensor_t), intent(inout) :: this
+  class(fe_cell_iterator_t)  , intent(in)    :: fe
+  class(tensor_function_t)   , intent(in)    :: exact_solution
+  character(*)               , intent(in)    :: norm_type
+  real(rp)                   , intent(in)    :: exponent
+  real(rp)                   , intent(out)   :: values_cell_contribution
+  real(rp)   , optional      , intent(in)    :: time 
+
+  !! Locals 
+  logical                       :: norm_requires_values
+  type(quadrature_t), pointer   :: quadrature 
+  type(point_t)     , pointer   :: coordinates(:)
+  real(rp)                      :: time_(1) 
+  integer(ip)                   :: q_point, n_q_points
+  integer(ip)                   :: idime, jdime
+  real(rp)                      :: sum
+  
+  type(tensor_field_t), pointer :: fe_function_values(:)
+
+  integer(ip) :: istat 
+  
+  if ( present(time) ) time_ = time
+
+  norm_requires_values    = error_tensor_norm_requires_values(norm_type)
+  quadrature              => fe%get_quadrature()
+  coordinates             => fe%get_quadrature_points_coordinates()
+  n_q_points              = quadrature%get_num_quadrature_points() 
+
+  if (norm_requires_values) then
+     ! First evaluate exact solution at the quadrature points.
+     if(present(time)) then
+        call exact_solution%get_values_set_space_time(coordinates, &
+                                                      time_, &
+                                                      this%work_array_values(1:n_q_points,1:1))
+     else
+        call exact_solution%get_values_set_space(coordinates, &
+                                                 this%work_array_values(1:n_q_points,1))
+     end if
+     ! Then, subtract fe_function.
+     fe_function_values    => this%fe_cell_function%get_quadrature_points_values()
+
+     do q_point=1, n_q_points
+        this%work_array_values(q_point,1) = this%work_array_values(q_point,1) - fe_function_values(q_point) 
+     end do
+  end if
+ 
+  values_cell_contribution = 0.0_rp 
+  select case ( trim(norm_type) )
+  case (mean_norm)
+     do q_point=1, n_q_points
+        sum = 0.0_rp
+        do idime=1, SPACE_DIM
+           do jdime=1, SPACE_DIM
+               sum = sum + this%work_array_values(q_point,1)%get(idime,jdime)
+           end do
+        end do
+        values_cell_contribution = values_cell_contribution + & 
+             sum*fe%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
+     end do
+  case (l1_norm)
+     do q_point=1, n_q_points
+        sum = 0.0_rp
+        do idime=1, SPACE_DIM
+           do jdime=1, SPACE_DIM
+              sum = sum + abs(this%work_array_values(q_point,1)%get(idime,jdime))
+           end do
+        end do
+        values_cell_contribution = values_cell_contribution + & 
+             sum*fe%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
+     end do
+  case (l2_norm)
+     do q_point=1, n_q_points
+        values_cell_contribution = values_cell_contribution + & 
+             double_contract(this%work_array_values(q_point,1),this%work_array_values(q_point,1))*&
+              fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+     end do
+  case (linfty_norm)
+     do q_point=1, n_q_points
+        do idime=1, SPACE_DIM
+           do jdime=1, SPACE_DIM
+              values_cell_contribution = max(values_cell_contribution, abs(this%work_array_values(q_point,1)%get(idime,jdime)))
+           end do
+        end do
+     end do
+  end select
+    
+end subroutine error_norms_tensor_compute_cell_contribution

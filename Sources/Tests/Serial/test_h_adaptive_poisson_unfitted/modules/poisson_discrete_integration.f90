@@ -166,7 +166,7 @@ contains
     ref_fe => fe%get_reference_fe(1)
     nodal_quad => ref_fe%get_nodal_quadrature()
     call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
-    call evaluate_monomials(nodal_quad,shape2mono,degree=this%analytical_functions%get_degree())
+    call evaluate_monomials(nodal_quad,degree=this%analytical_functions%get_degree(),topology=ref_fe%get_topology(),monomials=shape2mono)    
     ! TODO  We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     ! Allocate the eigenvalue solver
@@ -374,7 +374,7 @@ contains
       do qpoint = 1, num_quad_points
 
         dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-        call fe_facet%get_normals(qpoint,normals)
+        call fe_facet%get_normal(qpoint,normals)
         call exact_sol%get_gradient(quad_coords(qpoint),exact_sol_gradient)
 
         do idof = 1, fe_facet%get_num_dofs_field(1,1)

@@ -31,8 +31,14 @@ program test_unfitted_h_adaptive_poisson
   use fempar_names
   use stokes_driver_names  
   implicit none
-  type(stokes_driver_t) :: driver
-  call fempar_init()
+  type(stokes_driver_t)  :: driver
+  type(serial_context_t) :: world_context
+  call world_context%create()
+  call fempar_init() 
+  call driver%parse_command_line_parameters()
+  call driver%setup_environment(world_context)
   call driver%run_simulation()
+  call driver%free_environment()
   call fempar_finalize()
+  call world_context%free(finalize=.true.)
 end program test_unfitted_h_adaptive_poisson

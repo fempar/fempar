@@ -32,7 +32,14 @@ program par_test_poisson_error_estimator
   use par_test_poisson_error_estimator_driver_names
   implicit none
   type(par_test_poisson_error_estimator_driver_t) :: par_test_driver
+  type(mpi_context_t) :: world_context
+  call world_context%create()
   call fempar_init()
+  call par_test_driver%parse_command_line_parameters()
+  call par_test_driver%setup_environment(world_context)
   call par_test_driver%run_simulation()
+  call par_test_driver%free_command_line_parameters()
+  call par_test_driver%free_environment()
   call fempar_finalize()
+  call world_context%free(finalize=.true.)
 end program par_test_poisson_error_estimator

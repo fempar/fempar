@@ -36,9 +36,12 @@ module function_names
   type :: array_function_t
      private
      integer(ip)  :: num_components = 1
+     integer(ip)  :: num_dims = -1
    contains
      procedure, non_overridable :: set_num_components  => array_set_num_components
      procedure, non_overridable :: get_num_components  => array_function_get_num_components
+     procedure                  :: set_num_dims        => array_function_set_num_dims
+     procedure                  :: get_num_dims        => array_function_get_num_dims
      procedure  :: get_component_value_space              => array_function_get_component_value_space
      procedure  :: get_component_value_space_time         => array_function_get_component_value_space_time
      generic    :: get_component_value                    => get_component_value_space, get_component_value_space_time
@@ -55,7 +58,10 @@ module function_names
 
   type :: scalar_function_t
      private
+     integer(ip)  :: num_dims = -1
    contains
+     procedure                  :: set_num_dims                 => scalar_function_set_num_dims
+     procedure                  :: get_num_dims                 => scalar_function_get_num_dims
      procedure                  :: get_value_space              => scalar_function_get_value_space
      procedure                  :: get_value_space_time         => scalar_function_get_value_space_time
      generic                    :: get_value                    => get_value_space, get_value_space_time
@@ -69,6 +75,10 @@ module function_names
      procedure                  :: get_gradients_set_space      => scalar_function_get_gradients_set_space
      procedure                  :: get_gradients_set_space_time => scalar_function_get_gradients_set_space_time
      generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
+     
+  
+     procedure                  :: get_value_temporal_derivative      => scalar_function_get_value_temporal_derivative
+     procedure                  :: get_values_set_temporal_derivative => scalar_function_get_values_set_temporal_derivative
   end type scalar_function_t
   
   type :: p_scalar_function_t
@@ -77,7 +87,10 @@ module function_names
 
   type :: vector_function_t
      private
+     integer(ip)  :: num_dims = -1
    contains
+     procedure                  :: set_num_dims                 => vector_function_set_num_dims
+     procedure                  :: get_num_dims                 => vector_function_get_num_dims
      procedure                  :: get_value_space              => vector_function_get_value_space
      procedure                  :: get_value_space_time         => vector_function_get_value_space_time
      generic                    :: get_value                    => get_value_space, get_value_space_time
@@ -99,7 +112,10 @@ module function_names
   
   type :: tensor_function_t
      private
+     integer(ip)  :: num_dims = -1
    contains
+     procedure                  :: set_num_dims              => tensor_function_set_num_dims
+     procedure                  :: get_num_dims              => tensor_function_get_num_dims
      procedure                  :: get_value_space           => tensor_function_get_value_space
      procedure                  :: get_value_space_time      => tensor_function_get_value_space_time
      generic                    :: get_value                 => get_value_space, get_value_space_time

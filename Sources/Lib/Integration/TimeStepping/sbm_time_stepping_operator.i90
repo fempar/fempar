@@ -1,0 +1,141 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+subroutine time_stepping_operator_create (this, fe_op, time_integration_scheme)
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  class(fe_operator_t)           , intent(in)    :: fe_op
+  character(len=*)               , intent(in)    :: time_integration_scheme
+  call this%free()
+  call this%scheme%create(time_integration_scheme)
+  call this%fe_op%create_from_operators(this,fe_op)
+end subroutine time_stepping_operator_create
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+subroutine time_stepping_operator_free(this)
+  implicit none
+  class(time_stepping_operator_t),         intent(inout) :: this
+  call this%scheme%free()
+  call this%fe_op%free()
+  nullify(this%initial_value)
+  call this%deallocate_dofs_stages()
+  this%dt = 0.0_rp
+end subroutine time_stepping_operator_free
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_set_initial_data( this, x0 )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  class(vector_t), target        , intent(in)    :: x0
+  this%initial_value => x0
+  ! Check if x0 belongs to fe_op domain vector space
+  call this%fe_op%abort_if_not_in_domain(x0)
+  call this%allocate_dofs_stages()
+end subroutine time_stepping_operator_set_initial_data
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_set_time_step_size( this, dt )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  real(rp)                       , intent(in)    :: dt
+  this%dt = dt
+end subroutine time_stepping_operator_set_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_time_step_size( this )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  real(rp) :: time_stepping_operator_get_time_step_size
+  time_stepping_operator_get_time_step_size = this%dt
+end function time_stepping_operator_get_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_matrix( this )
+  implicit none
+  class(time_stepping_operator_t), intent(in) :: this
+  class(matrix_t), pointer :: time_stepping_operator_get_matrix
+  time_stepping_operator_get_matrix =>  this%fe_op%get_matrix()
+end function time_stepping_operator_get_matrix
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function time_stepping_operator_get_fe_operator( this )
+  implicit none
+  class(time_stepping_operator_t),target, intent(inout) :: this
+  type(time_stepping_stage_fe_operator_t) ,pointer:: time_stepping_operator_get_fe_operator
+  time_stepping_operator_get_fe_operator =>  this%fe_op
+end function time_stepping_operator_get_fe_operator
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_order( this )
+  implicit none
+  class(time_stepping_operator_t), intent(in) :: this
+  real(rp) :: time_stepping_operator_get_order
+  time_stepping_operator_get_order =  this%scheme%order
+end function time_stepping_operator_get_order
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_allocate_dofs_stages( this )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  if ( .not. allocated(this%dofs_stages) ) then
+    allocate ( this%dofs_stages(this%scheme%num_stages), mold = this%initial_value, stat = istat ); check(istat==0)
+    do i = 1, this%scheme%num_stages
+      call this%dofs_stages(i)%default_initialization()
+    end do
+  end if
+  assert ( size(this%dofs_stages) == this%scheme%num_stages )
+  do i = 1, this%scheme%num_stages
+     call this%dofs_stages(i)%clone(this%initial_value)
+     call this%dofs_stages(i)%init(0.0_rp)
+  end do
+end subroutine time_stepping_operator_allocate_dofs_stages
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_deallocate_dofs_stages( this )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  integer(ip) :: i
+  integer(ip) :: istat
+  if ( allocated(this%dofs_stages) ) then
+    do i = 1, size(this%dofs_stages)
+      call this%dofs_stages(i)%free()
+    end do
+    deallocate ( this%dofs_stages, stat = istat ); check(istat==0)
+  end if 
+end subroutine time_stepping_operator_deallocate_dofs_stages
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_stage_operator( this, i, j ) result(fe_op)
+  implicit none
+  class(time_stepping_operator_t), target, intent(inout) :: this
+  integer(ip)                            , intent(in)    :: i, j
+  type(time_stepping_stage_fe_operator_t), pointer :: fe_op
+  call this%fe_op%set_row(i,j)
+  fe_op => this%fe_op
+end function time_stepping_operator_get_stage_operator

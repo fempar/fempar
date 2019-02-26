@@ -145,6 +145,13 @@ function itfc_vef_iterator_is_at_interface (this)
   itfc_vef_iterator_is_at_interface = this%vef%is_at_interface()
 end function itfc_vef_iterator_is_at_interface
 
+function itfc_vef_iterator_is_cut (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_cut 
+  itfc_vef_iterator_is_cut = .false.
+end function itfc_vef_iterator_is_cut
+
 function itfc_vef_iterator_is_ghost (this)
   implicit none
   class(itfc_vef_iterator_t), intent(in) :: this

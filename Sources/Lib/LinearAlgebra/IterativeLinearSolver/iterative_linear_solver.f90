@@ -67,6 +67,7 @@ module iterative_linear_solver_names
    contains
      ! Concrete TBPs
      procedure :: create                          => iterative_linear_solver_create
+     procedure :: reallocate_after_remesh         => iterative_linear_solver_reallocate_after_remesh
      procedure :: free                            => iterative_linear_solver_free
      procedure :: apply                           => iterative_linear_solver_apply
      procedure :: apply_add                       => iterative_linear_solver_apply_add
@@ -89,10 +90,17 @@ contains
      implicit none
      class(iterative_linear_solver_t)      , intent(inout) :: this
      class(environment_t), target, intent(in)    :: environment
+     call this%free()
      assert ( this%state == not_created )
      this%environment => environment
      this%state = environment_set
    end subroutine iterative_linear_solver_create
+   
+   subroutine iterative_linear_solver_reallocate_after_remesh ( this ) 
+     implicit none
+     class(iterative_linear_solver_t), intent(inout) :: this
+     call this%base_iterative_linear_solver%reallocate_after_remesh()
+   end subroutine iterative_linear_solver_reallocate_after_remesh 
    
    subroutine iterative_linear_solver_free ( this )
      implicit none
@@ -146,8 +154,8 @@ contains
      type(ParameterList_t),            intent(in)    :: parameter_list
      character(len=:)      , allocatable             :: iterative_linear_solver_type
      integer                                         :: FPLError
-     assert(parameter_list%isAssignable(ils_type, 'string'))
-     FPLError = parameter_list%GetAsString(Key=ils_type, String=iterative_linear_solver_type)
+     assert(parameter_list%isAssignable(ils_type_key, 'string'))
+     FPLError = parameter_list%GetAsString(Key=ils_type_key, String=iterative_linear_solver_type)
      assert(FPLError == 0)
      call this%set_type_from_string (iterative_linear_solver_type)
    end subroutine iterative_linear_solver_set_type_from_pl

@@ -30,30 +30,6 @@
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
 
-!==================================================================================================
-
-subroutine hex_lagrangian_reference_fe_create(this, &
-                                              topology, &
-                                              num_dims, &
-                                              order, &
-                                              field_type, & 
-                                              conformity, &
-                                              continuity )
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(inout)  :: this
-  character(*)                        , intent(in)    :: topology
-  integer(ip)                         , intent(in)    :: num_dims
-  integer(ip)                         , intent(in)    :: order
-  character(*)                        , intent(in)    :: field_type
-  logical                             , intent(in)    :: conformity
-  logical              , optional     , intent(in)    :: continuity
-  integer(ip)        :: num_refinements
-  num_refinements = 1
-  call lagrangian_reference_fe_create(this,topology,num_dims,order,field_type,conformity,continuity)
-  call this%fill_h_refinement_interpolation()
-  call this%fill_h_refinement_permutations()
-end subroutine hex_lagrangian_reference_fe_create
-
 function hex_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
@@ -339,13 +315,6 @@ subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadratur
   
 end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
 
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_free ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
-  call lagrangian_reference_fe_free ( this )
-end subroutine hex_lagrangian_reference_fe_free
-
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_blending(this,values)
@@ -395,6 +364,14 @@ end subroutine hex_lagrangian_reference_fe_blending
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
+
+!==================================================================================================
+subroutine hex_lagrangian_reference_fe_change_basis ( this )
+  implicit none
+  class(hex_lagrangian_reference_fe_t),  intent(inout)  :: this
+  ! For hex_lagrangian_reference_fe the change_basis_matrix is equivalent to the
+  ! unit matrix, then, this procedure is void.
+end subroutine hex_lagrangian_reference_fe_change_basis
 
 !==================================================================================================
 subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
@@ -513,40 +490,50 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
   class(hex_lagrangian_reference_fe_t), intent(in)    :: this  
   real(rp)                            , intent(in)    :: nodal_values_on_children(:,:)
   real(rp)                            , intent(inout) :: nodal_values_on_parent(:)
-  type(node_iterator_t) :: node_iterator
-  integer(ip)           :: parent_index, parent_ijk, parent_coordinate(0:SPACE_DIM-1)
-  integer(ip)           :: child_coordinate(0:SPACE_DIM-1), child_index, subcell_id
-  integer(ip)           :: i, icomp
+
+  integer(ip),        allocatable :: subcell_to_cell_node_identifier(:)  
+  real(rp),           allocatable :: global_patch_children_values_array(:)  
+  integer(ip)                     :: subcell_id, num_shape_functions, num_child_cells_x_parent_cell, ishape, jshape
+  integer(ip)                     :: num_nodes_children_patch, num_field_components, field_comp, patch_node_id, node, num_nodes
+
+  num_nodes                  = this%get_num_nodes()
+  num_nodes_children_patch   = this%get_num_nodes_children_patch()
+  num_field_components       = this%get_num_field_components()
   
-  node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
-                                                        own_boundary = .true. )
+  ! Number of shape functions (parent cell)
+  num_shape_functions        = this%get_num_shape_functions()
+
+  ! We are assuming that the number of nodes of the coarse cell (parent)
+  ! and the fine subcell (child) is the same for all subcells, i. e. the
+  ! order of the finite elements (parent and child) is the same.
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1)
+
+  !this%get_num_nodes() = Number of nodes of the reference fe
+  call memalloc(this%get_num_nodes(),subcell_to_cell_node_identifier,__FILE__,__LINE__)
   
-  do icomp = 0, this%num_field_components-1
-     call node_iterator%init()
-     do while (.not. node_iterator%has_finished() )
-        subcell_id        = 0
-        parent_index      = node_iterator%current()
-        parent_ijk        = node_iterator%current_ijk()
-        parent_coordinate = node_iterator%coordinate
-        child_coordinate  = 2 * parent_coordinate
-        do i = 0,this%node_array%polytope%num_dims-1
-           if ( child_coordinate(i) .ge. this%order_vector(i+1) ) then
-              child_coordinate(i) = child_coordinate(i) - this%order_vector(i+1)
-              subcell_id = IBSET(subcell_id,i)
-           end if
-        end do
-        child_index = ijk_to_index( child_coordinate,      &
-                                    this%node_array%order, &
-                                    this%node_array%polytope%num_dims )
-        child_index = this%node_array%ijk_to_index( child_index ) + &
-                      icomp * this%node_array%num_nodes
-        parent_index = parent_index + icomp * this%node_array%num_nodes
-        nodal_values_on_parent( parent_index ) = nodal_values_on_children( subcell_id+1, &
-                                                                           child_index )
-        call node_iterator%next()
+  ! Allocate global_children_values_array
+  call memalloc(num_nodes_children_patch*num_field_components,global_patch_children_values_array,__FILE__,__LINE__)
+  
+  ! Assembly the global children nodal values array
+  do subcell_id = 1, num_child_cells_x_parent_cell
+     call this%fill_subcell_to_cell_node_identifier(subcell_id, subcell_to_cell_node_identifier)
+     do ishape = 1, num_shape_functions
+        field_comp    = this%get_component_node(ishape)     
+        patch_node_id = this%get_scalar_from_vector_node(ishape)
+        node          = subcell_to_cell_node_identifier(patch_node_id)
+        global_patch_children_values_array((field_comp-1)*num_nodes_children_patch+node) = & 
+                                nodal_values_on_children(subcell_id,(field_comp-1)*num_nodes+patch_node_id)
      end do
   end do
-  
+  ! Compute the nodal values on the parent finite element
+  nodal_values_on_parent(:) = 0.0_rp       
+    do ishape=1, num_shape_functions
+      do jshape=1, num_nodes_children_patch*num_field_components
+        nodal_values_on_parent(ishape) = nodal_values_on_parent(ishape) + this%coarsening_projection_operator(ishape,jshape)*global_patch_children_values_array(jshape)
+      end do
+    end do
+  call memfree(subcell_to_cell_node_identifier,__FILE__,__LINE__)
+  call memfree(global_patch_children_values_array,__FILE__,__LINE__)
 end subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell
 
 !==================================================================================================
@@ -570,6 +557,348 @@ subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient ( this, isha
      coefficient = 0.0_rp
   end if
 end subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient
+
+!==================================================================================================
+subroutine hlrf_fill_scalar_coarsening_projection_operator(this)
+  implicit none
+  class(hex_lagrangian_reference_fe_t) , intent(inout)    ::  this
+  
+  real(rp),           allocatable :: coarse_mass_matrix(:,:)
+  real(rp),           allocatable :: children_patch_mass_matrix(:,:)
+  real(rp)                        :: cell_scaling_factor
+  
+  type(interpolation_duties_t)    :: interpolation_duties
+  type(quadrature_t)              :: cell_quadrature
+  type(interpolation_t)           :: cell_interpolation
+
+  integer(ip)                     :: num_child_cells_x_parent_cell, num_shape_functions
+  integer(ip)                     :: ierr, num_nodes_children_patch
+
+  ! COMPUTE THE L2 PROJECTION OPERATOR FOR COARSENING
+  ! This projection operator can only be computed when ENABLE_LAPACK flag 
+  ! has been activated during the compilation process
+
+#ifdef ENABLE_LAPACK
+  
+  num_shape_functions = this%get_num_nodes()
+  num_nodes_children_patch = this%get_num_nodes_children_patch()
+
+  ! Allocate scalar field coarsening projection operator
+  call memalloc(num_shape_functions, &
+                num_nodes_children_patch, &
+                this%coarsening_projection_operator,__FILE__,__LINE__)
+  this%coarsening_projection_operator = 0.0_rp
+  
+  if (this%field_type == field_type_scalar) then  
+  
+    ! Set-up interpolation duties
+    call interpolation_duties%assign_compute_first_derivatives(.false.)
+  
+    !num_shape_functions = this%get_num_shape_functions()
+    !num_shape_functions = this%num_shape_functions
+
+    ! Create (coarse) cell quadrature
+    call this%create_quadrature(cell_quadrature)
+  
+    ! We are assuming that the number of nodes of the coarse cell (parent)
+    ! and the fine subcell (child) is the same for all subcells, i. e. the
+    ! order of the finite elements (parent and child) is the same.
+    num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1) 
+
+    ! Compute mass matrices
+    call this%create_interpolation( cell_quadrature, cell_interpolation, interpolation_duties)  
+  
+    ! Allocate coarse_mass_matrix
+    call memalloc(num_shape_functions,num_shape_functions,coarse_mass_matrix,__FILE__,__LINE__)
+    coarse_mass_matrix = 0.0_rp
+
+    !num_nodes_children_patch = this%get_num_nodes_children_patch()
+  
+    ! Allocate children patch mass matrix (global mass matrix)
+    call memalloc(num_nodes_children_patch,num_nodes_children_patch,children_patch_mass_matrix,__FILE__,__LINE__)
+    children_patch_mass_matrix = 0.0_rp  
+
+    call this%compute_children_mass_matrix_for_scalar_fields(cell_quadrature, cell_interpolation, num_child_cells_x_parent_cell, & 
+                                                 children_patch_mass_matrix, coarse_mass_matrix)
+
+    ! Fine cells mass matrix scaling factor
+    cell_scaling_factor = 1.0_rp/real(ISHFT(1_ip, this%num_dims),rp)
+  
+    ! Scale children_patch_mass_matrix
+    children_patch_mass_matrix = children_patch_mass_matrix*cell_scaling_factor 
+
+    ! Multiply the projection operator Cij-s (A) by the child mass matrix (B)  
+    call DGEMM(TRANSA = 'N', & 
+               TRANSB = 'N', & 
+               M      = num_shape_functions, & 
+               N      = num_nodes_children_patch, &
+               K      = num_nodes_children_patch, & 
+               ALPHA  = 1.0_rp, &
+               A      = this%h_refinement_interpolation%shape_functions(1,:,:), & 
+               LDA    = num_shape_functions, &
+               B      = children_patch_mass_matrix, & 
+               LDB    = num_nodes_children_patch, & 
+               BETA   = 1.0_rp, & 
+               C      = this%coarsening_projection_operator, & 
+               LDC    = num_shape_functions)
+
+    ! Cholesky factorization
+    call DPOTRF(UPLO = 'U', &
+                N    = num_shape_functions, &
+                A    = coarse_mass_matrix, &
+                LDA  = num_shape_functions, &
+                INFO = ierr)
+
+    ! Solve the L2 projection problem
+    call DPOTRS(UPLO = 'U', &
+                N    = num_shape_functions, &
+                NRHS = num_nodes_children_patch, &
+                A    = coarse_mass_matrix, &
+                LDA  = num_shape_functions, &
+                B    = this%coarsening_projection_operator, &
+                LDB  = num_shape_functions, &
+                INFO = ierr)
+
+    call cell_quadrature%free()
+    call cell_interpolation%free()
+    call memfree(coarse_mass_matrix,__FILE__,__LINE__)
+    call memfree(children_patch_mass_matrix,__FILE__,__LINE__)
+  else
+    ! Compute scalar projection operator when field_type is different from field_type_scalar
+    call this%fill_multicomp_fe_scalar_projection_operator()
+  end if 
+#else
+  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
+  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
+  check(.false.)
+#endif    
+
+end subroutine hlrf_fill_scalar_coarsening_projection_operator
+
+!==================================================================================================
+function hex_lagrangian_get_num_nodes_children_patch(this)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)  :: this
+  integer(ip)   ::  hex_lagrangian_get_num_nodes_children_patch
+  hex_lagrangian_get_num_nodes_children_patch = (this%order*2+1)**this%num_dims
+end function hex_lagrangian_get_num_nodes_children_patch
+
+!==================================================================================================
+function hex_lagrangian_get_num_nodes(this)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)  :: this
+  integer(ip)   ::  hex_lagrangian_get_num_nodes
+  hex_lagrangian_get_num_nodes = (this%order+1)**this%num_dims
+end function hex_lagrangian_get_num_nodes
+
+!==================================================================================================
+subroutine hlrf_scalar_to_multicomp_coarsening_projection_operator(this)
+  implicit none
+  class(hex_lagrangian_reference_fe_t) , intent(inout)    ::  this  
+
+  type(hex_lagrangian_reference_fe_t)   :: scalar_reference_fe  
+  integer(ip)                           :: num_field_components, num_scalar_shape_functions, field_component, node, epos, spos, ishape
+  integer(ip)                           :: num_shape_functions_children_patch, num_nodes_children_patch
+  
+  ! COMPUTE THE L2 PROJECTION OPERATOR FOR COARSENING
+  num_field_components                 = this%get_num_field_components()
+  num_nodes_children_patch             = this%get_num_nodes_children_patch()
+  num_shape_functions_children_patch   = num_nodes_children_patch*num_field_components
+
+  ! Allocate projection_operator 
+  call memrealloc(this%num_shape_functions, num_shape_functions_children_patch, &
+                  this%coarsening_projection_operator,__FILE__,__LINE__)
+  
+  !Assembly projection operator ordered as in node_component_array
+  do ishape = 1, this%num_shape_functions
+     field_component = this%get_component_node(ishape)
+     node            = this%get_scalar_from_vector_node(ishape)
+     spos            = (field_component-1)*num_nodes_children_patch+1
+     epos            = num_nodes_children_patch*field_component
+     this%coarsening_projection_operator(ishape,spos:epos) = this%coarsening_projection_operator(node,1:num_nodes_children_patch)
+     this%coarsening_projection_operator(ishape,1:spos-1)  = 0.0_rp
+     this%coarsening_projection_operator(ishape,epos+1: )  = 0.0_rp
+  end do
+end subroutine hlrf_scalar_to_multicomp_coarsening_projection_operator
+
+!==================================================================================================
+subroutine hlrf_fill_multicomp_fe_scalar_projection_operator(this)
+   implicit none
+   class(hex_lagrangian_reference_fe_t), intent(inout)    :: this
+   type(p_reference_fe_t) :: reference_fe
+   integer(ip) :: istat
+   assert ( this%field_type /= field_type_scalar )
+   reference_fe =  make_reference_fe ( topology = this%topology, &
+                                       fe_type = this%fe_type,   &
+                                       num_dims = this%num_dims, &
+                                       order = this%order,       &
+                                       field_type = field_type_scalar, &
+                                       conformity = this%conformity, &
+                                       continuity = this%continuity )
+   select type (reference_fe => reference_fe%p)
+   class is (lagrangian_reference_fe_t)
+     this%coarsening_projection_operator = reference_fe%coarsening_projection_operator
+   class DEFAULT
+     check(.false.)
+   end select
+   call reference_fe%free()
+end subroutine hlrf_fill_multicomp_fe_scalar_projection_operator
+
+!==================================================================================================
+subroutine hex_lagrangian_compute_children_mass_matrix_for_scalar_fields(this, cell_quadrature, &
+                                                                               cell_interpolation, &
+                                                                               num_child_cells_x_parent_cell, &
+                                                                               children_patch_mass_matrix, &
+                                                                               coarse_mass_matrix)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(in)    :: cell_quadrature
+  type(interpolation_t)               , intent(in)    :: cell_interpolation
+  integer(ip)                         , intent(in)    :: num_child_cells_x_parent_cell
+  real(rp)                            , intent(inout) :: children_patch_mass_matrix(:,:)
+  real(rp)                            , intent(inout) :: coarse_mass_matrix(:,:)
+  
+  integer(ip),        allocatable :: subcell_to_cell_node_identifier(:)
+  integer(ip)                     :: subcell_id, ishape, jshape
+  integer(ip)                     :: row_id, col_id
+  real(rp)                        :: mass_matrix_value
+  
+  assert( this%field_type == field_type_scalar )
+  
+  ! Allocate subcell_to_cell_node_identifier (identifier vector to assemble the children mass matrix)
+  !call memalloc(cell_quadrature%num_quadrature_points,subcell_to_cell_node_identifier,__FILE__,__LINE__)  
+  call memalloc(this%get_num_nodes(),subcell_to_cell_node_identifier,__FILE__,__LINE__)  
+
+  ! Coarse mass matrix for scalar fields
+  call this%compute_coarse_mass_matrix_for_scalar_fields(cell_quadrature, cell_interpolation, coarse_mass_matrix)
+
+  ! Compute the children (patch) mass matrix
+  do subcell_id = 1, num_child_cells_x_parent_cell
+     call this%fill_subcell_to_cell_node_identifier(subcell_id, subcell_to_cell_node_identifier)
+     do ishape=1, cell_interpolation%num_shape_functions
+        do jshape=1, cell_interpolation%num_shape_functions
+           row_id = subcell_to_cell_node_identifier(ishape)
+           col_id = subcell_to_cell_node_identifier(jshape)
+           mass_matrix_value = coarse_mass_matrix(ishape,jshape)
+           children_patch_mass_matrix(row_id,col_id) = children_patch_mass_matrix(row_id,col_id) + mass_matrix_value
+        end do
+     end do
+  end do
+  call memfree(subcell_to_cell_node_identifier,__FILE__,__LINE__)  
+end subroutine hex_lagrangian_compute_children_mass_matrix_for_scalar_fields
+
+!==================================================================================================
+subroutine hex_lagrangian_compute_coarse_mass_matrix_for_scalar_fields(this, cell_quadrature, cell_interpolation, coarse_mass_matrix)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                  , intent(in)    :: cell_quadrature
+  type(interpolation_t)               , intent(in)    :: cell_interpolation  
+  real(rp)                         , intent(inout)    :: coarse_mass_matrix(:,:)
+  
+  real(rp),           allocatable  :: shape_function_values(:,:)
+  real(rp),           allocatable  :: weights(:)
+  
+  integer(ip)                      :: qpoint, ishape, jshape
+  real(rp)                         :: factor, v_shape_trial, v_shape_test
+
+  assert( this%field_type == field_type_scalar )
+  call memalloc(this%num_shape_functions,cell_quadrature%num_quadrature_points,shape_function_values,__FILE__,__LINE__)
+  call memalloc(cell_quadrature%num_quadrature_points,weights,__FILE__,__LINE__)  
+
+  ! Integration of coarse mass matrix
+  ! there is not det(jacobian) in the weight due to the use of regular hexahedra (cubes) whose
+  ! determinant of the jacobian = 1.0
+  call cell_quadrature%get_weights(weights)
+  call this%get_values(cell_interpolation,shape_function_values)
+  do qpoint = 1, cell_quadrature%num_quadrature_points
+     factor = weights(qpoint)
+     do ishape=1, cell_interpolation%num_shape_functions
+        v_shape_test = shape_function_values(ishape,qpoint)
+        do jshape=1, cell_interpolation%num_shape_functions
+           v_shape_trial = shape_function_values(jshape,qpoint)
+              coarse_mass_matrix(ishape, jshape) = coarse_mass_matrix(ishape, jshape) + v_shape_test * v_shape_trial * factor
+        end do
+     end do
+  end do
+  call memfree(shape_function_values,__FILE__,__LINE__)
+  call memfree(weights,__FILE__,__LINE__)
+end subroutine hex_lagrangian_compute_coarse_mass_matrix_for_scalar_fields
+
+!==================================================================================================
+subroutine hex_lagrangian_fill_subcell_to_cell_node_identifier(this, subcell_id, subcell_to_cell_node_identifier)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: subcell_id
+  integer(ip)                         , intent(inout) :: subcell_to_cell_node_identifier(:)
+  
+  type(node_array_t)    ::  node_array
+  type(node_iterator_t) ::  node_iterator_on_subcell
+  integer(ip)           ::  num_refinements, cell_node_identifier, subcell_node_identifier
+  
+  assert ( size(subcell_to_cell_node_identifier) == this%get_num_nodes_on_subcell(subcell_id) )
+          
+  !node_iterator_on_subcell = this%node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+  !                                                                 subcell_id-1, own_boundary = .true. )     
+  
+  num_refinements = 1
+  call node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
+  
+  node_iterator_on_subcell = node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+                                                                subcell_id-1, own_boundary = .true. )  
+  
+  subcell_node_identifier = 1 
+  call node_iterator_on_subcell%init()
+  do while ( .not. node_iterator_on_subcell%has_finished() )
+    ! We need to call %current_ijk() because it internally updates the %coordinate member
+    ! variable, and it is currently the only TBP that does such an update (DIRTY)
+    cell_node_identifier =  node_iterator_on_subcell%current_ijk()
+    subcell_to_cell_node_identifier(subcell_node_identifier) = cell_node_identifier+1
+    subcell_node_identifier = subcell_node_identifier + 1 
+    call node_iterator_on_subcell%next()
+  end do
+  call node_array%free()
+end subroutine hex_lagrangian_fill_subcell_to_cell_node_identifier
+
+!==================================================================================================
+function hex_lagrangian_get_num_nodes_on_subcell(this, subcell_id) result(num_nodes_on_subcell)
+  implicit none
+  class(hex_lagrangian_reference_fe_t), intent(in) :: this
+  integer(ip)                            , intent(in) :: subcell_id
+  integer(ip) :: num_nodes_on_subcell, num_refinements
+  integer(ip) :: node_identifier, num_child_cells_x_parent_cell
+  type(node_array_t)    :: node_array
+  type(node_iterator_t) :: node_iterator_on_subcell
+
+#ifdef DEBUG  
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1)
+  assert ( subcell_id >= 1 .and. subcell_id <= num_child_cells_x_parent_cell)
+#endif  
+
+  num_refinements = 1
+  call node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
+  
+  node_iterator_on_subcell = node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+                                                                subcell_id-1, own_boundary = .true. )
+
+  num_nodes_on_subcell = 0
+  call node_iterator_on_subcell%init()
+  do while ( .not. node_iterator_on_subcell%has_finished() )
+     ! We need to call %current_ijk() because it internally updates the %coordinate member
+     ! variable, and it is currently the only TBP that does such an update (DIRTY)
+     node_identifier =  node_iterator_on_subcell%current_ijk() 
+     call node_iterator_on_subcell%next()
+     num_nodes_on_subcell = num_nodes_on_subcell + 1
+  end do
+  call node_array%free()
+end function hex_lagrangian_get_num_nodes_on_subcell
+
+!==================================================================================================
+subroutine hex_lagrangian_free_projection_operator(this)
+  implicit none
+  class(hex_lagrangian_reference_fe_t) , intent(inout)    ::  this  
+  if ( allocated(this%coarsening_projection_operator) ) &
+       call memfree ( this%coarsening_projection_operator, __FILE__, __LINE__ ) 
+end subroutine hex_lagrangian_free_projection_operator
 
 !**************************************************************************************************
 ! Support functions

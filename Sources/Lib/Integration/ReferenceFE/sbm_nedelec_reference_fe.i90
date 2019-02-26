@@ -192,14 +192,9 @@ subroutine nedelec_free ( this )
   class(nedelec_reference_fe_t), intent(inout) :: this
   integer(ip) :: i
   
-  ! Free member variables of nedelec_reference_fe_t
-  if ( allocated(this%change_basis_matrix) ) &
-     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )   
-     
   if ( allocated(this%inverse_change_basis_matrix_h_refinement) ) &
      call memfree ( this%inverse_change_basis_matrix_h_refinement, __FILE__, __LINE__ ) 
-     
-  this%basis_changed = .false. 
+
   do i=1, size(this%node_array_vector)
     call this%node_array_vector(i)%free()
   end do
@@ -802,8 +797,8 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,re
      phy%shape_functions=0.0_rp
      do ilocs=1,phy%num_quadrature_points
         do inode=1,this%num_shape_functions
-           do idime=1,this%num_dims
-              do jdime=1,this%num_dims
+           do idime=1,SPACE_DIM
+              do jdime=1,SPACE_DIM
                  phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
                       + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
               end do
@@ -817,10 +812,10 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,re
         phy%shape_derivatives=0.0_rp
         do ilocs=1,phy%num_quadrature_points
            do inode=1,this%num_shape_functions
-              do idime=1,this%num_dims
-                 do jdime=1,this%num_dims
-                    do kdime=1,this%num_dims
-                       do ldime=1,this%num_dims
+              do idime=1,SPACE_DIM
+                 do jdime=1,SPACE_DIM
+                    do kdime=1,SPACE_DIM
+                       do ldime=1,SPACE_DIM
                           phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
                                + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
                        end do
@@ -842,67 +837,6 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,re
   end if
   massert(.not.phy%my_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for Nedelec')
 end subroutine nedelec_apply_cell_map_to_interpolation
-
-subroutine nedelec_invert_change_basis_matrix(this)
-  implicit none
-  class(nedelec_reference_fe_t), intent(inout) :: this 
-  integer(ip) :: error
-  integer(ip), allocatable :: ipiv(:)
-  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
-  integer(ip) :: i
-  
-  assert ( allocated(this%change_basis_matrix) )
-  assert ( size(this%change_basis_matrix,1) == this%num_shape_functions )
-  assert ( size(this%change_basis_matrix,2) == this%num_shape_functions )
-  
-  ! Solve linear system with several RHS
-  ! Compute LU factorization of this%change_basis_matrix
-#ifdef ENABLE_LAPACK
-  call memalloc ( this%num_shape_functions, ipiv, __FILE__,__LINE__ )
-   
-  call memalloc ( this%num_shape_functions, & 
-                  this%num_shape_functions, &
-                  inverse_change_basis_matrix, &
-                   __FILE__,__LINE__ )
-
-  call DGETRF( this%num_shape_functions, & 
-               this%num_shape_functions, &
-               this%change_basis_matrix, &
-               this%num_shape_functions, &
-               ipiv, &
-               error )
-  check ( error == 0 )
-  
-  inverse_change_basis_matrix = 0.0_rp
-  do i=1, this%num_shape_functions
-    inverse_change_basis_matrix(i,i) = 1.0_rp
-  end do  
- 
-  call DGETRS( 'N', & 
-               this%num_shape_functions, &
-               this%num_shape_functions, &
-               this%change_basis_matrix, &
-               this%num_shape_functions, &
-               ipiv, &
-               inverse_change_basis_matrix, &
-               this%num_shape_functions, &
-               error )
-  check ( error == 0 )
-  
-  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
-  
- call memmovealloc(inverse_change_basis_matrix, &
-                   this%change_basis_matrix, __FILE__, __LINE__ )
-
-  
-  call memfree ( ipiv, __FILE__,__LINE__ )
-#else
-  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
-  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
-  check(.false.)
-#endif 
-   
-end subroutine nedelec_invert_change_basis_matrix
 
 subroutine nedelec_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt, nodal_values_pre_basis )
   implicit none
@@ -949,7 +883,7 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
   do qpoint = 1, interpolation%num_quadrature_points
      do i=1, this%num_shape_functions
         do j=1, this%num_shape_functions
-           do idime=1, this%num_dims
+           do idime=1, SPACE_DIM
               interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
                    this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
            end do
@@ -963,8 +897,8 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
     do qpoint = 1, interpolation%num_quadrature_points
         do i=1, this%num_shape_functions
            do j=1, this%num_shape_functions
-              do idime=1, this%num_dims
-                 do jdime=1, this%num_dims
+              do idime=1, SPACE_DIM
+                 do jdime=1, SPACE_DIM
                     interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
                          this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
                  end do

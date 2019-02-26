@@ -99,30 +99,52 @@ subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(p4est_vef_iterator_t), intent(in) :: this
   type(point_t)              , intent(inout) :: nodes_coordinates(:)
-  type(p4est_cell_iterator_t)                   :: cell
   integer(ip)                                   :: inode_within_cell
   integer(ip)                                   :: inode_within_vef
-  integer(ip)                                   :: num_vertices
-  class(reference_fe_t), pointer :: reference_fe_geo
-  type(list_iterator_t)                         :: dofs_on_vef_iterator
+  integer(ip)                                   :: num_vefs, num_vertices
+  integer(ip) :: cell_around_gid, this_get_gid, lid_in_cell_around
+  integer(ip) :: i, spos, epos
+  integer(ip) :: num_dims
+  type(point_t), pointer :: cell_vertex_coordinates(:)
   
   assert ( this%get_gid() <= this%p4est_triangulation%num_proper_vefs .and. .not. this%has_finished() )
   
-  call cell%create(this%p4est_triangulation)
-  call this%get_cell_around(1, cell)
-  reference_fe_geo => cell%get_reference_fe()
-  num_vertices = reference_fe_geo%get_num_vertices()
-  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  this_get_gid = this%get_gid()
+  if ( this%is_proper() ) then
+    cell_around_gid = this%p4est_triangulation%lst_cells_around_proper_vefs%get(&
+                       this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this_get_gid))
+  else 
+    cell_around_gid = this%p4est_triangulation%lst_cells_around_improper_vefs%get(&
+                       this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this_get_gid)))
+  end if 
+  
+  num_dims = this%p4est_triangulation%get_num_dims()
+  assert ( num_dims == 2 .or. num_dims == 3 ) 
+  if ( num_dims == 2 ) then
+    num_vefs = NUM_VEFS_2D
+    num_vertices = NUM_CORNERS_2D
+  else
+    num_vefs = NUM_VEFS_3D
+    num_vertices = NUM_CORNERS_3D
+  end if 
+  
+  spos=(cell_around_gid-1)*num_vefs+1
+  epos=(cell_around_gid)*num_vefs
+  do i=spos,epos
+    if ( this%p4est_triangulation%lst_vefs_gids%get(i) == this_get_gid ) then
+      lid_in_cell_around = i-spos+1
+      exit
+    end if 
+  end do 
+  assert(i <= epos)
+  
   inode_within_vef = 1
-  do while (.not. dofs_on_vef_iterator%is_upper_bound())     
-    inode_within_cell = dofs_on_vef_iterator%get_current()
-    nodes_coordinates(inode_within_vef) =                     &
-      this%p4est_triangulation%per_cell_vertex_coordinates%get( & 
-           (cell%get_gid()-1)*num_vertices+inode_within_cell)
-    call dofs_on_vef_iterator%next()
-    inode_within_vef = inode_within_vef + 1
-  end do
-  call cell%free()
+  spos = this%p4est_triangulation%ptr_dofs_n_face(lid_in_cell_around)
+  epos = this%p4est_triangulation%ptr_dofs_n_face(lid_in_cell_around+1)-1
+  cell_vertex_coordinates => this%p4est_triangulation%per_cell_vertex_coordinates%get_pointer((cell_around_gid-1)*num_vertices+1,(cell_around_gid)*num_vertices)
+  call gather_facet_vertex_coordinates_from_cell_vertex_coordinates(this%p4est_triangulation%lst_dofs_n_face(spos:epos), &
+                                                                    cell_vertex_coordinates, &
+                                                                    nodes_coordinates )
 end subroutine p4est_vef_iterator_get_nodes_coordinates
 
 !function p4est_vef_iterator_get_triangulation(this)
@@ -321,6 +343,13 @@ function p4est_vef_iterator_is_within_valid_range(this)
           (this%get_gid() > 0 .and. this%get_gid() <= this%p4est_triangulation%num_proper_vefs) & 
           .or. (this%get_gid() < 0 .and. this%get_gid() >= -this%p4est_triangulation%num_improper_vefs)
 end function p4est_vef_iterator_is_within_valid_range
+
+function p4est_vef_iterator_is_cut(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_cut
+  p4est_vef_iterator_is_cut = .false.
+end function p4est_vef_iterator_is_cut
 
 function p4est_vef_iterator_get_num_cells_around (this)
   implicit none

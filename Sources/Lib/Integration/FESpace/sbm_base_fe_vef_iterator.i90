@@ -121,13 +121,6 @@ function base_fe_vef_iterator_is_facet (this)
   base_fe_vef_iterator_is_facet  = this%vef%is_facet()
 end function base_fe_vef_iterator_is_facet
 
-subroutine base_fe_vef_iterator_update_sub_triangulation( this )
-  implicit none
-  class(base_fe_vef_iterator_t), intent(inout) :: this
-  assert(allocated(this%vef))
-  call this%vef%update_sub_triangulation()
-end subroutine base_fe_vef_iterator_update_sub_triangulation
-
 function base_fe_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   implicit none
   class(base_fe_vef_iterator_t), intent(in)    :: this

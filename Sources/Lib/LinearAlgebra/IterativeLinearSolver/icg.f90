@@ -43,8 +43,6 @@ module icg_names
 # include "debug.i90"
   private
 
-  integer (ip), parameter :: default_icg_stopping_criteria = res_res
-
   type, extends(base_iterative_linear_solver_t) :: icg_t
     ! Working space vectors for type(icg_t)
     class(vector_t), allocatable :: r, r2

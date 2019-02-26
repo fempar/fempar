@@ -178,10 +178,11 @@ contains
 
   !=============================================================================
   
-  subroutine set_current_time(this,current_time)
+  subroutine set_current_time(this,fe_space,current_time)
     implicit none
     class(nsi_discrete_integration_t), intent(inout) :: this
-    real(rp)                               , intent(in)    :: current_time
+    class(serial_fe_space_t)         , intent(in)    :: fe_space
+    real(rp)                         , intent(in)    :: current_time
     this%current_time = current_time
   end subroutine set_current_time
 

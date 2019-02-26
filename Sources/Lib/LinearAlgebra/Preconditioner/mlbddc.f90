@@ -97,9 +97,9 @@ module mlbddc_names
   ! Created             | numerical_setup       | Numeric          ! perform symbolic_setup()+numerical_setup()
   ! Created             | apply                 | Numeric          ! perform symbolic_setup()+numerical_setup()
   ! Created             | free_clean            | Start
-  ! Created             | free_symbolic         | Create           ! it does nothing
-  ! Created             | free_numeric          | Create           ! it does nothing
-  ! Created             | update_matrix         | Create           ! it does nothing
+  ! Created             | free_symbolic         | Created          ! it does nothing
+  ! Created             | free_numeric          | Created          ! it does nothing
+  ! Created             | update_matrix         | Created          ! it does nothing
 
   ! Symbolic            | symbolic_setup                        | Symbolic         ! it does nothing
   ! Symbolic            | numerical_setup                       | Numeric          ! perform numerical_setup() 
@@ -269,6 +269,7 @@ module mlbddc_names
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
    procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
    procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
+   procedure, private                  :: create_vector_spaces                             => base_mlbddc_create_vector_spaces
 end type base_mlbddc_t
  
  type, extends(base_mlbddc_t) :: mlbddc_t
@@ -284,7 +285,7 @@ end type base_mlbddc_t
    type(fe_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
-    procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces
+    procedure,                  private :: create_vector_spaces                            => mlbddc_create_vector_spaces
 
     ! Symbolic-setup related TBPs
     procedure,                  private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
@@ -292,6 +293,7 @@ end type base_mlbddc_t
     
     ! Update-matrix related TBPs
     procedure                           :: update_matrix                                   => mlbddc_update_matrix
+    procedure                           :: reallocate_after_remesh                         => mlbddc_reallocate_after_remesh
         
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
@@ -311,7 +313,7 @@ end type base_mlbddc_t
  contains
  
    procedure, non_overridable          :: create                                            => mlbddc_coarse_create
-   procedure, non_overridable          :: create_vector_spaces                              => mlbddc_coarse_create_vector_spaces
+   procedure, private                  :: create_vector_spaces                              => mlbddc_coarse_create_vector_spaces
    
    
    ! Symbolic setup-related TBPs

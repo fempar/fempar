@@ -33,17 +33,17 @@ module interpolators_conditions_names
   private
   type, extends(conditions_t) :: interpolators_conditions_t
      private
-     integer(ip)                    :: num_dims
-  class(scalar_function_t), pointer :: boundary_function_Hx
-  class(scalar_function_t), pointer :: boundary_function_Hy 
-  class(scalar_function_t), pointer :: boundary_function_Hz 
-  class(scalar_function_t), pointer :: boundary_function_pressure
+     integer(ip)                       :: num_components
+     class(scalar_function_t), pointer :: boundary_function_Hx
+     class(scalar_function_t), pointer :: boundary_function_Hy 
+     class(scalar_function_t), pointer :: boundary_function_Hz 
+     class(scalar_function_t), pointer :: boundary_function_pressure
    contains
-     procedure :: set_num_dims          => interpolators_conditions_set_num_dims
-  procedure :: set_boundary_function_Hx    => interpolators_conditions_set_boundary_function_Hx
-  procedure :: set_boundary_function_Hy    => interpolators_conditions_set_boundary_function_Hy
-  procedure :: set_boundary_function_Hz    => interpolators_conditions_set_boundary_function_Hz
-  procedure :: set_boundary_function_pressure => interpolators_conditions_set_boundary_function_pressure
+     procedure :: set_num_components          => interpolators_conditions_set_num_components
+     procedure :: set_boundary_function_Hx    => interpolators_conditions_set_boundary_function_Hx
+     procedure :: set_boundary_function_Hy    => interpolators_conditions_set_boundary_function_Hy
+     procedure :: set_boundary_function_Hz    => interpolators_conditions_set_boundary_function_Hz
+     procedure :: set_boundary_function_pressure => interpolators_conditions_set_boundary_function_pressure
      procedure :: get_num_components       => interpolators_conditions_get_num_components  
      procedure :: get_components_code         => interpolators_conditions_get_components_code
      procedure :: get_function                => interpolators_conditions_get_function
@@ -53,12 +53,12 @@ module interpolators_conditions_names
   
 contains
 
-  subroutine interpolators_conditions_set_num_dims (this, num_dims)
+  subroutine interpolators_conditions_set_num_components (this, num_components)
     implicit none
     class(interpolators_conditions_t), intent(inout) :: this
-    integer(ip)                           , intent(in)    :: num_dims
-    this%num_dims = num_dims
-  end subroutine interpolators_conditions_set_num_dims 
+    integer(ip)                      , intent(in)    :: num_components
+    this%num_components = num_components
+  end subroutine interpolators_conditions_set_num_components 
   
     subroutine interpolators_conditions_set_boundary_function_Hx (this, scalar_function)
     implicit none
@@ -92,8 +92,8 @@ contains
     implicit none
     class(interpolators_conditions_t), intent(in) :: this
     integer(ip) :: interpolators_conditions_get_num_components
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 .or. this%num_dims == 4) 
-    interpolators_conditions_get_num_components = this%num_dims
+    assert ( this%num_components == 2 .or. this%num_components == 3 .or. this%num_components == 4) 
+    interpolators_conditions_get_num_components = this%num_components
   end function interpolators_conditions_get_num_components
 
   subroutine interpolators_conditions_get_components_code(this, boundary_id, components_code)
@@ -116,7 +116,7 @@ contains
     class(scalar_function_t)          , pointer    , intent(out) :: function
     assert ( component_id == 1 .or. component_id == 2 .or. component_id == 3 .or. component_id == 4 )
  
-  if (this%num_dims == 3) then 
+  if (this%num_components == 3) then 
        if ( component_id == 1) then 
           function => this%boundary_function_Hx
        else if ( component_id == 2 ) then 
@@ -125,7 +125,7 @@ contains
           function => this%boundary_function_pressure 
        end if
 
-    else if (this%num_dims == 4) then 
+    else if (this%num_components == 4) then 
        if ( component_id == 1) then 
           function => this%boundary_function_Hx
        else if ( component_id == 2 ) then 

@@ -65,6 +65,13 @@ function triangulation_get_num_ghost_cells(this)
   triangulation_get_num_ghost_cells = this%num_ghost_cells
 end function triangulation_get_num_ghost_cells
 
+function triangulation_get_num_global_cells(this)
+  implicit none
+  class(triangulation_t), intent(in) :: this
+  integer(igp) :: triangulation_get_num_global_cells
+  triangulation_get_num_global_cells = this%num_global_cells
+end function triangulation_get_num_global_cells
+
 function triangulation_get_num_vefs(this)
   implicit none
   class(triangulation_t), intent(in) :: this
@@ -106,6 +113,13 @@ subroutine triangulation_set_num_ghost_cells(this, num_ghost_cells)
   integer(ip), intent(in) :: num_ghost_cells
   this%num_ghost_cells = num_ghost_cells
 end subroutine triangulation_set_num_ghost_cells
+
+subroutine triangulation_set_num_global_cells(this, num_global_cells)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(igp)          , intent(in)    :: num_global_cells
+  this%num_global_cells = num_global_cells
+end subroutine triangulation_set_num_global_cells
 
 function triangulation_get_environment ( this )
   implicit none
@@ -155,32 +169,32 @@ subroutine triangulation_set_environment ( this, environment )
   class(triangulation_t), intent(inout) :: this
   class(environment_t), target, intent(in)    :: environment
   integer(ip) :: istat
-  call this%free_environment()
+  !call this%free_environment()
   this%environment => environment
-  this%environment_allocated = .false.
+  !this%environment_allocated = .false.
 end subroutine triangulation_set_environment 
 
-subroutine triangulation_allocate_environment ( this )
-  implicit none
-  class(triangulation_t), intent(inout) :: this
-  integer(ip) :: istat
-  call this%free_environment()
-  allocate(this%environment, stat=istat); check(istat == 0)
-  this%environment_allocated = .true.
-end subroutine triangulation_allocate_environment
+! subroutine triangulation_allocate_environment ( this )
+!   implicit none
+!   class(triangulation_t), intent(inout) :: this
+!   integer(ip) :: istat
+!   call this%free_environment()
+!   allocate(this%environment, stat=istat); check(istat == 0)
+!   this%environment_allocated = .true.
+! end subroutine triangulation_allocate_environment
 
-subroutine triangulation_free_environment ( this )
-  implicit none
-  class(triangulation_t)      , intent(inout) :: this
-  integer(ip) :: istat
-  if ( this%environment_allocated ) then
-    call this%environment%free()
-    deallocate(this%environment, stat=istat)
-    check(istat == 0)
-  end if
-  nullify(this%environment)
-  this%environment_allocated = .false.
-end subroutine triangulation_free_environment 
+! subroutine triangulation_free_environment ( this )
+!   implicit none
+!   class(triangulation_t)      , intent(inout) :: this
+!   integer(ip) :: istat
+!   if ( this%environment_allocated ) then
+!     call this%environment%free()
+!     deallocate(this%environment, stat=istat)
+!     check(istat == 0)
+!   end if
+!   nullify(this%environment)
+!   this%environment_allocated = .false.
+! end subroutine triangulation_free_environment 
 
 subroutine triangulation_set_up_lst_itfc_vefs (this)
   implicit none
@@ -2249,14 +2263,16 @@ recursive subroutine triangulation_free ( this )
      if ( this%environment%am_i_l1_task() ) then
         this%num_dims = -1         
         call this%cell_import%free()
-        this%num_local_cells = -1
-        this%num_ghost_cells = -1
+        this%num_local_cells = 0
+        this%num_ghost_cells = 0
+        this%num_global_cells = 0
         call this%free_lst_itfc_vefs()
         call this%free_coarse_triangulation_l1_data()
      else ! I am lgt1_task
         call this%free_coarse_triangulation_lgt1_data()
      end if
-     call this%free_environment()  
+     nullify(this%environment)
+     !call this%free_environment()  
      this%coarse_triangulation_set_up = .false.
      if (allocated(this%subparts_coupling_criteria)) then
        deallocate(this%subparts_coupling_criteria, stat=istat); check(istat==0);

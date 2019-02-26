@@ -1,0 +1,246 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine dirk_solver_create( this, ts_op, nl_solver, initial_time, final_time, time_step)
+  implicit none
+  class(dirk_solver_t),                    intent(inout) :: this
+  type(time_stepping_operator_t) , target, intent(in)    :: ts_op
+  type(nonlinear_solver_t)      ,  target, intent(in)    :: nl_solver
+  real(rp)                               , intent(in)    :: initial_time
+  real(rp)                               , intent(in)    :: final_time
+  real(rp)                               , intent(in)    :: time_step
+  
+  call this%free()
+  this%ts_op     => ts_op
+  this%nl_solver => nl_solver
+ 
+  call this%set_initial_time(initial_time)
+  call this%set_final_time(final_time)
+  call this%set_time_step_size(time_step)
+  
+  call this%ts_op%fe_op%create_range_vector(this%free_dof_values_previous)
+  call this%ts_op%fe_op%create_range_vector(this%rhs)
+  call this%rhs%init(0.0_rp)
+end subroutine dirk_solver_create
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> summary: Get DOF vaules at next timestep by solving a system in each RK stage
+!> The function `apply` does the following:  
+!>
+subroutine dirk_solver_apply( this, x, y )
+  implicit none
+  class(dirk_solver_t),   intent(inout) :: this
+  class(vector_t)     ,   intent(in)    :: x !< Input DOF values
+  class(vector_t)     ,   intent(inout) :: y !< Output DOF values
+  integer(ip) :: i
+  type(time_stepping_stage_fe_operator_t), pointer :: stage_op
+
+  assert ( associated(this%ts_op) )
+  assert ( associated(this%nl_solver) )
+  
+!<  - Set `x` as initial data, i.e., \(u_h^0=x\)
+!<  - For each RK stage (i)
+!<    - Interpolate BC at \(t_i = t + c_i \Delta t \), \(u_h^{\varphi} (t_i) \)  and \(\partial u_h^{\varphi} (t_i) \)   
+!<    - Set discrite integration time at \(t_i\)
+!<    - Integrate mass matrix ( and affine operator if lineal )
+!<    - Solve a non-linear system for each `dof_stages(i)` (\(y_i\)), with:
+!<        $$ R_{ii} (y) = My + M\partial_t u_h^{\varphi} (t + c_i \Delta t)  + \bar A (  t + c_i \Delta t, X_i (Y_{|1:i-1|},y),$$
+!<        $$ \frac{\partial R_{ii} (y)} {\partial y} = M + a_{ii}\Delta t \frac{\partial \bar A (t + c_i \Delta t,x)}{\partial x}$$
+!<  - Set output `y` as \(u_h^1 = u_h^0 + \Delta t \sum_{i=1}^s b_i y_i \)
+  
+  call this%ts_op%set_initial_data(x) 
+  call y%copy(x)
+  do i = 1, this%ts_op%scheme%num_stages
+    stage_op => this%ts_op%get_stage_operator(i,i)
+
+    call stage_op%set_evaluation_time( this%get_current_time() + this%get_time_step_size() * this%ts_op%scheme%c(i) )
+    call this%nl_solver%apply ( this%rhs , this%ts_op%dofs_stages(i) )
+    call y%axpby(this%get_time_step_size()*this%ts_op%scheme%b(i),this%ts_op%dofs_stages(i),1.0_rp)
+  end do
+end subroutine dirk_solver_apply
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!> summary: Upgrade the values of the given `fe_function_t` at the next timestep
+!> The function `advance_fe_function` does the following:  
+!> 
+!>  - Get the *free DOF values* at the next time step  
+!>  - Update the time at the next time step   
+!>  - Interpolate the *fixed DOF values* at the next time step  
+!>  - Build the `fe_function_t` at the next time step with the *free DOF values* and *fixed DOF values*  
+!>
+subroutine dirk_solver_advance_fe_function( this, fe_function)
+  implicit none
+  class(dirk_solver_t),    intent(inout) :: this
+  type(fe_function_t),     intent(inout) :: fe_function  
+  class(discrete_integration_t), pointer :: di_fe_op
+  class(vector_t),               pointer :: free_dof_values_current, fixed_dof_values
+  class(serial_fe_space_t)     , pointer :: fe_space
+
+  free_dof_values_current  =>  fe_function%get_free_dof_values()
+  fixed_dof_values         =>  fe_function%get_fixed_dof_values()
+  di_fe_op                 =>  this%ts_op%fe_op%fe_op%get_discrete_integration()
+  fe_space                 =>  this%ts_op%fe_op%fe_op%get_fe_space()
+  
+  call this%free_dof_values_previous%copy(free_dof_values_current)
+  
+  call this%apply(this%free_dof_values_previous,free_dof_values_current)
+  
+  !<  @note
+  !<  When updating Dirichlet BC at \(t^{n+1} = t^n + dt\),
+  !<  recaluculation is needed as `fe_function_t` may not be evaluated at \(t^{n+1}\) 
+  !<  within the DIRK solver loop, e.g., *forward euler* scheme.
+  call this%update_current_time() 
+  call di_fe_op%set_current_time( fe_space, this%get_current_time() )
+  call fixed_dof_values%copy( di_fe_op%get_boundary_data() )
+
+end subroutine dirk_solver_advance_fe_function
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine dirk_solver_set_initial_time( this, initial_time )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  real(rp)            , intent(in)    :: initial_time
+  this%stage_initial_time = initial_time 
+  this%initial_time = initial_time 
+end subroutine dirk_solver_set_initial_time
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!> The time step size can be modified arbitrarily in the driver during the simulation
+subroutine dirk_solver_set_time_step_size( this, dt )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  real(rp)            , intent(in)    :: dt
+  this%dt = dt
+  call this%ts_op%set_time_step_size(dt)
+end subroutine dirk_solver_set_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine dirk_solver_set_final_time( this, final_time)
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  real(rp)            , intent(in)    :: final_time
+  this%final_time = final_time
+end subroutine dirk_solver_set_final_time
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!> This method updates the current time ( initial time of RK scheme ) at \(t^1=t^0+\Delta t \)
+subroutine dirk_solver_update_current_time( this )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  this%stage_initial_time = this%stage_initial_time + this%dt
+end subroutine dirk_solver_update_current_time
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function dirk_solver_get_time_step_size( this )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  real(rp) :: dirk_solver_get_time_step_size
+  dirk_solver_get_time_step_size = this%dt
+end function dirk_solver_get_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function dirk_solver_get_current_time( this )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  real(rp) :: dirk_solver_get_current_time
+  dirk_solver_get_current_time = this%stage_initial_time 
+end function dirk_solver_get_current_time
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function dirk_solver_get_final_time( this )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  real(rp) :: dirk_solver_get_final_time
+  dirk_solver_get_final_time = this%final_time
+end function dirk_solver_get_final_time
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function dirk_solver_has_finished( this )
+  implicit none
+  class(dirk_solver_t), intent(in) :: this
+  logical :: dirk_solver_has_finished
+  real(rp), parameter :: has_finished_tol = 1.0e-8_rp
+  dirk_solver_has_finished = .false.
+  !< This method will return true in either one of these two cases:
+  !<
+  !<  1. If current_initial_time is larger or equal to `final_time` .
+  !<  2. If current_initial_time is smaller than `final_time`, and distance to the end is 
+  !<     "small enough" (determined by `has_finished_tol`) compared to the magnitude of 
+  !<     current time step
+  if (this%final_time-this%stage_initial_time <=  this%dt * has_finished_tol) then
+    dirk_solver_has_finished = .true.
+  endif
+end function dirk_solver_has_finished
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!> This method prints the information about the curren time step evaluation
+!> 
+!>  * Current time ( `t` )
+!>  * Time step size ( `dt`)
+!>  * Simulation final time (`tf`)
+!>  * Time integration scheme 
+subroutine dirk_solver_print_log_line( this, luout )
+  implicit none
+  class(dirk_solver_t), intent(in) :: this
+  integer(ip)                    , intent(in) :: luout
+  class(serial_fe_space_t)       , pointer    :: fe_sp
+  class(environment_t)           , pointer    :: environment
+   
+  fe_sp       => this%ts_op%fe_op%get_fe_space()
+  environment => fe_sp%get_environment()
+  
+  if (environment%am_i_l1_root()) then
+    write(luout,*) '==============================================================================='
+    write(luout,'(a18, e10.3,a11,e10.3,a7,e10.3,a6,a22)') 'Solving for t=', this%stage_initial_time, 'with dt=', this%dt, 'up to=', this%final_time,  'for ', this%ts_op%scheme%time_integration_scheme
+    write(luout,*) '==============================================================================='
+  end if
+end subroutine dirk_solver_print_log_line
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine dirk_solver_free( this )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  integer(ip) :: istat
+  
+  nullify(this%ts_op)
+  nullify(this%nl_solver)
+  
+  this%dt                 = 0.0_rp
+  this%stage_initial_time = 0.0_rp
+  this%initial_time       = 0.0_rp
+  this%final_time         = 0.0_rp
+
+  if(allocated(this%rhs)) then
+    call this%rhs%free()
+    deallocate(this%rhs, stat=istat); check(istat==0)
+  endif
+  
+  if(allocated(this%free_dof_values_previous)) then
+    call this%free_dof_values_previous%free()
+    deallocate(this%free_dof_values_previous, stat=istat); check(istat==0)
+  endif
+end subroutine dirk_solver_free

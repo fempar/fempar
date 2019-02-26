@@ -105,7 +105,6 @@ module triangulation_names
     procedure(cell_get_disconnected_set_id_interface), deferred :: get_disconnected_set_id
  
     ! XFEM-related TBPs
-    procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
     procedure(get_num_subcells_interface)           , deferred :: get_num_subcells
     procedure(get_num_subcell_nodes_interface)      , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface) , deferred :: get_phys_coords_of_subcell
@@ -173,7 +172,6 @@ module triangulation_names
      procedure(is_at_interface)               , deferred :: is_at_interface
 
      ! XFEM-related TBPs
-     procedure               :: update_sub_triangulation  => vef_iterator_update_sub_triangulation
      procedure               :: get_num_subvefs           => vef_iterator_get_num_subvefs
      procedure               :: get_num_subvef_nodes      => vef_iterator_get_num_subvef_nodes
      procedure               :: get_phys_coords_of_subvef => vef_iterator_get_phys_coords_of_subvef
@@ -223,6 +221,7 @@ module triangulation_names
      procedure          :: is_ghost               => itfc_vef_iterator_is_ghost
      procedure          :: is_local               => itfc_vef_iterator_is_local
      procedure          :: is_at_interface        => itfc_vef_iterator_is_at_interface
+     procedure          :: is_cut                 => itfc_vef_iterator_is_cut
      
      ! h-adaptive FEM
      procedure          :: is_proper                        => itfc_vef_iterator_is_proper
@@ -356,11 +355,6 @@ module triangulation_names
        class(cell_iterator_t), intent(in)    :: this
        integer(ip) :: cell_get_disconnected_set_id_interface
      end function cell_get_disconnected_set_id_interface
-
-     subroutine update_sub_triangulation_interface( this )
-       import :: cell_iterator_t
-       class(cell_iterator_t), intent(inout) :: this
-     end subroutine update_sub_triangulation_interface
      
      function get_num_subcells_interface( this ) result ( num_subcells )
        import :: cell_iterator_t, ip
@@ -638,8 +632,9 @@ module triangulation_names
      integer(ip)                           :: num_dims = 0
 
      ! Data structures to store cell related information
-     integer(ip)                           :: num_local_cells = 0
-     integer(ip)                           :: num_ghost_cells = 0
+     integer(igp)                          :: num_global_cells = 0 
+     integer(ip)                           :: num_local_cells  = 0
+     integer(ip)                           :: num_ghost_cells  = 0
      
      ! Data structures to store vef related information
      integer(ip)                           :: num_vefs = 0
@@ -647,7 +642,6 @@ module triangulation_names
 
      ! Parallel environment describing MPI tasks among which the triangulation is distributed
      type(environment_t), pointer          :: environment => NULL()
-     logical                               :: environment_allocated = .false.
      
      ! Data type describing the layout in distributed-memory of the dual graph
      ! (It is required, e.g., for nearest neighbour comms on this graph)
@@ -695,6 +689,7 @@ module triangulation_names
      procedure, non_overridable :: get_num_cells            => triangulation_get_num_cells
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
      procedure, non_overridable :: get_num_ghost_cells      => triangulation_get_num_ghost_cells
+     procedure, non_overridable :: get_num_global_cells     => triangulation_get_num_global_cells
      procedure, non_overridable :: get_num_vefs             => triangulation_get_num_vefs
      
      procedure(get_num_proper_vefs_interface)   , deferred :: get_num_proper_vefs
@@ -704,6 +699,7 @@ module triangulation_names
      procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
      procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
      procedure, non_overridable :: set_num_ghost_cells      => triangulation_set_num_ghost_cells
+     procedure, non_overridable :: set_num_global_cells     => triangulation_set_num_global_cells
      procedure, non_overridable :: set_num_vefs             => triangulation_set_num_vefs
      
      
@@ -715,8 +711,8 @@ module triangulation_names
      procedure, non_overridable :: coarse_triangulation_is_set_up => triangulation_coarse_triangulation_is_set_up
      
      procedure, non_overridable :: set_environment          => triangulation_set_environment
-     procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
-     procedure, non_overridable :: free_environment         => triangulation_free_environment
+     !procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
+     !procedure, non_overridable :: free_environment         => triangulation_free_environment
      
      procedure                  :: free                     => triangulation_free
      
@@ -901,10 +897,10 @@ module triangulation_names
   public :: triangulation_generate_from_mesh
   public :: triangulation_generate_structured
   
-  character(len=*), parameter :: geometry_interpolation_order_key    = 'geometry_interpolation_order'
-  character(len=*), parameter :: triangulation_generate_key          = 'triangulation_generate'
-  public :: geometry_interpolation_order_key
-  public :: triangulation_generate_key
+  character(len=*), parameter :: triang_geometric_interpolation_order_key    = 'geometric_interpolation_order'
+  character(len=*), parameter :: triang_generate_key          = 'triangulation_generate'
+  public :: triang_geometric_interpolation_order_key
+  public :: triang_generate_key
   
   character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
   character(len=*), parameter :: all_coupled                    = 'all_coupled'
@@ -947,7 +943,6 @@ module triangulation_names
     procedure                            :: get_permutation_index   => bst_cell_iterator_get_permutation_index
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
-    procedure :: update_sub_triangulation    => bst_cell_iterator_update_sub_triangulation
     procedure :: get_num_subcells      => bst_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes => bst_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => bst_cell_iterator_get_phys_coords_of_subcell
@@ -1003,6 +998,7 @@ module triangulation_names
      procedure                           :: is_local                  => bst_vef_iterator_is_local
      procedure                           :: is_ghost                  => bst_vef_iterator_is_ghost
      procedure                           :: is_at_interface           => bst_vef_iterator_is_at_interface
+     procedure                           :: is_cut                    => bst_vef_iterator_is_cut
      
      procedure                           :: get_num_cells_around      => bst_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around           => bst_vef_iterator_get_cell_around

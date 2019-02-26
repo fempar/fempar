@@ -38,7 +38,6 @@ module analytical_functions_names
 
   type, extends(scalar_function_t) :: base_scalar_function_t
     private
-    integer(ip) :: num_dims = -1
     integer(ip) :: order    =  5
   contains
     procedure :: set_num_dims          => base_scalar_function_set_num_dims
@@ -166,7 +165,7 @@ contains
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
-    this%num_dims = num_dims
+    call this%scalar_function_t%set_num_dims(num_dims)
   end subroutine base_scalar_function_set_num_dims
   
   !===============================================================================================
@@ -184,11 +183,11 @@ contains
     type(point_t)                  , intent(in)    :: point
     real(rp)                       , intent(inout) :: result
     real(rp) :: n
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     n = real(this%order, rp)
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + point%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + & 
                 point%get(2)**(n-2.0_rp) + point%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
     end if 
@@ -200,10 +199,10 @@ contains
     class(polynomial_boundary_function_t), intent(in)  :: this
     type(point_t)                        , intent(in)    :: point
     real(rp)                             , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n
     end if  
   end subroutine polynomial_boundary_function_get_value_space 
@@ -214,10 +213,10 @@ contains
     class(polynomial_solution_function_t), intent(in)    :: this
     type(point_t)                        , intent(in)    :: point
     real(rp)                             , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
+    if ( this%get_num_dims() == 2 ) then
       result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n 
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
     end if  
       
@@ -230,12 +229,12 @@ contains
     type(point_t)                        , intent(in)    :: point
     type(vector_field_t)                 , intent(inout) :: result
     real(rp) :: n 
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
     n = real(this%order, rp) 
-    if ( this%num_dims == 2 ) then
+    if ( this%get_num_dims() == 2 ) then
       call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
       call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
-    else if ( this%num_dims == 3 ) then
+    else if ( this%get_num_dims() == 3 ) then
       call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
       call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
       call result%set( 3, n*point%get(3)**(n-1.0_rp) ) ! nz^{n-1}
@@ -287,7 +286,7 @@ contains
     r_vec = point - vector_field_t(x0)
     r_nrm = r_vec%nrm2()
     result = 2.0_rp*(alpha**3.0_rp)*(r_nrm-1)/((1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp)**2.0_rp) - &
-             (this%num_dims-1)*alpha/(r_nrm*(1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp))
+             (this%get_num_dims()-1)*alpha/(r_nrm*(1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp))
   end subroutine shock_source_term_get_value_space
 
   !===============================================================================================
@@ -327,7 +326,7 @@ contains
     integer(ip)          :: idime
     r_vec = point - vector_field_t(x0)
     r_nrm = r_vec%nrm2()
-    do idime = 1,this%num_dims
+    do idime = 1,this%get_num_dims()
       call result%set(idime,(alpha*r_vec%get(idime))/(r_nrm*(1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp)))
     end do
   end subroutine shock_solution_function_get_gradient_space

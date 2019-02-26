@@ -45,19 +45,6 @@ module base_iterative_linear_solver_names
   integer(ip), parameter :: start               = 0  ! All parameters set with values, environment and name set
   integer(ip), parameter :: operators_set       = 1  ! Matrix A and preconditioner M already set
   integer(ip), parameter :: workspace_allocated = 2  ! All workspace required by solve TBP available 
-
-  !-------------------------------------------------------------------
-  ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
-  ! A default value for stopping criteria is not declared here as the set of
-  ! supported stopping criteria is highly dependent on the particular implementor
-  ! of class(base_iterative_linear_solver_t)
-  !-------------------------------------------------------------------
-  integer (ip), parameter :: default_luout                      = 6
-  real    (rp), parameter :: default_rtol                       = 1.0e-06_rp
-  real    (rp), parameter :: default_atol                       = 0.0_rp
-  integer (ip), parameter :: default_output_frequency           = 1 
-  integer (ip), parameter :: default_max_num_iterations         = 1000
-  logical,      parameter :: default_track_convergence_history  = .false.
   
   ! State transition diagram for type(base_iterative_linear_solver_t)
   ! -----------------------------------------------------------
@@ -88,9 +75,10 @@ module base_iterative_linear_solver_names
     
     ! Initial solution
     class(vector_t), allocatable :: initial_solution
+    logical                      :: user_has_called_set_initial_solution = .false.
   
     ! Parameters
-    real(rp)      :: luout                     ! Logical Unit Output
+    integer(ip)   :: luout                     ! Logical Unit Output
     real(rp)      :: rtol                      ! Relative tolerance
     real(rp)      :: atol                      ! Absolute tolerance
     integer(ip)   :: stopping_criteria         ! Stopping criteria
@@ -114,6 +102,8 @@ module base_iterative_linear_solver_names
     procedure :: set_state
     procedure :: get_state
     procedure :: set_operators
+    procedure :: are_A_and_M_vector_spaces_compatible
+    procedure :: reallocate_after_remesh
     procedure :: set_initial_solution
     procedure :: get_initial_solution
     procedure :: get_A
@@ -275,8 +265,7 @@ contains
      class(base_iterative_linear_solver_t) , intent(inout) :: this
      class(operator_t)           , intent(in)    :: A
      class(operator_t)           , intent(in)    :: M     
-     type(vector_space_t), pointer :: A_domain, A_range
-     type(vector_space_t), pointer :: M_domain, M_range
+     type(vector_space_t), pointer :: A_range
      class(vector_t), pointer :: b
           
      assert(this%state == start .or. this%state == operators_set)
@@ -284,37 +273,69 @@ contains
      call A%GuardTemp()
      call M%GuardTemp()
      
-     A_domain => A%get_domain_vector_space()
-     A_range  => A%get_range_vector_space()
-     M_domain => M%get_domain_vector_space()
-     M_range  => M%get_range_vector_space()
-     if ( .not. A_domain%equal_to(M_domain) ) then
-       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: domain(A)/=domain(M)' 
-       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: operators could not be set'  
-     else if ( .not. A_range%equal_to(M_range) ) then
-       write(0,'(a)') 'base_iterative_linear_solver_t%set_operators :: range(A)/=range(M)' 
-       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: operators could not be set' 
-     else
-     
-       this%A = A       
-       this%M = M   
-       if ( this%state == start ) then
-         call A_range%create_vector(this%initial_solution)
-         call this%initial_solution%init(0.0_rp)
-       else if ( this%state == operators_set ) then
-         if (.not. A_range%belongs_to(this%initial_solution)) then
+     this%A = A       
+     this%M = M
+     massert(this%are_A_and_M_vector_spaces_compatible(), "base_iterative_linear_solver_t%set_operators :: domain(A)/=domain(M) or range(A)/=range(M)")
+     A_range  => this%A%get_range_vector_space()
+     if ( this%state == start ) then
+        call A_range%create_vector(this%initial_solution)
+        call this%initial_solution%init(0.0_rp)
+     else if ( this%state == operators_set ) then
+        if (.not. A_range%belongs_to(this%initial_solution)) then
            call this%free_initial_solution()
            call A_range%create_vector(this%initial_solution)
            call this%initial_solution%init(0.0_rp)
-           write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: Initial solution re-set such that it now belongs to range(A)'
-           write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: you have to (re-)call %set_initial_solution to select an initial solution different from zero'
-         end if
-       end if
-       this%state = operators_set
+           wassert(.false.,"base_iterative_linear_solver_t%set_operators :: Initial solution re-set such that it now belongs to range(A)")
+           wassert(.false.,"base_iterative_linear_solver_t%set_operators :: you have to (re-)call %set_initial_solution to select an initial solution different from zero")
+        end if
      end if
+     this%state = operators_set
+     
      call A%CleanTemp()
      call M%CleanTemp() 
     end subroutine set_operators
+    
+    function are_A_and_M_vector_spaces_compatible(this)
+     implicit none
+     class(base_iterative_linear_solver_t) , intent(in) :: this
+     logical :: are_A_and_M_vector_spaces_compatible
+     type(vector_space_t), pointer :: A_domain, A_range
+     type(vector_space_t), pointer :: M_domain, M_range
+     A_domain => this%A%get_domain_vector_space()
+     A_range  => this%A%get_range_vector_space()
+     M_domain => this%M%get_domain_vector_space()
+     M_range  => this%M%get_range_vector_space()
+     are_A_and_M_vector_spaces_compatible = .true.
+     if ( .not. A_domain%equal_to(M_domain) ) then
+       are_A_and_M_vector_spaces_compatible = .false.
+     else if ( .not. A_range%equal_to(M_range) ) then
+       are_A_and_M_vector_spaces_compatible = .false.
+     end if 
+    end function are_A_and_M_vector_spaces_compatible
+    
+    subroutine reallocate_after_remesh(this)
+     implicit none
+     class(base_iterative_linear_solver_t) , intent(inout) :: this
+     type(vector_space_t), pointer :: A_range
+     
+     if ( this%state == operators_set .or. this%state == workspace_allocated ) then
+       call this%A%reallocate_after_remesh()
+       call this%M%reallocate_after_remesh()
+       if ( .not. this%are_A_and_M_vector_spaces_compatible() ) then
+         massert(.false., 'base_iterative_linear_solver_t%reallocate_after_remesh :: domain(A)/=domain(M) or range(A)/=range(M)')
+       else
+         A_range  => this%A%get_range_vector_space()
+         call A_range%create_vector(this%initial_solution)
+         call this%initial_solution%init(0.0_rp)
+         wassert(.not. this%user_has_called_set_initial_solution,"base_iterative_linear_solver_t%reallocate_after_remesh :: Initial solution re-set to zero. You have to (re-)call %set_initial_solution to select an initial solution different from zero")
+         if ( this%state == workspace_allocated ) then
+           call this%free_workspace()
+           call this%allocate_workspace()
+         end if 
+       end if   
+     end if 
+     
+    end subroutine reallocate_after_remesh 
     
     subroutine set_initial_solution(this,initial_solution)
      implicit none
@@ -326,9 +347,10 @@ contains
      call initial_solution%GuardTemp()
      A_range  => this%A%get_range_vector_space()
      if (.not. A_range%belongs_to(initial_solution)) then
-       write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)'
+       wassert(.false.,"Warning: base_iterative_linear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)")
      else
        call this%initial_solution%copy(initial_solution)
+       this%user_has_called_set_initial_solution = .true.
      end if  
      call initial_solution%CleanTemp()
     end subroutine set_initial_solution
@@ -422,6 +444,7 @@ contains
       class(base_iterative_linear_solver_t), intent(inout) :: this
       call this%initial_solution%free()
       deallocate(this%initial_solution)
+      this%user_has_called_set_initial_solution = .false.
     end subroutine free_initial_solution
     
     function converged(this)
@@ -704,39 +727,45 @@ contains
       type(ParameterList_t),                 intent(in)    :: parameter_list
       integer(ip)                                          :: FPLError
       ! Rtol
-      if(parameter_list%isPresent(ils_rtol)) then
-          assert(parameter_list%isAssignable(ils_rtol, this%rtol))
-          FPLError   = parameter_list%Get(Key=ils_rtol, Value=this%rtol)
+      if(parameter_list%isPresent(ils_rtol_key)) then
+          assert(parameter_list%isAssignable(ils_rtol_key, this%rtol))
+          FPLError   = parameter_list%Get(Key=ils_rtol_key, Value=this%rtol)
           assert(FPLError == 0)
       endif
       ! Atol
-      if(parameter_list%isPresent(ils_atol)) then
-          assert(parameter_list%isAssignable(ils_atol, this%atol))
-          FPLError   = parameter_list%Get(Key=ils_atol, Value=this%atol)
+      if(parameter_list%isPresent(ils_atol_key)) then
+          assert(parameter_list%isAssignable(ils_atol_key, this%atol))
+          FPLError   = parameter_list%Get(Key=ils_atol_key, Value=this%atol)
           assert(FPLError == 0)
       endif
       ! Stopping criterias
-      if(parameter_list%isPresent(ils_stopping_criteria)) then
-          assert(parameter_list%isAssignable(ils_stopping_criteria, this%stopping_criteria))
-          FPLError   = parameter_list%Get(Key=ils_stopping_criteria, Value=this%stopping_criteria)
+      if(parameter_list%isPresent(ils_stopping_criterium_key)) then
+          assert(parameter_list%isAssignable(ils_stopping_criterium_key, this%stopping_criteria))
+          FPLError   = parameter_list%Get(Key=ils_stopping_criterium_key, Value=this%stopping_criteria)
           assert(FPLError == 0)
       endif
       ! Output frequency
-      if(parameter_list%isPresent(ils_output_frequency)) then
-          assert(parameter_list%isAssignable(ils_output_frequency, this%output_frequency))
-          FPLError   = parameter_list%Get(Key=ils_output_frequency, Value=this%output_frequency)
+      if(parameter_list%isPresent(ils_output_frequency_key)) then
+          assert(parameter_list%isAssignable(ils_output_frequency_key, this%output_frequency))
+          FPLError   = parameter_list%Get(Key=ils_output_frequency_key, Value=this%output_frequency)
           assert(FPLError == 0)
       endif
       ! Max num iterations
-      if(parameter_list%isPresent(ils_max_num_iterations)) then
-          assert(parameter_list%isAssignable(ils_max_num_iterations, this%max_num_iterations))
-          FPLError   = parameter_list%Get(Key=ils_max_num_iterations, Value=this%max_num_iterations)
+      if(parameter_list%isPresent(ils_max_num_iterations_key)) then
+          assert(parameter_list%isAssignable(ils_max_num_iterations_key, this%max_num_iterations))
+          FPLError   = parameter_list%Get(Key=ils_max_num_iterations_key, Value=this%max_num_iterations)
           assert(FPLError == 0)
       endif
       ! Track convergence history
-      if(parameter_list%isPresent(ils_track_convergence_history)) then
-          assert(parameter_list%isAssignable(ils_track_convergence_history, this%track_convergence_history))
-          FPLError   = parameter_list%Get(Key=ils_track_convergence_history, Value=this%track_convergence_history)
+      if(parameter_list%isPresent(ils_track_convergence_history_key)) then
+          assert(parameter_list%isAssignable(ils_track_convergence_history_key, this%track_convergence_history))
+          FPLError   = parameter_list%Get(Key=ils_track_convergence_history_key, Value=this%track_convergence_history)
+          assert(FPLError == 0)
+      endif
+      ! Track convergence history
+      if(parameter_list%isPresent(ils_luout_key)) then
+          assert(parameter_list%isAssignable(ils_luout_key, this%luout))
+          FPLError   = parameter_list%Get(Key=ils_luout_key, Value=this%luout)
           assert(FPLError == 0)
       endif
     end subroutine base_iterative_linear_solver_set_parameters_from_pl

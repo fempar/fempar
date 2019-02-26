@@ -29,24 +29,6 @@
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
-
-!==================================================================================================
-subroutine tet_lagrangian_reference_fe_free(this) 
-  implicit none
-  class(tet_lagrangian_reference_fe_t), intent(inout) ::  this
-  integer(ip) :: i
-
-  ! Free member variables of raviart_thomas_reference_fe_t
-  if ( allocated(this%change_basis_matrix) ) &
-       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
-
-  this%basis_changed = .false. 
-
-  ! Free member variables of lagrangian_reference_fe_t
-  ! (and those of its ancestors)
-  call lagrangian_reference_fe_free ( this )  
-end subroutine tet_lagrangian_reference_fe_free
-
 !==================================================================================================
 subroutine tet_lagrangian_reference_fe_create( this, topology, num_dims, order, field_type, & 
      &  conformity, continuity )
@@ -66,9 +48,6 @@ subroutine tet_lagrangian_reference_fe_create( this, topology, num_dims, order, 
   call this%set_topology ( topology )
   call this%set_fe_type( fe_type_lagrangian )
   call this%fill()
-  call this%create_nodal_quadrature()
-  call this%change_basis()
-
 end subroutine tet_lagrangian_reference_fe_create
 
 !==================================================================================================
@@ -238,8 +217,8 @@ subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations (this, quadratu
   n_q_points = quadrature%get_num_quadrature_points()
 
 
-  call qpoints_perm%create(n_q_points, &    !> Number of quadrature points
-       &                ndime*2**ndime)  !> Number of possible permutations x possible rotations
+  call qpoints_perm%create(n_q_points, &    ! Number of quadrature points
+       &                ndime*2**ndime)  ! Number of possible permutations x possible rotations
   forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
 
 end subroutine tet_lagrangian_reference_fe_fill_qpoints_permutations
@@ -709,7 +688,7 @@ subroutine tet_lagrangian_reference_fe_change_basis(this)
   type(interpolation_t)   :: interpolation
   integer(ip)             :: i, j, num_shape_functions_x_component
 
-  num_shape_functions_x_component = this%num_shape_functions/this%num_field_components
+  num_shape_functions_x_component = this%num_shape_functions
   call memalloc(num_shape_functions_x_component,num_shape_functions_x_component,this%change_basis_matrix,__FILE__,__LINE__)
   call this%create_interpolation(this%nodal_quadrature,interpolation)
   do i=1,num_shape_functions_x_component
@@ -723,77 +702,6 @@ subroutine tet_lagrangian_reference_fe_change_basis(this)
   call this%invert_change_basis_matrix()
   this%basis_changed = .true.
 end subroutine tet_lagrangian_reference_fe_change_basis
-
-!==================================================================================================
-subroutine tet_lagrangian_reference_fe_invert_change_basis_matrix(this)
-  implicit none
-  class(tet_lagrangian_reference_fe_t), intent(inout) :: this 
-
-  integer(ip) :: error
-  integer(ip), allocatable :: ipiv(:)
-  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
-  integer(ip) :: i, num_shape_functions_x_component
-
-  num_shape_functions_x_component = this%num_shape_functions/this%num_field_components
-  assert ( allocated(this%change_basis_matrix) )
-  assert ( size(this%change_basis_matrix,1) == num_shape_functions_x_component )
-  assert ( size(this%change_basis_matrix,2) == num_shape_functions_x_component )
-
-  ! Solve linear system with several RHS
-  ! Compute LU factorization of this%change_basis_matrix
-#ifdef ENABLE_LAPACK
-  call memalloc ( num_shape_functions_x_component, ipiv, __FILE__,__LINE__ )
-
-  call memalloc ( num_shape_functions_x_component, & 
-       num_shape_functions_x_component, &
-       inverse_change_basis_matrix, &
-       __FILE__,__LINE__ )
-
-  call DGETRF( num_shape_functions_x_component, & 
-       num_shape_functions_x_component, &
-       this%change_basis_matrix, &
-       num_shape_functions_x_component, &
-       ipiv, &
-       error )
-  check ( error == 0 )
-
-  inverse_change_basis_matrix = 0.0_rp
-  do i=1, num_shape_functions_x_component
-     inverse_change_basis_matrix(i,i) = 1.0_rp
-  end do
-
-  call DGETRS( 'N', & 
-       num_shape_functions_x_component, &
-       num_shape_functions_x_component, &
-       this%change_basis_matrix, &
-       num_shape_functions_x_component, &
-       ipiv, &
-       inverse_change_basis_matrix, &
-       num_shape_functions_x_component, &
-       error )
-  check ( error == 0 )
-
-  !do i=1, this%num_shape_functions
-  !   this%change_basis_matrix(i,:) = 0.0_rp!inverse_change_basis_matrix(:,i)
-  !end do
-
-  !call memfree (  inverse_change_basis_matrix, __FILE__, __LINE__  )
-
-  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
-
-  call memmovealloc(inverse_change_basis_matrix, &
-       this%change_basis_matrix, __FILE__, __LINE__ )
-  !write(*,*) this%change_basis_matrix(1,:)
-  !write(*,*) this%change_basis_matrix(2,:)
-  !write(*,*) this%change_basis_matrix(3,:)
-  call memfree ( ipiv, __FILE__,__LINE__ )
-#else
-  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
-  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
-  check(.false.)
-#endif 
-
-end subroutine tet_lagrangian_reference_fe_invert_change_basis_matrix
 
 !==================================================================================================
 subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, interpolation_pre_basis, interpolation)
@@ -849,6 +757,34 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
   end if
 
 end subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_h_refinement_interpolation(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ...
+end subroutine tet_lagrangian_reference_fe_fill_h_refinement_interpolation
+
+!==================================================================================================
+subroutine tet_lagrangian_reference_fe_fill_h_refinement_permutations(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ...
+end subroutine tet_lagrangian_reference_fe_fill_h_refinement_permutations
+
+!==================================================================================================
+subroutine tlrf_fill_scalar_coarsening_projection_operator(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ... 
+end subroutine tlrf_fill_scalar_coarsening_projection_operator
+
+!==================================================================================================
+subroutine tlrf_scalar_to_multicomp_coarsening_projection_operator(this)
+  implicit none
+  class(tet_lagrangian_reference_fe_t), intent(inout)    :: this 
+  ! To be implemented ... 
+end subroutine tlrf_scalar_to_multicomp_coarsening_projection_operator
 
 !==================================================================================================
 function tet_lagrangian_reference_fe_compute_permutation_index(source_reference_fe, target_reference_fe,          &

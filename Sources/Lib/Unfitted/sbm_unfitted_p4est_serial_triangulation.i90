@@ -27,14 +27,23 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine upst_create(this, parameters, level_set_function)
+subroutine upst_create(this, parameters, level_set_function, environment)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                         , intent(inout) :: parameters
   class(level_set_function_t),            target, intent(in)    :: level_set_function
+  type(environment_t)                   , target, intent(in)    :: environment
   call this%free()
-  call this%p4est_serial_triangulation_t%create(parameters)
-  call this%marching_cubes%create(this, level_set_function)
+  call this%p4est_serial_triangulation_t%create(environment,parameters)
+  
+  allocate( marching_cubes_t :: this%boundary_cutter )
+  select type ( cutter => this%boundary_cutter )
+    type is ( marching_cubes_t )
+      call cutter%create(this, level_set_function)
+    class DEFAULT
+      check( .false. )
+  end select
+  
 end subroutine upst_create
 
 !========================================================================================
@@ -42,7 +51,12 @@ subroutine upst_free(this)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(inout) :: this
   call this%p4est_serial_triangulation_t%free()
-  call this%marching_cubes%free()
+  
+  if( allocated( this%boundary_cutter) ) then 
+    call this%boundary_cutter%free()
+    deallocate( this%boundary_cutter )
+  end if
+  
 end subroutine upst_free
 
 !========================================================================================
@@ -50,15 +64,28 @@ subroutine upst_update_cut_cells(this, level_set_function)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(inout) :: this
   class(level_set_function_t),            target, intent(in)    :: level_set_function
-  call this%marching_cubes%free()
-  call this%marching_cubes%create(this, level_set_function)
+  
+  if( allocated( this%boundary_cutter) ) then
+    call this%boundary_cutter%free()
+    deallocate( this%boundary_cutter )
+  end if
+  
+  allocate( marching_cubes_t :: this%boundary_cutter )
+  select type ( cutter => this%boundary_cutter )
+    type is ( marching_cubes_t )
+      call cutter%create(this, level_set_function)
+    class DEFAULT
+      check( .false. )
+  end select
+  
 end subroutine upst_update_cut_cells
 
 !========================================================================================
-subroutine upst_serial_triangulation_create( this, parameters)
+subroutine upst_serial_triangulation_create( this, parameters, environment)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)             , intent(inout) :: parameters
+  type(environment_t)                , target, intent(in)    :: environment
   check(.false.)
 end subroutine upst_serial_triangulation_create
 
@@ -85,19 +112,19 @@ subroutine upst_create_vef_iterator ( this, vef )
 end subroutine upst_create_vef_iterator
 
 !========================================================================================
-function upst_get_marching_cubes(this) result (val)
+function upst_get_unfitted_boundary_cutter(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), target, intent(in)    :: this
-  class(marching_cubes_t), pointer :: val
-  val => this%marching_cubes
-end function upst_get_marching_cubes
+  class(unfitted_boundary_cutter_t), pointer :: val
+  val => this%boundary_cutter
+end function upst_get_unfitted_boundary_cutter
 
 !========================================================================================
 function upst_get_num_cut_cells(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_num_cut_cells()
+  val = this%boundary_cutter%get_num_cut_cells()
 end function upst_get_num_cut_cells
 
 !========================================================================================
@@ -105,7 +132,7 @@ function upst_get_num_interior_cells(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_num_interior_cells()
+  val = this%boundary_cutter%get_num_interior_cells()
 end function upst_get_num_interior_cells
 
 !========================================================================================
@@ -113,23 +140,15 @@ function upst_get_num_exterior_cells(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_num_exterior_cells()
+  val = this%boundary_cutter%get_num_exterior_cells()
 end function upst_get_num_exterior_cells
-
-!========================================================================================
-function upst_get_max_num_subcells_in_cell(this) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_max_num_subcells_in_cell()
-end function upst_get_max_num_subcells_in_cell
 
 !========================================================================================
 function upst_get_max_num_nodes_in_subcell(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_max_num_nodes_in_subcell()
+  val = this%boundary_cutter%get_max_num_nodes_in_subcell()
 end function upst_get_max_num_nodes_in_subcell
 
 !========================================================================================
@@ -137,23 +156,15 @@ function upst_get_total_num_subcells(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_subcells()
+  val = this%boundary_cutter%get_total_num_subcells()
 end function upst_get_total_num_subcells
-
-!========================================================================================
-function upst_get_max_num_subfacets_in_cell(this) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_max_num_subfacets_in_cell()
-end function upst_get_max_num_subfacets_in_cell
 
 !========================================================================================
 function upst_get_max_num_nodes_in_subfacet(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_max_num_nodes_in_subfacet()
+  val = this%boundary_cutter%get_max_num_nodes_in_subfacet()
 end function upst_get_max_num_nodes_in_subfacet
 
 !========================================================================================
@@ -161,7 +172,7 @@ function upst_get_total_num_subfacets(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_subfacets()
+  val = this%boundary_cutter%get_total_num_subfacets()
 end function upst_get_total_num_subfacets
 
 !========================================================================================
@@ -169,21 +180,14 @@ function upst_get_total_num_fitted_sub_facets(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_fitted_sub_facets()
+  val = this%boundary_cutter%get_total_num_fitted_sub_facets()
 end function upst_get_total_num_fitted_sub_facets
 
-!========================================================================================
-function upst_get_max_num_subnodes_in_cell(this) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_max_num_subnodes_in_cell()
-end function upst_get_max_num_subnodes_in_cell
 
 !========================================================================================
 subroutine upst_print(this)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  call this%marching_cubes%print()
+  call this%boundary_cutter%print()
 end subroutine upst_print
 

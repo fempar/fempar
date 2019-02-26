@@ -53,9 +53,9 @@
 // Gets a Fortran communicator and transform it into a C communicator
 // http://stackoverflow.com/questions/42530620/how-to-pass-mpi-communicator-handle-from-fortran-to-c-using-iso-c-binding
 #ifdef SC_ENABLE_MPI
-void F90_p4est_init(const MPI_Fint Fcomm)
+void F90_p4est_init(const MPI_Fint Fcomm, const int SC_LOG_LEVEL)
 #else
-void F90_p4est_init(const int dummy)
+void F90_p4est_init(const int dummy, const int SC_LOG_LEVEL)
 #endif
 {
 #ifndef SC_ENABLE_MPI
@@ -75,8 +75,8 @@ void F90_p4est_init(const int dummy)
     /* These 2x functions are optional.  If called they store the MPI rank as a
      * static variable so subsequent global p4est log messages are only issued
      * from processor zero.  Here we turn off most of the logging; see sc.h. */
-    sc_init (sc_MPI_COMM_WORLD, 1, 1, NULL, SC_LP_ESSENTIAL);
-    p4est_init (NULL, SC_LP_PRODUCTION);  
+    sc_init (sc_MPI_COMM_WORLD, 1, 1, NULL, SC_LOG_LEVEL);
+    p4est_init (NULL, SC_LOG_LEVEL);  
     sc_mpi_initialized = 1;
   }
 #else
@@ -87,8 +87,8 @@ void F90_p4est_init(const int dummy)
   {
     MPI_Comm Ccomm;
     Ccomm = MPI_Comm_f2c(Fcomm); // Convert Fortran->C communicator
-    sc_init (Ccomm, 1, 1, NULL, SC_LP_ESSENTIAL);
-    p4est_init (NULL, SC_LP_PRODUCTION);
+    sc_init (Ccomm, 1, 1, NULL, SC_LOG_LEVEL);
+    p4est_init (NULL, SC_LOG_LEVEL);
     sc_p4est_initialized = 1;
   }
 #endif  
@@ -122,12 +122,52 @@ void F90_p4est_connectivity_new_unitsquare(p4est_connectivity_t **p4est_connecti
   P4EST_ASSERT (p4est_connectivity_is_valid (*p4est_connectivity));
 }
 
+
 void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivity)
 {
   F90_p8est_connectivity_destroy(p8est_connectivity);
   *p8est_connectivity = p8est_connectivity_new_unitcube();
   P4EST_ASSERT (p8est_connectivity_is_valid (*p8est_connectivity));
 }
+
+/* set_bounding_box_limits:
+   p4est_connectivity_t, INOUT :: p4est_conn           = already created as new_unit_square or new_unit_cube
+   double(6)           , IN    :: bounding_box_limits  = user defined bouding box limits sorted as
+                                                        [ x_min, y_min, z_min, x_max, y_max, z_max ]
+                                                        (length = 2 * NUM_DIMS = 6)
+ * The vertices in a p4est/p8est quadrant are numbered according to the 'z filling curve', thus the minumum
+   and the maximum correspon to the binary figure at the 'idim' position. Where, min = 0 and max = 1.
+   See following table:
+    0 ->  0  0  0 :  z_min | y_min | x_min
+    1 ->  0  0  1 :  z_min | y_min | x_max
+    2 ->  0  1  0 :  z_min | y_max | x_min
+    3 ->  0  1  1 :  z_min | y_max | x_max
+    4 ->  1  0  0 :  z_max | y_min | x_min
+    5 ->  1  0  1 :  z_max | y_min | x_max
+    6 ->  1  1  0 :  z_max | y_max | x_min
+    7 ->  1  1  1 :  z_max | y_max | x_max
+
+  * bound = ( ivertex >> idim ) % 2 : must be 0 or 1, ie, min or max
+*/
+
+void F90_p4est_connectivity_set_bounding_box_limits ( p4est_connectivity_t ** p4est_conn,
+                                                      const double          * bounding_box_limits )
+{
+    int bound;
+    const int num_dims = 3;
+    const int bin_base = 2;
+    
+    for ( int ivertex = 0; ivertex < (*p4est_conn)->num_vertices; ivertex ++ )
+    {
+        for ( int idim = 0; idim < num_dims; idim ++ )
+        {
+            bound = ( ivertex >> idim ) % bin_base ;
+            (*p4est_conn)->vertices [ ivertex * num_dims + idim ] = bounding_box_limits[ bound * num_dims + idim ];
+        }
+    }
+    
+}
+
 
 #ifdef SC_ENABLE_MPI
 void F90_p4est_new ( const MPI_Fint Fcomm, 
@@ -141,6 +181,7 @@ void F90_p4est_new ( const int dummy_comm,
 {
   p4est_t* p4est;
   P4EST_ASSERT (p4est_connectivity_is_valid (conn));
+  F90_p4est_destroy(p4est_out);
 #ifndef SC_ENABLE_MPI
   /* Create a forest that is not refined; it consists of the root octant. */                                        
   p4est = p4est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
@@ -164,6 +205,7 @@ void F90_p8est_new ( const int dummy_comm,
 {
   p8est_t* p8est;
   P4EST_ASSERT (p8est_connectivity_is_valid (conn));
+  F90_p8est_destroy(p8est_out);
 #ifndef SC_ENABLE_MPI
   /* Create a forest that is not refined; it consists of the root octant. */                                        
   p8est = p8est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
@@ -274,21 +316,25 @@ void F90_p8est_mesh_new(p8est_t        *p8est,
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **p4est_connectivity)
 {
     if (*p4est_connectivity) p4est_connectivity_destroy(*p4est_connectivity);
+    *p4est_connectivity = NULL;
 }
 
 void F90_p8est_connectivity_destroy(p8est_connectivity_t **p8est_connectivity)
 {
     if (*p8est_connectivity) p8est_connectivity_destroy(*p8est_connectivity);
+    *p8est_connectivity = NULL;
 }
 
 void F90_p4est_destroy(p4est_t **p4est)
 {
     if (*p4est) p4est_destroy(*p4est);
+    *p4est = NULL;
 }
 
 void F90_p8est_destroy(p8est_t **p8est)
 {
     if (*p8est) p8est_destroy(*p8est);
+    *p8est = NULL;
 }
 
 void F90_p4est_mesh_destroy(p4est_mesh_t **p4est_mesh)
@@ -297,6 +343,7 @@ void F90_p4est_mesh_destroy(p4est_mesh_t **p4est_mesh)
     {    
       p4est_mesh_destroy(*p4est_mesh);
     }   
+    *p4est_mesh = NULL;
 }
 
 void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
@@ -305,6 +352,7 @@ void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
     {    
       p8est_mesh_destroy(*p8est_mesh);
     }   
+    *p8est_mesh = NULL;
 }
 
 void F90_p4est_ghost_destroy(p4est_ghost_t **p4est_ghost)
@@ -312,7 +360,8 @@ void F90_p4est_ghost_destroy(p4est_ghost_t **p4est_ghost)
     if (*p4est_ghost) 
     {    
         p4est_ghost_destroy(*p4est_ghost);
-    }   
+    }
+    *p4est_ghost = NULL;
 }
 
 void F90_p8est_ghost_destroy(p8est_ghost_t **p8est_ghost)
@@ -321,16 +370,19 @@ void F90_p8est_ghost_destroy(p8est_ghost_t **p8est_ghost)
     {    
         p8est_ghost_destroy(*p8est_ghost);
     }   
+    *p8est_ghost = NULL;
 }
 
 void F90_p4est_locidx_buffer_destroy(p4est_locidx_t **buffer)
 {
   if (*buffer) free(*buffer);
+  *buffer = NULL;
 }
 
 void F90_p4est_int8_buffer_destroy(int8_t **buffer)
 {
   if (*buffer) free(*buffer);
+  *buffer = NULL;
 }
 
 void F90_p4est_get_mesh_info (p4est_t        *p4est,
@@ -402,6 +454,11 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
   p4est_quadrant_t   *q;
   sc_array_t         *quadrants;
   
+  if ( *quad_to_quad ) free(*quad_to_quad);
+  if ( *quad_to_face ) free(*quad_to_face);
+  if ( *quad_to_half ) free(*quad_to_half);
+  if ( *quad_to_corner ) free(*quad_to_corner);
+  
   // Extract a reference to the first (and uniquely allowed) tree
   tree = p4est_tree_array_index (p4est->trees,0);
   for (iquad = 0; iquad < mesh->local_num_quadrants; iquad++) {  
@@ -448,6 +505,13 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   p8est_quadrant_t   *q;
   sc_array_t         *quadrants;
   edge_info_t edge_info;
+  p4est_locidx_t *aux_quad_to_half_by_edge;
+  
+  if ( *quad_to_quad ) free(*quad_to_quad);
+  if ( *quad_to_face ) free(*quad_to_face);
+  if ( *quad_to_half ) free(*quad_to_half);
+  if ( *quad_to_corner ) free(*quad_to_corner);
+  if ( *quad_to_half_by_edge ) free(*quad_to_half_by_edge);
   
   // Extract a reference to the first (and uniquely allowed) tree
   tree = p8est_tree_array_index (p8est->trees,0);
@@ -468,12 +532,12 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
     quad_to_edge[i] = -1;
   }
   // Allocate to maximum possible size. All edges are half-size edge
-  *quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*12*mesh->local_num_quadrants*sizeof(p4est_locidx_t) );
+  aux_quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*12*mesh->local_num_quadrants*sizeof(p4est_locidx_t) );
   
   edge_info.local_num_quadrants       = mesh->local_num_quadrants;
   edge_info.quad_to_quad_by_edge      = quad_to_quad_by_edge;
   edge_info.quad_to_edge              = quad_to_edge;
-  edge_info.quad_to_half_by_edge      = *quad_to_half_by_edge;
+  edge_info.quad_to_half_by_edge      = aux_quad_to_half_by_edge;
   edge_info.quad_to_half_by_edge_size = 0;
   p8est_iterate(p8est, ghost, &edge_info, NULL, NULL,edge_callback, NULL);
 
@@ -483,7 +547,12 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   if(mesh->quad_to_half->elem_count>0) *quad_to_half = (p4est_locidx_t *) mesh->quad_to_half->array;
   *quad_to_corner=mesh->quad_to_corner;
   
-  *quad_to_half_by_edge = (p4est_locidx_t *) realloc( *quad_to_half_by_edge, (size_t) 2*edge_info.quad_to_half_by_edge_size*sizeof(p4est_locidx_t) );  
+  *quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*edge_info.quad_to_half_by_edge_size*sizeof(p4est_locidx_t) );  
+  for(i=0;i<2*edge_info.quad_to_half_by_edge_size;i++)
+  {
+    (*quad_to_half_by_edge)[i] = aux_quad_to_half_by_edge[i];
+  }
+  free(aux_quad_to_half_by_edge);
   *num_half_edges = edge_info.quad_to_half_by_edge_size;
   
   quadrants = &(ghost->ghosts);
@@ -1036,6 +1105,14 @@ void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivi
                             neighbour.x, 
                             neighbour.y, 
                             vxyz);
+    
+    // IMPORTANT NOTE: this initialization to zero is absolutely necessary in the case
+    // of 2D domains (num_dims=2) with SPACE_DIM == 3 (FEMPAR global parameter). It is 
+    // necessary to  guarantee that the third component is initialized to zero in order
+    // to avoid polluting uninitialized data across the whole system. In any case, this
+    // subroutine is highly tangled to its client (thus immobile). It will only work if the preconditions
+    // established in its current's client are fullfilled. Thus, it might be needed to revisit
+    // the way both cooperate with each other for cleanliness arguments.
     vxyz[2] = 0.0;
 }
 
@@ -1258,6 +1335,12 @@ void F90_p4est_allocate_and_fill_cell_import_raw_arrays( p4est_t        * p4est,
     ssize_t result;
     p4est_quadrant_t   *q;
     
+    if ( *neighbour_ids ) free(*neighbour_ids);
+    if ( *rcv_ptrs ) free(*rcv_ptrs);
+    if ( *rcv_leids ) free(*rcv_leids);
+    if ( *snd_ptrs ) free(*snd_ptrs);
+    if ( *snd_leids ) free(*snd_leids);
+    
     *num_neighbours = 0;
     for (i=0; i < p4est_ghost->mpisize; i++)
     {
@@ -1318,6 +1401,12 @@ void F90_p8est_allocate_and_fill_cell_import_raw_arrays ( p8est_t        * p8est
     sc_array_t * quadrants;
     ssize_t result;
     p8est_quadrant_t   *q;
+    
+    if ( *neighbour_ids ) free(*neighbour_ids);
+    if ( *rcv_ptrs ) free(*rcv_ptrs);
+    if ( *rcv_leids ) free(*rcv_leids);
+    if ( *snd_ptrs ) free(*snd_ptrs);
+    if ( *snd_leids ) free(*snd_leids);
     
     *num_neighbours = 0;
     for (i=0; i < p8est_ghost->mpisize; i++)
@@ -1401,7 +1490,7 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
       ranks_count[my_rank] = 0;
     }
     
-    if ( ! *old2new ) free(*old2new);
+    if ( *old2new ) free(*old2new);
     *old2new = (p4est_locidx_t *) malloc( (size_t) quadrants_old->elem_count*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*old2new) != NULL);
     old_quadrant_index=0;
     while (old_quadrant_index < quadrants_old->elem_count)
@@ -1440,10 +1529,10 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
         }
     }
     
-    if ( ! *lst_ranks ) free(*lst_ranks);
+    if ( *lst_ranks ) free(*lst_ranks);
     *lst_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*lst_ranks) != NULL);
     
-    if ( ! *ptr_ranks ) free(*ptr_ranks);
+    if ( *ptr_ranks ) free(*ptr_ranks);
     *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*ptr_ranks) != NULL);
     
     
@@ -1457,7 +1546,7 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
     free(ranks_count);
     free(ranks_visited);
     
-    if ( ! *local_ids ) free(*local_ids);
+    if ( *local_ids ) free(*local_ids);
     *local_ids = (p4est_locidx_t *) malloc( (size_t) ((*ptr_ranks)[(*num_ranks)]-1)*sizeof(p4est_locidx_t) );
         
     my_rank = p4est_old->mpirank;
@@ -1516,7 +1605,7 @@ void F90_p8est_compute_migration_control_data (p8est_t   * p8est_old,
         ranks_count[my_rank] = 0;
     }
     
-    if ( ! *old2new ) free(*old2new);
+    if ( *old2new ) free(*old2new);
     *old2new = (p4est_locidx_t *) malloc( (size_t) quadrants_old->elem_count*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*old2new) != NULL);
     old_quadrant_index=0;
     while (old_quadrant_index < quadrants_old->elem_count)
@@ -1555,10 +1644,10 @@ void F90_p8est_compute_migration_control_data (p8est_t   * p8est_old,
         }
     }
     
-    if ( ! *lst_ranks ) free(*lst_ranks);
+    if ( *lst_ranks ) free(*lst_ranks);
     *lst_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*lst_ranks) != NULL);
     
-    if ( ! *ptr_ranks ) free(*ptr_ranks);
+    if ( *ptr_ranks ) free(*ptr_ranks);
     *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*ptr_ranks) != NULL);
     
     
@@ -1572,7 +1661,7 @@ void F90_p8est_compute_migration_control_data (p8est_t   * p8est_old,
     free(ranks_count);
     free(ranks_visited);
     
-    if ( ! *local_ids ) free(*local_ids);
+    if ( *local_ids ) free(*local_ids);
     *local_ids = (p4est_locidx_t *) malloc( (size_t) ((*ptr_ranks)[(*num_ranks)]-1)*sizeof(p4est_locidx_t) );
     
     my_rank = p8est_old->mpirank;

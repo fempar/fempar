@@ -25,12 +25,12 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine par_triangulation_create ( this, parameters, environment)
+subroutine par_triangulation_create ( this, environment, parameters)
   !$ use omp_lib
   implicit none
   class(par_triangulation_t), target, intent(inout) :: this
+  type(environment_t)      ,  target, intent(in)    :: environment
   type(ParameterList_t)             , intent(inout) :: parameters
-  type(environment_t), optional, target, intent(in) :: environment
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -66,13 +66,14 @@ subroutine par_triangulation_create ( this, parameters, environment)
   character(len=:), allocatable   :: dir_path
   character(len=:), allocatable   :: prefix
   character(len=:), allocatable   :: name
-  integer(ip)                     :: geometry_interpolation_order
+  integer(ip)                     :: geometric_interpolation_order
   character(len=:), allocatable   :: subparts_coupling_criteria 
   integer(ip)                     :: lunio
   integer(ip)                     :: istat
   type(environment_t), pointer    :: env
   integer(ip) :: max_vefs_x_cell
   integer(ip) :: num_edges, num_faces
+  integer(igp) :: num_global_cells
 
     ! Mandatory parameters
     assert(parameters%isAssignable(dir_path_key, 'string'))
@@ -84,21 +85,21 @@ subroutine par_triangulation_create ( this, parameters, environment)
     assert(istat==0)
 
   ! Optional parameters
-  if( parameters%isPresent(triangulation_generate_key) ) then
-     assert(parameters%isAssignable(triangulation_generate_key, triangulation_generate))
-     istat = parameters%Get(key = triangulation_generate_key, Value = triangulation_generate)
+  if( parameters%isPresent(triang_generate_key) ) then
+     assert(parameters%isAssignable(triang_generate_key, triangulation_generate))
+     istat = parameters%Get(key = triang_generate_key, Value = triangulation_generate)
      assert(istat==0)
   else
      triangulation_generate = triangulation_generate_from_mesh
   end if
 
 
-  if( parameters%isPresent(geometry_interpolation_order_key) ) then
-     assert(parameters%isAssignable(geometry_interpolation_order_key, geometry_interpolation_order))
-     istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
+  if( parameters%isPresent(triang_geometric_interpolation_order_key) ) then
+     assert(parameters%isAssignable(triang_geometric_interpolation_order_key, geometric_interpolation_order))
+     istat = parameters%Get(key = triang_geometric_interpolation_order_key, Value = geometric_interpolation_order)
      assert(istat==0)
   else
-     geometry_interpolation_order = 1
+     geometric_interpolation_order = 1
   end if
   
   if(triangulation_generate==triangulation_generate_from_mesh) then
@@ -116,22 +117,24 @@ subroutine par_triangulation_create ( this, parameters, environment)
 
   call this%free()
 
-  ! Create or point the environment
-  if(present(environment)) then
-     call this%set_environment(environment)
-  else
-     if(triangulation_generate==triangulation_generate_from_mesh) then
-        istat = parameters%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-     else if(triangulation_generate==triangulation_generate_structured) then
-        istat = parameters%set(key = environment_type_key, value = structured) ; check(istat==0)
-     end if
-     if( .not. parameters%isPresent(key = execution_context_key) ) then
-        istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-     end if
-     call this%allocate_environment()
-     env => this%get_environment()
-     call env%create (parameters)
-  end if
+  call this%set_environment(environment)
+
+  ! ! Create or point the environment
+  ! if(present(environment)) then
+  !    call this%set_environment(environment)
+  ! else
+  !    if(triangulation_generate==triangulation_generate_from_mesh) then
+  !       istat = parameters%set(key = environment_type_key, value = unstructured) ; check(istat==0)
+  !    else if(triangulation_generate==triangulation_generate_structured) then
+  !       istat = parameters%set(key = environment_type_key, value = structured) ; check(istat==0)
+  !    end if
+  !    if( .not. parameters%isPresent(key = execution_context_key) ) then
+  !       istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+  !    end if
+  !    call this%allocate_environment()
+  !    env => this%get_environment()
+  !    call env%create (parameters)
+  ! end if
 
 
   if(this%environment%am_i_l1_task()) then
@@ -140,7 +143,7 @@ subroutine par_triangulation_create ( this, parameters, environment)
      if(triangulation_generate==triangulation_generate_from_mesh) then
         call this%set_single_octree_mesh(.false.)
   
-        if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
+        if(geometric_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
         ! Read mesh
         call mesh%compose_name ( prefix, name )
@@ -152,6 +155,8 @@ subroutine par_triangulation_create ( this, parameters, environment)
 
         ! Extract data from mesh
         call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
+        this%num_global_cells = this%num_local_cells
+        call this%environment%l1_sum(this%num_global_cells)
         this%num_vefs=this%num_vertices
         call mesh%move_cells(ptr_vefs_x_cell,lst_vefs_lids, cells_set)
         call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
@@ -223,12 +228,12 @@ subroutine par_triangulation_create ( this, parameters, environment)
 
         ! Generate edges and faces
         call this%allocate_and_fill_cells_around()
-        call this%fill_reference_fe_geo_list(geometry_interpolation_order)
+        call this%fill_reference_fe_geo_list(geometric_interpolation_order)
         ! IMPORTANT NOTE: Both lst_vefs_gids_ghost_extended and cell_coordinates_ghost_extended are inconsistent
         ! after renumbering the local nodes in procedure this%orient_tet_mesh. If any of these two arrays has to
         ! be used, it must be done before the call to this%orient_tet_mesh.
         if (this%is_tet_mesh()) call this%orient_tet_mesh(lst_vefs_gids_ghost_extended)
-        call this%generate_vefs(geometry_interpolation_order)
+        call this%generate_vefs(geometric_interpolation_order)
         call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
 
         if(this%environment%get_l1_size()>1) then
@@ -242,13 +247,13 @@ subroutine par_triangulation_create ( this, parameters, environment)
         call this%set_single_octree_mesh(.true.)
    
         ! Get num_dims from FPL
-        assert(parameters%isAssignable(num_dims_key, this%num_dims))
-        istat = parameters%get(key = num_dims_key, value = this%num_dims)
+        assert(parameters%isAssignable(struct_hex_triang_num_dims_key, this%num_dims))
+        istat = parameters%get(key = struct_hex_triang_num_dims_key, value = this%num_dims)
         assert(istat==0)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)
 
-        if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
+        if(geometric_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
         call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
              &                                        this%num_vefs,          & ! All n_faces
@@ -269,7 +274,9 @@ subroutine par_triangulation_create ( this, parameters, environment)
              &                                        lst_ext_neighs_gids,          &
              &                                        lst_ext_neighs_part_ids,      &
              &                                        this%environment%get_l1_rank()+1)
-
+        this%num_global_cells = this%num_local_cells
+        call this%environment%l1_sum(this%num_global_cells)
+        
         ! Allocate and fill to default values cells_set==0 local variable
         call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
         cells_set = 0
@@ -303,13 +310,13 @@ subroutine par_triangulation_create ( this, parameters, environment)
            call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                &                        num_dims = this%num_dims, order = geometry_interpolation_order, &
+                &                        num_dims = this%num_dims, order = geometric_interpolation_order, &
                 &                        field_type = field_type_scalar, conformity = .true. )
         else
            call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
            reference_fe_geo_list(1) = &
                 &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-                &                        num_dims = this%num_dims, order = geometry_interpolation_order, &
+                &                        num_dims = this%num_dims, order = geometric_interpolation_order, &
                 &                        field_type = field_type_scalar, conformity = .true. )
         end if
         ! Transfer allocated target from local variable to member variable of base_static_triangulation

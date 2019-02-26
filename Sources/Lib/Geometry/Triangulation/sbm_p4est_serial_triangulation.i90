@@ -26,39 +26,42 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine p4est_serial_triangulation_create (this, parameters)
+subroutine p4est_serial_triangulation_create (this, environment, parameters)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
+  type(environment_t)                , target, intent(in)    :: environment
   type(ParameterList_t)                      , intent(inout) :: parameters
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
-  class(environment_t), pointer :: environment
+  !class(environment_t), pointer ::environment
   integer(ip) :: num_dims, idime 
   integer(ip), allocatable :: array_size(:)
   real(rp)   , allocatable :: bounding_box_limits(:)
   integer(ip) :: dummy_comm
+  integer(ip) :: p4est_log_level
   
 #ifdef ENABLE_P4EST
   call this%free()
   
   call this%set_single_octree_mesh(.true.)
   
-  istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
-  call this%allocate_environment()
-  environment => this%get_environment()
-  call environment%create(parameters)
+  call this%set_environment(environment)
+  ! istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
+  ! call this%allocate_environment()
+  ! environment => this%get_environment()
+  ! call environment%create(parameters)
   
   ! Get num_dims from FPL
-  massert(parameters%isAssignable(num_dims_key, num_dims ),'num_dims not found or un-usable.')
-  istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
+  massert(parameters%isAssignable(struct_hex_triang_num_dims_key, num_dims ),'num_dims not found or un-usable.')
+  istat = parameters%get(key = struct_hex_triang_num_dims_key, value = num_dims); assert(istat==0)
   call this%set_num_dims(num_dims)
   
-  if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
-    istat = parameters%GetShape(key = hex_mesh_domain_limits_key, shape = array_size); check(istat==0)
+  if( parameters%isPresent(key = struct_hex_triang_domain_limits_key) ) then
+    istat = parameters%GetShape(key = struct_hex_triang_domain_limits_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= 2*this%get_num_dims())
     call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)
-    assert(parameters%isAssignable(hex_mesh_domain_limits_key, bounding_box_limits))
-    istat = parameters%get(key = hex_mesh_domain_limits_key , value = bounding_box_limits); check(istat==0)
+    assert(parameters%isAssignable(struct_hex_triang_domain_limits_key, bounding_box_limits))
+    istat = parameters%get(key = struct_hex_triang_domain_limits_key , value = bounding_box_limits); check(istat==0)
     do idime = 1,this%get_num_dims()
       this%bounding_box_limits(idime,1) = bounding_box_limits(2*idime-1)
       this%bounding_box_limits(idime,2) = bounding_box_limits(2*idime)
@@ -70,23 +73,32 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     this%bounding_box_limits(:,2) = 1.0_rp
   end if
   
+  if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
+    assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
+    istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
+  else
+    p4est_log_level = FEMPAR_SC_LP_DEFAULT
+  end if
+  
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
                                      1, &
                                      field_type_scalar, & 
                                      conformity=.true.)  
-  
+ 
+  call this%allocate_and_gen_reference_fe_geo_scratch_data()
+
   dummy_comm = 0
+  call F90_p4est_init(dummy_comm,p4est_log_level)
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
+    call F90_p4est_connectivity_set_bounding_box_limits(this%p4est_connectivity, c_loc(this%bounding_box_limits) )
     call F90_p4est_new(dummy_comm,this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_cell_import()
     call this%update_cell_ggids()
     call this%update_cell_myparts()
-    call this%comm_cell_ggids()
-    call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%fill_x_cell_vertex_coordinates()
@@ -99,13 +111,12 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
+    call F90_p4est_connectivity_set_bounding_box_limits(this%p4est_connectivity, c_loc(this%bounding_box_limits) )
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_cell_import()
     call this%update_cell_ggids()
     call this%update_cell_myparts()
-    call this%comm_cell_ggids()
-    call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
@@ -177,25 +188,11 @@ subroutine p4est_serial_triangulation_free ( this)
   cell_import => this%get_cell_import()
   call cell_import%free()
   
-  if ( this%get_num_ghost_cells() == 0 ) then
-     nullify(this%quad_to_quad)
-     nullify(this%quad_to_face)
-     nullify(this%quad_to_half)
-     nullify(this%quad_to_corner)
-     nullify(this%quad_to_half_by_edge)
-  else
-     deallocate(this%quad_to_quad)
-     deallocate(this%quad_to_face)
-     if ( associated(this%quad_to_half) ) then 
-       deallocate(this%quad_to_half)
-     end if   
-     deallocate(this%quad_to_corner)
-     if ( this%get_num_dims() == 3 ) then
-       if ( associated(this%quad_to_half_by_edge) ) then
-         deallocate(this%quad_to_half_by_edge)
-       end if   
-     end if 
-  end if 
+  if (associated(this%quad_to_quad))   deallocate(this%quad_to_quad)
+  if (associated(this%quad_to_face))   deallocate(this%quad_to_face)
+  if (associated(this%quad_to_half))   deallocate(this%quad_to_half)
+  if (associated(this%quad_to_corner)) deallocate(this%quad_to_corner)
+  if (associated(this%quad_to_half_by_edge) ) deallocate(this%quad_to_half_by_edge)
   
   if (allocated(this%quad_coords)) &
      call memfree(this%quad_coords, __FILE__, __LINE__)
@@ -219,7 +216,8 @@ subroutine p4est_serial_triangulation_free ( this)
   this%previous_num_ghost_cells = -1
 
   call this%reference_fe_geo%free()
-  call this%free_environment()
+  call this%free_reference_fe_geo_scratch_data()
+  !call this%free_environment()
   
   call triangulation_free(this)
 #else

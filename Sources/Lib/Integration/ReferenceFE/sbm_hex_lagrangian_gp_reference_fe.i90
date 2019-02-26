@@ -1,0 +1,559 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published byfill_inter
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**************************************************************************************************
+! Deferred TBP implementors from reference_fe_t
+!**************************************************************************************************
+!==================================================================================================
+subroutine hex_lagrangian_gp_reference_fe_create(this, &
+                                                 topology, &
+                                                 num_dims, &
+                                                 order, &
+                                                 field_type, & 
+                                                 conformity, &
+                                                 continuity )
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(inout)  :: this
+  character(*)                           , intent(in)    :: topology
+  integer(ip)                            , intent(in)    :: num_dims
+  integer(ip)                            , intent(in)    :: order
+  character(*)                           , intent(in)    :: field_type
+  logical                                , intent(in)    :: conformity
+  logical              , optional        , intent(in)    :: continuity
+  call this%free()
+  call this%set_common_data(num_dims,order,field_type,conformity,continuity)
+  call this%set_topology ( topology )
+  call this%set_fe_type( fe_type_lagrangian_gp )
+  call this%fill()
+  call this%scalar_to_multicomp_h_refinement_operator()
+  assert(this%conformity)
+  assert(.not. this%continuity) 
+end subroutine hex_lagrangian_gp_reference_fe_create
+!==================================================================================================
+
+!**************************************************************************************************
+! Deferred TBP implementors from lagrangian_reference_fe_t
+!**************************************************************************************************
+
+!==================================================================================================
+subroutine hex_lagrangian_gp_reference_fe_create_nodal_quadrature (this)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(inout) :: this
+  ! Create nodal quadrature
+  call this%nodal_quadrature%create( this%num_dims, this%node_array%num_nodes )
+  ! Fill nodal quadrature
+  call this%fill_quadrature ( this%nodal_quadrature )
+end subroutine hex_lagrangian_gp_reference_fe_create_nodal_quadrature
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_reference_fe_create_interpolation ( this, quadrature, interpolation, interpolation_duties)
+  implicit none 
+  class(hex_lagrangian_gp_reference_fe_t), intent(in)       :: this 
+  type(quadrature_t)                     , intent(in)       :: quadrature
+  type(interpolation_t)                  , intent(inout)    :: interpolation
+  type(interpolation_duties_t),  optional, intent(in)       :: interpolation_duties
+
+  call interpolation%create( this%num_dims, this%node_array%num_nodes, &
+       &                     quadrature%num_quadrature_points, interpolation_duties )
+
+  call this%fill_interpolation( quadrature, interpolation )
+
+end subroutine hex_lagrangian_gp_reference_fe_create_interpolation
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t),  intent(in)     :: this
+  type(quadrature_t)                     , intent(in)      :: quadrature
+  type(interpolation_t)                  , intent(inout)   :: interpolation    
+  integer(ip)                 , optional , intent(in)      :: order_vector(SPACE_DIM)
+
+  type(interpolation_t) :: interpolation_pre_basis
+
+  if ( .not. this%basis_changed ) then
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
+  else
+     call interpolation_pre_basis%clone(interpolation)
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
+     call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
+     call interpolation_pre_basis%free()
+  end if
+
+end subroutine hex_lagrangian_gp_reference_fe_fill_interpolation
+!==================================================================================================
+
+!**************************************************************************************************
+! Concrete TBPs of this derived data type
+!**************************************************************************************************
+!==================================================================================================
+subroutine hex_lagrangian_gp_reference_fe_fill_h_refinement_interpolation ( this )
+  implicit none 
+  class(hex_lagrangian_gp_reference_fe_t), intent(inout) :: this
+  type(interpolation_duties_t)  :: interpolation_duties
+  type(quadrature_t)            :: h_refined_quadrature, aux_quadrature, reference_quadrature
+  type(node_array_t)            :: h_refinement_node_array
+  type(node_iterator_t)         :: node_iterator_on_subcell  
+  real(rp)                      :: subcell_centroid_coordinate(SPACE_DIM),translation(SPACE_DIM)
+  integer(ip)                   :: aux_order(SPACE_DIM)  
+  integer(ip)                   :: num_subcell_x_cell, num_quadrature_points_parent_cell
+  integer(ip)                   :: subcell_id, i_dim, node_identifier, num_nodes_on_subcell
+  integer(ip)                   :: single_refinement, spos, epos
+
+  ! Set-up interpolation duties
+  call interpolation_duties%assign_compute_first_derivatives(.false.)
+
+  single_refinement = 1
+  num_subcell_x_cell = this%get_num_subcells(single_refinement)
+
+  ! nodes coincide with the quadrature points in this reference fe
+  num_quadrature_points_parent_cell = this%get_num_nodes()
+
+  call h_refined_quadrature%create( this%num_dims, num_quadrature_points_parent_cell*num_subcell_x_cell )
+
+  aux_order = single_refinement+1
+  call h_refinement_node_array%create( this%polytope, aux_order )
+
+  call aux_quadrature%create(this%num_dims, num_quadrature_points_parent_cell)
+
+  ! Create nodal quadrature (nodes on quadrature points)
+  call reference_quadrature%create(this%num_dims,num_quadrature_points_parent_cell)
+
+  ! Fill nodal quadrature (nodes on quadrature points)
+  call this%fill_quadrature ( reference_quadrature )
+
+  do subcell_id = 1, num_subcell_x_cell
+
+     aux_quadrature = reference_quadrature !this%nodal_quadrature
+
+     ! Scale the copy of the parent fe quadrature
+     call scale_coordinates( 1.0_rp/(real(single_refinement+1,rp)), aux_quadrature)
+
+     node_iterator_on_subcell = h_refinement_node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+          subcell_id-1, own_boundary = .true. )
+
+     subcell_centroid_coordinate = 0.0_rp
+     num_nodes_on_subcell = 0 
+     call node_iterator_on_subcell%init()
+     do while ( .not. node_iterator_on_subcell%has_finished() )
+        ! We need to call %current_ijk() because it internally updates the %coordinate member
+        ! variable, and it is currently the only TBP that does such an update (DIRTY)
+        node_identifier =  node_iterator_on_subcell%current_ijk()
+        do i_dim=1,this%num_dims
+           subcell_centroid_coordinate(i_dim) = subcell_centroid_coordinate(i_dim) + & 
+                                                node_iterator_on_subcell%coordinate(i_dim-1)*(2.0_rp/aux_order(i_dim))-1.0_rp
+        end do
+        call node_iterator_on_subcell%next()
+        num_nodes_on_subcell = num_nodes_on_subcell + 1
+     end do
+     subcell_centroid_coordinate = subcell_centroid_coordinate/real(num_nodes_on_subcell)
+
+     !if ( subcell_id == 1 ) then
+     !  ref_centroid_coordinate = centroid_coordinate
+     !end if
+     translation = subcell_centroid_coordinate
+
+     call translate_coordinates(translation, aux_quadrature%coordinates)
+
+     spos = (subcell_id-1)*num_quadrature_points_parent_cell + 1
+     epos = subcell_id*num_quadrature_points_parent_cell
+
+     ! Store new quadrature locations for the new quadrature
+     call set_coordinates(h_refined_quadrature, spos, epos, aux_quadrature%coordinates, aux_quadrature%weight)
+  end do
+
+  ! Compute interpolation
+  call this%create_interpolation( h_refined_quadrature, this%h_refinement_interpolation, interpolation_duties)
+
+  call aux_quadrature%free()
+  call reference_quadrature%free()
+  call h_refined_quadrature%free()
+  call h_refinement_node_array%free()
+
+end subroutine hex_lagrangian_gp_reference_fe_fill_h_refinement_interpolation
+
+!==================================================================================================
+
+subroutine hlgp_scalar_to_multicomp_h_refinement_operator(this)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t) , intent(inout)    ::  this
+
+  integer(ip)                     :: num_shape_functions, num_child_cells_x_parent_cell, spos
+  integer(ip)                     :: subcell_id, num_scalar_shape_functions
+  integer(ip)                     :: coarse_shape_func, child_shape_func, ishape_fe
+  real(rp)                        :: coefficient
+
+  num_shape_functions = this%get_num_shape_functions()
+
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1) 
+
+  ! Allocate projection operator Cij-s
+  ! In this case we can use num_shape_functions in both components because both fes
+  ! parent and child have the same order / same number of nodes and field components
+  call memalloc(num_shape_functions, num_shape_functions, num_child_cells_x_parent_cell, &
+       this%parent_to_child_injection_op,__FILE__,__LINE__)
+
+  num_scalar_shape_functions = this%h_refinement_interpolation%num_shape_functions
+  this%parent_to_child_injection_op = 0.0_rp
+  do subcell_id = 1, num_child_cells_x_parent_cell
+     spos = (subcell_id-1)*num_scalar_shape_functions 
+     ishape_fe = 0
+     do child_shape_func = 1, num_shape_functions
+        ishape_fe = ishape_fe + 1 
+        do coarse_shape_func= 1, num_shape_functions
+           call this%get_h_refinement_coefficient(ishape_fe,coarse_shape_func,spos,coefficient)
+           this%parent_to_child_injection_op(coarse_shape_func,child_shape_func,subcell_id) = coefficient
+        end do
+     end do
+  end do
+end subroutine hlgp_scalar_to_multicomp_h_refinement_operator
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell(this,                   &
+                                                                 subcell_id,             &
+                                                                 nodal_values_on_parent, &
+                                                                 nodal_values_on_child)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t) , intent(in)    ::  this
+  integer(ip)                             , intent(in)    ::  subcell_id
+  real(rp)                                , intent(in)    ::  nodal_values_on_parent(:)
+  real(rp)                                , intent(inout) ::  nodal_values_on_child(:)
+  integer(ip)                     :: num_shape_functions
+  integer(ip)                     :: coarse_shape_func, child_shape_func
+
+  num_shape_functions = this%get_num_shape_functions()
+  nodal_values_on_child = 0.0_rp 
+  do child_shape_func = 1, num_shape_functions     
+     do coarse_shape_func = 1, num_shape_functions
+        nodal_values_on_child(child_shape_func) = nodal_values_on_child(child_shape_func) + &
+             this%parent_to_child_injection_op(coarse_shape_func,child_shape_func,subcell_id+1)*nodal_values_on_parent(coarse_shape_func)
+     end do
+  end do
+end subroutine hex_lagrangian_gp_interpolate_nodal_values_on_subcell
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_get_h_refinement_coefficient ( this, ishape_fe, ishape_coarser_fe, qpoint, coefficient )
+  implicit none 
+  class(hex_lagrangian_gp_reference_fe_t), target, intent(in)    :: this
+  integer(ip)                                    , intent(in)    :: ishape_fe
+  integer(ip)                                    , intent(in)    :: ishape_coarser_fe
+  integer(ip)                                    , intent(in)    :: qpoint
+  real(rp)                                       , intent(inout) :: coefficient
+  assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
+  assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
+  ! In this reference fe, qpoint plays the role of spos, indicating the starting position for the
+  ! scalar shape functions when vector or tensor fields are use.
+  assert( qpoint >= 0 )  
+  if ( this%node_component_array(ishape_fe,2) == & 
+       this%node_component_array(ishape_coarser_fe,2) ) then
+     coefficient = this%h_refinement_interpolation%shape_functions(1, & 
+          this%node_component_array(ishape_coarser_fe,1),qpoint+this%node_component_array(ishape_fe,1))
+  else
+     coefficient = 0.0_rp
+  end if
+end subroutine hex_lagrangian_gp_get_h_refinement_coefficient
+
+!==================================================================================================
+
+function hex_lagrangian_gp_get_num_nodes_children_patch(this)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in)  :: this
+  integer(ip)   ::  hex_lagrangian_gp_get_num_nodes_children_patch
+  integer(ip)   ::  num_child_cells_x_parent_cell
+
+  ! We are assuming that the number of nodes of the coarse cell (parent)
+  ! and the fine subcell (child) is the same for all subcells, i. e. the
+  ! order of the finite elements (parent and child) is the same.
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1)   
+
+  hex_lagrangian_gp_get_num_nodes_children_patch = num_child_cells_x_parent_cell*this%get_num_nodes()
+
+end function hex_lagrangian_gp_get_num_nodes_children_patch
+
+!==================================================================================================
+
+function hex_lagrangian_gp_get_num_nodes_on_subcell(this, subcell_id) result(num_nodes_on_subcell)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in) :: this
+  integer(ip)                            , intent(in) :: subcell_id
+  integer(ip) :: num_nodes_on_subcell
+  integer(ip) :: num_child_cells_x_parent_cell
+
+#ifdef DEBUG  
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1)
+  assert ( subcell_id >= 1 .and. subcell_id <= num_child_cells_x_parent_cell)
+#endif  
+
+  ! We are assuming that the number of nodes of the coarse cell (parent)
+  ! and the fine subcell (child) is the same for all subcells, i. e. the
+  ! order of the finite elements (parent and child) is the same.
+
+  !This value is taken constant for every subcell
+  num_nodes_on_subcell = this%get_num_nodes()
+
+end function hex_lagrangian_gp_get_num_nodes_on_subcell
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_restrict_cell_quadrature_to_subcell(this, cell_quadrature, subcell_id, cell_quadrature_restricted_to_subcell)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in)    :: this
+  type(quadrature_t)                     , intent(in)    :: cell_quadrature
+  integer(ip)                            , intent(in)    :: subcell_id
+  type(quadrature_t)                     , intent(inout) :: cell_quadrature_restricted_to_subcell
+
+  type(node_iterator_t) ::  node_iterator_on_subcell
+  integer(ip)           ::  cell_node_identifier, subcell_node_identifier
+
+  ! Iterate over the nodes of the coarse cells which lay on the closed
+  ! domain of the fine subcell (child) labeled as "subcell_id",
+  ! extract the corresponding node coordinates from cell_quadrature
+  ! into cell_quadrature_restricted_to_subcell
+
+  node_iterator_on_subcell = this%node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+       subcell_id-1, own_boundary = .true. )     
+  subcell_node_identifier = 1 
+  call node_iterator_on_subcell%init()
+  do while ( .not. node_iterator_on_subcell%has_finished() )
+     ! We need to call %current_ijk() because it internally updates the %coordinate member
+     ! variable, and it is currently the only TBP that does such an update (DIRTY)
+     cell_node_identifier =  node_iterator_on_subcell%current_ijk()
+
+     cell_quadrature_restricted_to_subcell%coordinates(:,subcell_node_identifier) = &
+          cell_quadrature%coordinates(:,cell_node_identifier+1)
+
+     subcell_node_identifier = subcell_node_identifier + 1 
+     call node_iterator_on_subcell%next()
+  end do
+end subroutine hex_lagrangian_gp_restrict_cell_quadrature_to_subcell
+
+!==================================================================================================
+
+function hex_lagrangian_gp_compute_subcell_centroid(this,subcell_id) result(centroid)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in) :: this
+  type(node_array_t)    :: node_array_order_two
+  type(node_iterator_t) :: node_iterator_on_subcell 
+  real(rp)              :: centroid(SPACE_DIM)
+  integer(ip)           :: aux_order(SPACE_DIM)  
+  integer(ip)           :: subcell_id, i_dim, node_identifier
+  integer(ip)           :: num_child_cells_x_parent_cell
+  integer(ip)           :: num_nodes_on_subcell
+
+#ifdef DEBUG  
+  num_child_cells_x_parent_cell = this%get_num_subcells(num_refinements=1)
+  assert ( subcell_id >= 1 .and. subcell_id <= num_child_cells_x_parent_cell)
+#endif    
+
+  ! this node array is only used to compute the centroid of each subcell, the node array (member variable) of 
+  ! hex_lagrangian_gp_reference_fe_t can not be used because it depends on the order of the reference fe
+  aux_order = 2
+  call node_array_order_two%create( this%polytope, aux_order )
+
+  node_iterator_on_subcell = node_array_order_two%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+       subcell_id-1, own_boundary = .true. )
+
+  centroid = 0.0_rp
+  num_nodes_on_subcell = 0 
+  call node_iterator_on_subcell%init()
+  do while ( .not. node_iterator_on_subcell%has_finished() )
+     ! We need to call %current_ijk() because it internally updates the %coordinate member
+     ! variable, and it is currently the only TBP that does such an update (DIRTY)
+     node_identifier =  node_iterator_on_subcell%current_ijk()
+     do i_dim=1,this%num_dims
+        centroid(i_dim) = centroid(i_dim) + node_iterator_on_subcell%coordinate(i_dim-1)*(2.0_rp/aux_order(i_dim))-1.0_rp
+     end do
+     call node_iterator_on_subcell%next()
+     num_nodes_on_subcell = num_nodes_on_subcell + 1
+  end do
+  centroid = centroid/real(num_nodes_on_subcell)
+  call node_array_order_two%free()
+end function hex_lagrangian_gp_compute_subcell_centroid
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_transform_coordinates_from_cell_to_subcell (this, subcell_id, cell_quadrature_restricted_to_subcell)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in)    :: this
+  integer(ip)                            , intent(in)    :: subcell_id
+  type(quadrature_t)                     , intent(inout) :: cell_quadrature_restricted_to_subcell
+  real(rp) :: centroid(SPACE_DIM)
+  real(rp), parameter :: scale_factor = 2.0_rp
+  integer(ip) :: qpoint
+  integer(ip) :: idime
+
+  assert ( this%num_dims == cell_quadrature_restricted_to_subcell%get_num_dims() )
+
+  ! map back (coarse) cell quadrature coordinates into the reference coordinate 
+  ! system of the subcell identified as "subcell_id" 
+  centroid = this%compute_subcell_centroid(subcell_id)
+
+  ! Translate subcell's centroid to origin and scale by a factor of 2
+  do qpoint=1, cell_quadrature_restricted_to_subcell%get_num_quadrature_points()
+     do idime=1, this%num_dims
+        cell_quadrature_restricted_to_subcell%coordinates(idime,qpoint) = cell_quadrature_restricted_to_subcell%coordinates(idime,qpoint)-centroid(idime)
+        cell_quadrature_restricted_to_subcell%coordinates(idime,qpoint) = scale_factor*cell_quadrature_restricted_to_subcell%coordinates(idime,qpoint)
+     end do
+  end do
+end subroutine hex_lagrangian_gp_transform_coordinates_from_cell_to_subcell
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_fill_subcell_to_cell_node_identifier(this, subcell_id, subcell_to_cell_node_identifier)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in)    :: this
+  integer(ip)                            , intent(in)    :: subcell_id
+  integer(ip)                            , intent(inout) :: subcell_to_cell_node_identifier(:)
+
+  type(node_iterator_t) ::  node_iterator_on_subcell
+  integer(ip)           ::  cell_node_identifier, subcell_node_identifier, num_nodes_subcell, inode
+
+  num_nodes_subcell = this%get_num_nodes_on_subcell(subcell_id)
+  assert ( size(subcell_to_cell_node_identifier) == num_nodes_subcell )
+  do inode = 1, num_nodes_subcell
+     subcell_to_cell_node_identifier(inode) = (subcell_id-1)*num_nodes_subcell+inode
+  end do
+end subroutine hex_lagrangian_gp_fill_subcell_to_cell_node_identifier
+
+!==================================================================================================
+! CHECK, now is the same procedure for tetrahedra (is just a copy?)
+subroutine hex_lagrangian_gp_reference_fe_change_basis(this) 
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(inout) ::  this
+  type(interpolation_t)   :: interpolation
+  integer(ip)             :: i, j, num_shape_functions_x_component
+
+  num_shape_functions_x_component = this%num_shape_functions
+  call memalloc(num_shape_functions_x_component,num_shape_functions_x_component,this%change_basis_matrix,__FILE__,__LINE__)
+  !call this%create_interpolation(this%quadrature,interpolation)
+  call this%create_interpolation(this%nodal_quadrature,interpolation)
+  do i=1,num_shape_functions_x_component
+     do j=1,num_shape_functions_x_component
+        !write(*,*) 'Shape',j,'point',i
+        !write(*,*) interpolation%shape_functions(1,j,i)
+        this%change_basis_matrix(i,j) = interpolation%shape_functions(1,j,i)
+     end do
+  end do
+  call interpolation%free()
+  call this%invert_change_basis_matrix()
+  this%basis_changed = .true.
+end subroutine hex_lagrangian_gp_reference_fe_change_basis
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation(this, interpolation_pre_basis, interpolation)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)                  , intent(in)    :: interpolation_pre_basis
+  type(interpolation_t)                  , intent(inout) :: interpolation
+  integer(ip)           :: i, j, idime, jdime, qpoint, num_shape_functions_x_component
+
+  ! Initialize both shape functions and derivatives to zero.
+  interpolation%shape_functions   = 0.0_rp
+  num_shape_functions_x_component = this%get_num_nodes() !this%num_shape_functions/this%num_field_components 
+
+  ! Compute shape functions
+  do qpoint = 1, interpolation%num_quadrature_points
+     do i=1, num_shape_functions_x_component
+        do j=1, num_shape_functions_x_component
+           interpolation%shape_functions(1, i, qpoint) = interpolation%shape_functions(1, i, qpoint) + &
+                this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(1, j, qpoint)
+        end do
+     end do
+  end do
+
+  ! not deleted because of the possible use of first derivatives
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     ! Compute shape derivatives
+     interpolation%shape_derivatives = 0.0_rp
+     do qpoint = 1, interpolation%num_quadrature_points
+        do i=1, num_shape_functions_x_component
+           do j=1, num_shape_functions_x_component
+              do jdime=1, this%num_dims
+                 interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
+              end do
+           end do
+        end do
+     end do
+  end if
+end subroutine hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation
+
+!==================================================================================================
+
+subroutine hex_lagrangian_gp_reference_fe_free(this)
+  implicit none
+  class(hex_lagrangian_gp_reference_fe_t), intent(inout)    :: this 
+
+  ! Free tensor expansion of h_refinement interpolation operator
+  if(allocated(this%parent_to_child_injection_op)) & 
+       call memfree(this%parent_to_child_injection_op,__FILE__,__LINE__)
+
+  ! Free member variables of lagrangian_reference_fe_t (and those of its ancestors)
+  call lagrangian_reference_fe_free(this)
+
+end subroutine hex_lagrangian_gp_reference_fe_free
+
+!**************************************************************************************************
+! Support functions
+!**************************************************************************************************
+!==================================================================================================
+
+subroutine scale_coordinates(scale_factor, quadrature)
+  implicit none
+  real(rp)           , intent(in)    :: scale_factor
+  class(quadrature_t), intent(inout) :: quadrature
+  quadrature%coordinates = quadrature%coordinates * scale_factor
+end subroutine scale_coordinates
+
+subroutine translate_coordinates(translation, coordinates)
+  implicit none
+  real(rp)        ,   intent(in)     :: translation(SPACE_DIM)
+  real(rp)        ,   intent(inout)  :: coordinates(:,:)
+  integer(ip)    :: inode, num_nodes
+  num_nodes = size(coordinates,2) 
+  do inode=1,num_nodes
+     coordinates(:,inode) = coordinates(:,inode) + translation(:)
+  end do
+end subroutine translate_coordinates
+
+subroutine set_coordinates(quadrature, spos, epos, coordinates, weight)
+  implicit none
+  class(quadrature_t),           intent(inout) :: quadrature
+  integer(ip),                   intent(in)    :: spos, epos
+  real(rp),                      intent(in)    :: coordinates(:,:)
+  real(rp),           optional , intent(in)  :: weight(:)  
+  assert(spos >= 1 .and. epos <= size(quadrature%coordinates,2))
+  quadrature%coordinates(:,spos:epos) = coordinates
+  if (present(weight)) then
+     quadrature%weight(spos:epos) = weight
+  end if
+end subroutine set_coordinates

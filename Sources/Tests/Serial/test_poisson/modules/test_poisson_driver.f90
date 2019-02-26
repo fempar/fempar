@@ -84,8 +84,9 @@ module test_poisson_driver_names
      type(fe_function_t)                       :: solution
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
-     procedure        , private :: setup_environment
+     procedure                  :: parse_command_line_parameters
+     procedure                  :: setup_environment
+     procedure                  :: free_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -114,13 +115,18 @@ contains
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
   
-  subroutine setup_environment(this)
+  subroutine setup_environment(this, world_context)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    integer(ip) :: ierr
-    ierr=this%parameter_list%set(key=execution_context_key,value=serial_context)
-    call this%serial_environment%create(this%parameter_list)
+    class(execution_context_t)  , intent(in)    :: world_context
+    call this%serial_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
+  
+  subroutine free_environment(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    call this%serial_environment%free()
+  end subroutine free_environment
   
   subroutine setup_triangulation(this)
     implicit none
@@ -148,7 +154,7 @@ contains
     !call this%triangulation%create(this%test_params%get_dir_path(),&
     !                               this%test_params%get_prefix(),&
     !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
-    call this%triangulation%create(this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%parameter_list)
     !call this%triangulation%print()
     
     ! Set the cell ids to use void fes
@@ -465,7 +471,7 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+    FPLError = parameter_list%set(key = dls_type_key,        value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
@@ -482,17 +488,18 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
-    call this%nl_solver%create(convergence_criteria = abs_res_norm, & 
-         &                     abs_tol = 1.0e-12_rp,  &
-         &                     rel_tol = 1.0e-12_rp, &
-         &                     max_iters = 10   ,  &
-         &                     linear_solver = this%direct_solver, &
-         &                     environment = this%serial_environment, &
+
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 10); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = abs_res_norm); assert(FPLError == 0)
+    call this%nl_solver%create(this%parameter_list, & 
+                               linear_solver = this%direct_solver, &
                                fe_operator = this%fe_affine_operator)
 #else    
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
@@ -503,7 +510,6 @@ contains
          &                     rel_tol = 1.0e-12_rp, &
          &                     max_iters = 10   ,  &
          &                     linear_solver = this%iterative_linear_solver, &
-         &                     environment = this%serial_environment, &
                                fe_operator = this%fe_affine_operator)
 #endif
     call parameter_list%free()
@@ -668,8 +674,6 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this    
     call this%free()
-    call this%parse_command_line_parameters()
-    call this%setup_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
