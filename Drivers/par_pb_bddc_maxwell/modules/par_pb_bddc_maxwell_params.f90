@@ -28,7 +28,7 @@ module par_pb_bddc_maxwell_params_names
   character(len=*), parameter :: channels          = 'channels'  
   character(len=*), parameter :: heterogeneous     = 'heterogeneous' 
   
-  character(len=*), parameter :: unit_coefficients = 'unit_coefficients'
+  character(len=*), parameter :: unit_constant     = 'unit_constant'
   character(len=*), parameter :: constant          = 'constant' 
   character(len=*), parameter :: sinusoidal        = 'sinusoidal'
   
@@ -59,8 +59,8 @@ module par_pb_bddc_maxwell_params_names
   ! Types
   public :: par_pb_bddc_maxwell_params_t
   
-  public :: checkerboard, channels, homogeneous, unit_coefficients, heterogeneous, radial
-  public :: constant, sinusoidal 
+  public :: checkerboard, channels, homogeneous, heterogeneous
+  public :: unit_constant, constant, sinusoidal
 
 contains
 

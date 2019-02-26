@@ -1286,8 +1286,8 @@ module fe_space_names
   ! Weighting function 
   character(len=*), parameter :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
   character(len=*), parameter :: cardinality           = 'cardinality'
-  character(len=*), parameter :: curl_curl_coeff           = 'curl_curl_coeff' 
-  character(len=*), parameter :: mass_coeff          = 'mass_coeff' 
+  character(len=*), parameter :: curl_curl_coeff       = 'curl_curl_coeff' 
+  character(len=*), parameter :: mass_coeff            = 'mass_coeff' 
   character(len=*), parameter :: stiffness             = 'stiffness'
   character(len=*), parameter :: weighted_coefficients = 'weighted_coefficients'
   

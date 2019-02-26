@@ -160,7 +160,7 @@ contains
           select case ( this%materials_distribution_case )
           case ( homogeneous, heterogeneous )
           material_id = 1
-          case ( checkerboard, channels, radial  ) 
+          case ( checkerboard, channels ) 
           material_id = 1 + fe%get_set_id()
           end select 
           
@@ -200,7 +200,7 @@ contains
           select case ( this%materials_distribution_case )
           case ( homogeneous, heterogeneous )
           material_id = 1
-          case ( checkerboard, channels, radial ) 
+          case ( checkerboard, channels ) 
           material_id = 1 + fe%get_set_id()
           end select 
                   

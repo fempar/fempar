@@ -204,6 +204,8 @@ contains
     real(rp)                       , intent(inout) :: result 
   
     select case ( this%coefficient_case )
+    case ( unit_constant )
+      result = 1.0_rp
     case ( constant ) 
       result = this%default_value 
     case ( sinusoidal ) 
@@ -223,6 +225,8 @@ contains
     result = this%default_value 
     
     select case ( this%coefficient_case ) 
+    case ( unit_constant )
+      result = 1.0_rp
     case ( constant ) 
       result = this%default_value
     case DEFAULT 
@@ -238,6 +242,8 @@ contains
     real(rp)                       , intent(inout) :: result 
 
     select case ( this%coefficient_case )
+    case ( unit_constant )
+      result = 1.0_rp
     case ( constant ) 
       result = this%default_value 
     case ( sinusoidal ) 
@@ -256,6 +262,8 @@ contains
     real(rp)                       , intent(inout) :: result 
  
     select case ( this%coefficient_case ) 
+    case ( unit_constant )
+      result = 1.0_rp
     case ( constant ) 
       result = this%default_value
     case DEFAULT 

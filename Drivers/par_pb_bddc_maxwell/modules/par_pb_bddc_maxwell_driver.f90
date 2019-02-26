@@ -594,7 +594,7 @@ contains
     call this%mlbddc%numerical_setup()  
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-6_rp)
+    FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-8_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations_key, value = 1000)
     assert(FPLError == 0)
 
@@ -718,7 +718,7 @@ contains
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, hcurl_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: tol
 
-    if ( .not. this%test_params%get_materials_distribution_case() ==  ) return 
+    if ( .not. this%test_params%get_materials_coefficient_case() == unit_constant ) return 
         
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
