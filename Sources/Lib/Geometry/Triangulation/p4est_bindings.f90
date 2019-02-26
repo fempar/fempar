@@ -83,7 +83,7 @@ module p4est_bindings_names
      end subroutine F90_p8est_connectivity_new_unitcube
      
      !=================================================================================================================================
-     !> summary: Scales p4est connectivity with bounding box limits
+     !> summary: Set bounding box limits to p4est connectivity
      !=================================================================================================================================
      subroutine F90_p4est_connectivity_set_bounding_box_limits(p4est_connectivity,bounding_box_limits) bind(c,name="F90_p4est_connectivity_set_bounding_box_limits")
        use, intrinsic :: iso_c_binding

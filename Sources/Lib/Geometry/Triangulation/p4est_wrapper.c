@@ -130,6 +130,25 @@ void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivi
   P4EST_ASSERT (p8est_connectivity_is_valid (*p8est_connectivity));
 }
 
+/* set_bounding_box_limits:
+   p4est_connectivity_t, INOUT :: p4est_conn           = already created as new_unit_square or new_unit_cube
+   double(6)           , IN    :: bounding_box_limits  = user defined bouding box limits sorted as
+                                                        [ x_min, y_min, z_min, x_max, y_max, z_max ]
+                                                        (length = 2 * NUM_DIMS = 6)
+ * The vertices in a p4est/p8est quadrant are numbered according to the 'z filling curve', thus the minumum
+   and the maximum correspon to the binary figure at the 'idim' position. Where, min = 0 and max = 1.
+   See following table:
+    0 ->  0  0  0 :  z_min | y_min | x_min
+    1 ->  0  0  1 :  z_min | y_min | x_max
+    2 ->  0  1  0 :  z_min | y_max | x_min
+    3 ->  0  1  1 :  z_min | y_max | x_max
+    4 ->  1  0  0 :  z_max | y_min | x_min
+    5 ->  1  0  1 :  z_max | y_min | x_max
+    6 ->  1  1  0 :  z_max | y_max | x_min
+    7 ->  1  1  1 :  z_max | y_max | x_max
+
+  * bound = ( ivertex >> idim ) % 2 : must be 0 or 1, ie, min or max
+*/
 
 void F90_p4est_connectivity_set_bounding_box_limits ( p4est_connectivity_t ** p4est_conn,
                                                       double                * bounding_box_limits )
