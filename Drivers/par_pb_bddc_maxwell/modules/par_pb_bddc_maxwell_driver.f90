@@ -56,12 +56,12 @@ module par_pb_bddc_maxwell_driver_names
      type(maxwell_conditions_t)                    :: maxwell_conditions
      ! Analytical functions describing parameters
      type(par_pb_bddc_maxwell_analytical_functions_t) :: maxwell_analytical_functions
-     type(curl_curl_coeff_holder_t), allocatable          :: curl_curl_coeff_holder(:) 
-     type(curl_curl_coeff_function_white_t)               :: curl_curl_coeff_white 
-     type(curl_curl_coeff_function_black_t)               :: curl_curl_coeff_black 
-     type(mass_coeff_holder_t), allocatable         :: mass_coeff_holder(:) 
-     type(mass_coeff_function_white_t)              :: mass_coeff_white 
-     type(mass_coeff_function_black_t)              :: mass_coeff_black 
+     type(curl_curl_coeff_holder_t), allocatable      :: curl_curl_coeff_holder(:) 
+     type(curl_curl_coeff_function_white_t)           :: curl_curl_coeff_white 
+     type(curl_curl_coeff_function_black_t)           :: curl_curl_coeff_black 
+     type(mass_coeff_holder_t), allocatable           :: mass_coeff_holder(:) 
+     type(mass_coeff_function_white_t)                :: mass_coeff_white 
+     type(mass_coeff_function_black_t)                :: mass_coeff_black 
      real(rp), allocatable                            :: average_mass_coeff(:) 
      real(rp), allocatable                            :: average_curl_curl_coeff(:) 
 
@@ -222,13 +222,11 @@ contains
     integer(ip) :: idime, inode 
     integer(ip) :: ijk(3), aux 
     integer(ip) :: istat, dummy_val 
-    real(rp)    :: contrast, radius 
+    real(rp)    :: contrast 
     real(rp)    :: curl_curl_coeff, mass_coeff 
     real(rp)    :: curl_curl_coeff_max, curl_curl_coeff_min 
     real(rp)    :: mass_coeff_max, mass_coeff_min 
     logical     :: min_values_initialized
-    real(rp)    :: R
-    integer(ip) :: N, alpha
     integer(ip) :: curl_curl_coeff_set_id 
     integer(ip) :: mass_coeff_set_id 
     integer(ip) :: num_curl_curl_coeff_set_ids 
@@ -364,31 +362,6 @@ contains
              this%cells_set_id(cell%get_gid()) =  num_subsets_id 
              num_subsets_id = num_subsets_id + 1
              end if 
-    
-          case ( radial ) 
-           call cell%get_nodes_coordinates(cell_coordinates)
-             grav_center = 0
-             do inode=1, cell%get_num_nodes() 
-                do idime = 1, this%triangulation%get_num_dims()
-                   grav_center(idime) = grav_center(idime) + cell_coordinates(inode)%get(idime)/cell%get_num_nodes() 
-                end do
-             end do
-
-             radius = 0.0_rp 
-             do idime=1, this%triangulation%get_num_dims()
-               radius = radius + grav_center(idime)**2  
-             end do
-             radius = sqrt(radius) 
-             
-             R = 0.5_rp ! Sphere radius 
-             N = 3      ! Number of radial alternations between materials 
-             alpha = radius/(R/real(N,rp)) 
-
-             if ( mod( alpha, 2 ) == 0 ) then 
-              this%cells_set_id(cell%get_gid()) = WHITE
-             else 
-                this%cells_set_id(cell%get_gid()) = BLACK 
-             end if
              
           case DEFAULT 
              massert( .false., 'Materials distribution case not valid')
@@ -421,7 +394,7 @@ contains
 
     select case ( this%test_params%get_materials_distribution_case() ) 
     
-    case ( checkerboard, channels, radial ) 
+    case ( checkerboard, channels ) 
     allocate(this%curl_curl_coeff_holder(2), stat=istat)
     allocate(this%mass_coeff_holder(2), stat=istat) 
 
@@ -677,7 +650,7 @@ contains
           select case ( this%test_params%get_materials_distribution_case() )
           case ( homogeneous, heterogeneous )
           material_id = 1
-          case ( checkerboard, channels, radial ) 
+          case ( checkerboard, channels ) 
           material_id = 1 + fe%get_set_id()
           end select 
           set_id = 1 + fe%get_set_id() ! 1-based arrays 
@@ -745,6 +718,8 @@ contains
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, hcurl_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: tol
 
+    if ( .not. this%test_params%get_materials_distribution_case() ==  ) return 
+        
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
     l1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l1_norm)   
@@ -896,7 +871,7 @@ contains
 
     call this%print_info()
     call this%write_solution()
-   ! call this%check_solution()    
+    call this%check_solution()    
     call this%free()
   end subroutine run_simulation
 

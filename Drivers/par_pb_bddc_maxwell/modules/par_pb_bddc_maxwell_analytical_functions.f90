@@ -122,8 +122,8 @@ module par_pb_bddc_maxwell_analytical_functions_names
   
   type par_pb_bddc_maxwell_analytical_functions_t
      private
-     type(curl_curl_coeff_holder_t), pointer     :: curl_curl_coeff(:)
-     type(mass_coeff_holder_t), pointer    :: mass_coeff(:) 
+     type(curl_curl_coeff_holder_t), pointer :: curl_curl_coeff(:)
+     type(mass_coeff_holder_t), pointer      :: mass_coeff(:) 
      type(boundary_function_Hx_t)            :: boundary_function_Hx
      type(boundary_function_Hy_t)            :: boundary_function_Hy
      type(boundary_function_Hz_t)            :: boundary_function_Hz
@@ -131,11 +131,11 @@ module par_pb_bddc_maxwell_analytical_functions_names
      type(solution_t)                        :: solution
    contains
      procedure :: set_num_dims                     => mn_set_num_dims
-     procedure :: set_curl_curl_coeff                  => mn_set_curl_curl_coeff_holder
-     procedure :: set_mass_coeff                 => mn_set_mass_coeff_holder 
+     procedure :: set_curl_curl_coeff              => mn_set_curl_curl_coeff_holder
+     procedure :: set_mass_coeff                   => mn_set_mass_coeff_holder 
      ! Getters 
-     procedure :: get_curl_curl_coeff                  => mn_get_curl_curl_coeff
-     procedure :: get_mass_coeff                 => mn_get_mass_coeff 
+     procedure :: get_curl_curl_coeff              => mn_get_curl_curl_coeff
+     procedure :: get_mass_coeff                   => mn_get_mass_coeff 
      procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
      procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
      procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
@@ -272,7 +272,7 @@ contains
     real(rp)                       , intent(inout) :: result 
     real(rp) :: x,y,z 
     x = point%get(1); y=point%get(2); z=point%get(3)
-    result = 0.0_rp 
+    result = -y 
   end subroutine boundary_function_Hx_get_value_space
   
   !===============================================================================================
@@ -283,7 +283,7 @@ contains
     real(rp)                       , intent(inout) :: result 
     real(rp) :: x,y,z 
     x = point%get(1); y=point%get(2); z=point%get(3)
-    result = 0.0_rp 
+    result = x
   end subroutine boundary_function_Hy_get_value_space
 
   !===============================================================================================
@@ -305,7 +305,9 @@ contains
     type(vector_field_t)    , intent(inout) :: result
     real(rp) :: x,y,z 
     x = point%get(1); y=point%get(2); z=point%get(3)
-    call result%init(1.0_rp)
+    call result%init(0.0_rp)
+    call result%set(1, -y)
+    call result%set(2,  x) 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
