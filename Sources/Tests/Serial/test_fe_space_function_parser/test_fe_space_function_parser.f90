@@ -36,14 +36,14 @@ program test_steady_poisson
   implicit none  
 # include "debug.i90"
 
-  type(scalar_function_parser_t)          :: source_term_parser
-  type(scalar_function_parser_t)          :: boundary_function_parser
-  type(scalar_function_parser_t)          :: solution_gradient_parser_comp1
-  type(scalar_function_parser_t)          :: solution_gradient_parser_comp2
-  type(scalar_function_parser_t)          :: solution_gradient_parser_comp3
-  type(vector_function_parser_t)          :: solution_gradient_parser
-  type(scalar_function_parser_t)          :: solution_function_parser
-  type(scalar_function_gradient_parser_t) :: solution_parser
+  type(scalar_function_parser_t)              :: source_term_parser
+  type(scalar_function_parser_t)              :: boundary_function_parser
+  type(scalar_function_parser_t)              :: solution_gradient_parser_comp1
+  type(scalar_function_parser_t)              :: solution_gradient_parser_comp2
+  type(scalar_function_parser_t)              :: solution_gradient_parser_comp3
+  type(vector_function_parser_t)              :: solution_gradient_parser
+  type(scalar_function_parser_t)              :: solution_function_parser
+  type(scalar_function_and_gradient_parser_t) :: solution_parser
 
   type(serial_context_t)               :: world_context
   type(environment_t)                  :: serial_environment
