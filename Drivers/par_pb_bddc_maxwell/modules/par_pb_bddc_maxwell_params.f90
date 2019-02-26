@@ -11,17 +11,17 @@ module par_pb_bddc_maxwell_params_names
   character(len=*), parameter :: triangulation_type_key               = 'triangulation_type'    
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
   character(len=*), parameter :: bddc_weighting_function_case_key     = 'bddc_weighting_function_case'
-  character(len=*), parameter :: permeability_white_key               = 'permeability_white'
-  character(len=*), parameter :: resistivity_white_key                = 'resistivity_white '
-  character(len=*), parameter :: permeability_black_key               = 'permeability_black'
-  character(len=*), parameter :: resistivity_black_key                = 'resistivity_black'
+  character(len=*), parameter :: mass_coeff_white_key               = 'mass_coeff_white'
+  character(len=*), parameter :: curl_curl_coeff_white_key                = 'curl_curl_coeff_white '
+  character(len=*), parameter :: mass_coeff_black_key               = 'mass_coeff_black'
+  character(len=*), parameter :: curl_curl_coeff_black_key                = 'curl_curl_coeff_black'
   character(len=*), parameter :: materials_distribution_case_key      = 'materials_distribution_case'
   character(len=*), parameter :: materials_coefficient_case_key       = 'materials_coefficient_case'
   character(len=*), parameter :: channels_ratio_key                   = 'channels_ratio' 
   character(len=*), parameter :: rpb_bddc_threshold_key               = 'rpb_bddc_threshold'
   character(len=*), parameter :: boundary_mass_trick_key              = 'boundary_mass_trick'
-  character(len=*), parameter :: num_peaks_resistivity_key            = 'num_peaks_resistivity' 
-  character(len=*), parameter :: num_peaks_permeability_key           = 'num_peaks_permeability' 
+  character(len=*), parameter :: num_peaks_curl_curl_coeff_key            = 'num_peaks_curl_curl_coeff' 
+  character(len=*), parameter :: num_peaks_mass_coeff_key           = 'num_peaks_mass_coeff' 
   
   character(len=*), parameter :: homogeneous     = 'homogeneous'
   character(len=*), parameter :: checkerboard    = 'checkerboard'       
@@ -42,16 +42,16 @@ module par_pb_bddc_maxwell_params_names
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
-       procedure, non_overridable             :: get_permeability_white 
-       procedure, non_overridable             :: get_resistivity_white  
-       procedure, non_overridable             :: get_permeability_black 
-       procedure, non_overridable             :: get_resistivity_black 
+       procedure, non_overridable             :: get_mass_coeff_white 
+       procedure, non_overridable             :: get_curl_curl_coeff_white  
+       procedure, non_overridable             :: get_mass_coeff_black 
+       procedure, non_overridable             :: get_curl_curl_coeff_black 
        procedure, non_overridable             :: get_materials_distribution_case 
        procedure, non_overridable             :: get_materials_coefficient_case
        procedure, non_overridable             :: get_channels_ratio 
        procedure, non_overridable             :: get_rpb_bddc_threshold 
-       procedure, non_overridable             :: get_num_peaks_resistivity
-       procedure, non_overridable             :: get_num_peaks_permeability 
+       procedure, non_overridable             :: get_num_peaks_curl_curl_coeff
+       procedure, non_overridable             :: get_num_peaks_mass_coeff 
        procedure, non_overridable             :: get_boundary_mass_trick 
        procedure, non_overridable             :: get_nparts 
   end type par_pb_bddc_maxwell_params_t
@@ -81,30 +81,30 @@ contains
     error = list%set(key = dir_path_key            , value = '.')      ; check(error==0)
     error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
     error = list%set(key = dir_path_out_key        , value = '.')      ; check(error==0)
-    error = list%set(key = struct_hex_triang_num_dims_key            , value =  2)       ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_dims_key            , value =  3)       ; check(error==0)
     !error = list%set(key = hex_mesh_domain_limits_key        , value =  [0,1,0,1,0,1])       ; check(error==0)      
-    error = list%set(key = struct_hex_triang_num_cells_dir     , value =  [12,12,12])          ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_cells_dir     , value =  [8,8,8])          ; check(error==0)
     error = list%set(key = struct_hex_triang_is_dir_periodic_key     , value =  [0,0,0])             ; check(error==0)
-    error = list%set(key = struct_hex_triang_num_levels_key           , value =  3)                   ; check(error==0)
-    error = list%set(key = struct_hex_triang_num_parts_x_dir_key     , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_levels_key           , value =  2)                   ; check(error==0)
+    error = list%set(key = struct_hex_triang_num_parts_x_dir_key     , value =  [2,2,2,1,1,1,0,0,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
-    error = list%set(key = triang_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
+    error = list%set(key = triang_generate_key        , value =  triangulation_generate_structured) ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                    ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
     error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment ) ; check(error==0)
     error = list%set(key = bddc_weighting_function_case_key, value =  cardinality ) ; check(error==0)
-    error = list%set(key = permeability_white_key   , value =  1.0 ); check(error==0)
-    error = list%set(key = resistivity_white_key    , value =  1.0 ); check(error==0)
-    error = list%set(key = permeability_black_key   , value =  1.0 ); check(error==0)
-    error = list%set(key = resistivity_black_key    , value =  1.0 ); check(error==0)
+    error = list%set(key = mass_coeff_white_key   , value =  1.0 ); check(error==0)
+    error = list%set(key = curl_curl_coeff_white_key    , value =  1.0 ); check(error==0)
+    error = list%set(key = mass_coeff_black_key   , value =  1.0 ); check(error==0)
+    error = list%set(key = curl_curl_coeff_black_key    , value =  1.0 ); check(error==0)
     error = list%set(key = materials_distribution_case_key, value = checkerboard); check(error==0) 
     error = list%set(key = materials_coefficient_case_key, value = constant); check(error==0) 
     error = list%set(key = channels_ratio_key   , value =  0.1 ); check(error==0)
-    error = list%set(key = num_peaks_resistivity_key    , value =  3)   ; check(error==0)
-    error = list%set(key = num_peaks_permeability_key     , value =  3)   ; check(error==0)
+    error = list%set(key = num_peaks_curl_curl_coeff_key    , value =  3)   ; check(error==0)
+    error = list%set(key = num_peaks_mass_coeff_key     , value =  3)   ; check(error==0)
     error = list%set(key = rpb_bddc_threshold_key   , value = 10.0 ); check(error==0)
     error = list%set(key = boundary_mass_trick_key, value =  .false.); check(error==0)
     
@@ -126,15 +126,15 @@ contains
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
     error = switches%set(key = bddc_weighting_function_case_key , value = '--BDDC_weighting_function_case' ) ; check(error==0)
-    error = switches%set(key = permeability_white_key  , value = '--permeability_white' )  ; check(error==0)
-    error = switches%set(key = resistivity_white_key   , value = '--resistivity_white ' )  ; check(error==0)
-    error = switches%set(key = permeability_black_key  , value = '--permeability_black' )  ; check(error==0)
-    error = switches%set(key = resistivity_black_key   , value = '--resistivity_black' )  ; check(error==0)
+    error = switches%set(key = mass_coeff_white_key  , value = '--mass_coeff_white' )  ; check(error==0)
+    error = switches%set(key = curl_curl_coeff_white_key   , value = '--curl_curl_coeff_white ' )  ; check(error==0)
+    error = switches%set(key = mass_coeff_black_key  , value = '--mass_coeff_black' )  ; check(error==0)
+    error = switches%set(key = curl_curl_coeff_black_key   , value = '--curl_curl_coeff_black' )  ; check(error==0)
     error = switches%set(key = materials_distribution_case_key   , value = '--materials_distribution_case' )  ; check(error==0)
     error = switches%set(key = materials_coefficient_case_key   , value = '--materials_coefficient_case' )  ; check(error==0)
     error = switches%set(key = channels_ratio_key  , value = '--channels_ratio' )  ; check(error==0)
-    error = switches%set(key = num_peaks_resistivity_key  , value = '--num_peaks_resistivity' )  ; check(error==0)
-    error = switches%set(key = num_peaks_permeability_key  , value = '--num_peaks_permeability' )  ; check(error==0)
+    error = switches%set(key = num_peaks_curl_curl_coeff_key  , value = '--num_peaks_curl_curl_coeff' )  ; check(error==0)
+    error = switches%set(key = num_peaks_mass_coeff_key  , value = '--num_peaks_mass_coeff' )  ; check(error==0)
     error = switches%set(key = rpb_bddc_threshold_key  , value = '--rpb_bddc_threshold' )  ; check(error==0)
     error = switches%set(key = boundary_mass_trick_key  , value = '--boundary_mass_trick' )  ; check(error==0)
                                                              
@@ -155,15 +155,15 @@ contains
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
     error = switches_ab%set(key = bddc_weighting_function_case_key , value = '-bddc_weights' )  ; check(error==0)
-    error = switches_ab%set(key = permeability_white_key   , value = '-permeability_white' )  ; check(error==0)
-    error = switches_ab%set(key = resistivity_white_key    , value = '-resistivity_white ' )  ; check(error==0)
-    error = switches_ab%set(key = permeability_black_key   , value = '-permeability_black' )  ; check(error==0)
-    error = switches_ab%set(key = resistivity_black_key    , value = '-resistivity_black' )  ; check(error==0)
+    error = switches_ab%set(key = mass_coeff_white_key   , value = '-mass_coeff_white' )  ; check(error==0)
+    error = switches_ab%set(key = curl_curl_coeff_white_key    , value = '-curl_curl_coeff_white ' )  ; check(error==0)
+    error = switches_ab%set(key = mass_coeff_black_key   , value = '-mass_coeff_black' )  ; check(error==0)
+    error = switches_ab%set(key = curl_curl_coeff_black_key    , value = '-curl_curl_coeff_black' )  ; check(error==0)
     error = switches_ab%set(key = materials_distribution_case_key, value = '-materials_case' )  ; check(error==0)
     error = switches_ab%set(key = materials_coefficient_case_key, value = '-coefficient_case' )  ; check(error==0)
     error = switches_ab%set(key = channels_ratio_key    , value = '-channels_ratio' )  ; check(error==0)
-    error = switches_ab%set(key = num_peaks_resistivity_key    , value = '-num_peaks_resistivity' )  ; check(error==0)
-    error = switches_ab%set(key = num_peaks_permeability_key    , value = '-num_peaks_permeability' )  ; check(error==0)
+    error = switches_ab%set(key = num_peaks_curl_curl_coeff_key    , value = '-num_peaks_curl_curl_coeff' )  ; check(error==0)
+    error = switches_ab%set(key = num_peaks_mass_coeff_key    , value = '-num_peaks_mass_coeff' )  ; check(error==0)
     error = switches_ab%set(key = rpb_bddc_threshold_key    , value = '-rpb_bddc_threshold' )  ; check(error==0)
     error = switches_ab%set(key = boundary_mass_trick_key    , value = '-bmass_trick' )  ; check(error==0)
 
@@ -189,18 +189,18 @@ contains
  
     msg = 'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges' 
     error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
-    msg = 'Define BDDC weighting function from: cardinality (inverse of the cardinality of each dof), resistivity, permeability, stiffness (diagonal entries of the operator).'
+    msg = 'Define BDDC weighting function from: cardinality (inverse of the cardinality of each dof), curl_curl_coeff, mass_coeff, stiffness (diagonal entries of the operator).'
     error = helpers%set(key = bddc_weighting_function_case_key, value = msg  ); check(error==0) 
                         
-    error = helpers%set(key = permeability_white_key   , value  = 'permeability_white value' ) ; check(error==0)
-    error = helpers%set(key = resistivity_white_key    , value  = 'resistivity_white  value' )  ; check(error==0)
-    error = helpers%set(key = permeability_black_key   , value  = 'permeability_black value' ) ; check(error==0)
-    error = helpers%set(key = resistivity_black_key    , value  = 'resistivity_black value' )  ; check(error==0)
+    error = helpers%set(key = mass_coeff_white_key   , value  = 'mass_coeff_white value' ) ; check(error==0)
+    error = helpers%set(key = curl_curl_coeff_white_key    , value  = 'curl_curl_coeff_white  value' )  ; check(error==0)
+    error = helpers%set(key = mass_coeff_black_key   , value  = 'mass_coeff_black value' ) ; check(error==0)
+    error = helpers%set(key = curl_curl_coeff_black_key    , value  = 'curl_curl_coeff_black value' )  ; check(error==0)
     error = helpers%set(key = materials_distribution_case_key, value  = 'Materials distribution case: choose between: checkerboard, channels, radial, heterogeneous' )  ; check(error==0)
     error = helpers%set(key = materials_coefficient_case_key, value  = 'Materials coefficient case: choose between: constant, sinusoidal' )  ; check(error==0)
     error = helpers%set(key = channels_ratio_key   , value  = 'Ratio channel/non-channel of the cross section for every direction)' ) ; check(error==0)
-    error = helpers%set(key = num_peaks_resistivity_key   , value  = 'Number of peaks for the sinusoidal function describing the resistivity' ) ; check(error==0)
-    error = helpers%set(key = num_peaks_permeability_key   , value  = 'Number of peaks for the sinusoidal function describing the permeability' ) ; check(error==0)
+    error = helpers%set(key = num_peaks_curl_curl_coeff_key   , value  = 'Number of peaks for the sinusoidal function describing the curl_curl_coeff' ) ; check(error==0)
+    error = helpers%set(key = num_peaks_mass_coeff_key   , value  = 'Number of peaks for the sinusoidal function describing the mass_coeff' ) ; check(error==0)
     error = helpers%set(key = rpb_bddc_threshold_key   , value  = 'Threshold for the relaxed PB-BDDC subparts partition' ) ; check(error==0)
     error = helpers%set(key = boundary_mass_trick_key   , value  = 'Is the boundary mass trick active?' ); check(error==0)
     
@@ -221,15 +221,15 @@ contains
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = bddc_edge_continuity_algorithm_key , value = .false.) ; check(error==0)
     error = required%set(key = bddc_weighting_function_case_key , value = .false.) ; check(error==0)
-    error = required%set(key = permeability_white_key   , value = .false.) ; check(error==0)
-    error = required%set(key = resistivity_white_key    , value = .false.) ; check(error==0)
-    error = required%set(key = permeability_black_key   , value = .false.) ; check(error==0)
-    error = required%set(key = resistivity_black_key    , value = .false.) ; check(error==0)
+    error = required%set(key = mass_coeff_white_key   , value = .false.) ; check(error==0)
+    error = required%set(key = curl_curl_coeff_white_key    , value = .false.) ; check(error==0)
+    error = required%set(key = mass_coeff_black_key   , value = .false.) ; check(error==0)
+    error = required%set(key = curl_curl_coeff_black_key    , value = .false.) ; check(error==0)
     error = required%set(key = materials_distribution_case_key, value = .false.) ; check(error==0)
     error = required%set(key = materials_coefficient_case_key, value = .false.) ; check(error==0)
     error = required%set(key = channels_ratio_key    , value = .false.) ; check(error==0)
-    error = required%set(key = num_peaks_resistivity_key     , value = .false. ) ; check(error==0) 
-    error = required%set(key = num_peaks_permeability_key    , value = .false. ) ; check(error==0)
+    error = required%set(key = num_peaks_curl_curl_coeff_key     , value = .false. ) ; check(error==0) 
+    error = required%set(key = num_peaks_mass_coeff_key    , value = .false. ) ; check(error==0)
     error = required%set(key = rpb_bddc_threshold_key    , value = .false.) ; check(error==0)
     error = required%set(key = boundary_mass_trick_key    , value = .false.) ; check(error==0)
 
@@ -343,56 +343,56 @@ contains
   end function get_triangulation_type 
   
     !==================================================================================================
-  function get_permeability_white(this)
+  function get_mass_coeff_white(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_permeability_white
+    real(rp)                                      :: get_mass_coeff_white
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(permeability_white_key, get_permeability_white))
-    error = list%Get(key = permeability_white_key, Value = get_permeability_white)
+    assert(list%isAssignable(mass_coeff_white_key, get_mass_coeff_white))
+    error = list%Get(key = mass_coeff_white_key, Value = get_mass_coeff_white)
     assert(error==0)
-  end function get_permeability_white
+  end function get_mass_coeff_white
   
       !==================================================================================================
-  function get_permeability_black(this)
+  function get_mass_coeff_black(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_permeability_black
+    real(rp)                                      :: get_mass_coeff_black
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(permeability_black_key, get_permeability_black))
-    error = list%Get(key = permeability_black_key, Value = get_permeability_black)
+    assert(list%isAssignable(mass_coeff_black_key, get_mass_coeff_black))
+    error = list%Get(key = mass_coeff_black_key, Value = get_mass_coeff_black)
     assert(error==0)
-  end function get_permeability_black
+  end function get_mass_coeff_black
   
      !==================================================================================================
-  function get_resistivity_white (this)
+  function get_curl_curl_coeff_white (this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_resistivity_white 
+    real(rp)                                      :: get_curl_curl_coeff_white 
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(resistivity_white_key, get_resistivity_white ))
-    error = list%Get(key = resistivity_white_key, Value = get_resistivity_white )
+    assert(list%isAssignable(curl_curl_coeff_white_key, get_curl_curl_coeff_white ))
+    error = list%Get(key = curl_curl_coeff_white_key, Value = get_curl_curl_coeff_white )
     assert(error==0)
-  end function get_resistivity_white 
+  end function get_curl_curl_coeff_white 
   
        !==================================================================================================
-  function get_resistivity_black (this)
+  function get_curl_curl_coeff_black (this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_resistivity_black 
+    real(rp)                                      :: get_curl_curl_coeff_black 
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(resistivity_black_key, get_resistivity_black ))
-    error = list%Get(key = resistivity_black_key, Value = get_resistivity_black)
+    assert(list%isAssignable(curl_curl_coeff_black_key, get_curl_curl_coeff_black ))
+    error = list%Get(key = curl_curl_coeff_black_key, Value = get_curl_curl_coeff_black)
     assert(error==0)
-  end function get_resistivity_black 
+  end function get_curl_curl_coeff_black 
   
       !==================================================================================================
   function get_materials_distribution_case(this)
@@ -462,29 +462,29 @@ contains
   end function get_boundary_mass_trick
   
     !==================================================================================================
-  function get_num_peaks_resistivity(this)
+  function get_num_peaks_curl_curl_coeff(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_peaks_resistivity
+    integer(ip)                                   :: get_num_peaks_curl_curl_coeff
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(num_peaks_resistivity_key, get_num_peaks_resistivity))
-    error = list%Get(key = num_peaks_resistivity_key, Value = get_num_peaks_resistivity)
+    assert(list%isAssignable(num_peaks_curl_curl_coeff_key, get_num_peaks_curl_curl_coeff))
+    error = list%Get(key = num_peaks_curl_curl_coeff_key, Value = get_num_peaks_curl_curl_coeff)
     assert(error==0)
-  end function get_num_peaks_resistivity
+  end function get_num_peaks_curl_curl_coeff
   
       !==================================================================================================
-  function get_num_peaks_permeability(this)
+  function get_num_peaks_mass_coeff(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_peaks_permeability
+    integer(ip)                                   :: get_num_peaks_mass_coeff
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(num_peaks_permeability_key, get_num_peaks_permeability))
-    error = list%Get(key = num_peaks_permeability_key, Value = get_num_peaks_permeability)
+    assert(list%isAssignable(num_peaks_mass_coeff_key, get_num_peaks_mass_coeff))
+    error = list%Get(key = num_peaks_mass_coeff_key, Value = get_num_peaks_mass_coeff)
     assert(error==0)
-  end function get_num_peaks_permeability
+  end function get_num_peaks_mass_coeff
   
 end module par_pb_bddc_maxwell_params_names

@@ -113,20 +113,20 @@ contains
     real(rp)     :: factor
     type(vector_field_t), allocatable  :: source_term_values(:)
 
-    integer(ip)                            :: number_fields
-    class(vector_function_t)  , pointer    :: source_term
-    type(resistivity_holder_t), pointer    :: resistivity_holder(:)
-    type(permeability_holder_t), pointer   :: permeability_holder(:)
-    real(rp), allocatable                  :: permeability(:), resistivity(:) 
-    integer(ip)                            :: material_id 
+    integer(ip)                             :: number_fields
+    class(vector_function_t)  , pointer     :: source_term
+    type(curl_curl_coeff_holder_t), pointer :: curl_curl_coeff_holder(:)
+    type(mass_coeff_holder_t), pointer      :: mass_coeff_holder(:)
+    real(rp), allocatable                   :: mass_coeff(:), curl_curl_coeff(:) 
+    integer(ip)                             :: material_id 
     
     assert (associated(this%analytical_functions)) 
     assert (associated(this%fe_function))
 
     ! Extract analytical functions 
     source_term         => this%analytical_functions%get_source_term()
-    resistivity_holder  => this%analytical_functions%get_resistivity()
-    permeability_holder => this%analytical_functions%get_permeability()
+    curl_curl_coeff_holder  => this%analytical_functions%get_curl_curl_coeff()
+    mass_coeff_holder => this%analytical_functions%get_mass_coeff()
     
     call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
@@ -138,8 +138,8 @@ contains
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
-    call memalloc( num_quad_points, resistivity, __FILE__, __LINE__ )
-    call memalloc( num_quad_points, permeability, __FILE__, __LINE__ )
+    call memalloc( num_quad_points, curl_curl_coeff, __FILE__, __LINE__ )
+    call memalloc( num_quad_points, mass_coeff, __FILE__, __LINE__ )
 
     do while ( .not. fe%has_finished())
     
@@ -165,8 +165,8 @@ contains
           end select 
           
           call source_term%get_values_set(quad_coords, source_term_values)
-          call resistivity_holder(material_id)%p%get_values_set(quad_coords, resistivity)
-          call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)  
+          call curl_curl_coeff_holder(material_id)%p%get_values_set(quad_coords, curl_curl_coeff)
+          call mass_coeff_holder(material_id)%p%get_values_set(quad_coords, mass_coeff)  
                     
           ! Compute element matrix and vector
           elmat = 0.0_rp
@@ -178,8 +178,8 @@ contains
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( resistivity(qpoint)* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
-                                                                  + permeability(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( curl_curl_coeff(qpoint)* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
+                                                                  + mass_coeff(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
                 end do
              end do
              
@@ -211,7 +211,7 @@ contains
             
           ! Get quadrature coordinates to evaluate source_term
           quad_coords => fe%get_quadrature_points_coordinates()
-          call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)   
+          call mass_coeff_holder(material_id)%p%get_values_set(quad_coords, mass_coeff)   
                             
           ! Compute element matrix and vector
           elmat = 0.0_rp
@@ -223,7 +223,7 @@ contains
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_M(i,j) =  (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * permeability(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint)
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * mass_coeff(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint)
                 end do
              end do
           end do
@@ -239,8 +239,8 @@ contains
     deallocate (shape_values, stat=istat);       check(istat==0)
     deallocate (shape_curls, stat=istat);        check(istat==0)
     deallocate (source_term_values, stat=istat); check(istat==0)
-    call memfree ( resistivity, __FILE__, __LINE__ ) 
-    call memfree ( permeability, __FILE__, __LINE__ ) 
+    call memfree ( curl_curl_coeff, __FILE__, __LINE__ ) 
+    call memfree ( mass_coeff, __FILE__, __LINE__ ) 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin

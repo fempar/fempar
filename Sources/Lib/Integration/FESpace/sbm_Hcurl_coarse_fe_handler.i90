@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, average_permeability, average_resistivity )
+subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, average_mass_coeff, average_curl_curl_coeff )
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer(ip)                           , intent(in)    :: field_id 
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
   class(par_sparse_matrix_t) , target   , intent(in)    :: matrix  
   type(parameterlist_t)                 , intent(in)    :: parameter_list 
-  real(rp), target                      , intent(in)    :: average_permeability(:) 
-  real(rp), target                      , intent(in)    :: average_resistivity(:) 
+  real(rp), target                      , intent(in)    :: average_mass_coeff(:) 
+  real(rp), target                      , intent(in)    :: average_curl_curl_coeff(:) 
   ! Initialize parameters 
 
   character(len=:), allocatable :: continuity_algorithm
@@ -58,8 +58,8 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   end if
 
   ! Init parameters 
-  this%permeability => average_permeability 
-  this%resistivity  => average_resistivity 
+  this%mass_coeff => average_mass_coeff 
+  this%curl_curl_coeff  => average_curl_curl_coeff 
 
   this%field_id = field_id 
   this%matrix => matrix 
@@ -561,10 +561,10 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   case ( cardinality ) 
      sub_assembled_w = 1.0_rp 
 
-  case ( permeability, resistivity, weighted_coefficients )    
+  case ( mass_coeff, curl_curl_coeff, weighted_coefficients )    
      sub_assembled_w(1:this%num_interior_dofs) = 1.0_rp 
 
-     call memalloc( size(this%resistivity), touched_set_id, __FILE__, __LINE__ ) 
+     call memalloc( size(this%curl_curl_coeff), touched_set_id, __FILE__, __LINE__ ) 
      call par_fe_space%create_fe_cell_iterator(fe) 
      call par_fe_space%create_fe_vef_iterator(vef)
 
@@ -582,14 +582,14 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
                     own_dofs = fe%create_own_dofs_on_vef_iterator( fe%get_vef_lid_from_gid(vef%get_gid()), this%field_id ) 
                     do while ( .not. own_dofs%is_upper_bound() )
                        if ( fe_dofs(own_dofs%get_current()) > 0 ) then 
-                          if ( weighting_function == permeability ) then 
-                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%permeability(set_id) 
-                          elseif ( weighting_function == resistivity ) then 
-                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%resistivity(set_id)
+                          if ( weighting_function == mass_coeff ) then 
+                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%mass_coeff(set_id) 
+                          elseif ( weighting_function == curl_curl_coeff ) then 
+                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%curl_curl_coeff(set_id)
                           elseif ( weighting_function == weighted_coefficients ) then 
                              char_length = fe%compute_volume()**(1.0_rp/par_fe_space%get_num_dims())
                              sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + & 
-                                  this%permeability(set_id) + this%resistivity(set_id)/(char_length**2)
+                                  this%mass_coeff(set_id) + this%curl_curl_coeff(set_id)/(char_length**2)
                           end if
                        end if
                        call own_dofs%next() 

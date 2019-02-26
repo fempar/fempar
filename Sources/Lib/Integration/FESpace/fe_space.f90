@@ -1225,8 +1225,8 @@ module fe_space_names
     logical                                 :: is_change_basis_computed 
     logical                                 :: arithmetic_average
     integer(ip)                             :: field_id 
-    real(rp), pointer                       :: permeability(:) 
-    real(rp), pointer                       :: resistivity(:) 
+    real(rp), pointer                       :: mass_coeff(:) 
+    real(rp), pointer                       :: curl_curl_coeff(:) 
     type(par_sparse_matrix_t), pointer      :: matrix
     integer(ip)                             :: num_interior_dofs
     integer(ip)                             :: num_total_dofs     
@@ -1286,13 +1286,13 @@ module fe_space_names
   ! Weighting function 
   character(len=*), parameter :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
   character(len=*), parameter :: cardinality           = 'cardinality'
-  character(len=*), parameter :: resistivity           = 'resistivity' 
-  character(len=*), parameter :: permeability          = 'permeability' 
+  character(len=*), parameter :: curl_curl_coeff           = 'curl_curl_coeff' 
+  character(len=*), parameter :: mass_coeff          = 'mass_coeff' 
   character(len=*), parameter :: stiffness             = 'stiffness'
   character(len=*), parameter :: weighted_coefficients = 'weighted_coefficients'
   
   public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
-  public :: cardinality, resistivity, permeability, stiffness, weighted_coefficients 
+  public :: cardinality, curl_curl_coeff, mass_coeff, stiffness, weighted_coefficients 
   public :: Hcurl_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t

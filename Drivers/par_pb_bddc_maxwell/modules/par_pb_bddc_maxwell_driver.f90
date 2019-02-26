@@ -56,14 +56,14 @@ module par_pb_bddc_maxwell_driver_names
      type(maxwell_conditions_t)                    :: maxwell_conditions
      ! Analytical functions describing parameters
      type(par_pb_bddc_maxwell_analytical_functions_t) :: maxwell_analytical_functions
-     type(resistivity_holder_t), allocatable          :: resistivity_holder(:) 
-     type(resistivity_function_white_t)               :: resistivity_white 
-     type(resistivity_function_black_t)               :: resistivity_black 
-     type(permeability_holder_t), allocatable         :: permeability_holder(:) 
-     type(permeability_function_white_t)              :: permeability_white 
-     type(permeability_function_black_t)              :: permeability_black 
-     real(rp), allocatable                            :: average_permeability(:) 
-     real(rp), allocatable                            :: average_resistivity(:) 
+     type(curl_curl_coeff_holder_t), allocatable          :: curl_curl_coeff_holder(:) 
+     type(curl_curl_coeff_function_white_t)               :: curl_curl_coeff_white 
+     type(curl_curl_coeff_function_black_t)               :: curl_curl_coeff_black 
+     type(mass_coeff_holder_t), allocatable         :: mass_coeff_holder(:) 
+     type(mass_coeff_function_white_t)              :: mass_coeff_white 
+     type(mass_coeff_function_black_t)              :: mass_coeff_black 
+     real(rp), allocatable                            :: average_mass_coeff(:) 
+     real(rp), allocatable                            :: average_curl_curl_coeff(:) 
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
@@ -223,15 +223,15 @@ contains
     integer(ip) :: ijk(3), aux 
     integer(ip) :: istat, dummy_val 
     real(rp)    :: contrast, radius 
-    real(rp)    :: resistivity, permeability 
-    real(rp)    :: resistivity_max, resistivity_min 
-    real(rp)    :: permeability_max, permeability_min 
+    real(rp)    :: curl_curl_coeff, mass_coeff 
+    real(rp)    :: curl_curl_coeff_max, curl_curl_coeff_min 
+    real(rp)    :: mass_coeff_max, mass_coeff_min 
     logical     :: min_values_initialized
     real(rp)    :: R
     integer(ip) :: N, alpha
-    integer(ip) :: resistivity_set_id 
-    integer(ip) :: permeability_set_id 
-    integer(ip) :: num_resistivity_set_ids 
+    integer(ip) :: curl_curl_coeff_set_id 
+    integer(ip) :: mass_coeff_set_id 
+    integer(ip) :: num_curl_curl_coeff_set_ids 
     type(hash_table_ip_ip_t) :: g2l_subset_id 
     integer(ip) :: num_subsets_id, local_subset_id, global_subset_id 
 
@@ -268,21 +268,21 @@ contains
              call cell%get_nodes_coordinates(cell_coordinates)
 
              do inode=1, cell%get_num_nodes() 
-                call this%resistivity_holder(1)%p%get_value(cell_coordinates(inode), resistivity)
-                call this%permeability_holder(1)%p%get_value(cell_coordinates(inode), permeability)
+                call this%curl_curl_coeff_holder(1)%p%get_value(cell_coordinates(inode), curl_curl_coeff)
+                call this%mass_coeff_holder(1)%p%get_value(cell_coordinates(inode), mass_coeff)
                 if ( .not. min_values_initialized ) then 
-                resistivity_min  = resistivity 
-                permeability_min = permeability
+                curl_curl_coeff_min  = curl_curl_coeff 
+                mass_coeff_min = mass_coeff
                 
-                resistivity_max = resistivity
-                permeability_max = permeability 
+                curl_curl_coeff_max = curl_curl_coeff
+                mass_coeff_max = mass_coeff 
                 min_values_initialized = .true. 
                 else 
-                resistivity_min  = min(resistivity_min,  resistivity) 
-                permeability_min = min(permeability_min, permeability)
+                curl_curl_coeff_min  = min(curl_curl_coeff_min,  curl_curl_coeff) 
+                mass_coeff_min = min(mass_coeff_min, mass_coeff)
                 
-                resistivity_max  = max(resistivity_max,  resistivity) 
-                permeability_max = max(permeability_max, permeability) 
+                curl_curl_coeff_max  = max(curl_curl_coeff_max,  curl_curl_coeff) 
+                mass_coeff_max = max(mass_coeff_max, mass_coeff) 
                 end if 
              end do
           end if
@@ -292,8 +292,8 @@ contains
           call cell%first() 
        
           ! Number of subsets that will arise 
-          contrast = resistivity_max / resistivity_min 
-          num_resistivity_set_ids = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) ) + 1
+          contrast = curl_curl_coeff_max / curl_curl_coeff_min 
+          num_curl_curl_coeff_set_ids = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) ) + 1
           
     end if
 
@@ -334,27 +334,27 @@ contains
              end if
 
           case ( heterogeneous ) 
-             ! Extract coordinates, evaluate resistivity/permeability
+             ! Extract coordinates, evaluate curl_curl_coeff/mass_coeff
              call cell%get_nodes_coordinates(cell_coordinates)
 
-             permeability_max = 0.0_rp 
-             resistivity_max  = 0.0_rp 
+             mass_coeff_max = 0.0_rp 
+             curl_curl_coeff_max  = 0.0_rp 
              do inode=1, cell%get_num_nodes() 
-                call this%resistivity_holder(1)%p%get_value(cell_coordinates(inode), resistivity)
-                call this%permeability_holder(1)%p%get_value(cell_coordinates(inode), permeability)
-                permeability_max = max( permeability_max, permeability ) 
-                resistivity_max  = max( resistivity_max, resistivity ) 
+                call this%curl_curl_coeff_holder(1)%p%get_value(cell_coordinates(inode), curl_curl_coeff)
+                call this%mass_coeff_holder(1)%p%get_value(cell_coordinates(inode), mass_coeff)
+                mass_coeff_max = max( mass_coeff_max, mass_coeff ) 
+                curl_curl_coeff_max  = max( curl_curl_coeff_max, curl_curl_coeff ) 
              end do
              
              massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
-             contrast= resistivity_max/resistivity_min
-             resistivity_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+             contrast= curl_curl_coeff_max/curl_curl_coeff_min
+             curl_curl_coeff_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
              
-             contrast= permeability_max/permeability_min 
-             permeability_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+             contrast= mass_coeff_max/mass_coeff_min 
+             mass_coeff_set_id = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
                 
              ! Transfer global to local info 
-             global_subset_id = resistivity_set_id + permeability_set_id * num_resistivity_set_ids
+             global_subset_id = curl_curl_coeff_set_id + mass_coeff_set_id * num_curl_curl_coeff_set_ids
              
              call g2l_subset_id%get( key = global_subset_id, val = local_subset_id, stat=istat) 
              if ( istat == key_found ) then 
@@ -410,52 +410,52 @@ contains
     class(par_pb_bddc_maxwell_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
 
-    ! Initialize resistivity values for different materials 
-    call this%resistivity_black%set_value(this%test_params%get_resistivity_black())
-    call this%resistivity_white%set_value(this%test_params%get_resistivity_white()) 
-    call this%permeability_black%set_value(this%test_params%get_permeability_black())
-    call this%permeability_white%set_value(this%test_params%get_permeability_white()) 
+    ! Initialize curl_curl_coeff values for different materials 
+    call this%curl_curl_coeff_black%set_value(this%test_params%get_curl_curl_coeff_black())
+    call this%curl_curl_coeff_white%set_value(this%test_params%get_curl_curl_coeff_white()) 
+    call this%mass_coeff_black%set_value(this%test_params%get_mass_coeff_black())
+    call this%mass_coeff_white%set_value(this%test_params%get_mass_coeff_white()) 
     ! Set coefficient case 
-    call this%resistivity_white%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
-    call this%permeability_white%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
+    call this%curl_curl_coeff_white%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
+    call this%mass_coeff_white%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
 
     select case ( this%test_params%get_materials_distribution_case() ) 
     
     case ( checkerboard, channels, radial ) 
-    allocate(this%resistivity_holder(2), stat=istat)
-    allocate(this%permeability_holder(2), stat=istat) 
+    allocate(this%curl_curl_coeff_holder(2), stat=istat)
+    allocate(this%mass_coeff_holder(2), stat=istat) 
 
-    call this%resistivity_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
-    call this%permeability_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
+    call this%curl_curl_coeff_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() ) 
+    call this%mass_coeff_black%set_coefficient_case( this%test_params%get_materials_coefficient_case() )
 
-    this%resistivity_holder(1)%p => this%resistivity_white 
-    this%resistivity_holder(2)%p => this%resistivity_black
-    this%permeability_holder(1)%p => this%permeability_white 
-    this%permeability_holder(2)%p => this%permeability_black 
+    this%curl_curl_coeff_holder(1)%p => this%curl_curl_coeff_white 
+    this%curl_curl_coeff_holder(2)%p => this%curl_curl_coeff_black
+    this%mass_coeff_holder(1)%p => this%mass_coeff_white 
+    this%mass_coeff_holder(2)%p => this%mass_coeff_black 
     
     case ( homogeneous ) 
     
-    allocate(this%resistivity_holder(1), stat=istat)
-    allocate(this%permeability_holder(1), stat=istat) 
-    this%resistivity_holder(1)%p => this%resistivity_white 
-    this%permeability_holder(1)%p => this%permeability_white
+    allocate(this%curl_curl_coeff_holder(1), stat=istat)
+    allocate(this%mass_coeff_holder(1), stat=istat) 
+    this%curl_curl_coeff_holder(1)%p => this%curl_curl_coeff_white 
+    this%mass_coeff_holder(1)%p => this%mass_coeff_white
     
     case ( heterogeneous ) 
     
-    allocate(this%resistivity_holder(1), stat=istat)
-    allocate(this%permeability_holder(1), stat=istat) 
-    this%resistivity_holder(1)%p => this%resistivity_white 
-    this%permeability_holder(1)%p => this%permeability_white
+    allocate(this%curl_curl_coeff_holder(1), stat=istat)
+    allocate(this%mass_coeff_holder(1), stat=istat) 
+    this%curl_curl_coeff_holder(1)%p => this%curl_curl_coeff_white 
+    this%mass_coeff_holder(1)%p => this%mass_coeff_white
     
-    call this%resistivity_white%set_num_peaks( this%test_params%get_num_peaks_resistivity() ) 
-    call this%permeability_white%set_num_peaks( this%test_params%get_num_peaks_permeability() )
+    call this%curl_curl_coeff_white%set_num_peaks( this%test_params%get_num_peaks_curl_curl_coeff() ) 
+    call this%mass_coeff_white%set_num_peaks( this%test_params%get_num_peaks_mass_coeff() )
     
     case DEFAULT 
     massert(.false., 'Not valid material distribution case') 
     end select 
 
-    call this%maxwell_analytical_functions%set_resistivity( this%resistivity_holder )
-    call this%maxwell_analytical_functions%set_permeability( this%permeability_holder ) 
+    call this%maxwell_analytical_functions%set_curl_curl_coeff( this%curl_curl_coeff_holder )
+    call this%maxwell_analytical_functions%set_mass_coeff( this%mass_coeff_holder ) 
 
     call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
 
@@ -564,7 +564,7 @@ contains
        select type ( matrix ) 
           class is (par_sparse_matrix_t) 
           call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, & 
-                                             this%average_permeability, this%average_resistivity )
+                                             this%average_mass_coeff, this%average_curl_curl_coeff )
        end select
     end if
     call this%timer_change_basis_setup%stop()
@@ -644,17 +644,17 @@ contains
     type(point_t)            , pointer     :: quad_coords(:)
     real(rp)                               :: factor 
     real(rp), allocatable                  :: set_id_volume(:)
-    real(rp), allocatable                  :: permeability(:)
-    real(rp), allocatable                  :: resistivity(:) 
+    real(rp), allocatable                  :: mass_coeff(:)
+    real(rp), allocatable                  :: curl_curl_coeff(:) 
     integer(ip) :: max_cell_set_id, set_id, material_id 
     integer(ip) :: istat 
 
     max_cell_set_id = maxval(this%cells_set_id)+1 ! 1-based arrays  
-    call memalloc( max_cell_set_id, this%average_permeability, __FILE__, __LINE__ )
-    call memalloc( max_cell_set_id, this%average_resistivity, __FILE__, __LINE__ ) 
+    call memalloc( max_cell_set_id, this%average_mass_coeff, __FILE__, __LINE__ )
+    call memalloc( max_cell_set_id, this%average_curl_curl_coeff, __FILE__, __LINE__ ) 
     call memalloc( max_cell_set_id, set_id_volume, __FILE__, __LINE__ )
-    this%average_permeability = 0.0_rp 
-    this%average_resistivity  = 0.0_rp 
+    this%average_mass_coeff = 0.0_rp 
+    this%average_curl_curl_coeff  = 0.0_rp 
     set_id_volume = 0.0_rp 
 
     ! Integrate structures needed 
@@ -664,8 +664,8 @@ contains
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     quad_coords      => fe%get_quadrature_points_coordinates()
-    call memalloc( num_quad_points, resistivity, __FILE__, __LINE__ )
-    call memalloc( num_quad_points, permeability, __FILE__, __LINE__ )
+    call memalloc( num_quad_points, curl_curl_coeff, __FILE__, __LINE__ )
+    call memalloc( num_quad_points, mass_coeff, __FILE__, __LINE__ )
 
     ! Loop over elements
     do while ( .not. fe%has_finished())
@@ -681,15 +681,15 @@ contains
           material_id = 1 + fe%get_set_id()
           end select 
           set_id = 1 + fe%get_set_id() ! 1-based arrays 
-          call this%resistivity_holder(material_id)%p%get_values_set(quad_coords, resistivity)
-          call this%permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)  
+          call this%curl_curl_coeff_holder(material_id)%p%get_values_set(quad_coords, curl_curl_coeff)
+          call this%mass_coeff_holder(material_id)%p%get_values_set(quad_coords, mass_coeff)  
 
           ! Integrate cell contribution to averages 
           do qpoin=1, num_quad_points
              factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
              ! Average magnetic field 
-             this%average_permeability(set_id) = this%average_permeability(set_id) + permeability(qpoin)*factor 
-             this%average_resistivity(set_id)  = this%average_resistivity(set_id)  + resistivity(qpoin)*factor
+             this%average_mass_coeff(set_id) = this%average_mass_coeff(set_id) + mass_coeff(qpoin)*factor 
+             this%average_curl_curl_coeff(set_id)  = this%average_curl_curl_coeff(set_id)  + curl_curl_coeff(qpoin)*factor
              set_id_volume(set_id)             = set_id_volume(set_id) + factor
           end do
        end if
@@ -699,12 +699,12 @@ contains
 
     do set_id=1, max_cell_set_id
        if ( set_id_volume(set_id) == 0.0_rp ) cycle
-       this%average_permeability(set_id) = this%average_permeability(set_id)/set_id_volume(set_id)
-       this%average_resistivity(set_id)  = this%average_resistivity(set_id)/set_id_volume(set_id)
+       this%average_mass_coeff(set_id) = this%average_mass_coeff(set_id)/set_id_volume(set_id)
+       this%average_curl_curl_coeff(set_id)  = this%average_curl_curl_coeff(set_id)/set_id_volume(set_id)
     end do
     
-    call memfree ( resistivity, __FILE__, __LINE__ ) 
-    call memfree ( permeability, __FILE__, __LINE__ ) 
+    call memfree ( curl_curl_coeff, __FILE__, __LINE__ ) 
+    call memfree ( mass_coeff, __FILE__, __LINE__ ) 
     call memfree(set_id_volume, __FILE__, __LINE__)
   end subroutine compute_average_parameter_values
 
@@ -927,20 +927,20 @@ contains
        check(istat==0)
     end if
 
-    if ( allocated(this%resistivity_holder) ) then
-       deallocate(this%resistivity_holder, stat=istat)
+    if ( allocated(this%curl_curl_coeff_holder) ) then
+       deallocate(this%curl_curl_coeff_holder, stat=istat)
        check(istat==0)
     end if
 
-    if ( allocated(this%permeability_holder) ) then
-       deallocate(this%permeability_holder, stat=istat)
+    if ( allocated(this%mass_coeff_holder) ) then
+       deallocate(this%mass_coeff_holder, stat=istat)
        check(istat==0)
     end if
 
     call this%triangulation%free()
     if (allocated(this%cells_set_id) )        call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
-    if (allocated(this%average_resistivity))  call memfree( this%average_resistivity, __FILE__, __LINE__ ) 
-    if (allocated(this%average_permeability)) call memfree( this%average_permeability, __FILE__, __LINE__ ) 
+    if (allocated(this%average_curl_curl_coeff))  call memfree( this%average_curl_curl_coeff, __FILE__, __LINE__ ) 
+    if (allocated(this%average_mass_coeff)) call memfree( this%average_mass_coeff, __FILE__, __LINE__ ) 
 
   end subroutine free
 
