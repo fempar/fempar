@@ -99,12 +99,12 @@ contains
     error = list%set(key = curl_curl_coeff_white_key              , value =  1.0 ); check(error==0)
     error = list%set(key = mass_coeff_black_key                   , value =  1.0 ); check(error==0)
     error = list%set(key = curl_curl_coeff_black_key              , value =  1.0 ); check(error==0)
-    error = list%set(key = materials_distribution_case_key        , value = checkerboard); check(error==0) 
-    error = list%set(key = materials_coefficient_case_key         , value = constant); check(error==0) 
+    error = list%set(key = materials_distribution_case_key        , value =  homogeneous); check(error==0) 
+    error = list%set(key = materials_coefficient_case_key         , value =  constant); check(error==0) 
     error = list%set(key = channels_ratio_key                     , value =  0.1 ); check(error==0)
     error = list%set(key = num_peaks_curl_curl_coeff_key          , value =  3)   ; check(error==0)
     error = list%set(key = num_peaks_mass_coeff_key               , value =  3)   ; check(error==0)
-    error = list%set(key = rpb_bddc_threshold_key                 , value = 10.0 ); check(error==0)
+    error = list%set(key = rpb_bddc_threshold_key                 , value =  10.0 ); check(error==0)
     error = list%set(key = boundary_mass_trick_key                , value =  .false.); check(error==0)
     
     ! Only some of them are controlled from cli

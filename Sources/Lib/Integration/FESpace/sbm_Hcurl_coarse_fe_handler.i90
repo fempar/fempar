@@ -562,7 +562,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
      sub_assembled_w = 1.0_rp 
 
   case ( mass_coeff, curl_curl_coeff, weighted_coefficients )    
-     sub_assembled_w(1:this%num_interior_dofs) = 1.0_rp 
+     sub_assembled_w(1:this%num_interior_dofs) = 1.0_rp
 
      call memalloc( size(this%curl_curl_coeff), touched_set_id, __FILE__, __LINE__ ) 
      call par_fe_space%create_fe_cell_iterator(fe) 
@@ -1726,6 +1726,13 @@ subroutine assign_and_count_node_types(edge_interior_vertices, num_nodes, node_l
         call nodes_type%put(key=node_list(inode), val=interior_node, stat=istat)
         num_nodes_each_type( interior_node ) = num_nodes_each_type( interior_node ) + 1
      else
+#ifdef DEBUG   
+        if ( counter == 2 ) then 
+        wassert( .false., 'Handling an interior Coarse Edge node that is a Coarse Vertex'  ) 
+        elseif ( counter > 2 ) then 
+        wassert( .false., 'Handling a Coarse Edge n-furcation'  )
+        end if 
+#endif
         call nodes_type%put(key=node_list(inode), val=edge_boundary_node, stat=istat)
         num_nodes_each_type( edge_boundary_node ) = num_nodes_each_type( edge_boundary_node ) + 1
      end if
