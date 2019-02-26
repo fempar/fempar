@@ -151,7 +151,7 @@ void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivi
 */
 
 void F90_p4est_connectivity_set_bounding_box_limits ( p4est_connectivity_t ** p4est_conn,
-                                                      double                * bounding_box_limits )
+                                                      const double          * bounding_box_limits )
 {
     int bound;
     const int num_dims = 3;
