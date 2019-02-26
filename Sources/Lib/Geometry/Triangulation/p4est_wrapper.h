@@ -42,7 +42,7 @@ static int current_quadrant_index = 0;
 void F90_p4est_init_environment();
 void F90_p4est_finalize_environment();
 void F90_p4est_new_unit_square_connectivity(p4est_connectivity_t **);
-void F90_p4est_connectivity_scale( p4est_connectivity_t **, double *);
+void F90_p4est_connectivity_set_bounding_box_limits( p4est_connectivity_t **, double *);
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **);
 void F90_p8est_connectivity_destroy(p8est_connectivity_t **);
 void F90_p4est_mesh_destroy(p4est_mesh_t **);

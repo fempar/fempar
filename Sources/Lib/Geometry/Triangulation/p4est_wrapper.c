@@ -131,8 +131,8 @@ void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivi
 }
 
 
-void F90_p4est_connectivity_scale ( p4est_connectivity_t ** p4est_conn,
-                                    double                * bounding_box_limits )
+void F90_p4est_connectivity_set_bounding_box_limits ( p4est_connectivity_t ** p4est_conn,
+                                                      double                * bounding_box_limits )
 {
     int bound;
     const int num_dims = 3;
@@ -140,9 +140,9 @@ void F90_p4est_connectivity_scale ( p4est_connectivity_t ** p4est_conn,
     
     for ( int ivertex = 0; ivertex < (*p4est_conn)->num_vertices; ivertex ++ )
     {
-        for ( int idim = 0; idim < 3; idim ++ )
+        for ( int idim = 0; idim < num_dims; idim ++ )
         {
-            bound = (int)(ivertex / (int)pow(bin_base,idim) ) % bin_base ;
+            bound = ( ivertex >> idim ) % bin_base ;
             (*p4est_conn)->vertices [ ivertex * num_dims + idim ] = bounding_box_limits[ bound * num_dims + idim ];
         }
     }
