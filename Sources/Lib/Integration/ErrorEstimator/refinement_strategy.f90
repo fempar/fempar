@@ -116,7 +116,6 @@ module refinement_strategy_names
     ! Coarsen all cells s.t. #{e_i < \theta_c} \approx this%coarsening_fraction * N_cells 
     real(rp)                          :: refinement_fraction
     real(rp)                          :: coarsening_fraction
-    real(rp)                          :: threshold_tolerance
     real(rp)                          :: sq_refinement_threshold
     real(rp)                          :: sq_coarsening_threshold
     integer(ip)                       :: max_num_mesh_iterations
@@ -273,16 +272,7 @@ contains
     FPLerror = parameter_list%get(key = coarsening_fraction_key, value = this%coarsening_fraction)
     assert(FPLerror==0)
     assert ( this%coarsening_fraction >= 0.0_rp .and. this%coarsening_fraction <= 1.0_rp )
-    
-    ! Parse refinement_threshold
-    if ( parameter_list%isPresent(threshold_tolerance_key) ) then
-      FPLerror = parameter_list%get(key = threshold_tolerance_key, value = this%threshold_tolerance)
-      assert(FPLerror==0)
-    else
-      this%threshold_tolerance = 3.0_rp*1.0e-08_rp ! \approx 1/(2**25), with 25 being the 
-                                                              ! number of recursive bisection steps
-    end if
-    
+       
     if ( parameter_list%isPresent(max_num_mesh_iterations_key) ) then
       FPLerror = parameter_list%get(key = max_num_mesh_iterations_key, value = this%max_num_mesh_iterations)
       assert(FPLerror==0)
@@ -312,7 +302,8 @@ contains
     real(rp) :: coarsening_split_estimate, ref_split_estimate
     integer(ip) :: num_iterations
     real(rp) :: aux(2)
-    real(rp) :: initial_interval_size
+    logical :: ref_converged
+    logical :: coarsening_converged
     
     assert ( associated(this%error_estimator) )
     
@@ -325,77 +316,141 @@ contains
       sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
     
       num_local_cells  = triangulation%get_num_local_cells()
-      num_global_cells = num_local_cells
-      call environment%l1_sum(num_global_cells)
-    
+      num_global_cells = triangulation%get_num_global_cells()
+      
       target_num_cells_to_be_refined_coarsened(1) = int(real(num_global_cells,rp)*this%refinement_fraction)
       target_num_cells_to_be_refined_coarsened(2) = int(real(num_global_cells,rp)*this%coarsening_fraction)
-    
-      ref_sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
-      ref_sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
-    
+        
+      if ( num_local_cells /= 0 ) then 
+        ref_sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
+        ref_sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
+      else
+        ref_sq_min_estimate = 0.0_rp
+        ref_sq_max_estimate = 0.0_rp
+      end if
+      
       aux(1) = -sqrt(ref_sq_min_estimate)
       aux(2) = sqrt(ref_sq_max_estimate)
       call environment%l1_max(aux)
       ref_min_estimate = -aux(1)
       ref_max_estimate = aux(2)
+      
+      ! we compute refinement thresholds by bisection of the interval spanned by
+      ! the smallest and largest error indicator. this leads to a small problem:
+      ! if, for example, we want to refine zero per cent of the cells, then we
+      ! need to pick a threshold equal to the largest indicator, but of course
+      ! the bisection algorithm can never find a threshold equal to one of the
+      ! end points of the interval. So we slightly increase the interval before
+      ! we even start
+      if ( ref_min_estimate > 0.0_rp ) then
+        ref_min_estimate  = ref_min_estimate * 0.99_rp;
+      end if 
+      if ( ref_max_estimate > 0.0_rp ) then
+        ref_max_estimate = ref_max_estimate * 1.01_rp
+      end if
       coarsening_min_estimate = ref_min_estimate
       coarsening_max_estimate = ref_max_estimate
 
-      initial_interval_size = abs(ref_max_estimate-ref_min_estimate)
       num_iterations=0
-      do while ( abs(ref_max_estimate-ref_min_estimate)/initial_interval_size > this%threshold_tolerance) 
-        ! Compute interval split point using the fact that the log of error estimators
-        ! is much better uniformly scattered than the error estimators themselves. This is required
-        ! in order to have faster convergence whenever the error estimators are scattered across very
-        ! different orders of magnitude
-        ! avg_estimate = exp(1/2*(log(min_estimate)+log(max_estimate))) = sqrt(min_estimate*max_estimate)
-        if (ref_min_estimate == 0.0_rp) then
-          ref_split_estimate = sqrt(1.0e-10_rp*ref_max_estimate)
-        else
-          ref_split_estimate = sqrt(ref_min_estimate*ref_max_estimate)
-        end if
-        this%sq_refinement_threshold = ref_split_estimate*ref_split_estimate
-        if (coarsening_min_estimate == 0.0_rp) then
-          coarsening_split_estimate = sqrt(1.0e-10_rp*coarsening_max_estimate)
-        else
-          coarsening_split_estimate = sqrt(coarsening_min_estimate*coarsening_max_estimate)
-        end if
-        this%sq_coarsening_threshold = coarsening_split_estimate*coarsening_split_estimate
+      ref_converged = .false.
+      coarsening_converged = .false.
+      do 
+              
+        if ( ref_min_estimate == ref_max_estimate ) then
+           ref_converged = .true.
+        end if 
         
+        if ( coarsening_min_estimate == coarsening_max_estimate ) then 
+           coarsening_converged = .true. 
+        end if 
+                
+        if ( ref_converged .and. coarsening_converged ) exit
+              
+        if ( .not. ref_converged ) then
+          ! Compute interval split point using the fact that the log of error estimators
+          ! is much better uniformly scattered than the error estimators themselves. This is required
+          ! in order to have faster convergence whenever the error estimators are scattered across very
+          ! different orders of magnitude
+          ! avg_estimate = exp(1/2*(log(min_estimate)+log(max_estimate))) = sqrt(min_estimate*max_estimate)
+          if (ref_min_estimate == 0.0_rp) then
+            ref_split_estimate = sqrt(1.0e-10_rp*ref_max_estimate)
+          else
+            ref_split_estimate = sqrt(ref_min_estimate*ref_max_estimate)
+          end if
+        end if 
+        
+        if ( .not. coarsening_converged ) then
+          if (coarsening_min_estimate == 0.0_rp) then
+            coarsening_split_estimate = sqrt(1.0e-10_rp*coarsening_max_estimate)
+          else
+            coarsening_split_estimate = sqrt(coarsening_min_estimate*coarsening_max_estimate)
+          end if
+        end if
          
         ! Count how many cells have local error estimate larger or equal to avg_estimate
         ! count = #{ i: e_i >= avg_estimate }
-        current_num_cells_to_be_refined_coarsened(1) = 0 
-        current_num_cells_to_be_refined_coarsened(2) = 0 
+        if ( .not. ref_converged ) current_num_cells_to_be_refined_coarsened(1) = 0 
+        if ( .not. coarsening_converged ) current_num_cells_to_be_refined_coarsened(2) = 0 
         do i=1, num_local_cells
-          if ( sq_local_estimate_entries(i) >= this%sq_refinement_threshold ) then
-            current_num_cells_to_be_refined_coarsened(1) = current_num_cells_to_be_refined_coarsened(1) + 1 
-          end if
-          if ( sq_local_estimate_entries(i) < this%sq_coarsening_threshold ) then
-            current_num_cells_to_be_refined_coarsened(2) = current_num_cells_to_be_refined_coarsened(2) + 1 
+          if ( .not. ref_converged ) then
+            if ( sq_local_estimate_entries(i) > ref_split_estimate*ref_split_estimate ) then
+             current_num_cells_to_be_refined_coarsened(1) = current_num_cells_to_be_refined_coarsened(1) + 1 
+            end if
           end if 
+          if ( .not. coarsening_converged ) then
+            if ( sq_local_estimate_entries(i) < coarsening_split_estimate*coarsening_split_estimate ) then
+              current_num_cells_to_be_refined_coarsened(2) = current_num_cells_to_be_refined_coarsened(2) + 1 
+            end if 
+          end if   
         end do 
-        call environment%l1_sum(current_num_cells_to_be_refined_coarsened)
-       
-        if ( current_num_cells_to_be_refined_coarsened(1) > &
-             target_num_cells_to_be_refined_coarsened(1) ) then
-           ref_min_estimate = ref_split_estimate
-        else
-           ref_max_estimate = ref_split_estimate
-        end if
         
-        if ( current_num_cells_to_be_refined_coarsened(2) > &
-             target_num_cells_to_be_refined_coarsened(2) ) then
+        if ( (.not. ref_converged) .and. (.not. coarsening_converged) ) then
+          call environment%l1_sum(current_num_cells_to_be_refined_coarsened)
+        else if ( .not. ref_converged  ) then
+          call environment%l1_sum(current_num_cells_to_be_refined_coarsened(1))
+        else 
+          call environment%l1_sum(current_num_cells_to_be_refined_coarsened(2))
+        end if   
+       
+        if ( .not. ref_converged ) then
+          if ( current_num_cells_to_be_refined_coarsened(1) > &
+               target_num_cells_to_be_refined_coarsened(1) ) then
+             ref_min_estimate = ref_split_estimate
+          else if ( current_num_cells_to_be_refined_coarsened(1) < &
+                    target_num_cells_to_be_refined_coarsened(1) ) then
+             ref_max_estimate = ref_split_estimate
+          else 
+             ref_min_estimate  = ref_split_estimate
+             ref_max_estimate  = ref_split_estimate
+          end if
+        end if   
+        
+        if ( .not. coarsening_converged ) then
+          if ( current_num_cells_to_be_refined_coarsened(2) > &
+               target_num_cells_to_be_refined_coarsened(2) ) then
+            coarsening_max_estimate = coarsening_split_estimate
+          else if  ( current_num_cells_to_be_refined_coarsened(2) < &
+                     target_num_cells_to_be_refined_coarsened(2) ) then
+            coarsening_min_estimate = coarsening_split_estimate
+          else
+            coarsening_max_estimate = coarsening_split_estimate
+            coarsening_min_estimate = coarsening_split_estimate
+          end if
+        end if   
+        num_iterations = num_iterations + 1 
+        
+        if ( num_iterations == 25 ) then
+           ref_min_estimate  = ref_split_estimate
+           ref_max_estimate  = ref_split_estimate
            coarsening_max_estimate = coarsening_split_estimate
-        else
            coarsening_min_estimate = coarsening_split_estimate
         end if
-        
-        num_iterations = num_iterations + 1 
-      end do 
+      end do
+      this%sq_refinement_threshold = ref_min_estimate*ref_min_estimate
+      this%sq_coarsening_threshold = coarsening_min_estimate*coarsening_min_estimate
+      
       if ( environment%am_i_l1_root() ) then
-        write(*,*) "Converged to ", this%threshold_tolerance, " in ", num_iterations, " iterations"
+        write(*,*) "ffrs_update_refinement_flags converged in",  num_iterations, " iterations"
         write(*,*) "Computed refinement threshold squared = ", this%sq_refinement_threshold
         write(*,*) "% cells to be refined = ", real(current_num_cells_to_be_refined_coarsened(1),rp)/real(num_global_cells,rp)
         write(*,*) "Computed coarsening threshold squared = ", this%sq_coarsening_threshold
