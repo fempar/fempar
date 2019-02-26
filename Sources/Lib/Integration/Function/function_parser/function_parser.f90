@@ -28,6 +28,7 @@
 module function_parser_names
   use scalar_function_parser_names
   use vector_function_parser_names
+  use tensor_function_parser_names
   use scalar_function_and_gradient_parser_names
   use vector_function_and_gradient_parser_names
 end module function_parser_names

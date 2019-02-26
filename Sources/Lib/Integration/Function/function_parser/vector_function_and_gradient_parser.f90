@@ -45,6 +45,8 @@ module vector_function_and_gradient_parser_names
         procedure :: create                       => vector_function_and_gradient_parser_create
         procedure :: get_value_space              => vector_function_and_gradient_parser_get_value_space
         procedure :: get_value_space_time         => vector_function_and_gradient_parser_get_value_space_time
+        procedure :: get_gradient_space           => vector_function_and_gradient_parser_get_gradient_space
+        procedure :: get_gradient_space_time      => vector_function_and_gradient_parser_get_gradient_space_time
     end type vector_function_and_gradient_parser_t
 
     public :: vector_function_and_gradient_parser_t
@@ -88,5 +90,30 @@ contains
     !-----------------------------------------------------------------
         call this%function%get_value_space_time(point, time, result)
     end subroutine vector_function_and_gradient_parser_get_value_space_time
+
+
+    subroutine vector_function_and_gradient_parser_get_gradient_space( this, point, result )
+    !-----------------------------------------------------------------
+    !< Evaluate the time independant gradient in a given point
+    !-----------------------------------------------------------------
+        class(vector_function_and_gradient_parser_t), intent(in)    :: this
+        type(point_t),                                intent(in)    :: point
+        type(tensor_field_t),                         intent(inout) :: result
+    !-----------------------------------------------------------------
+        call this%gradient%get_value_space(point, result)
+    end subroutine vector_function_and_gradient_parser_get_gradient_space
+
+
+    subroutine vector_function_and_gradient_parser_get_gradient_space_time( this, point, time, result )
+    !-----------------------------------------------------------------
+    !< Evaluate the time dependant gradient in a given point and time step
+    !-----------------------------------------------------------------
+        class(vector_function_and_gradient_parser_t), intent(in)    :: this
+        type(point_t),                                intent(in)    :: point
+        real(rp),                                     intent(in)    :: time
+        type(tensor_field_t),                         intent(inout) :: result
+    !-----------------------------------------------------------------
+        call this%gradient%get_value_space_time(point, time, result)
+    end subroutine vector_function_and_gradient_parser_get_gradient_space_time
 
 end module vector_function_and_gradient_parser_names
