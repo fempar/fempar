@@ -32,17 +32,26 @@
 !**************************************************************************************************
 
 !===============================================================================================
-subroutine fe_cell_function_scalar_create ( this, fe_space, field_id )
+subroutine fe_cell_function_scalar_create ( this, fe_space, field_id, my_duties )
   implicit none
-  class(fe_cell_function_scalar_t), intent(inout) :: this 
-  class(serial_fe_space_t)        , intent(in)    :: fe_space
-  integer(ip)                     , intent(in)    :: field_id
+  class(fe_cell_function_scalar_t)           , intent(inout) :: this 
+  class(serial_fe_space_t)                   , intent(in)    :: fe_space
+  integer(ip)                                , intent(in)    :: field_id
+  type(fe_cell_function_duties_t) , optional , intent(in)    :: my_duties
   integer(ip)                                     :: istat
   class(environment_t)            , pointer       :: environment  
   integer(ip) :: max_num_nodes
   
   call this%free()
   assert ( field_id >=1 .and. field_id <= fe_space%get_num_fields() )
+
+  if(present(my_duties)) then
+     this%my_duties = my_duties
+  else
+     call this%my_duties%assign_evaluate_values(.true.)
+     call this%my_duties%assign_evaluate_gradients(.true.)
+     call this%my_duties%assign_evaluate_laplacians(.false.)
+  end if
   
   this%field_id = field_id
   environment => fe_space%get_environment()
@@ -54,13 +63,6 @@ subroutine fe_cell_function_scalar_create ( this, fe_space, field_id )
   end if
 
 end subroutine fe_cell_function_scalar_create
-
-subroutine fe_cell_function_scalar_set_duties ( this, my_duties )
-  implicit none
-  class(fe_cell_function_scalar_t), intent(inout) :: this 
-  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
-  this%my_duties = my_duties
-end subroutine fe_cell_function_scalar_set_duties
 
 subroutine fe_cell_function_scalar_move_alloc_values_in ( this, values )
   implicit none
@@ -275,15 +277,24 @@ end subroutine fe_cell_function_scalar_free
 ! Methods associated to fe_cell_function_vector_t
 !**************************************************************************************************
 !===============================================================================================
-subroutine fe_cell_function_vector_create ( this, fe_space, field_id )
+subroutine fe_cell_function_vector_create ( this, fe_space, field_id, my_duties )
   implicit none
-  class(fe_cell_function_vector_t), intent(inout) :: this 
-  class(serial_fe_space_t)        , intent(in)    :: fe_space
-  integer(ip)                     , intent(in)    :: field_id
+  class(fe_cell_function_vector_t)           , intent(inout) :: this 
+  class(serial_fe_space_t)                   , intent(in)    :: fe_space
+  integer(ip)                                , intent(in)    :: field_id
+  type(fe_cell_function_duties_t) , optional , intent(in)    :: my_duties
   integer(ip)                                     :: istat
   class(environment_t)            , pointer       :: environment 
   integer(ip) :: max_num_nodes
   assert ( field_id >=1 .and. field_id <= fe_space%get_num_fields() )
+  
+  if(present(my_duties)) then
+     this%my_duties = my_duties
+  else
+     call this%my_duties%assign_evaluate_values(.true.)
+     call this%my_duties%assign_evaluate_gradients(.true.)
+     call this%my_duties%assign_evaluate_laplacians(.false.)
+  end if
   
   environment => fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then 
@@ -296,13 +307,6 @@ subroutine fe_cell_function_vector_create ( this, fe_space, field_id )
   end if
   
 end subroutine fe_cell_function_vector_create
-
-subroutine fe_cell_function_vector_set_duties ( this, my_duties )
-  implicit none
-  class(fe_cell_function_vector_t), intent(inout) :: this 
-  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
-  this%my_duties = my_duties
-end subroutine fe_cell_function_vector_set_duties
 
 subroutine fe_cell_function_vector_update ( this, fe_cell_iterator, fe_function)
   implicit none
@@ -562,15 +566,24 @@ end subroutine fe_cell_function_vector_free
 ! Methods associated to fe_cell_function_tensor_t
 !**************************************************************************************************
 !===============================================================================================
-subroutine fe_cell_function_tensor_create ( this, fe_space, field_id )
+subroutine fe_cell_function_tensor_create ( this, fe_space, field_id, my_duties )
   implicit none
-  class(fe_cell_function_tensor_t), intent(inout) :: this 
-  class(serial_fe_space_t)        , intent(in)    :: fe_space
-  integer(ip)                     , intent(in)    :: field_id
+  class(fe_cell_function_tensor_t)           , intent(inout) :: this 
+  class(serial_fe_space_t)                   , intent(in)    :: fe_space
+  integer(ip)                                , intent(in)    :: field_id
+  type(fe_cell_function_duties_t) , optional , intent(in)    :: my_duties
   integer(ip)                                     :: istat
   class(environment_t)            , pointer       :: environment
   integer(ip) :: max_num_nodes
   assert ( field_id >=1 .and. field_id <= fe_space%get_num_fields() )
+  
+  if(present(my_duties)) then
+     this%my_duties = my_duties
+  else
+     call this%my_duties%assign_evaluate_values(.true.)
+     call this%my_duties%assign_evaluate_gradients(.true.)
+     call this%my_duties%assign_evaluate_laplacians(.false.)
+  end if
   
   environment => fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then 

@@ -45,8 +45,7 @@ subroutine error_norms_tensor_create (this, fe_space, field_id)
   
   this%field_id = field_id
   this%fe_space => fe_space
-  !call this%fe_cell_function%create(fe_space, field_id, cell_duties)
-  call this%fe_cell_function%create(fe_space, field_id)
+  call this%fe_cell_function%create(fe_space, field_id, cell_duties)
   environment => this%fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
      allocate(this%work_array_values(this%fe_space%get_max_num_quadrature_points(),1), stat=istat)
