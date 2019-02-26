@@ -64,6 +64,13 @@ subroutine fe_cell_function_scalar_create ( this, fe_space, field_id, my_duties 
 
 end subroutine fe_cell_function_scalar_create
 
+subroutine fe_cell_function_scalar_set_duties ( this, my_duties )
+  implicit none
+  class(fe_cell_function_scalar_t), intent(inout) :: this 
+  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
+  this%my_duties = my_duties
+end subroutine fe_cell_function_scalar_set_duties
+
 subroutine fe_cell_function_scalar_move_alloc_values_in ( this, values )
   implicit none
   class(fe_cell_function_scalar_t), intent(inout) :: this 
@@ -307,6 +314,13 @@ subroutine fe_cell_function_vector_create ( this, fe_space, field_id, my_duties 
   end if
   
 end subroutine fe_cell_function_vector_create
+
+subroutine fe_cell_function_vector_set_duties ( this, my_duties )
+  implicit none
+  class(fe_cell_function_vector_t), intent(inout) :: this 
+  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
+  this%my_duties = my_duties
+end subroutine fe_cell_function_vector_set_duties
 
 subroutine fe_cell_function_vector_update ( this, fe_cell_iterator, fe_function)
   implicit none
