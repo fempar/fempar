@@ -1582,7 +1582,6 @@ subroutine sufs_refine_mesh_for_small_aggregates(this,triangulation,target_size,
     end if
 
     call triangulation%refine_and_coarsen()
-    call triangulation%clear_refinement_and_coarsening_flags()
     call triangulation%update_cut_cells(level_set_function)
 
     call this%free()

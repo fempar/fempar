@@ -91,8 +91,15 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   class(environment_t), pointer :: p_environment
 
 #ifdef ENABLE_P4EST
+  
   p_environment => this%get_environment()
   if ( p_environment%am_i_l1_task () ) then
+    ! If the user did not flag any cell between the last call to refine_and_coarsen
+    ! and the current call to refine and coarsen, then we have to explicitly clear
+    ! the refinement and coarsening flags array
+    if ( this%clear_refinement_and_coarsening_flags_pending ) then
+       call this%clear_refinement_and_coarsening_flags()
+    end if
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
       if ( associated(user_pointer) ) then
@@ -148,6 +155,10 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
    if ( this%coarse_triangulation_is_set_up() ) then
      call this%setup_coarse_triangulation()
    end if  
+   
+   ! set up clear_refinement_and_coarsening_flags_pending
+   this%clear_refinement_and_coarsening_flags_pending = .true.
+   
 #else
   call this%not_enabled_error()
 #endif  
@@ -1782,6 +1793,7 @@ subroutine p4est_bt_clear_refinement_and_coarsening_flags(this)
     call this%refinement_and_coarsening_flags%resize(0)
     call this%refinement_and_coarsening_flags%resize(this%get_num_cells(), do_nothing)
   end if
+  this%clear_refinement_and_coarsening_flags_pending = .false.
 #else
   call this%not_enabled_error()
 #endif        

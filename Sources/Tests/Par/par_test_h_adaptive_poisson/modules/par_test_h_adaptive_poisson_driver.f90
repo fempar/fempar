@@ -210,7 +210,6 @@ end subroutine free_timers
         call this%triangulation%refine_and_coarsen()
         call this%set_cells_weights()
         call this%triangulation%redistribute()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
       end do
     
       if ( this%par_environment%am_i_l1_task() ) then
@@ -353,7 +352,6 @@ end subroutine free_timers
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_weights()
       call this%triangulation%redistribute()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     if ( trim(this%test_params%get_preconditioner_type()) == 'mlbddc' ) then
       call this%triangulation%setup_coarse_triangulation()
