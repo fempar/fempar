@@ -47,6 +47,7 @@ module vector_function_and_gradient_parser_names
         procedure :: get_value_space_time         => vector_function_and_gradient_parser_get_value_space_time
         procedure :: get_gradient_space           => vector_function_and_gradient_parser_get_gradient_space
         procedure :: get_gradient_space_time      => vector_function_and_gradient_parser_get_gradient_space_time
+        procedure :: free                         => vector_function_and_gradient_parser_free
     end type vector_function_and_gradient_parser_t
 
     public :: vector_function_and_gradient_parser_t
@@ -61,6 +62,7 @@ contains
         type(vector_function_parser_t), target,       intent(in)    :: function
         type(tensor_function_parser_t), target,       intent(in)    :: gradient
     !----------------------------------------------------------------- 
+        call this%free()
         assert(function%get_num_dims() == gradient%get_num_dims())
         this%function => function
         this%gradient => gradient
@@ -115,5 +117,16 @@ contains
     !-----------------------------------------------------------------
         call this%gradient%get_value_space_time(point, time, result)
     end subroutine vector_function_and_gradient_parser_get_gradient_space_time
+
+
+    subroutine vector_function_and_gradient_parser_free(this)
+    !-----------------------------------------------------------------
+    !< Free vector and gradient functions
+    !-----------------------------------------------------------------
+        class(vector_function_and_gradient_parser_t), intent(inout) :: this
+    !----------------------------------------------------------------- 
+        nullify(this%function)
+        nullify(this%gradient)
+    end subroutine vector_function_and_gradient_parser_free
 
 end module vector_function_and_gradient_parser_names

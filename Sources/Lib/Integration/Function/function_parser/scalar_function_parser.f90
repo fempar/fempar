@@ -36,7 +36,7 @@ module scalar_function_parser_names
 
     private
 
-    character(len=1), dimension(4) :: variables = ["x", "y", "z", "t"]
+    character(len=1), dimension(4), parameter :: variables = ["x", "y", "z", "t"]
 
     type, extends(scalar_function_t) :: scalar_function_parser_t
     private
@@ -45,6 +45,7 @@ module scalar_function_parser_names
         procedure :: create               => scalar_function_parser_create
         procedure :: get_value_space      => scalar_function_parser_get_value_space
         procedure :: get_value_space_time => scalar_function_parser_get_value_space_time
+        procedure :: free                 => scalar_function_parser_free
     end type scalar_function_parser_t
 
     type :: p_scalar_function_parser_t
@@ -62,6 +63,7 @@ contains
         class(scalar_function_parser_t),     intent(inout) :: this
         character(len=*),                    intent(in)    :: expression
     !----------------------------------------------------------------- 
+        call this%free()
         this%equation = EquationParser(expression, variables)
         assert(this%equation%Error == 0)
     end subroutine scalar_function_parser_create
@@ -99,5 +101,15 @@ contains
         result = this%equation%evaluate(values)
         assert(this%equation%Error == 0)
     end subroutine scalar_function_parser_get_value_space_time
+
+
+    subroutine scalar_function_parser_free(this)
+    !-----------------------------------------------------------------
+    !< Free scalar analytical function
+    !-----------------------------------------------------------------
+        class(scalar_function_parser_t),     intent(inout) :: this
+    !----------------------------------------------------------------- 
+        !call this%equation%finalize()
+    end subroutine scalar_function_parser_free
 
 end module scalar_function_parser_names

@@ -45,6 +45,7 @@ module vector_function_parser_names
         procedure :: create_3D            => vector_function_parser_create_3D
         procedure :: get_value_space      => vector_function_parser_get_value_space
         procedure :: get_value_space_time => vector_function_parser_get_value_space_time
+        procedure :: free                 => vector_function_parser_free
         generic   :: create               => create_2D, create_3D        
     end type vector_function_parser_t
 
@@ -60,6 +61,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_1
         type(scalar_function_parser_t), target, intent(in)    :: component_2
     !----------------------------------------------------------------- 
+        call this%free()
         this%ncomponents = 2
         call this%set_num_dims(2)
         this%components(1)%function => component_1
@@ -76,6 +78,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_2
         type(scalar_function_parser_t), target, intent(in)    :: component_3
     !----------------------------------------------------------------- 
+        call this%free()
         this%ncomponents = 3
         call this%set_num_dims(3)
         this%components(1)%function => component_1
@@ -119,5 +122,19 @@ contains
             call result%set(i, tmp_result)
         enddo
     end subroutine vector_function_parser_get_value_space_time
+
+
+    subroutine vector_function_parser_free( this)
+    !-----------------------------------------------------------------
+    !< Free vector analytical function
+    !-----------------------------------------------------------------
+        class(vector_function_parser_t),        intent(inout) :: this
+        integer                                               :: i
+    !----------------------------------------------------------------- 
+        do i=1, this%ncomponents
+            nullify(this%components(i)%function)
+        enddo
+        this%ncomponents = -1
+    end subroutine vector_function_parser_free
 
 end module vector_function_parser_names

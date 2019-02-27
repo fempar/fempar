@@ -45,6 +45,7 @@ module tensor_function_parser_names
         procedure :: create_3D            => tensor_function_parser_create_3D
         procedure :: get_value_space      => tensor_function_parser_get_value_space
         procedure :: get_value_space_time => tensor_function_parser_get_value_space_time
+        procedure :: free                 => tensor_function_parser_free
         generic   :: create               => create_2D, create_3D        
     end type tensor_function_parser_t
 
@@ -62,6 +63,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_21
         type(scalar_function_parser_t), target, intent(in)    :: component_22
     !----------------------------------------------------------------- 
+        call this%free()
         this%ncomponents = 4
         call this%set_num_dims(2)
         this%components(1,1)%function => component_11
@@ -88,6 +90,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_32
         type(scalar_function_parser_t), target, intent(in)    :: component_33
     !----------------------------------------------------------------- 
+        call this%free()
         this%ncomponents = 9
         call this%set_num_dims(3)
         this%components(1,1)%function => component_11
@@ -141,5 +144,22 @@ contains
             enddo
         enddo
     end subroutine tensor_function_parser_get_value_space_time
+
+
+    subroutine tensor_function_parser_free( this)
+    !-----------------------------------------------------------------
+    !< Free tensor analytical function
+    !-----------------------------------------------------------------
+        class(tensor_function_parser_t), intent(inout) :: this
+        integer                                        :: i, j, dims
+    !-----------------------------------------------------------------
+        dims = this%get_num_dims() 
+        do i=1, dims
+            do j=1, dims
+                nullify(this%components(i,j)%function)
+            enddo
+        enddo
+        this%ncomponents = -1
+    end subroutine tensor_function_parser_free
 
 end module tensor_function_parser_names
