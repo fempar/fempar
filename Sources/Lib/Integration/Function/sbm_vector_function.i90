@@ -120,3 +120,64 @@ subroutine vector_function_get_gradients_set_space_time( this, point, time, resu
      end do
   end do
 end subroutine vector_function_get_gradients_set_space_time
+
+subroutine vector_function_get_curl_space( this, point, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point
+  type(vector_field_t), intent(inout)  :: result
+  type(tensor_field_t)  :: gradients 
+  
+  call this%get_gradient_space( point, gradients )    
+  call result%set(1, gradients%get(2,3) - gradients%get(3,2) )
+  call result%set(2, gradients%get(3,1) - gradients%get(1,3) )
+  call result%set(3, gradients%get(1,2) - gradients%get(2,1) )
+end subroutine vector_function_get_curl_space
+
+subroutine vector_function_get_curl_space_time( this, point, time, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point
+  real(rp), intent(in)                 :: time
+  type(vector_field_t), intent(inout)  :: result
+  type(tensor_field_t) :: gradients 
+  
+  call this%get_gradient_space_time( point, time, gradients )
+  call result%set(1, gradients%get(2,3) - gradients%get(3,2) )
+  call result%set(2, gradients%get(3,1) - gradients%get(1,3) )
+  call result%set(3, gradients%get(1,2) - gradients%get(2,1) )
+end subroutine vector_function_get_curl_space_time
+
+subroutine vector_function_get_curls_set_space( this, point, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point(:)
+  type(vector_field_t), intent(inout)  :: result(:)
+  
+  type(tensor_field_t) :: gradients 
+  integer(ip) :: i, num_points
+  num_points = size(point)
+  do i = 1, num_points
+     call this%get_gradient_space( point(i), gradients )    
+     call result(i)%set(1, gradients%get(2,3) - gradients%get(3,2) )
+     call result(i)%set(2, gradients%get(3,1) - gradients%get(1,3) )
+     call result(i)%set(3, gradients%get(1,2) - gradients%get(2,1) )
+  end do
+end subroutine vector_function_get_curls_set_space
+
+subroutine vector_function_get_curls_set_space_time( this, point, time, result )
+  class(vector_function_t), intent(in) :: this
+  type(point_t), intent(in)            :: point(:)
+  real(rp), intent(in)                 :: time(:)
+  type(vector_field_t), intent(inout)  :: result(:,:)
+  
+  type(tensor_field_t) :: gradients 
+  integer(ip) :: i, j, num_points, num_time_steps
+  num_points = size(point)
+  num_time_steps = size(time)
+  do j = 1, num_time_steps
+     do i = 1, num_points
+        call this%get_gradient_space_time( point(i), time(j), gradients )
+        call result(i,j)%set(1, gradients%get(2,3) - gradients%get(3,2) )
+        call result(i,j)%set(2, gradients%get(3,1) - gradients%get(1,3) )
+        call result(i,j)%set(3, gradients%get(1,2) - gradients%get(2,1) )
+     end do
+  end do
+end subroutine vector_function_get_curls_set_space_time
