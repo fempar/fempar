@@ -10,6 +10,12 @@ final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
 
+
+# Allowed variation (%) in the number of iterations  w.r.t. the reference solution to return a PASSED test
+allowed_variation=0.05 
+final_exit_code=0
+
+
 if [ -d "$DIR" ]
 then
 if [ -f "$TEST_BINARY_PATH" ]
@@ -17,8 +23,7 @@ then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
 
-     #Analytical known function test with unit constant coefficients - test 1
-
+     #test 1 2D - Analytical 3D known function test with unit constant coefficients --------------------
     for order in 1 2 3; do 
      source $TEST_INPUT_DATA_PATH/test1_params.sh 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 2 -n 10 10 0 -np 2 2 0 1 1 0 -l 2 -order $order -wsolution .false. -edge_cont tangential_average -materials_case homogeneous -bddc_weights cardinality -bmass_trick .false. -coefficient_case unit_constant" 
@@ -26,81 +31,78 @@ $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 2
     done 
 
 
-     #Analytical known function test with unit constant coefficients - test 1
-
+     #test 1 3D - Analytical 3D known function test with unit constant coefficients --------------------
     for order in 1 2; do 
      source $TEST_INPUT_DATA_PATH/test1_params.sh 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 10 10 10 -np 2 2 2 1 1 1 -l 2 -order $order -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case homogeneous -bddc_weights cardinality -bmass_trick .false. -coefficient_case unit_constant" 
 $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 10 10 10 -np 2 2 2 1 1 1 -l 2 -order $order -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case homogeneous -bddc_weights cardinality -bmass_trick .false. -coefficient_case unit_constant
     done 
 
-     #test 2
+     #test 2 - Unknown solution w/ checkerboard distrib. of materials ------------------------------
      echo " $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 8 8 8 -np 2 2 2 1 1 1 -l 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard -bddc_weights curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee tmp_output"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 8 8 8 -np 2 2 2 1 1 1 -l 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard -bddc_weights curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee tmp_output
 
-
-     # Check Number of iterations
+     # Check Number of iterations is within allowed range 
      exit_code1=0
      n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
      n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test2_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
-     if [ $n1 != $n2 ]; then
-       exit_code1=1
-     fi
-     echo $exit_code1
-     # Check Last iteration error
-     exit_code2=0
-     E1=$(grep "Last iteration error estimate:" tmp_output |sed s/" "" "*/"#"/g|cut -f5 -d#)
-     E2=$(grep "Last iteration error estimate:" $TEST_INPUT_DATA_PATH/test2_convergence |sed s/" "" "*/"#"/g|cut -f5 -d#)
-     e1=`printf "%f" $E1`
-     e2=`printf "%f" $E2`
-     error=$(echo "$e1-$e2"|bc -l)
-     if [ $(echo "$error>0.000000001"|bc -l) -eq 1 ]; then
-        exit_code2=1
-     fi
-     if [ $(echo "$error<-0.000000001"|bc -l) -eq 1 ]; then
-        exit_code2=1
-     fi
-     echo $exit_code2
-     if [ $exit_code1 -eq 1 ]; then
-        if [ $exit_code2 -eq 1 ]; then
-           final_exit_code=1
-	fi
-     fi
-     rm -f tmp_output 
+     if [ $(python -c "print \"%d\" % (1 if abs($n1-$n2)>$allowed_variation*$n2 else 0)") = 1 ]; then 
+	 final_exit_code=1
+     fi 
+     rm -f tmp_output  
 
-     #test 3 
+
+      #test 3 - Unknown solution w/ channel inclusions -----------------------------------------------
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 12 12 12 -np 2 2 2 1 1 1 -l 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case channels -channels_ratio 0.5 -bddc_weights curl_curl_coeff -bmass_trick .true. -coefficient_case constant -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 | tee tmp_output" 
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 12 12 12 -np 2 2 2 1 1 1 -l 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case channels -channels_ratio 0.5 -bddc_weights curl_curl_coeff -bmass_trick .true. -coefficient_case constant -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4  | tee tmp_output
+
+
+     # Check Number of iterations is within allowed range 
+     exit_code1=0
+     n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test3_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     if [ $(python -c "print \"%d\" % (1 if abs($n1-$n2)>$allowed_variation*$n2 else 0)") = 1 ]; then 
+	 final_exit_code=1
+     fi 
+     rm -f tmp_output
+
+
+      #test 4 - Unknown solution w/ analytical functions describing coeffs ---------------------------------
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 12 12 12 -np 2 2 2 1 1 1 -l 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case heterogeneous -bddc_weights weighted_coefficients -bmass_trick .false. -rpb_bddc_threshold 1e3 -coefficient_case sinusoidal -mass_coeff_white 3 -curl_curl_coeff_white 3 -num_peaks_curl_curl_coeff 2 -num_peaks_mass_coeff 2 | tee tmp_output" 
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 12 12 12 -np 2 2 2 1 1 1 -l 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case heterogeneous -bddc_weights weighted_coefficients -bmass_trick .false. -rpb_bddc_threshold 1e3 -coefficient_case sinusoidal -mass_coeff_white 3 -curl_curl_coeff_white 3 -num_peaks_curl_curl_coeff 2 -num_peaks_mass_coeff 2  | tee tmp_output
 
 
-     # Check Number of iterations
+     # Check Number of iterations is within allowed range 
      exit_code1=0
      n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
-     n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test3_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
-     if [ $n1 != $n2 ]; then
-       exit_code1=1
-     fi
-     echo $exit_code1
-     # Check Last iteration error
-     exit_code2=0
-     E1=$(grep "Last iteration error estimate:" tmp_output |sed s/" "" "*/"#"/g|cut -f5 -d#)
-     E2=$(grep "Last iteration error estimate:" $TEST_INPUT_DATA_PATH/test3_convergence |sed s/" "" "*/"#"/g|cut -f5 -d#)
-     e1=`printf "%f" $E1`
-     e2=`printf "%f" $E2`
-     error=$(echo "$e1-$e2"|bc -l)
-     if [ $(echo "$error>0.000000001"|bc -l) -eq 1 ]; then
-        exit_code2=1
-     fi
-     if [ $(echo "$error<-0.000000001"|bc -l) -eq 1 ]; then
-        exit_code2=1
-     fi
-     echo $exit_code2
-     if [ $exit_code1 -eq 1 ]; then
-        if [ $exit_code2 -eq 1 ]; then
-           final_exit_code=1
-	fi
-     fi
-     rm -f tmp_output 
+     n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test4_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     if [ $(python -c "print \"%d\" % (1 if abs($n1-$n2)>$allowed_variation*$n2 else 0)") = 1 ]; then 
+	 final_exit_code=1
+     fi 
+     rm -f tmp_output  
+
+
+     #test 5 - Analytical solution w/ unit constant coeffs and tetrahedral, unstructured mesh with pathological edge cases (see art031, sect 4) --------------
+     echo '$DIR/part -d $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid -o $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra --num_levels 2 --num_parts_x_level 8 1 0 0 0 '
+      $DIR/part -d $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid -o $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra --num_levels 2 --num_parts_x_level 8 1 0 0 0 
+
+      for order in 1 2; do
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 0 -dm 3 -l 2 -edge_cont tangential_average_and_first_order_moment -order $order -d $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid -p 'cube_tetrahedra' -wsolution .false. | tee tmp_output 
+
+     # Check Number of iterations is within allowed range 
+     exit_code1=0
+     n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test5_convergence_order$order |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     if [ $(python -c "print \"%d\" % (1 if abs($n1-$n2)>$allowed_variation*$n2 else 0)") = 1 ]; then 
+	 final_exit_code=1
+     fi 
+     rm -f tmp_output  
+     done 
+
+      rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.mesh.*
+      rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.prt.*
+      rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.env.*
+      rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.*post.*
 
    else
       echo "$0: input data directory not found!"
