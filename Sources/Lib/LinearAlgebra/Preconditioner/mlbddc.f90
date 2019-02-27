@@ -324,6 +324,10 @@ end type base_mlbddc_t
    ! Symbolic setup-related TBPs
    procedure,                  private :: setup_constraint_matrix                           => mlbddc_coarse_setup_constraint_matrix
    procedure,                  private :: setup_weighting_operator                          => mlbddc_coarse_setup_weighting_operator
+   
+   ! Apply weighting related TBPs
+   procedure,                  private :: apply_weighting_operator_and_comm                  => mlbddc_coarse_apply_weighting_operator_and_comm
+   procedure,                  private :: apply_transpose_weighting_operator                 => mlbddc_coarse_apply_transpose_weighting_operator
       
           
    procedure, private                  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix

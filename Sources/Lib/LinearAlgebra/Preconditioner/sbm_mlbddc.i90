@@ -133,31 +133,98 @@ subroutine mlbddc_setup_weighting_operator (this)
 end subroutine mlbddc_setup_weighting_operator
 
 subroutine mlbddc_apply_weighting_operator_and_comm(this, x, y) 
-implicit none 
- class(mlbddc_t), intent(in) :: this
- type(par_scalar_array_t)  , intent(inout) :: x
- type(par_scalar_array_t)  , intent(inout) :: y
- type(par_fe_space_t), pointer :: par_fe_space
- class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
- if ( this%am_i_l1_task() ) then 
- par_fe_space      => this%get_par_fe_space()
- coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
- call coarse_fe_handler%apply_weighting_operator_and_comm(this%W, x, y)
- end if 
+  implicit none 
+  class(mlbddc_t), intent(in) :: this
+  type(par_scalar_array_t)  , intent(inout) :: x
+  type(par_scalar_array_t)  , intent(inout) :: y
+
+  type(serial_scalar_array_t), pointer :: x_local
+  type(serial_scalar_array_t), pointer :: y_local
+  real(rp)                   , pointer :: x_local_entries(:)
+  real(rp)                   , pointer :: y_local_entries(:) 
+  type(par_fe_space_t)       , pointer :: par_fe_space
+  class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+  integer(ip)                          :: field_id, block_id 
+  integer(ip), pointer                 :: field_blocks(:)
+
+  if ( this%am_i_l1_task() ) then 
+
+     ! To think about
+     block_id = 1
+
+     par_fe_space      => this%get_par_fe_space()
+     field_blocks => par_fe_space%get_field_blocks()
+
+     x_local         => x%get_serial_scalar_array()
+     x_local_entries => x_local%get_entries()
+     y_local         => y%get_serial_scalar_array()
+     y_local_entries => y_local%get_entries()
+
+     do field_id = 1, par_fe_space%get_num_fields()
+        if ( field_blocks(field_id) == block_id ) then
+           coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
+           call coarse_fe_handler%apply_inverse_local_change_basis(x_local, x_local)
+        end if
+     end do
+
+     y_local_entries = x_local_entries*this%W 
+     call y%comm()
+
+     do field_id = 1, par_fe_space%get_num_fields()
+        if ( field_blocks(field_id) == block_id ) then
+           coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
+           call coarse_fe_handler%apply_global_change_basis(y,y)
+        end if
+     end do
+
+  end if
 end subroutine mlbddc_apply_weighting_operator_and_comm
 
 subroutine mlbddc_apply_transpose_weighting_operator(this, x, y) 
-implicit none 
- class(mlbddc_t), intent(in) :: this
- type(par_scalar_array_t)  , intent(inout) :: x
- type(par_scalar_array_t)  , intent(inout) :: y
- type(par_fe_space_t), pointer :: par_fe_space
- class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
- if ( this%am_i_l1_task() ) then 
- par_fe_space      => this%get_par_fe_space()
- coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=1)
- call coarse_fe_handler%apply_transpose_weighting_operator(this%W, x, y)
- end if 
+  implicit none 
+  class(mlbddc_t), intent(in) :: this
+  type(par_scalar_array_t)  , intent(inout) :: x
+  type(par_scalar_array_t)  , intent(inout) :: y
+
+  type(serial_scalar_array_t), pointer :: x_local
+  type(serial_scalar_array_t), pointer :: y_local
+  real(rp)                   , pointer :: x_local_entries(:)
+  real(rp)                   , pointer :: y_local_entries(:)
+  type(par_fe_space_t)       , pointer :: par_fe_space
+  class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+  integer(ip)                          :: field_id, block_id 
+  integer(ip), pointer                 :: field_blocks(:)
+
+  if ( this%am_i_l1_task() ) then 
+
+     ! To think about
+     block_id = 1
+
+     par_fe_space      => this%get_par_fe_space()
+     field_blocks => par_fe_space%get_field_blocks()
+
+     x_local         => x%get_serial_scalar_array()
+     x_local_entries => x_local%get_entries()
+     y_local         => y%get_serial_scalar_array()
+     y_local_entries => y_local%get_entries()
+
+     do field_id = 1, par_fe_space%get_num_fields()
+        if ( field_blocks(field_id) == block_id ) then
+           coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
+           call coarse_fe_handler%apply_global_change_basis_transpose( x, x )
+        end if
+     end do
+
+     y_local_entries = x_local_entries*this%W 
+
+     do field_id = 1, par_fe_space%get_num_fields()
+        if ( field_blocks(field_id) == block_id ) then
+           coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
+           call coarse_fe_handler%apply_inverse_local_change_basis_transpose( y_local, y_local )
+        end if
+     end do
+
+  end if
 end subroutine mlbddc_apply_transpose_weighting_operator
 
 subroutine mlbddc_update_matrix(this, same_nonzero_pattern )

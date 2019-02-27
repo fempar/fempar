@@ -1117,8 +1117,10 @@ module fe_space_names
     procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
     procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
     procedure (l1_setup_weighting_operator)              , deferred :: setup_weighting_operator
-    procedure (l1_apply_weighting_operator_and_comm)     , deferred :: apply_weighting_operator_and_comm
-    procedure (l1_apply_transpose_weighting_operator)    , deferred :: apply_transpose_weighting_operator 
+    procedure (l1_apply_inverse_local_change_basis)          , deferred :: apply_inverse_local_change_basis 
+    procedure (l1_apply_global_change_basis)                 , deferred :: apply_global_change_basis
+    procedure (l1_apply_global_change_basis_transpose)       , deferred :: apply_global_change_basis_transpose
+    procedure (l1_apply_inverse_local_change_basis_transpose), deferred :: apply_inverse_local_change_basis_transpose
   end type l1_coarse_fe_handler_t
  
   abstract interface 
@@ -1159,21 +1161,33 @@ module fe_space_names
       real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
  
-    subroutine l1_apply_weighting_operator_and_comm(this, W, x, y) 
-      import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
-      class(l1_coarse_fe_handler_t) , intent(inout) :: this
-      real(rp)         , allocatable, intent(in)    :: W(:)
-      type(par_scalar_array_t)      , intent(inout) :: x
-      type(par_scalar_array_t)      , intent(inout) :: y
-    end subroutine l1_apply_weighting_operator_and_comm
+    subroutine l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local) 
+      import :: l1_coarse_fe_handler_t, serial_scalar_array_t
+      class(l1_coarse_fe_handler_t)    , intent(in)    :: this
+      type(serial_scalar_array_t)      , intent(in)    :: x_old_local
+      type(serial_scalar_array_t)      , intent(inout) :: x_new_local
+    end subroutine l1_apply_inverse_local_change_basis
     
-    subroutine l1_apply_transpose_weighting_operator(this, W, x, y) 
-      import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
-      class(l1_coarse_fe_handler_t) , intent(inout) :: this
-      real(rp)         , allocatable, intent(in)    :: W(:)
-      type(par_scalar_array_t)      , intent(inout) :: x
-      type(par_scalar_array_t)      , intent(inout) :: y
-    end subroutine l1_apply_transpose_weighting_operator
+    subroutine l1_apply_global_change_basis(this, x_new, x_old) 
+      import :: l1_coarse_fe_handler_t, par_scalar_array_t
+      class(l1_coarse_fe_handler_t)         , intent(inout) :: this
+      type(par_scalar_array_t)              , intent(in)    :: x_new
+      type(par_scalar_array_t)              , intent(inout) :: x_old
+    end subroutine l1_apply_global_change_basis
+    
+    subroutine l1_apply_global_change_basis_transpose(this, x_old, x_new) 
+      import :: l1_coarse_fe_handler_t, par_scalar_array_t
+      class(l1_coarse_fe_handler_t) , intent(in)    :: this
+      type(par_scalar_array_t)      , intent(inout) :: x_old
+      type(par_scalar_array_t)      , intent(inout) :: x_new
+    end subroutine l1_apply_global_change_basis_transpose
+    
+    subroutine l1_apply_inverse_local_change_basis_transpose(this, x_new_local, x_old_local) 
+      import :: l1_coarse_fe_handler_t, serial_scalar_array_t
+      class(l1_coarse_fe_handler_t)    , intent(in)    :: this
+      type(serial_scalar_array_t)      , intent(in)    :: x_new_local
+      type(serial_scalar_array_t)      , intent(inout) :: x_old_local
+    end subroutine l1_apply_inverse_local_change_basis_transpose
     
   end interface
 
@@ -1183,9 +1197,11 @@ module fe_space_names
      procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
      procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
      procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
-     procedure             :: apply_weighting_operator_and_comm         => standard_l1_apply_weighting_operator_and_comm 
-     procedure             :: apply_transpose_weighting_operator        => standard_l1_apply_transpose_weighting_operator 
      procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
+     procedure             :: apply_inverse_local_change_basis          => standard_l1_apply_inverse_local_change_basis
+     procedure             :: apply_global_change_basis                 => standard_l1_apply_global_change_basis
+     procedure             :: apply_global_change_basis_transpose       => standard_l1_apply_global_change_basis_transpose
+     procedure             :: apply_inverse_local_change_basis_transpose=> standard_l1_apply_inverse_local_change_basis_transpose
      procedure             :: free                                      => standard_l1_free 
   end type standard_l1_coarse_fe_handler_t
   
@@ -1249,9 +1265,7 @@ module fe_space_names
     procedure                           :: create                                        => Hcurl_l1_create 
     procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
     procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
-    procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator
-    procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
-    procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator  
+    procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator 
     procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
     ! Counting & Splitting coarse edges procedures
     procedure, non_overridable, private :: compute_subedges_info                         => Hcurl_l1_compute_subedges_info
@@ -1265,10 +1279,10 @@ module fe_space_names
     procedure, non_overridable, private :: fill_interface_discrete_gradient_part         => Hcurl_l1_fill_interface_discrete_gradient_part
     procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
     ! Change of basis application 
-    procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
-    procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
-    procedure, non_overridable, private :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
-    procedure, non_overridable, private :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
+    procedure                           :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
+    procedure                           :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
+    procedure                           :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
+    procedure                           :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
   end type  Hcurl_l1_coarse_fe_handler_t
     
   ! Node type 

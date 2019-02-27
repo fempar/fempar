@@ -1534,20 +1534,7 @@ subroutine base_mlbddc_apply_weighting_operator_and_comm(this, x, y)
   class(base_mlbddc_t)    , intent(in)    :: this
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
-  type(serial_scalar_array_t), pointer :: x_local
-  type(serial_scalar_array_t), pointer :: y_local
-  real(rp), pointer :: x_local_entries(:)
-  real(rp), pointer :: y_local_entries(:)
-
-  if ( this%am_i_l1_task() ) then
-     x_local         => x%get_serial_scalar_array()
-     x_local_entries => x_local%get_entries()
-     y_local         => y%get_serial_scalar_array()
-     y_local_entries => y_local%get_entries()
-     y_local_entries = x_local_entries*this%W
-     call y%comm() 
-  end if
-
+  assert(.false.) 
 end subroutine base_mlbddc_apply_weighting_operator_and_comm
 
 subroutine base_mlbddc_apply_transpose_weighting_operator(this, x, y)
@@ -1555,18 +1542,7 @@ subroutine base_mlbddc_apply_transpose_weighting_operator(this, x, y)
   class(base_mlbddc_t)    , intent(in)    :: this
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
-  type(serial_scalar_array_t), pointer :: x_local
-  type(serial_scalar_array_t), pointer :: y_local
-  real(rp), pointer :: x_local_entries(:)
-  real(rp), pointer :: y_local_entries(:)
-
-  if ( this%am_i_l1_task() ) then
-     x_local         => x%get_serial_scalar_array()
-     x_local_entries => x_local%get_entries()
-     y_local         => y%get_serial_scalar_array()
-     y_local_entries => y_local%get_entries()
-     y_local_entries = x_local_entries*this%W
-  end if
+  assert(.false.) 
 end subroutine base_mlbddc_apply_transpose_weighting_operator
 
 subroutine base_mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
