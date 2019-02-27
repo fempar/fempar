@@ -1767,8 +1767,10 @@ function identify_following_starting_node( par_fe_space, num_nodes, num_nodes_ea
      end do
 
      ! If there are no edge_boundary nodes, we only have interior nodes and a closed path, the edge may be splitted 
-  elseif ( num_nodes_each_type(interior_node) > 0 ) then 
-     wassert(.false., 'Handling a coarse edge forming a closed path')
+  elseif ( num_nodes_each_type(interior_node) > 0 ) then
+#ifdef DEBUG   
+     wassert(.false., 'Handling a Coarse Edge forming a closed path')
+#endif
      call memalloc( num_nodes_each_type(interior_node), potential_startend_nodes, __FILE__, __LINE__ )   
      found_nodes = 0
      do inode=1, num_nodes   

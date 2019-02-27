@@ -537,6 +537,8 @@ contains
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
 
+    massert( this%par_environment%get_num_levels() <= 2, 'The multi-level extension of the preconditioner is not implemented') 
+    
     call this%timer_change_basis_setup%start()
     if ( this%par_environment%am_i_l1_task() ) then       
        ! Compute average parameters to be sent to the preconditioner for weights computation 
