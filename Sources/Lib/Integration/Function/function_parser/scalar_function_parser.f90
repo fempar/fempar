@@ -36,6 +36,8 @@ module scalar_function_parser_names
 
     private
 
+    character(len=1), dimension(4) :: variables = ["x", "y", "z", "t"]
+
     type, extends(scalar_function_t) :: scalar_function_parser_t
     private
         type(EquationParser) :: equation
@@ -59,7 +61,6 @@ contains
     !-----------------------------------------------------------------
         class(scalar_function_parser_t),     intent(inout) :: this
         character(len=*),                    intent(in)    :: expression
-        character(len=1), dimension(4)                     :: variables = ["x", "y", "z", "t"]
     !----------------------------------------------------------------- 
         this%equation = EquationParser(expression, variables)
         assert(this%equation%Error == 0)
@@ -73,9 +74,10 @@ contains
         class(scalar_function_parser_t),     intent(in)    :: this
         type(point_t),                       intent(in)    :: point
         real(rp),                            intent(inout) :: result
-        real(rp), dimension(4)                             :: values = 0._rp
+        real(rp), dimension(4)                             :: values
     !-----------------------------------------------------------------
         values(1:SPACE_DIM) = point%get_value()
+        values(SPACE_DIM+1:4) = 0._rp
         result = this%equation%evaluate(values)
         assert(this%equation%Error == 0)
     end subroutine scalar_function_parser_get_value_space
@@ -89,9 +91,10 @@ contains
         type(point_t),                      intent(in)    :: point
         real(rp),                           intent(in)    :: time
         real(rp),                           intent(inout) :: result
-        real(rp), dimension(4)                            :: values = 0._rp
+        real(rp), dimension(4)                            :: values
     !-----------------------------------------------------------------
         values(1:SPACE_DIM) = point%get_value()
+        values(SPACE_DIM+1:3) = 0._rp
         values(4) = time
         result = this%equation%evaluate(values)
         assert(this%equation%Error == 0)

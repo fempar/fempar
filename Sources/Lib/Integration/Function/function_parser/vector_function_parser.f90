@@ -92,9 +92,10 @@ contains
         type(point_t),                       intent(in)    :: point
         type(vector_field_t),                intent(inout) :: result
         real(rp)                                           :: tmp_result
-        integer                                            :: i
+        integer                                            :: i, dims
     !-----------------------------------------------------------------
-        do i=1, this%get_num_dims()
+        dims = this%get_num_dims()
+        do i=1, dims
             call this%components(i)%function%get_value_space(point, tmp_result)
             call result%set(i, tmp_result)
         enddo
@@ -110,9 +111,10 @@ contains
         real(rp),                        intent(in)    :: time
         type(vector_field_t),            intent(inout) :: result
         real(rp)                                       :: tmp_result
-        integer                                        :: i
+        integer                                        :: i, dims
     !-----------------------------------------------------------------
-        do i=1, this%get_num_dims()
+        dims = this%get_num_dims()
+        do i=1, dims
             call this%components(i)%function%get_value_space_time(point, time,  tmp_result)
             call result%set(i, tmp_result)
         enddo

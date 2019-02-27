@@ -110,10 +110,11 @@ contains
         type(point_t),                       intent(in)    :: point
         type(tensor_field_t),                intent(inout) :: result
         real(rp)                                           :: tmp_result
-        integer                                            :: i, j
+        integer                                            :: i, j, dims
     !-----------------------------------------------------------------
-        do j=1, this%get_num_dims()
-            do i=1, this%get_num_dims()
+        dims = this%get_num_dims()
+        do j=1, dims
+            do i=1, dims
                 call this%components(i,j)%function%get_value_space(point, tmp_result)
                 call result%set(i, j, tmp_result)
             enddo
@@ -130,10 +131,11 @@ contains
         real(rp),                        intent(in)    :: time
         type(tensor_field_t),            intent(inout) :: result
         real(rp)                                       :: tmp_result
-        integer                                        :: i, j
+        integer                                        :: i, j, dims
     !-----------------------------------------------------------------
-        do j=1, this%get_num_dims()
-            do i=1, this%get_num_dims()
+        dims = this%get_num_dims()
+        do j=1, dims
+            do i=1, dims
                 call this%components(i,j)%function%get_value_space_time(point, time,  tmp_result)
                 call result%set(i, j, tmp_result)
             enddo

@@ -41,28 +41,33 @@ module scalar_function_and_gradient_parser_names
     private
         type(scalar_function_parser_t), pointer :: function => null()
         type(vector_function_parser_t), pointer :: gradient => null()
+        type(p_scalar_function_parser_t)        :: time_derivatives(0:1)
     contains
-        procedure :: create                       => scalar_function_and_gradient_parser_create
-        procedure :: get_value_space              => scalar_function_and_gradient_parser_get_value_space
-        procedure :: get_value_space_time         => scalar_function_and_gradient_parser_get_value_space_time
-        procedure :: get_gradient_space           => scalar_function_and_gradient_parser_get_gradient_space
-        procedure :: get_gradient_space_time      => scalar_function_and_gradient_parser_get_gradient_space_time
+        procedure :: create                        => scalar_function_and_gradient_parser_create
+        procedure :: get_value_space               => scalar_function_and_gradient_parser_get_value_space
+        procedure :: get_value_space_time          => scalar_function_and_gradient_parser_get_value_space_time
+        procedure :: get_gradient_space            => scalar_function_and_gradient_parser_get_gradient_space
+        procedure :: get_gradient_space_time       => scalar_function_and_gradient_parser_get_gradient_space_time
+        procedure :: get_value_temporal_derivative => scalar_function_and_gradient_parser_get_temporal_derivative
     end type scalar_function_and_gradient_parser_t
 
     public :: scalar_function_and_gradient_parser_t
 
 contains
 
-    subroutine scalar_function_and_gradient_parser_create(this, function, gradient)
+    subroutine scalar_function_and_gradient_parser_create(this, function, gradient, first_order_time_derivative)
     !-----------------------------------------------------------------
     !< Initialize the time independant scalar analytical function
     !-----------------------------------------------------------------
-        class(scalar_function_and_gradient_parser_t), intent(inout) :: this
-        type(scalar_function_parser_t), target,       intent(in)    :: function
-        type(vector_function_parser_t), target,       intent(in)    :: gradient
+        class(scalar_function_and_gradient_parser_t),     intent(inout) :: this
+        type(scalar_function_parser_t), target,           intent(in)    :: function
+        type(vector_function_parser_t), target,           intent(in)    :: gradient
+        type(scalar_function_parser_t), target, optional, intent(in)    :: first_order_time_derivative
     !----------------------------------------------------------------- 
         this%function => function
         this%gradient => gradient
+        this%time_derivatives(0)%function => function
+        if(present(first_order_time_derivative)) this%time_derivatives(1)%function => first_order_time_derivative 
     end subroutine scalar_function_and_gradient_parser_create
 
 
@@ -114,6 +119,23 @@ contains
     !-----------------------------------------------------------------
         call this%gradient%get_value_space_time(point, time, result)
     end subroutine scalar_function_and_gradient_parser_get_gradient_space_time
+
+
+    subroutine scalar_function_and_gradient_parser_get_temporal_derivative( this, point, time, time_derivative_order, result )
+    !-----------------------------------------------------------------
+    !< Evaluate the time derivative in a given point and time step
+    !< Only zero and first time derivative order supported
+    !-----------------------------------------------------------------
+        class(scalar_function_and_gradient_parser_t), intent(in)    :: this
+        type(point_t),                                intent(in)    :: point
+        real(rp),                                     intent(in)    :: time
+        integer(ip),                                  intent(in)    :: time_derivative_order
+        real(rp),                                     intent(inout) :: result
+    !-----------------------------------------------------------------
+        assert( time_derivative_order >= 0 .or. time_derivative_order <= 1  )
+        assert( associated(this%time_derivatives(time_derivative_order)%function)  )
+        call this%time_derivatives(time_derivative_order)%function%get_value_space_time(point, time, result)
+    end subroutine scalar_function_and_gradient_parser_get_temporal_derivative
 
 
 end module scalar_function_and_gradient_parser_names
