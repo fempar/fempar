@@ -134,7 +134,6 @@ contains
     end if
     call this%set_cells_for_uniform_refinement()
     call this%triangulation%refine_and_coarsen()
-    call this%triangulation%clear_refinement_and_coarsening_flags()
   end subroutine setup_triangulation
   
   subroutine set_cells_for_uniform_refinement(this)
@@ -245,6 +244,7 @@ contains
       if ( this%test_params%get_refinement_strategy() == 'uniform' .and. &
            refinement_strategy%get_current_mesh_iteration() > 0 ) then
         test = abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate) < tol_rate
+        write(*,*) abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate), tol_rate
         mcheck( test, 'Uniform refinement: Theoretical rate of convergence is not verified' )
       else if ( this%test_params%get_refinement_strategy() == 'error_objective' ) then
         test = ( refinement_strategy%get_current_mesh_iteration() < max_num_mesh_iterations )
@@ -254,7 +254,7 @@ contains
       global_estimate(1)   = global_estimate(2)
       global_true_error(1) = global_true_error(2)
       
-      call refinement_strategy%update_refinement_flags(this%triangulation%get_refinement_and_coarsening_flags())
+      call refinement_strategy%update_refinement_flags(this%triangulation)
       call this%triangulation%refine_and_coarsen()
       call this%fe_space%refine_and_coarsen( this%solution )
       call this%fe_space%set_up_cell_integration()

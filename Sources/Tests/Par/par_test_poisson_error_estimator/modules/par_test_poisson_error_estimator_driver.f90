@@ -154,7 +154,6 @@ contains
       call this%set_cells_for_uniform_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%redistribute()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
@@ -306,7 +305,7 @@ contains
       global_estimate(1)   = global_estimate(2)
       global_true_error(1) = global_true_error(2)
       
-      call refinement_strategy%update_refinement_flags(this%triangulation%get_refinement_and_coarsening_flags())
+      call refinement_strategy%update_refinement_flags(this%triangulation)
       call this%triangulation%refine_and_coarsen()
       call this%fe_space%refine_and_coarsen( this%solution )
       call this%triangulation%redistribute()

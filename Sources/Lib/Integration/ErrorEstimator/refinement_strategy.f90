@@ -30,7 +30,7 @@ module refinement_strategy_names
   use environment_names
   use triangulation_names
   use fe_space_names
-  use p4est_triangulation_names
+  use triangulation_names
   use std_vector_integer_ip_names
   use error_estimator_names
   use FPL
@@ -71,10 +71,10 @@ module refinement_strategy_names
       type(parameterlist_t)        , intent(in)    :: parameter_list
     end subroutine set_parameters_interface
   
-    subroutine update_refinement_flags_interface(this,refinement_and_coarsening_flags)
-      import :: refinement_strategy_t, std_vector_integer_ip_t
+    subroutine update_refinement_flags_interface(this,triangulation)
+      import :: refinement_strategy_t, triangulation_t
       class(refinement_strategy_t) , intent(inout) :: this
-      type(std_vector_integer_ip_t), intent(inout) :: refinement_and_coarsening_flags
+      class(triangulation_t)       , intent(inout) :: triangulation
     end subroutine update_refinement_flags_interface
   
     function has_finished_refinement_interface(this)
@@ -173,16 +173,18 @@ contains
     assert(FPLerror==0)
   end subroutine urs_set_parameters
   
-  subroutine urs_update_refinement_flags(this,refinement_and_coarsening_flags)
+  subroutine urs_update_refinement_flags(this,triangulation)
     class(uniform_refinement_strategy_t), intent(inout) :: this
-    type(std_vector_integer_ip_t)       , intent(inout) :: refinement_and_coarsening_flags
-    integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
-    integer(ip)          :: i, num_of_entries
-    refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
-    num_of_entries = size(refinement_and_coarsening_flags_entries)
-    do i = 1, num_of_entries
-      refinement_and_coarsening_flags_entries(i) = refinement
+    class(triangulation_t)              , intent(inout) :: triangulation
+    class(cell_iterator_t), allocatable :: cell
+    call triangulation%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_local() ) then
+        call cell%set_for_refinement()
+        call cell%next()
+      end if   
     end do
+    call triangulation%free_cell_iterator(cell)
     this%current_mesh_iteration = this%current_mesh_iteration + 1
   end subroutine urs_update_refinement_flags
   
@@ -212,30 +214,33 @@ contains
     end if
   end subroutine eors_set_parameters
   
-  subroutine eors_update_refinement_flags(this,refinement_and_coarsening_flags)
+  subroutine eors_update_refinement_flags(this,triangulation)
     class(error_objective_refinement_strategy_t), intent(inout) :: this
-    type(std_vector_integer_ip_t)               , intent(inout) :: refinement_and_coarsening_flags
-    integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
-    integer(ip)          :: i, num_of_entries
+    class(triangulation_t)                      , intent(inout) :: triangulation
+    integer(ip)          :: i
     real(rp)   , pointer :: sq_local_estimate_entries(:)
     real(rp)             :: sq_error_upper_bound, sq_error_lower_bound
-    refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
+    class(cell_iterator_t), allocatable :: cell
     sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
-    num_of_entries        = size(sq_local_estimate_entries)
     sq_error_upper_bound  = ( this%error_objective * ( 1.0_rp + this%objective_tolerance ) ) ** 2.0_rp
     sq_error_lower_bound  = ( this%error_objective * ( 1.0_rp - this%objective_tolerance ) ) ** 2.0_rp
-    do i = 1, num_of_entries
-      if ( sq_local_estimate_entries(i) > sq_error_upper_bound ) then
-        refinement_and_coarsening_flags_entries(i) = refinement
-      else if ( sq_local_estimate_entries(i) < sq_error_lower_bound ) then
-        ! TO-DO: It seems that the cell is coarsened, even if
-        !        one of its siblings is marked as `do_nothing`
-        !        or `refinement`. This kills the algorithm.
-        !refinement_and_coarsening_flags_entries(i) = coarsening
-      else
-        refinement_and_coarsening_flags_entries(i) = do_nothing
-      end if
+    call triangulation%create_cell_iterator(cell)
+    do while ( .not. cell%has_finished() )
+      if ( cell%is_local() ) then
+        if ( sq_local_estimate_entries(cell%get_gid()) > sq_error_upper_bound ) then
+          call cell%set_for_refinement()
+        else if ( sq_local_estimate_entries(cell%get_gid()) < sq_error_lower_bound ) then
+          ! TO-DO: It seems that the cell is coarsened, even if
+          !        one of its siblings is marked as `do_nothing`
+          !        or `refinement`. This kills the algorithm.
+          ! call cell%set_for_coarsening()
+        else
+          call cell%set_for_do_nothing()
+        end if
+        call cell%next()
+      end if   
     end do
+    call triangulation%free_cell_iterator(cell)
     this%current_mesh_iteration = this%current_mesh_iteration + 1
   end subroutine eors_update_refinement_flags
   
@@ -282,18 +287,16 @@ contains
     
   end subroutine ffrs_set_parameters
   
-  subroutine ffrs_update_refinement_flags(this,refinement_and_coarsening_flags)
+  subroutine ffrs_update_refinement_flags(this,triangulation)
     implicit none
     class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
-    type(std_vector_integer_ip_t)               , intent(inout) :: refinement_and_coarsening_flags
-    integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
+    class(triangulation_t)                     , intent(inout) :: triangulation
     integer(ip)          :: i, num_local_cells
     integer(igp)         :: num_global_cells
     integer(igp)         :: target_num_cells_to_be_refined_coarsened(2)
     integer(igp)         :: current_num_cells_to_be_refined_coarsened(2)
     real(rp)   , pointer :: sq_local_estimate_entries(:)
     class(serial_fe_space_t), pointer :: fe_space
-    class(triangulation_t), pointer :: triangulation
     class(environment_t), pointer :: environment
     real(rp) :: ref_sq_min_estimate, ref_min_estimate
     real(rp) :: ref_sq_max_estimate, ref_max_estimate
@@ -304,15 +307,14 @@ contains
     real(rp) :: aux(2)
     logical :: ref_converged
     logical :: coarsening_converged
-    
+    class(cell_iterator_t), allocatable :: cell
+
     assert ( associated(this%error_estimator) )
     
     fe_space      => this%error_estimator%get_fe_space()
-    triangulation => fe_space%get_triangulation()
     environment   => triangulation%get_environment()
     
     if ( environment%am_i_l1_task() ) then
-      refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
       sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
     
       num_local_cells  = triangulation%get_num_local_cells()
@@ -456,15 +458,20 @@ contains
         write(*,*) "Computed coarsening threshold squared = ", this%sq_coarsening_threshold
         write(*,*) "% cells to be coarsened = ", real(current_num_cells_to_be_refined_coarsened(2),rp)/real(num_global_cells,rp)
       end if
-      do i = 1, num_local_cells
-        if ( sq_local_estimate_entries(i) > this%sq_refinement_threshold ) then
-          refinement_and_coarsening_flags_entries(i) = refinement
-        else if ( sq_local_estimate_entries(i) < this%sq_coarsening_threshold ) then
-         refinement_and_coarsening_flags_entries(i) = coarsening  
-        else
-         refinement_and_coarsening_flags_entries(i) = do_nothing
-        end if
+      call triangulation%create_cell_iterator(cell)
+      do while ( .not. cell%has_finished() )
+        if ( cell%is_local() ) then
+          if ( sq_local_estimate_entries(cell%get_gid()) > this%sq_refinement_threshold ) then
+            call cell%set_for_refinement()
+          else if ( sq_local_estimate_entries(cell%get_gid()) < this%sq_coarsening_threshold ) then
+            call cell%set_for_coarsening()
+          else
+            call cell%set_for_do_nothing()
+          end if
+          call cell%next()
+        end if   
       end do
+      call triangulation%free_cell_iterator(cell)
     end if
     this%current_mesh_iteration = this%current_mesh_iteration + 1
   end subroutine ffrs_update_refinement_flags
