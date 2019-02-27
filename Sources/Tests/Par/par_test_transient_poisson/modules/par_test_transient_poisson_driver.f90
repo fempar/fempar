@@ -202,7 +202,6 @@ end subroutine free_timers
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
 
-
     call this%triangulation%create(this%par_environment, this%parameter_list)
 
     ! Set the cell ids to use void fes

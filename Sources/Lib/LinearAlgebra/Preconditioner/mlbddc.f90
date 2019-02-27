@@ -97,9 +97,9 @@ module mlbddc_names
   ! Created             | numerical_setup       | Numeric          ! perform symbolic_setup()+numerical_setup()
   ! Created             | apply                 | Numeric          ! perform symbolic_setup()+numerical_setup()
   ! Created             | free_clean            | Start
-  ! Created             | free_symbolic         | Create           ! it does nothing
-  ! Created             | free_numeric          | Create           ! it does nothing
-  ! Created             | update_matrix         | Create           ! it does nothing
+  ! Created             | free_symbolic         | Created          ! it does nothing
+  ! Created             | free_numeric          | Created          ! it does nothing
+  ! Created             | update_matrix         | Created          ! it does nothing
 
   ! Symbolic            | symbolic_setup                        | Symbolic         ! it does nothing
   ! Symbolic            | numerical_setup                       | Numeric          ! perform numerical_setup() 
@@ -298,6 +298,8 @@ end type base_mlbddc_t
 
     ! Update-matrix related TBPs
     procedure                           :: update_matrix                                   => mlbddc_update_matrix
+    procedure                           :: reallocate_after_remesh                         => mlbddc_reallocate_after_remesh
+
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
     procedure, private                  :: get_fe_space                                     => mlbddc_get_fe_space

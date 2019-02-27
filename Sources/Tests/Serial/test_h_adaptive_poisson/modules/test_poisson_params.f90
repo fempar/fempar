@@ -53,6 +53,12 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_use_void_fes
      character(len=:), allocatable :: default_use_void_fes_case
+     character(len=:), allocatable :: default_x_min_domain_limits
+     character(len=:), allocatable :: default_x_max_domain_limits
+     character(len=:), allocatable :: default_y_min_domain_limits
+     character(len=:), allocatable :: default_y_max_domain_limits
+     character(len=:), allocatable :: default_z_min_domain_limits
+     character(len=:), allocatable :: default_z_max_domain_limits
 
      type(Command_Line_Interface):: cli 
 
@@ -73,6 +79,7 @@ module test_poisson_params_names
      
      logical                       :: use_void_fes
      character(len=str_cla_len)    :: use_void_fes_case
+     real(rp)                      :: domain_limits(6)
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -139,6 +146,14 @@ contains
     this%default_is_periodic_in_x = '0'
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
+    
+    this%default_x_min_domain_limits = '0.0'
+    this%default_x_max_domain_limits = '1.0'
+    this%default_y_min_domain_limits = '0.0'
+    this%default_y_max_domain_limits = '1.0'
+    this%default_z_min_domain_limits = '0.0'
+    this%default_z_max_domain_limits = '1.0'
+    
     
     this%default_use_void_fes = '.false.'
     this%default_use_void_fes_case = 'popcorn'
@@ -212,7 +227,24 @@ contains
     call this%cli%add(switch='--use-void-fes-case',switch_ab='-use-voids-case',help='Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter`',&
          &            required=.false.,act='store',def=trim(this%default_use_void_fes_case),error=error) 
     check(error==0) 
-
+    call this%cli%add(switch='--x-min-domain-limits',switch_ab='-xmin',help='Domain limit: minimum x',&
+         &            required=.false.,act='store',def=trim(this%default_x_min_domain_limits),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--x-max-domain-limits',switch_ab='-xmax',help='Domain limit: maximum x',&
+         &            required=.false.,act='store',def=trim(this%default_x_max_domain_limits),error=error) 
+    check(error==0) 
+     call this%cli%add(switch='--y-min-domain-limits',switch_ab='-ymin',help='Domain limit: minimum y',&
+         &            required=.false.,act='store',def=trim(this%default_y_min_domain_limits),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--y-max-domain-limits',switch_ab='-ymax',help='Domain limit: maximum y',&
+         &            required=.false.,act='store',def=trim(this%default_y_max_domain_limits),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--z-min-domain-limits',switch_ab='-zmin',help='Domain limit: minimum z',&
+         &            required=.false.,act='store',def=trim(this%default_z_min_domain_limits),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--z-max-domain-limits',switch_ab='-zmax',help='Domain limit: maximum z',&
+         &            required=.false.,act='store',def=trim(this%default_z_max_domain_limits),error=error) 
+    check(error==0) 
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this,parameter_list)
@@ -243,12 +275,19 @@ contains
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
     call this%cli%get(switch='-use-voids',val=this%use_void_fes,error=istat); check(istat==0)
     call this%cli%get(switch='-use-voids-case',val=this%use_void_fes_case,error=istat); check(istat==0)
+    call this%cli%get(switch='-xmin',val=this%domain_limits(1),error=istat); check(istat==0)
+    call this%cli%get(switch='-xmax',val=this%domain_limits(2),error=istat); check(istat==0)
+    call this%cli%get(switch='-ymin',val=this%domain_limits(3),error=istat); check(istat==0)
+    call this%cli%get(switch='-ymax',val=this%domain_limits(4),error=istat); check(istat==0)
+    call this%cli%get(switch='-zmin',val=this%domain_limits(5),error=istat); check(istat==0)
+    call this%cli%get(switch='-zmax',val=this%domain_limits(6),error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
     istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
     istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
     istat = istat + parameter_list%set(key = triang_geometric_interpolation_order_key  , value = this%reference_fe_geo_order)
+    istat = istat + parameter_list%set(key = struct_hex_triang_domain_limits_key, value = this%domain_limits )
     check(istat==0)
 
     if(trim(this%triangulation_type)=='unstructured') then

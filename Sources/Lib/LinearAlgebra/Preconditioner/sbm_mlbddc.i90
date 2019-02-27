@@ -54,6 +54,7 @@ subroutine mlbddc_create_vector_spaces (this)
   type(vector_space_t), pointer :: fe_nonlinear_operator_range_vector_space
   type(vector_space_t), pointer :: mlbddc_domain_vector_space
   type(vector_space_t), pointer :: mlbddc_range_vector_space
+  call this%free_vector_spaces()
   fe_nonlinear_operator_domain_vector_space => this%fe_nonlinear_operator%get_domain_vector_space()
   fe_nonlinear_operator_range_vector_space => this%fe_nonlinear_operator%get_range_vector_space()
   assert ( fe_nonlinear_operator_domain_vector_space%equal_to(fe_nonlinear_operator_range_vector_space) )
@@ -183,6 +184,16 @@ subroutine mlbddc_update_matrix(this, same_nonzero_pattern )
     end if
   end if 
 end subroutine mlbddc_update_matrix
+
+subroutine mlbddc_reallocate_after_remesh(this)
+  implicit none
+  class(mlbddc_t)          , intent(inout) :: this
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  call this%free_numerical_setup()
+  call this%free_symbolic_setup()
+  call this%create_vector_spaces()
+end subroutine mlbddc_reallocate_after_remesh
+
 
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
 ! from the fe_nonlinear_operator, and dynamically casts it into  
