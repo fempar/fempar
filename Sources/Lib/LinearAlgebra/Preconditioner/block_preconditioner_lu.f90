@@ -57,14 +57,15 @@ use iso_c_binding
      type(block_preconditioner_l_t) :: L
      type(block_preconditioner_u_t) :: U
   contains
-     procedure  :: create             => block_preconditioner_lu_create
-     procedure  :: set_block          => block_preconditioner_lu_set_block
-     procedure  :: set_block_to_zero  => block_preconditioner_lu_set_block_to_zero
-     procedure  :: free               => block_preconditioner_lu_free
-     procedure  :: apply              => block_preconditioner_lu_apply
-     procedure  :: apply_add          => block_preconditioner_lu_apply_add
-     procedure  :: is_linear          => block_preconditioner_lu_is_linear
-     procedure  :: update_matrix      => block_preconditioner_lu_update_matrix
+     procedure  :: create                  => block_preconditioner_lu_create
+     procedure  :: set_block               => block_preconditioner_lu_set_block
+     procedure  :: set_block_to_zero       => block_preconditioner_lu_set_block_to_zero
+     procedure  :: free                    => block_preconditioner_lu_free
+     procedure  :: apply                   => block_preconditioner_lu_apply
+     procedure  :: apply_add               => block_preconditioner_lu_apply_add
+     procedure  :: is_linear               => block_preconditioner_lu_is_linear
+     procedure  :: update_matrix           => block_preconditioner_lu_update_matrix
+     procedure  :: reallocate_after_remesh => block_preconditioner_lu_reallocate_after_remesh
   end type block_preconditioner_lu_t
 
   integer(ip), parameter :: lower = 0
@@ -135,6 +136,12 @@ contains
     call this%U%update_matrix(same_nonzero_pattern)
   end subroutine block_preconditioner_lu_update_matrix
   
+  subroutine block_preconditioner_lu_reallocate_after_remesh(this)
+    implicit none
+    class(block_preconditioner_lu_t), intent(inout)    :: this
+    call this%L%reallocate_after_remesh()
+    call this%U%reallocate_after_remesh()
+  end subroutine block_preconditioner_lu_reallocate_after_remesh
 
   subroutine block_preconditioner_lu_create (bop, nblocks)
     implicit none

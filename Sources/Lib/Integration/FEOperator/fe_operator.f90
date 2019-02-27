@@ -166,6 +166,8 @@ module fe_operator_names
                                                                
      procedure, private :: create_serial_assembler               => fe_operator_create_serial_assembler
      procedure, private :: create_par_assembler                  => fe_operator_create_par_assembler
+     procedure, private :: create_members_serial_assembler       => fe_operator_create_members_serial_assembler
+     procedure, private :: create_members_par_assembler          => fe_operator_create_members_par_assembler
      procedure, private :: create_vector_spaces                  => fe_operator_create_vector_spaces
   end type fe_operator_t
   

@@ -53,10 +53,11 @@ module p4est_bindings_names
      !>
      !> @note (sc_)MPI is only initialized if p4est/sc was compiled without MPI support
      !=================================================================================================================================
-     subroutine F90_p4est_init(Fcomm) bind(c,name="F90_p4est_init")
+     subroutine F90_p4est_init(Fcomm,sc_log_level) bind(c,name="F90_p4est_init")
        use, intrinsic :: iso_c_binding
        implicit none
        integer, value, intent(in) :: Fcomm
+       integer, value, intent(in) :: sc_log_level
      end subroutine F90_p4est_init
 
      subroutine F90_p4est_finalize() bind(c,name="F90_p4est_finalize")
@@ -81,6 +82,15 @@ module p4est_bindings_names
        type(c_ptr), intent(inout)  :: p8est_connectivity
      end subroutine F90_p8est_connectivity_new_unitcube
      
+     !=================================================================================================================================
+     !> summary: Set bounding box limits to p4est connectivity
+     !=================================================================================================================================
+     subroutine F90_p4est_connectivity_set_bounding_box_limits(p4est_connectivity,bounding_box_limits) bind(c,name="F90_p4est_connectivity_set_bounding_box_limits")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr)       , intent(inout)  :: p4est_connectivity
+       type(c_ptr), value, intent(in)     :: bounding_box_limits
+     end subroutine F90_p4est_connectivity_set_bounding_box_limits
      !=================================================================================================================================
      !> summary: Creates unrefined p4est (it will contain a single root octant)
      !=================================================================================================================================

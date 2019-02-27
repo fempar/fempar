@@ -59,6 +59,44 @@ module p4est_triangulation_names
 # include "debug.i90"
   private
  
+  ! Parameter handling
+  character(len=*), parameter :: p4est_triang_log_level_key  = 'p4est_triang_log_level'
+  
+  ! Numbers designating the level of logging output.
+  !
+  ! Priorities TRACE to VERBOSE are appropriate when all parallel processes
+  ! contribute log messages.  INFO and above must not clutter the output of
+  ! large parallel runs.  STATISTICS can be used for important measurements.
+  ! PRODUCTION is meant for rudimentary information on the program flow.
+  ! ESSENTIAL can be used for one-time messages, say at program startup.
+  ! 
+  integer(ip), parameter :: SC_LP_DEFAULT        = -1 !**< this selects the SC default threshold */
+  integer(ip), parameter :: SC_LP_ALWAYS         = 0  !**< this will log everything */  
+  integer(ip), parameter :: SC_LP_TRACE          = 1  !**< this will prefix file and line number */
+  integer(ip), parameter :: SC_LP_DEBUG          = 2  !**< any information on the internal state */
+  integer(ip), parameter :: SC_LP_VERBOSE        = 3  !**< information on conditions, decisions */
+  integer(ip), parameter :: SC_LP_INFO           = 4  !**< the main things a function is doing */
+  integer(ip), parameter :: SC_LP_STATISTICS     = 5  !**< important for consistency/performance */
+  integer(ip), parameter :: SC_LP_PRODUCTION     = 6  !**< a few lines for a major api function */
+  integer(ip), parameter :: SC_LP_ESSENTIAL      = 7  !**< this logs a few lines max per program */
+  integer(ip), parameter :: SC_LP_ERROR          = 8  !**< this logs errors only */
+  integer(ip), parameter :: SC_LP_SILENT         = 9  !**< this never logs anything */
+  integer(ip), parameter :: FEMPAR_SC_LP_DEFAULT = SC_LP_SILENT    
+  
+  public :: p4est_triang_log_level_key
+  public :: SC_LP_DEFAULT
+  public :: SC_LP_ALWAYS     
+  public :: SC_LP_TRACE
+  public :: SC_LP_DEBUG
+  public :: SC_LP_VERBOSE
+  public :: SC_LP_INFO
+  public :: SC_LP_STATISTICS
+  public :: SC_LP_PRODUCTION
+  public :: SC_LP_ESSENTIAL
+  public :: SC_LP_ERROR
+  public :: SC_LP_SILENT
+  public :: FEMPAR_SC_LP_DEFAULT
+  
   ! For 2D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_2D = 2
   integer(ip), parameter :: NUM_CORNERS_2D                = 4
@@ -420,14 +458,7 @@ module p4est_triangulation_names
      procedure                           :: get_num_half_cells_around       => p4est_vef_iterator_get_num_half_cells_around
      procedure                           :: get_half_cell_around            => p4est_vef_iterator_get_half_cell_around
   end type p4est_vef_iterator_t
- 
-  
-  ! These parameter constants are used in order to generate a unique (non-consecutive) 
-  ! but consistent across MPI tasks global ID (integer(igp)) of a given VEF.
-  ! See type(p4est_base_triangulation_t)%generate_non_consecutive_vef_ggid()
-  integer(ip), parameter :: cell_ggid_shift    = 54
-  integer(ip), parameter :: vefs_x_cell_shift  = 10 
-
+     
   type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
     integer(ip) :: num_proper_vefs          = -1 
@@ -435,6 +466,8 @@ module p4est_triangulation_names
  
     integer(ip) :: previous_num_local_cells = -1
     integer(ip) :: previous_num_ghost_cells = -1
+    
+    logical     :: clear_refinement_and_coarsening_flags_pending = .false.
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
     real(rp)                            :: bounding_box_limits(1:SPACE_DIM,2)
@@ -527,7 +560,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: fill_ghost_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_local_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
-    procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure, private        , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_weights                                 => p4est_bt_clear_cell_weights
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set

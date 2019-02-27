@@ -213,7 +213,6 @@ contains
             call cell%next()
           end do
           call this%triangulation%refine_and_coarsen()
-          call this%triangulation%clear_refinement_and_coarsening_flags()
           call this%triangulation%free_cell_iterator(cell)
         end do
         call this%triangulation%update_cut_cells(this%level_set_function)
@@ -246,7 +245,6 @@ contains
             call cell%next()
           end do
           call this%triangulation%refine_and_coarsen()
-          call this%triangulation%clear_refinement_and_coarsening_flags()
           call this%triangulation%update_cut_cells(this%level_set_function)
           call this%triangulation%free_cell_iterator(cell)
         end do
@@ -271,7 +269,6 @@ contains
             call cell%next()
           end do
           call this%triangulation%refine_and_coarsen()
-          call this%triangulation%clear_refinement_and_coarsening_flags()
           call this%triangulation%update_cut_cells(this%level_set_function)
           call this%triangulation%free_cell_iterator(cell)
         end do
@@ -296,7 +293,6 @@ contains
             call cell%next()
           end do
           call this%triangulation%refine_and_coarsen()
-          call this%triangulation%clear_refinement_and_coarsening_flags()
           call this%triangulation%update_cut_cells(this%level_set_function)
           call this%triangulation%free_cell_iterator(cell)
         end do
@@ -309,12 +305,10 @@ contains
         call this%triangulation%create_cell_iterator(cell)
         call cell%set_for_refinement()
         call this%triangulation%refine_and_coarsen()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
         call this%triangulation%update_cut_cells(this%level_set_function)
         call cell%set_gid(2)
         call cell%set_for_refinement()
         call this%triangulation%refine_and_coarsen()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
         call this%triangulation%update_cut_cells(this%level_set_function)
         call this%triangulation%free_cell_iterator(cell)
 

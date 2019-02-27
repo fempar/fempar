@@ -757,7 +757,6 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_vector_igp(n)
   end subroutine environment_l1_sum_vector_igp
-  
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_rp ( this, & 

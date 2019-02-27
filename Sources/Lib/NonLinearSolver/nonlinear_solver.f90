@@ -85,10 +85,12 @@ contains
 
   ! Public TBPs. 
   procedure :: create                           => nonlinear_solver_create
+  procedure :: reallocate_after_remesh          => nonlinear_solver_reallocate_after_remesh
   procedure :: apply                            => nonlinear_solver_apply
   procedure :: apply_add                        => nonlinear_solver_apply_add
   procedure :: is_linear                        => nonlinear_solver_is_linear
   procedure :: update_matrix                    => nonlinear_solver_update_matrix  
+  procedure :: set_parameters_from_pl           => nonlinear_solver_set_parameters_from_pl
   procedure :: free                             => nonlinear_solver_free
 
   ! Getters and checkers
@@ -102,7 +104,6 @@ contains
   ! Others
 
   ! Private TBPs
-  procedure, private :: process_params                   => nonlinear_solver_process_params
   procedure, private :: update_solution                  => nonlinear_solver_update_solution
   procedure, private :: compute_residual                 => nonlinear_solver_compute_residual  
   procedure, private :: compute_tangent                  => nonlinear_solver_compute_tangent
@@ -110,6 +111,8 @@ contains
   procedure, private :: print_iteration_output_header    => nonlinear_solver_print_iteration_output_header
   procedure, private :: print_current_iteration_output   => nonlinear_solver_print_current_iteration_output
   procedure, private :: print_final_output               => nonlinear_solver_print_final_output
+  procedure, private :: allocate_workspace               => nonlinear_solver_allocate_workspace
+  procedure, private :: free_workspace                   => nonlinear_solver_free_workspace
 
 end type nonlinear_solver_t
 
@@ -146,15 +149,20 @@ subroutine nonlinear_solver_create(this, &
  class(fe_operator_t)          , target, intent(in)    :: fe_operator
 
  call this%free()
-
- this%current_iteration     = 1
- call this%process_params(parameters)
- this%linear_solver  => linear_solver
- this%environment    => fe_operator%get_environment()
- this%fe_operator => fe_operator
- call this%fe_operator%create_range_vector(this%initial_solution)
- call this%initial_solution%init(0.0_rp)
+ call this%set_parameters_from_pl(parameters)
+ this%linear_solver => linear_solver
+ this%environment   => fe_operator%get_environment()
+ this%fe_operator   => fe_operator
+ call this%allocate_workspace()
 end subroutine nonlinear_solver_create
+
+subroutine nonlinear_solver_reallocate_after_remesh (this)
+  implicit none
+  class(nonlinear_solver_t)     , intent(inout) :: this
+  call this%fe_operator%reallocate_after_remesh()
+  call this%allocate_workspace()
+  call this%linear_solver%reallocate_after_remesh()
+end subroutine nonlinear_solver_reallocate_after_remesh 
 
 !==============================================================================
 subroutine nonlinear_solver_apply(this,x,y)
@@ -169,9 +177,6 @@ subroutine nonlinear_solver_apply(this,x,y)
  !e.g. A(y) = x
  integer(ip) :: istat
 
- ! Initialize work data
- call this%fe_operator%create_domain_vector(this%increment_dof_values)
-
  ! Initialize nonlinear operator
  call this%set_current_dof_values(y)
  call this%current_dof_values%copy(this%initial_solution)
@@ -179,14 +184,12 @@ subroutine nonlinear_solver_apply(this,x,y)
  call this%increment_dof_values%init(0.0) 
 
  ! Compute initial residual
- call this%fe_operator%create_range_vector(this%current_residual)
  call this%compute_residual(x)
 
  ! Store initial residual norm for the stopping criterium that needs it
  if (this%convergence_criteria == rel_r0_res_norm) then
     this%initial_residual_norm = this%current_residual%nrm2()
  end if
- call this%fe_operator%create_range_vector(this%minus_current_residual)
 
  ! Print initial residual
  call this%print_iteration_output_header()
@@ -273,22 +276,7 @@ subroutine nonlinear_solver_free(this)
  implicit none
  class(nonlinear_solver_t), intent(inout)  :: this
  integer(ip) :: istat
- if(allocated(this%current_residual)) then
-    call this%current_residual%free()
-    deallocate(this%current_residual,stat=istat); check(istat==0)
- end if
- if(allocated(this%increment_dof_values)) then
-    call this%increment_dof_values%free()
-    deallocate(this%increment_dof_values,stat=istat); check(istat==0)
- end if
- if(allocated(this%minus_current_residual)) then
-    call this%minus_current_residual%free()
-    deallocate(this%minus_current_residual,stat=istat); check(istat==0)
- end if
- if(allocated(this%initial_solution)) then
-    call this%initial_solution%free()
-    deallocate(this%initial_solution,stat=istat); check(istat==0)
- end if
+ call this%free_workspace()
  this%current_dof_values => null()
  this%linear_solver      => null()
  this%environment        => null()
@@ -362,7 +350,7 @@ subroutine nonlinear_solver_set_current_dof_values( this, current_dof_values )
 end subroutine nonlinear_solver_set_current_dof_values
 
 !==============================================================================
-subroutine nonlinear_solver_process_params(this,parameter_list)
+subroutine nonlinear_solver_set_parameters_from_pl(this,parameter_list)
  implicit none
  class(nonlinear_solver_t), intent(inout) :: this
  type(parameterlist_t)    , intent(in)    :: parameter_list
@@ -407,7 +395,7 @@ subroutine nonlinear_solver_process_params(this,parameter_list)
  else
    this%print_iteration_output = default_nls_print_iteration_output
  endif
-end subroutine nonlinear_solver_process_params
+end subroutine nonlinear_solver_set_parameters_from_pl
 
 !==============================================================================
 subroutine nonlinear_solver_update_solution(this)
@@ -489,5 +477,39 @@ subroutine nonlinear_solver_print_final_output(this)
  end if
 end subroutine nonlinear_solver_print_final_output
 
+!==============================================================================
+subroutine nonlinear_solver_allocate_workspace(this)
+  implicit none
+  class(nonlinear_solver_t), intent(inout)  :: this
+  call this%free_workspace()
+  call this%fe_operator%create_range_vector(this%initial_solution)
+  call this%initial_solution%init(0.0_rp)
+  call this%fe_operator%create_domain_vector(this%increment_dof_values)
+  call this%fe_operator%create_range_vector(this%current_residual)
+  call this%fe_operator%create_range_vector(this%minus_current_residual)
+end subroutine nonlinear_solver_allocate_workspace
+
+!==============================================================================
+subroutine nonlinear_solver_free_workspace(this)
+  implicit none
+  class(nonlinear_solver_t), intent(inout)  :: this
+  integer(ip) :: istat
+  if(allocated(this%current_residual)) then
+    call this%current_residual%free()
+    deallocate(this%current_residual,stat=istat); check(istat==0)
+  end if
+  if(allocated(this%increment_dof_values)) then
+    call this%increment_dof_values%free()
+    deallocate(this%increment_dof_values,stat=istat); check(istat==0)
+  end if
+  if(allocated(this%minus_current_residual)) then
+    call this%minus_current_residual%free()
+    deallocate(this%minus_current_residual,stat=istat); check(istat==0)
+  end if
+  if(allocated(this%initial_solution)) then
+    call this%initial_solution%free()
+    deallocate(this%initial_solution,stat=istat); check(istat==0)
+  end if
+end subroutine nonlinear_solver_free_workspace
 
 end module nonlinear_solver_names

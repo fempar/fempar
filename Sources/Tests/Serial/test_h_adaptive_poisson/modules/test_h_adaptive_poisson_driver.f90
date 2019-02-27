@@ -174,7 +174,6 @@ contains
     do i = 1,2
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
     if (this%test_params%get_use_void_fes()) then

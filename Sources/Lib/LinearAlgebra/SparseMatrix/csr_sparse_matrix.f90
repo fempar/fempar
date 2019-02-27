@@ -105,6 +105,7 @@ private
         procedure         :: apply_body                              => csr_sparse_matrix_apply_body
         procedure         :: apply_add_body                          => csr_sparse_matrix_apply_add_body
         procedure         :: apply_transpose_body                    => csr_sparse_matrix_apply_transpose_body
+        procedure         :: apply_transpose_add_body                => csr_sparse_matrix_apply_transpose_add_body 
         procedure         :: apply_to_dense_matrix_body              => csr_sparse_matrix_apply_to_dense_matrix_body
         procedure         :: apply_transpose_to_dense_matrix_body    => csr_sparse_matrix_apply_transpose_to_dense_matrix_body
         procedure, public :: print_matrix_market_body                => csr_sparse_matrix_print_matrix_market_body
@@ -766,6 +767,53 @@ contains
         end select
         call x%CleanTemp()
     end subroutine csr_sparse_matrix_apply_transpose_body
+ 
+ subroutine csr_sparse_matrix_apply_transpose_add_body(this,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply transpose matrix vector product y=op'*x+y
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(in)    :: this
+        class(vector_t),            intent(in)    :: x
+        class(vector_t) ,           intent(inout) :: y 
+    !-----------------------------------------------------------------
+        real(rp), pointer :: x_entries(:)
+        real(rp), pointer :: y_entries(:)
+        
+        call x%GuardTemp()
+        select type(x)
+            class is (serial_scalar_array_t)
+                select type(y)
+                    class is(serial_scalar_array_t)
+                        x_entries => x%get_entries()
+                        y_entries => y%get_entries()
+                        if (this%get_symmetric_storage()) then
+                            call matvec_symmetric_storage(              &
+                                        num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(), &
+                                        irp      = this%irp,            &
+                                        ja       = this%ja,             &
+                                        val      = this%val,            &
+                                        alpha    = 1.0_rp,              &
+                                        x        = x_entries,           &
+                                        beta     = 1.0_rp,              &
+                                        y        = y_entries )
+                        else
+                            call transpose_matvec(num_rows = this%get_num_rows(), &
+                                        num_cols = this%get_num_cols(),           &
+                                        irp      = this%irp,                      &
+                                        ja       = this%ja,                       &
+                                        val      = this%val,                      &
+                                        alpha    = 1.0_rp,                        &
+                                        x        = x_entries,                     &
+                                        beta     = 1.0_rp,                        &
+                                        y        = y_entries )
+                    end if
+                end select
+            class DEFAULT
+                check(.false.)
+        end select
+        call x%CleanTemp()
+    end subroutine csr_sparse_matrix_apply_transpose_add_body
 
 
     subroutine csr_sparse_matrix_apply_to_dense_matrix_body(this, n, alpha, LDB, b, beta, LDC, c) 
@@ -4185,7 +4233,7 @@ contains
     !< Return the diagonal of a CSR sparse matrix
     !-----------------------------------------------------------------
         class(csr_sparse_matrix_t), intent(in)    :: this
-        real(rp),   allocatable,    intent(inout) :: diagonal(:)
+        real(rp)                  , intent(inout) :: diagonal(:)
         integer(ip)                               :: diagonal_size
         integer(ip)                               :: row
         integer(ip)                               :: row_start_offset
@@ -4193,10 +4241,8 @@ contains
         integer(ip)                               :: col_offset_in_row
     !-----------------------------------------------------------------
         assert(this%state_is_assembled())
-        if(allocated(diagonal)) deallocate(diagonal)
         diagonal_size = min(this%get_num_rows(), this%get_num_cols())
-        allocate(diagonal(diagonal_size))
-
+        assert(diagonal_size == size(diagonal))
         do row=1, diagonal_size
             row_start_offset = this%irp(row)
             row_end_offset = this%irp(row+1)-1

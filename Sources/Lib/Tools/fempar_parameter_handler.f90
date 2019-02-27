@@ -35,6 +35,7 @@ module fempar_parameter_handler_names
   use metis_interface_names
   use triangulation_names
   use uniform_hex_mesh_generator_names
+  use p4est_triangulation_names
   use fe_space_names
   use parameter_handler_names
   use reference_fe_names
@@ -407,6 +408,10 @@ contains
     error = error + helpers%set(key = struct_hex_triang_domain_limits_key     , value = 'Domain interval per direction')
     error = error + switches%set(key = struct_hex_triang_domain_limits_key    , value = '--STRUCT_HEX_TRIANG_DOMAIN_LIMITS')
     error = error + values%set(key = struct_hex_triang_domain_limits_key      , value = [0.0,1.0,0.0,1.0,0.0,1.0] )
+    
+    error = error + helpers%set(key = p4est_triang_log_level_key  , value = 'p4est library level of logging output')
+    error = error + switches%set(key = p4est_triang_log_level_key , value = '--P4EST_TRIANG_LOG_LEVEL')
+    error = error + values%set(key = p4est_triang_log_level_key   , value = FEMPAR_SC_LP_DEFAULT  )
 
 !    ! BDDC
 !    ! I would say that all this should be handled by groups, one for the Dirichlet problem, 

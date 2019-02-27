@@ -37,17 +37,20 @@ module vector_names
    contains
      procedure (allocate_interface), deferred :: allocate
      procedure (dot_interface) , deferred     :: dot
-     procedure (dot_interface) , deferred     :: local_dot
+     procedure (local_dot_interface) , deferred :: local_dot
      procedure (copy_interface), deferred     :: copy
      procedure (init_interface), deferred     :: init
      procedure (scal_interface), deferred     :: scal
      procedure (axpby_interface), deferred    :: axpby ! y <- a*x + b*y
-     procedure (nrm2_interface), deferred     :: nrm2
+     procedure (nrm2_interface), deferred     :: nrm2 
      procedure (clone_interface), deferred    :: clone
+     procedure (comm_interface), deferred     :: comm
      procedure (same_vector_space_interface), deferred :: same_vector_space
      procedure (get_num_blocks_interface), deferred :: get_num_blocks
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
      procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
+     procedure (entrywise_product_interface), deferred :: entrywise_product
+     procedure (entrywise_invert_interface), deferred :: entrywise_invert
      
      procedure :: mold 
      procedure :: sum_vector
@@ -128,6 +131,12 @@ module vector_names
        class(vector_t),target         ,intent(inout) :: op1
        class(vector_t),target         ,intent(in)    :: op2
      end subroutine clone_interface
+     ! op <- comm(op), i.e. fully assembled op <- subassembled op 
+     subroutine comm_interface(op)
+       import :: vector_t
+       implicit none
+       class(vector_t), intent(inout) :: op
+     end subroutine comm_interface
      ! Determines whether this belongs to the same
      ! vector space as vector   
      function same_vector_space_interface(this,vector)
@@ -172,6 +181,21 @@ module vector_names
        integer(ip)    , intent(in)     :: indices(size_indices)
        real(rp)       , intent(in)     :: values(*)
      end subroutine vector_insert_subvector_interface
+     ! op1 <- op2 ⚪ op3: op1 is the entrywise or Hadamard product of op2 and op3,
+     ! i.e. (op1_1,...,op1_n) = (op2_1*op3_1,...,op2_n*op3_n), i = 1:n, n=size(op1)
+     subroutine entrywise_product_interface(op1,op2,op3)
+       import :: vector_t
+       implicit none
+       class(vector_t), intent(inout) :: op1
+       class(vector_t), intent(in)    :: op2
+       class(vector_t), intent(in)    :: op3
+     end subroutine entrywise_product_interface
+     ! op1_i <- 1 / op1_i, i = 1:n, n=size(op1), i.e. invert each entry of op1
+     subroutine entrywise_invert_interface(op1)
+       import :: vector_t
+       implicit none
+       class(vector_t), intent(inout) :: op1
+     end subroutine entrywise_invert_interface
   end interface
 
   public :: vector_t

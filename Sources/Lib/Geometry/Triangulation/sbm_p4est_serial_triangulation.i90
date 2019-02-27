@@ -38,6 +38,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   integer(ip), allocatable :: array_size(:)
   real(rp)   , allocatable :: bounding_box_limits(:)
   integer(ip) :: dummy_comm
+  integer(ip) :: p4est_log_level
   
 #ifdef ENABLE_P4EST
   call this%free()
@@ -72,6 +73,13 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     this%bounding_box_limits(:,2) = 1.0_rp
   end if
   
+  if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
+    assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
+    istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
+  else
+    p4est_log_level = FEMPAR_SC_LP_DEFAULT
+  end if
+  
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
                                      1, &
@@ -81,8 +89,10 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   call this%allocate_and_gen_reference_fe_geo_scratch_data()
 
   dummy_comm = 0
+  call F90_p4est_init(dummy_comm,p4est_log_level)
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
+    call F90_p4est_connectivity_set_bounding_box_limits(this%p4est_connectivity, c_loc(this%bounding_box_limits) )
     call F90_p4est_new(dummy_comm,this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
@@ -101,6 +111,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
+    call F90_p4est_connectivity_set_bounding_box_limits(this%p4est_connectivity, c_loc(this%bounding_box_limits) )
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_cell_import()
@@ -207,6 +218,8 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%reference_fe_geo%free()
   call this%free_reference_fe_geo_scratch_data()
   !call this%free_environment()
+  
+  this%clear_refinement_and_coarsening_flags_pending = .false.
   
   call triangulation_free(this)
 #else

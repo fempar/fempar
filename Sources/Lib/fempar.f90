@@ -54,7 +54,6 @@ module fempar_names
   use xh5_parameters_names
   use std_vector_names
   
-  
 
   ! Geometry
   use metis_interface_names
@@ -96,6 +95,7 @@ module fempar_names
   use par_block_array_names
   use par_sparse_matrix_names
   use mlbddc_names
+  use jacobi_preconditioner_names
   
   ! Integration 
   use reference_fe_names

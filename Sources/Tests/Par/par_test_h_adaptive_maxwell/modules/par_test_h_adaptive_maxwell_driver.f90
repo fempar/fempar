@@ -217,7 +217,6 @@ end subroutine free_timers
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%redistribute()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     call this%set_cells_set_ids()
 #ifdef ENABLE_MKL    

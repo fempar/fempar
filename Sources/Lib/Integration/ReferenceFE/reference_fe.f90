@@ -1601,6 +1601,7 @@ public :: hex_lagrangian_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(hex_lagrangian_reference_fe_t) :: hex_lagrangian_gp_reference_fe_t
 private
+  real(rp),           allocatable :: parent_to_child_injection_op(:,:,:)
 contains
 
 procedure :: create => hex_lagrangian_gp_reference_fe_create
@@ -1612,6 +1613,8 @@ procedure :: create_interpolation                                        &
 & => hex_lagrangian_gp_reference_fe_create_interpolation
 procedure, private :: fill_interpolation                                 &
 & => hex_lagrangian_gp_reference_fe_fill_interpolation
+procedure :: free                                       &
+& => hex_lagrangian_gp_reference_fe_free
 
 ! Concrete TBPs of this derived data type
 procedure, private :: fill_h_refinement_interpolation                    &
@@ -1620,8 +1623,8 @@ procedure, private :: change_basis                                       &
 & => hex_lagrangian_gp_reference_fe_change_basis
 procedure, private :: apply_change_basis_matrix_to_interpolation         &
 & => hex_lagrangian_gp_apply_change_basis_matrix_to_interpolation
-!procedure :: project_nodal_values_on_cell                                &
-!& => hex_lagrangian_gp_project_nodal_values_on_cell                      
+procedure :: scalar_to_multicomp_h_refinement_operator                   &
+& => hlgp_scalar_to_multicomp_h_refinement_operator
 
 ! Private TBPs auxiliary to project_nodal_values_on_cell
 procedure :: get_num_nodes_on_subcell                                   &
@@ -1638,6 +1641,8 @@ procedure :: interpolate_nodal_values_on_subcell                         &
 & => hex_lagrangian_gp_interpolate_nodal_values_on_subcell
 procedure :: get_num_nodes_children_patch                                 &
 & => hex_lagrangian_gp_get_num_nodes_children_patch
+procedure :: get_h_refinement_coefficient                       &
+& => hex_lagrangian_gp_get_h_refinement_coefficient
 
 end type hex_lagrangian_gp_reference_fe_t
 
