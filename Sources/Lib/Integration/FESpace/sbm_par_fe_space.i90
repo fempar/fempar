@@ -4457,7 +4457,7 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   class(par_fe_space_t), intent(inout) :: this
   type(fe_function_t)  , intent(inout) :: fe_function
   class(triangulation_t), pointer :: triangulation
-  class(p4est_par_triangulation_t), pointer :: par_triangulation
+  class(p4est_base_triangulation_t),  pointer     :: p4est_triangulation  
   type(fe_function_t) :: transformed_fe_function
   type(std_vector_integer_ip_t), pointer :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
@@ -4469,6 +4469,7 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   integer(ip) :: current_old_cell_lid, current_new_cell_lid
   integer(ip) :: old_num_local_cells
   integer(ip) :: old_num_ghost_cells
+  integer(ip) :: old_num_cells
   integer(ip) :: field_id
   class(fe_cell_iterator_t)         , allocatable :: new_fe
   real(rp)                          , allocatable :: old_nodal_values(:,:)
@@ -4489,16 +4490,19 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   if ( environment%am_i_l1_task() ) then
      select type(triangulation)
         class is (p4est_par_triangulation_t)
-        par_triangulation => triangulation
+        p4est_triangulation => triangulation
         refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
         class default
         assert(.false.)
      end select
 
-     if ( par_triangulation%get_num_cells() > 0 ) then
-        old_num_local_cells = par_triangulation%get_previous_num_local_cells()
-        old_num_ghost_cells = par_triangulation%get_previous_num_ghost_cells()
-        
+     if ( p4est_triangulation%get_num_cells() > 0 ) then
+        old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
+        old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
+
+        old_num_cells = old_num_ghost_cells + old_num_local_cells
+        massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )        
+
         call this%update_after_refine_coarsen(old_ptr_dofs_x_fe,old_lst_dofs_gids)
 
         call this%new_fe_function_nodal_values%resize(0)
@@ -4599,13 +4603,6 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
         !  
         call fe_function%create(this)
         fe_function = transformed_fe_function
-
-        select type(triangulation)
-           class is (p4est_par_triangulation_t)
-           call triangulation%clear_refinement_and_coarsening_flags()
-           class default
-           assert(.false.)
-        end select
         
         call new_fe%first()
         do while ( .not. new_fe%has_finished() )
@@ -4903,7 +4900,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   class(par_fe_space_t), intent(inout) :: this
   type(p_fe_function_t), intent(inout) :: fe_functions(:)
   class(triangulation_t), pointer :: triangulation
-  class(p4est_par_triangulation_t), pointer :: par_triangulation
+  class(p4est_base_triangulation_t),  pointer     :: p4est_triangulation  
   type(fe_function_t) :: transformed_fe_function
   type(std_vector_integer_ip_t), pointer :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
@@ -4915,6 +4912,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   integer(ip) :: current_old_cell_lid, current_new_cell_lid
   integer(ip) :: old_num_local_cells
   integer(ip) :: old_num_ghost_cells
+  integer(ip) :: old_num_cells
   integer(ip) :: field_id
   class(fe_cell_iterator_t)         , allocatable :: new_fe
   real(rp)                          , allocatable :: old_nodal_values(:,:)
@@ -4936,15 +4934,18 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   if ( environment%am_i_l1_task() ) then
      select type(triangulation)
         class is (p4est_par_triangulation_t)
-        par_triangulation => triangulation
+        p4est_triangulation => triangulation
         refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
         class default
         assert(.false.)
      end select
 
-     if ( par_triangulation%get_num_cells() > 0 ) then
-        old_num_local_cells = par_triangulation%get_previous_num_local_cells()
-        old_num_ghost_cells = par_triangulation%get_previous_num_ghost_cells()
+     if ( p4est_triangulation%get_num_cells() > 0 ) then
+        old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
+        old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
+
+        old_num_cells = old_num_local_cells + old_num_ghost_cells
+        massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )
         
         call this%update_after_refine_coarsen(old_ptr_dofs_x_fe,old_lst_dofs_gids)
 
@@ -5064,13 +5065,6 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
           call this%update_hanging_dof_values(fe_functions(ifunc)%p)
           
         end do
-        
-        select type(triangulation)
-           class is (p4est_par_triangulation_t)
-           call triangulation%clear_refinement_and_coarsening_flags()
-           class default
-           assert(.false.)
-        end select
         
         call this%free_fe_cell_iterator(new_fe)
         call transformed_fe_function%free()
@@ -5255,10 +5249,6 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
                                                 p_new_fe_function_nodal_values, &
                                                 this%ptr_dofs_x_fe(1)%get_pointer(), &
                                                 this%ptr_dofs_x_fe(1)%get_pointer() )  
-      
-        
-        
-      call p4est_par_triangulation%clear_refinement_and_coarsening_flags()
         
       call fe_function%create(this)
       call this%create_fe_cell_iterator(fe)
@@ -5506,8 +5496,6 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
         end do
       
       end do
-      
-      call p4est_par_triangulation%clear_refinement_and_coarsening_flags()
       
       do field_id = 1,this%num_fields
         call old_ptr_dofs_x_fe(field_id)%free()

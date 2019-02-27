@@ -213,7 +213,6 @@ end subroutine free_timers
         call this%triangulation%refine_and_coarsen()
         call this%set_cells_weights()
         call this%triangulation%redistribute()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
       end do
     
       if ( this%par_environment%am_i_l1_task() ) then
@@ -356,7 +355,6 @@ end subroutine free_timers
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_weights()
       call this%triangulation%redistribute()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
 #ifdef ENABLE_MKL    
     call this%triangulation%setup_coarse_triangulation()
@@ -775,7 +773,6 @@ end subroutine free_timers
 
        call this%triangulation%refine_and_coarsen()
        call this%fe_space%refine_and_coarsen( this%solution ) 
-       !call this%triangulation%clear_refinement_and_coarsening_flags()      
        call this%fe_space%set_up_cell_integration()
 
     end do  

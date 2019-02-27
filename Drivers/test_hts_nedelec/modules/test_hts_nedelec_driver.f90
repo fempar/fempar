@@ -140,7 +140,6 @@ contains
     do i = 1, this%test_params%get_num_refinements() 
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
  if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
