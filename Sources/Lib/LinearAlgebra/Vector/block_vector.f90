@@ -105,6 +105,7 @@ module block_vector_names
      procedure :: insert_subvector => block_vector_insert_subvector
      procedure :: entrywise_product => block_vector_entrywise_product
      procedure :: entrywise_invert => block_vector_entrywise_invert
+     procedure :: nullify_non_owned_dofs => block_vector_nullify_non_owned_dofs 
   end type block_vector_t
 
   ! Types
@@ -528,5 +529,15 @@ contains
      call op1%blocks(ib)%vector%entrywise_invert()
    end do
  end subroutine block_vector_entrywise_invert
+ 
+  subroutine block_vector_nullify_non_owned_dofs(this)
+   implicit none
+   class(block_vector_t), intent(inout) :: this
+   integer(ip) :: ib
+   massert( this%state == assembled, 'bv_entrywise_invert: op is not assembled' )
+   do ib=1,this%nblocks
+     call this%blocks(ib)%vector%nullify_non_owned_dofs()
+   end do
+ end subroutine block_vector_nullify_non_owned_dofs
  
 end module block_vector_names

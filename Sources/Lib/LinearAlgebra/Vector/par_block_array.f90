@@ -79,6 +79,7 @@ module par_block_array_names
      procedure :: insert_subvector  => par_block_array_insert_subvector
      procedure :: entrywise_product => par_block_array_entrywise_product
      procedure :: entrywise_invert  => par_block_array_entrywise_invert
+     procedure :: nullify_non_owned_dofs => par_block_array_nullify_non_owned_dofs
   end type par_block_array_t
 
   ! Types
@@ -534,5 +535,15 @@ contains
      call op1%blocks(ib)%entrywise_invert()
    end do
  end subroutine par_block_array_entrywise_invert
+ 
+  subroutine par_block_array_nullify_non_owned_dofs(this)
+   implicit none
+   class(par_block_array_t), intent(inout) :: this
+   integer(ip) :: ib
+   massert( this%state == blocks_container_created, 'pba_entrywise_invert: op1 blocks are not created' )
+   do ib=1,this%nblocks
+     call this%blocks(ib)%nullify_non_owned_dofs()
+   end do
+ end subroutine par_block_array_nullify_non_owned_dofs
  
 end module par_block_array_names

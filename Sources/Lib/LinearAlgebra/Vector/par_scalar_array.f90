@@ -97,6 +97,7 @@ module par_scalar_array_names
      procedure :: insert_subvector       => par_scalar_array_insert_subvector
      procedure :: entrywise_product      => par_scalar_array_entrywise_product
      procedure :: entrywise_invert       => par_scalar_array_entrywise_invert
+     procedure :: nullify_non_owned_dofs => par_scalar_array_nullify_non_owned_dofs
   end type par_scalar_array_t
 
 
@@ -658,5 +659,24 @@ contains
     if( .not. op1%p_env%am_i_l1_task() ) return
     call op1%serial_scalar_array%entrywise_invert()
   end subroutine par_scalar_array_entrywise_invert
+  
+  !=============================================================================
+  subroutine par_scalar_array_nullify_non_owned_dofs( this ) 
+    implicit none 
+    class(par_scalar_array_t), intent(inout) :: this
+    integer(ip) , pointer                    :: non_owned_dofs(:)
+    real(rp)    , pointer                    :: dof_values(:) 
+    integer(ip)                              :: number_non_owned_dofs, idof
+
+    if(.not. this%p_env%am_i_l1_task()) return
+    non_owned_dofs        => this%dof_import%get_pack_idx()	 
+    number_non_owned_dofs = size(non_owned_dofs)
+    dof_values            => this%serial_scalar_array%get_entries()
+
+    do idof=1, number_non_owned_dofs
+       dof_values(non_owned_dofs(idof)) = 0.0_rp
+    end do
+
+  end subroutine par_scalar_array_nullify_non_owned_dofs
 
 end module par_scalar_array_names

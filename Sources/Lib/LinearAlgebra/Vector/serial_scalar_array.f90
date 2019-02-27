@@ -109,6 +109,7 @@ module serial_scalar_array_names
      procedure :: insert_subvector       => serial_scalar_array_insert_subvector
      procedure :: entrywise_product      => serial_scalar_array_entrywise_product
      procedure :: entrywise_invert       => serial_scalar_array_entrywise_invert
+     procedure :: nullify_non_owned_dofs => serial_scalar_array_nullify_non_owned_dofs
   end type serial_scalar_array_t
 
   ! Types
@@ -585,5 +586,13 @@ contains
     mcheck(minval(abs(op1%b)) > 0.0_rp,'op1 cannot be entrywise inverted; there exists a null diagonal entry')
     op1%b = 1.0_rp / op1%b
   end subroutine serial_scalar_array_entrywise_invert
+  
+  subroutine serial_scalar_array_nullify_non_owned_dofs(this)
+    implicit none
+    class(serial_scalar_array_t), intent(inout) :: this
+    integer(ip) :: ib
+    massert( this%state == entries_ready, 'ssa_entrywise_invert: op entries are not ready' )
+    ! Do-nothing, all dofs are owned in a serial array 
+  end subroutine serial_scalar_array_nullify_non_owned_dofs
 
 end module serial_scalar_array_names
