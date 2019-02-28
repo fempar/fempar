@@ -181,8 +181,8 @@ contains
     do while ( .not. cell%has_finished() )
       if ( cell%is_local() ) then
         call cell%set_for_refinement()
-        call cell%next()
-      end if   
+      end if
+      call cell%next()
     end do
     call triangulation%free_cell_iterator(cell)
     this%current_mesh_iteration = this%current_mesh_iteration + 1
@@ -237,8 +237,8 @@ contains
         else
           call cell%set_for_do_nothing()
         end if
-        call cell%next()
-      end if   
+      end if
+      call cell%next()
     end do
     call triangulation%free_cell_iterator(cell)
     this%current_mesh_iteration = this%current_mesh_iteration + 1
@@ -468,8 +468,8 @@ contains
           else
             call cell%set_for_do_nothing()
           end if
-          call cell%next()
-        end if   
+        end if
+        call cell%next()
       end do
       call triangulation%free_cell_iterator(cell)
     end if
