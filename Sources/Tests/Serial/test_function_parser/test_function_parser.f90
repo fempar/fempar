@@ -63,7 +63,9 @@ program test_function_parser
   type(scalar_function_parser_t)              :: scalar_function_parser_9
   type(vector_function_parser_t)              :: vector_function_parser
   type(tensor_function_parser_t)              :: tensor_function_parser
+
   type(scalar_function_and_gradient_parser_t) :: scalar_function_and_gradient_parser
+  type(vector_function_and_gradient_parser_t) :: vector_function_and_gradient_parser
 
   type(point_t), allocatable                  :: points(:)
   real(rp), allocatable                       :: parser_result(:)
@@ -73,7 +75,8 @@ program test_function_parser
   type(tensor_field_t), allocatable           :: tensor_parser_result(:)
   type(tensor_field_t), allocatable           :: tensor_result(:)
   character(len=:), allocatable               :: ftype, tname, op, snum, sops
-  integer                                     :: error, num, ops, i, j, k
+  integer                                     :: num, ops, i, j, k
+  real(rp)                                    :: error
 
 
   call fempar_init()
@@ -89,13 +92,16 @@ program test_function_parser
   error = parameter_list%getAsString(key='test_name',     string=tname)
   assert(error == 0)
   assert(ops >= 2 .and. ops <= 5)
-  assert(ftype == 'scalar' .or. ftype == 'vector' .or. ftype == 'tensor')
-  if(ftype== 'scalar') then
+  assert(ftype=='scalar' .or. ftype=='vector' .or. ftype=='tensor' .or. ftype=='scalar_function_and_gradient' .or. ftype=='vector_function_and_gradient')
+  if(ftype=='scalar') then
       assert(op == '+' .or. op == '/' .or. op == '*' .or. op == '^')
       write(*,*) '[TEST] ', tname, ', type: ', ftype, ', operator: ', op, ', points: ', snum, ', num operators: ', sops
   else
       write(*,*) '[TEST] ', tname, ', type: ', ftype, ', points: ', snum
   endif
+
+    error = 1.e-14
+    call create_random_points(num, points)
 
     if(ftype == 'scalar') then
       allocate(parser_result(num))
@@ -105,7 +111,6 @@ program test_function_parser
           case('+')
             call scalar_function_parser%create("x+y", num_dims=2)
             call scalar_coded_function_add_1_2_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -115,7 +120,6 @@ program test_function_parser
           case('*')
             call scalar_function_parser%create("x*y", num_dims=2)
             call scalar_coded_function_mul_1_2_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -125,7 +129,6 @@ program test_function_parser
           case('/')
             call scalar_function_parser%create("x/y", num_dims=2)
             call scalar_coded_function_div_1_2_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -135,7 +138,6 @@ program test_function_parser
           case('^')
             call scalar_function_parser%create("x^y", num_dims=2)
             call scalar_coded_function_pow_1_2_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -148,7 +150,6 @@ program test_function_parser
           case('+')
             call scalar_function_parser%create("x+y+z", num_dims=3)
             call scalar_coded_function_add_1_2_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -158,7 +159,6 @@ program test_function_parser
           case('*')
             call scalar_function_parser%create("x*y*z", num_dims=3)
             call scalar_coded_function_mul_1_2_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -168,7 +168,6 @@ program test_function_parser
           case('/')
             call scalar_function_parser%create("x/y/z", num_dims=3)
             call scalar_coded_function_div_1_2_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -178,7 +177,6 @@ program test_function_parser
           case('^')
             call scalar_function_parser%create("x^y^z", num_dims=3)
             call scalar_coded_function_pow_1_2_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -191,7 +189,6 @@ program test_function_parser
           case('+')
             call scalar_function_parser%create("x+y+x+y", num_dims=2)
             call scalar_coded_function_add_3_5_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -201,7 +198,6 @@ program test_function_parser
           case('*')
             call scalar_function_parser%create("x*y*x*y", num_dims=2)
             call scalar_coded_function_mul_3_5_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -211,7 +207,6 @@ program test_function_parser
           case('/')
             call scalar_function_parser%create("x/y/x/y", num_dims=2)
             call scalar_coded_function_div_3_5_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -221,7 +216,6 @@ program test_function_parser
           case('^')
             call scalar_function_parser%create("x^y^x^y", num_dims=2)
             call scalar_coded_function_pow_3_5_ops%set_num_dims(2)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -234,7 +228,6 @@ program test_function_parser
           case('+')
             call scalar_function_parser%create("x+y+z+x+y+z", num_dims=3)
             call scalar_coded_function_add_3_5_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -244,7 +237,6 @@ program test_function_parser
           case('*')
             call scalar_function_parser%create("x*y*z*x*y*z", num_dims=3)
             call scalar_coded_function_mul_3_5_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -254,7 +246,6 @@ program test_function_parser
           case('/')
             call scalar_function_parser%create("x/y/z/x/y/z", num_dims=3)
             call scalar_coded_function_div_3_5_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -264,7 +255,6 @@ program test_function_parser
           case('^')
             call scalar_function_parser%create("x^y^z^x^y^z", num_dims=3)
             call scalar_coded_function_pow_3_5_ops%set_num_dims(3)
-            call create_random_points(num, points)
             do i=1, num
               call scalar_function_parser%get_value_space(points(i), parser_result(i))
             enddo
@@ -273,7 +263,7 @@ program test_function_parser
             enddo
         end select
       endif
-     assert(all(abs(result - parser_result) < 1.e-14))
+     assert(all(abs(result - parser_result) < error))
     elseif(ftype == 'vector') then
       allocate(vector_parser_result(num))
       allocate(vector_result(num))
@@ -282,7 +272,6 @@ program test_function_parser
         call scalar_function_parser_2%create("-x-y", num_dims=2)
         call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2)
         call vector_coded_function%set_num_dims(2)
-        call create_random_points(num, points)
         do i=1, num
           call vector_function_parser%get_value_space(points(i), vector_parser_result(i))
         enddo
@@ -295,7 +284,6 @@ program test_function_parser
         call scalar_function_parser_3%create("x*y*z", num_dims=3)
         call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, scalar_function_parser_3)
         call vector_coded_function%set_num_dims(3)
-        call create_random_points(num, points)
         do i=1, num
           call vector_function_parser%get_value_space(points(i), vector_parser_result(i))
         enddo
@@ -303,7 +291,7 @@ program test_function_parser
           call vector_coded_function%get_value_space(points(i), vector_result(i))
         enddo
       endif
-      assert(all((/ (abs(vector_result(i)%get_value() - vector_parser_result(i)%get_value()) < 1.e-14 , i=1, num) /)))
+      assert(all((/ (abs(vector_result(i)%get_value() - vector_parser_result(i)%get_value()) < error , i=1, num) /)))
     elseif(ftype == 'tensor') then
       allocate(tensor_parser_result(num))
       allocate(tensor_result(num))
@@ -316,7 +304,6 @@ program test_function_parser
         call tensor_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, &
                                            scalar_function_parser_3, scalar_function_parser_4)
         call tensor_coded_function%set_num_dims(2)
-        call create_random_points(num, points)
         do i=1, num
           call tensor_function_parser%get_value_space(points(i), tensor_parser_result(i))
         enddo
@@ -338,7 +325,6 @@ program test_function_parser
                                            scalar_function_parser_4, scalar_function_parser_5, scalar_function_parser_6, &
                                            scalar_function_parser_7, scalar_function_parser_8, scalar_function_parser_9)
         call tensor_coded_function%set_num_dims(3)
-        call create_random_points(num, points)
         do i=1, num
           call tensor_function_parser%get_value_space(points(i), tensor_parser_result(i))
         enddo
@@ -346,8 +332,101 @@ program test_function_parser
           call tensor_coded_function%get_value_space(points(i), tensor_result(i))
         enddo
       endif
-      assert(all((/(((abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<1.e-14,k=1,ops),j=1,ops),i=1,num)/)))
+      assert(all((/(((abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<error,k=1,ops),j=1,ops),i=1,num)/)))
+    elseif(ftype == 'scalar_function_and_gradient') then
+      allocate(parser_result(num))
+      allocate(result(num))
+      allocate(vector_parser_result(num))
+      allocate(vector_result(num))
+      if(ops == 2) then
+        call scalar_function_parser%create("x^2", num_dims=2)
+        call scalar_function_parser_1%create("2*x", num_dims=2)
+        call scalar_function_parser_2%create("0", num_dims=2)
+        call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2)
+        call scalar_function_and_gradient_parser%create(scalar_function_parser, vector_function_parser)
+        do i=1, num
+          call scalar_function_and_gradient_parser%get_value_space(points(i), parser_result(i))
+          call scalar_function_and_gradient_parser%get_gradient_space(points(i), vector_parser_result(i))
+          result(i) = points(i)%get(1)**2
+          call vector_result(i)%set(1, 2*points(i)%get(1))
+        enddo
+      elseif(ops == 3) then
+        call scalar_function_parser%create("x^2", num_dims=3)
+        call scalar_function_parser_1%create("2*x", num_dims=3)
+        call scalar_function_parser_2%create("0", num_dims=3)
+        call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, scalar_function_parser_2)
+        call scalar_function_and_gradient_parser%create(scalar_function_parser, vector_function_parser)
+        do i=1, num
+          call scalar_function_and_gradient_parser%get_value_space(points(i), parser_result(i))
+          call scalar_function_and_gradient_parser%get_gradient_space(points(i), vector_parser_result(i))
+          result(i) = points(i)%get(1)**2
+          call vector_result(i)%set(1, 2*points(i)%get(1))
+        enddo
+      endif
+      assert(all(abs(result - parser_result) < error))
+      assert(all((/ (abs(vector_result(i)%get_value() - vector_parser_result(i)%get_value()) < error , i=1, num) /)))
+    elseif(ftype == 'vector_function_and_gradient') then
+      allocate(tensor_parser_result(num))
+      allocate(tensor_result(num))
+      allocate(vector_parser_result(num))
+      allocate(vector_result(num))
+      if(ops == 2) then
+        call scalar_function_parser_1%create("x^2", num_dims=2)
+        call scalar_function_parser_2%create("0",   num_dims=2)
+        call scalar_function_parser_3%create("2*x", num_dims=2)
+        call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2)
+        call tensor_function_parser%create(scalar_function_parser_3, scalar_function_parser_2, scalar_function_parser_3, scalar_function_parser_2)
+        call vector_function_and_gradient_parser%create(vector_function_parser, tensor_function_parser)
+        do i=1, num
+          call vector_function_and_gradient_parser%get_value_space(points(i), vector_parser_result(i))
+          call vector_function_and_gradient_parser%get_gradient_space(points(i), tensor_parser_result(i))
+          call vector_result(i)%set(1, points(i)%get(1)**2)
+          call tensor_result(i)%set(1, 1, 2*points(i)%get(1))
+          call tensor_result(i)%set(2, 1, 2*points(i)%get(1))
+        enddo
+      elseif(ops == 3) then
+        call scalar_function_parser_1%create("x^2", num_dims=3)
+        call scalar_function_parser_2%create("0",   num_dims=3)
+        call scalar_function_parser_3%create("2*x", num_dims=3)
+        call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, scalar_function_parser_2)
+        call tensor_function_parser%create(scalar_function_parser_3, scalar_function_parser_2, scalar_function_parser_2, &
+                                           scalar_function_parser_3, scalar_function_parser_2, scalar_function_parser_2, &
+                                           scalar_function_parser_3, scalar_function_parser_2, scalar_function_parser_2)
+        call vector_function_and_gradient_parser%create(vector_function_parser, tensor_function_parser)
+        do i=1, num
+          call vector_function_and_gradient_parser%get_value_space(points(i), vector_parser_result(i))
+          call vector_function_and_gradient_parser%get_gradient_space(points(i), tensor_parser_result(i))
+          call vector_result(i)%set(1, points(i)%get(1)**2)
+          call tensor_result(i)%set(1, 1, 2*points(i)%get(1))
+          call tensor_result(i)%set(2, 1, 2*points(i)%get(1))
+          call tensor_result(i)%set(3, 1, 2*points(i)%get(1))
+        enddo
+      endif
+      assert(all((/ (abs(vector_result(i)%get_value() - vector_parser_result(i)%get_value()) < error , i=1, num) /)))
+      assert(all((/(((abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<error,k=1,ops),j=1,ops),i=1,num)/)))
     endif
+
+  call scalar_function_and_gradient_parser%free()
+  call vector_function_and_gradient_parser%free()
+  call scalar_function_parser%free()
+  call scalar_function_parser_1%free()
+  call scalar_function_parser_2%free()
+  call scalar_function_parser_3%free()
+  call scalar_function_parser_4%free()
+  call scalar_function_parser_5%free()
+  call scalar_function_parser_6%free()
+  call scalar_function_parser_7%free()
+  call scalar_function_parser_8%free()
+  call scalar_function_parser_9%free()
+  call vector_function_parser%free()
+  call tensor_function_parser%free()
+
+  if(allocated(parser_result))        deallocate(parser_result)
+  if(allocated(result))               deallocate(result)
+  if(allocated(vector_parser_result)) deallocate(vector_parser_result)
+  if(allocated(vector_result))        deallocate(vector_result)
+  if(allocated(tensor_parser_result)) deallocate(tensor_parser_result)
+  if(allocated(tensor_result))        deallocate(tensor_result)
 
   call parameter_handler%free()
   call fempar_finalize()

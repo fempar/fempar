@@ -20,7 +20,7 @@ then
       done
     done
 
-    for type in 'vector' 'tensor'
+    for type in 'vector' 'tensor' 'scalar_function_and_gradient' 'vector_function_and_gradient'
     do
       for ops in 2 3
       do

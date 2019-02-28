@@ -86,6 +86,7 @@ contains
         type(point_t),                                intent(in)    :: point
         real(rp),                                     intent(inout) :: result
     !-----------------------------------------------------------------
+        assert(associated(this%function))
         call this%function%get_value_space(point, result)
     end subroutine scalar_function_and_gradient_parser_get_value_space
 
@@ -99,6 +100,7 @@ contains
         real(rp),                                     intent(in)    :: time
         real(rp),                                     intent(inout) :: result
     !-----------------------------------------------------------------
+        assert(associated(this%function))
         call this%function%get_value_space_time(point, time, result)
     end subroutine scalar_function_and_gradient_parser_get_value_space_time
 
@@ -111,6 +113,7 @@ contains
         type(point_t),                                intent(in)    :: point
         type(vector_field_t),                         intent(inout) :: result
     !-----------------------------------------------------------------
+        assert(associated(this%gradient))
         call this%gradient%get_value_space(point, result)
     end subroutine scalar_function_and_gradient_parser_get_gradient_space
 
@@ -124,6 +127,7 @@ contains
         real(rp),                                     intent(in)    :: time
         type(vector_field_t),                         intent(inout) :: result
     !-----------------------------------------------------------------
+        assert(associated(this%gradient))
         call this%gradient%get_value_space_time(point, time, result)
     end subroutine scalar_function_and_gradient_parser_get_gradient_space_time
 
