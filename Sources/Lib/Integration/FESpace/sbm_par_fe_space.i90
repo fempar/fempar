@@ -5321,15 +5321,15 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
     spos = this%ptr_dofs_x_fe(field_id)%get(current_new_cell_lid)
     if ( field_id == this%get_num_fields() ) then
       if ( this%ptr_dofs_x_fe(1)%size() > 1 ) then 
-      epos = this%ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+        epos = this%ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
       else 
-      epos = old_ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+        epos = old_ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
       end if 
     else
       if ( this%ptr_dofs_x_fe(field_id+1)%size() > 1 ) then
-      epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+        epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
       else 
-      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+        epos = old_ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
       end if 
     end if
     get_new_num_dofs = epos-spos+1
