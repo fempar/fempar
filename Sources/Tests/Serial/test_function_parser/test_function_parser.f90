@@ -343,8 +343,9 @@ program test_function_parser
         call scalar_function_parser_1%create("2*x", num_dims=2)
         call scalar_function_parser_2%create("0", num_dims=2)
         call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2)
-        call scalar_function_and_gradient_parser%create(scalar_function_parser, vector_function_parser)
+        call scalar_function_and_gradient_parser%create(scalar_function_parser, vector_function_parser, scalar_function_parser_2)
         do i=1, num
+          call scalar_function_and_gradient_parser%get_value_temporal_derivative(points(i), 0._rp, 1, parser_result(i))
           call scalar_function_and_gradient_parser%get_value_space(points(i), parser_result(i))
           call scalar_function_and_gradient_parser%get_gradient_space(points(i), vector_parser_result(i))
           result(i) = points(i)%get(1)**2
