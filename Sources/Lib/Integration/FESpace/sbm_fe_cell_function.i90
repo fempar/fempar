@@ -64,6 +64,13 @@ subroutine fe_cell_function_scalar_create ( this, fe_space, field_id, my_duties 
 
 end subroutine fe_cell_function_scalar_create
 
+subroutine fe_cell_function_scalar_set_duties ( this, my_duties )
+  implicit none
+  class(fe_cell_function_scalar_t), intent(inout) :: this 
+  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
+  this%my_duties = my_duties
+end subroutine fe_cell_function_scalar_set_duties
+
 subroutine fe_cell_function_scalar_move_alloc_values_in ( this, values )
   implicit none
   class(fe_cell_function_scalar_t), intent(inout) :: this 
@@ -174,6 +181,7 @@ function fe_cell_function_scalar_get_quadrature_points_values ( this )
   implicit none
   class(fe_cell_function_scalar_t), target, intent(in) :: this 
   real(rp), pointer :: fe_cell_function_scalar_get_quadrature_points_values(:)
+  assert( this%my_duties%evaluate_values_is_assigned() )
   fe_cell_function_scalar_get_quadrature_points_values => this%quadrature_points_values
 end function fe_cell_function_scalar_get_quadrature_points_values
 
@@ -182,6 +190,7 @@ function fe_cell_function_scalar_get_quadrature_points_gradients ( this )
   implicit none
   class(fe_cell_function_scalar_t), target, intent(in) :: this 
   type(vector_field_t), pointer :: fe_cell_function_scalar_get_quadrature_points_gradients(:)
+  assert( this%my_duties%evaluate_gradients_is_assigned() )
   fe_cell_function_scalar_get_quadrature_points_gradients => this%quadrature_points_gradients
 end function fe_cell_function_scalar_get_quadrature_points_gradients
 
@@ -190,6 +199,7 @@ function fe_cell_function_scalar_get_quadrature_points_laplacians ( this )
   implicit none
   class(fe_cell_function_scalar_t), target, intent(in) :: this 
   real(rp), pointer :: fe_cell_function_scalar_get_quadrature_points_laplacians(:)
+  assert( this%my_duties%evaluate_laplacians_is_assigned() )
   fe_cell_function_scalar_get_quadrature_points_laplacians => this%quadrature_points_laplacians
 end function fe_cell_function_scalar_get_quadrature_points_laplacians
 
@@ -199,6 +209,7 @@ subroutine fe_cell_function_scalar_get_value ( this, point, value )
   class(fe_cell_function_scalar_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   real(rp)                        , intent(inout) :: value
+  assert( this%my_duties%evaluate_values_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_values(point)
 end subroutine fe_cell_function_scalar_get_value
@@ -209,6 +220,7 @@ subroutine fe_cell_function_scalar_get_gradient ( this, point, value )
   class(fe_cell_function_scalar_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   type(vector_field_t)            , intent(inout) :: value
+  assert( this%my_duties%evaluate_gradients_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_gradients(point)
 end subroutine fe_cell_function_scalar_get_gradient
@@ -219,6 +231,7 @@ subroutine fe_cell_function_scalar_get_laplacian ( this, point, value )
   class(fe_cell_function_scalar_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   real(rp)                        , intent(inout) :: value
+  assert( this%my_duties%evaluate_laplacians_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_laplacians(point)
 end subroutine fe_cell_function_scalar_get_laplacian
@@ -261,6 +274,9 @@ subroutine fe_cell_function_scalar_free ( this )
   if (allocated(this%quadrature_points_laplacians)) then
      call memfree ( this%quadrature_points_laplacians, __FILE__, __LINE__ )
   end if
+  call this%my_duties%assign_evaluate_values(.true.)
+  call this%my_duties%assign_evaluate_gradients(.true.)
+  call this%my_duties%assign_evaluate_laplacians(.false.)
 end subroutine fe_cell_function_scalar_free
 
 
@@ -298,6 +314,13 @@ subroutine fe_cell_function_vector_create ( this, fe_space, field_id, my_duties 
   end if
   
 end subroutine fe_cell_function_vector_create
+
+subroutine fe_cell_function_vector_set_duties ( this, my_duties )
+  implicit none
+  class(fe_cell_function_vector_t), intent(inout) :: this 
+  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
+  this%my_duties = my_duties
+end subroutine fe_cell_function_vector_set_duties
 
 subroutine fe_cell_function_vector_update ( this, fe_cell_iterator, fe_function)
   implicit none
@@ -407,6 +430,7 @@ function fe_cell_function_vector_get_quadrature_points_values ( this )
   implicit none
   class(fe_cell_function_vector_t), target, intent(in) :: this 
   type(vector_field_t), pointer :: fe_cell_function_vector_get_quadrature_points_values(:)
+  assert( this%my_duties%evaluate_values_is_assigned() )
   fe_cell_function_vector_get_quadrature_points_values => this%quadrature_points_values
 end function fe_cell_function_vector_get_quadrature_points_values
 
@@ -415,6 +439,7 @@ function fe_cell_function_vector_get_quadrature_points_gradients ( this )
   implicit none
   class(fe_cell_function_vector_t), target, intent(in) :: this 
   type(tensor_field_t), pointer :: fe_cell_function_vector_get_quadrature_points_gradients(:)
+  assert( this%my_duties%evaluate_gradients_is_assigned() )
   fe_cell_function_vector_get_quadrature_points_gradients => this%quadrature_points_gradients
 end function fe_cell_function_vector_get_quadrature_points_gradients
 
@@ -423,6 +448,7 @@ function fe_cell_function_vector_get_quadrature_points_laplacians ( this )
   implicit none
   class(fe_cell_function_vector_t), target, intent(in) :: this 
   type(vector_field_t), pointer :: fe_cell_function_vector_get_quadrature_points_laplacians(:)
+  assert( this%my_duties%evaluate_laplacians_is_assigned() )
   fe_cell_function_vector_get_quadrature_points_laplacians => this%quadrature_points_laplacians
 end function fe_cell_function_vector_get_quadrature_points_laplacians
 
@@ -446,6 +472,7 @@ subroutine fe_cell_function_vector_get_value ( this, point, value )
   class(fe_cell_function_vector_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   type(vector_field_t)            , intent(inout) :: value
+  assert( this%my_duties%evaluate_values_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_values(point)
 end subroutine fe_cell_function_vector_get_value
@@ -456,6 +483,7 @@ subroutine fe_cell_function_vector_get_gradient ( this, point, value )
   class(fe_cell_function_vector_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   type(tensor_field_t)            , intent(inout) :: value
+  assert( this%my_duties%evaluate_gradients_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_gradients(point)
 end subroutine fe_cell_function_vector_get_gradient
@@ -466,6 +494,7 @@ subroutine fe_cell_function_vector_get_laplacian ( this, point, value )
   class(fe_cell_function_vector_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   type(vector_field_t)            , intent(inout) :: value
+  assert( this%my_duties%evaluate_laplacians_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_laplacians(point)
 end subroutine fe_cell_function_vector_get_laplacian
@@ -541,6 +570,10 @@ subroutine fe_cell_function_vector_free ( this )
      check(istat==0)
   end if
 
+  call this%my_duties%assign_evaluate_values(.true.)
+  call this%my_duties%assign_evaluate_gradients(.true.)
+  call this%my_duties%assign_evaluate_laplacians(.false.)
+
 end subroutine fe_cell_function_vector_free
 
 !**************************************************************************************************
@@ -577,6 +610,13 @@ subroutine fe_cell_function_tensor_create ( this, fe_space, field_id, my_duties 
   end if
 
 end subroutine fe_cell_function_tensor_create
+
+subroutine fe_cell_function_tensor_set_duties ( this, my_duties )
+  implicit none
+  class(fe_cell_function_tensor_t), intent(inout) :: this 
+  type(fe_cell_function_duties_t) , intent(in)    :: my_duties
+  this%my_duties = my_duties
+end subroutine fe_cell_function_tensor_set_duties
 
 subroutine fe_cell_function_tensor_update ( this, fe_cell_iterator, fe_function )
   implicit none
@@ -663,6 +703,7 @@ function fe_cell_function_tensor_get_quadrature_points_values ( this )
   implicit none
   class(fe_cell_function_tensor_t), target, intent(in) :: this 
   type(tensor_field_t), pointer :: fe_cell_function_tensor_get_quadrature_points_values(:)
+  assert( this%my_duties%evaluate_values_is_assigned() )
   fe_cell_function_tensor_get_quadrature_points_values => this%quadrature_points_values
 end function fe_cell_function_tensor_get_quadrature_points_values
 
@@ -672,6 +713,7 @@ subroutine fe_cell_function_tensor_get_value ( this, point, value )
   class(fe_cell_function_tensor_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: point
   type(tensor_field_t)            , intent(inout) :: value
+  assert( this%my_duties%evaluate_values_is_assigned() )
   assert ( point <= this%current_num_quadrature_points )
   value = this%quadrature_points_values(point)
 end subroutine fe_cell_function_tensor_get_value
@@ -708,6 +750,9 @@ subroutine fe_cell_function_tensor_free ( this )
      deallocate ( this%quadrature_points_values, stat = istat )
      check(istat==0)
   end if
+  call this%my_duties%assign_evaluate_values(.true.)
+  call this%my_duties%assign_evaluate_gradients(.false.)
+  call this%my_duties%assign_evaluate_laplacians(.false.)
 end subroutine fe_cell_function_tensor_free
 
 
