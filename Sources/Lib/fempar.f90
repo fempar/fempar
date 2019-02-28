@@ -111,6 +111,7 @@ module fempar_names
   use fe_operator_names
   use function_names
   use function_library_names
+  use function_parser_names
   use error_norms_names
   use error_estimator_names
   use refinement_strategy_names
