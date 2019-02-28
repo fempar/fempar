@@ -1390,6 +1390,8 @@ procedure          :: apply_change_basis_matrix_to_nodal_values &
     & => nedelec_apply_change_basis_matrix_to_nodal_values
   procedure :: get_component_node           => nedelec_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => nedelec_reference_fe_get_scalar_from_vector_node
+procedure :: interpolate_nodal_values_on_subcell & 
+    & => nedelec_reference_fe_interpolate_nodal_values_on_subcell
 end type nedelec_reference_fe_t 
 
 abstract interface
@@ -1729,6 +1731,8 @@ procedure  :: get_h_refinement_coefficient                          &
 & => hex_nedelec_reference_fe_get_h_refinement_coefficient 
 procedure          :: get_h_refinement_subcell_permutation          &
 & => hex_nedelec_reference_fe_get_h_refinement_subcell_perm
+procedure :: interpolate_nodal_values_on_subcell & 
+& => hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
 end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
