@@ -41,7 +41,7 @@ module test_maxwell_nedelec_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(maxwell_nedelec_params_t)           :: test_params
-     type(ParameterList_t)                    :: parameter_list
+     type(ParameterList_t), pointer           :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)                :: triangulation
@@ -83,6 +83,7 @@ module test_maxwell_nedelec_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure                  :: free_command_line_parameters
      procedure        , private :: free
   end type test_maxwell_nedelec_driver_t
 
@@ -95,7 +96,7 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
     call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -114,6 +115,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
+    integer(ip) :: istat 
     call this%triangulation%create(this%serial_environment, this%parameter_list)
   end subroutine setup_triangulation
 
@@ -141,7 +143,6 @@ contains
     
     call this%triangulation%free_cell_iterator(cell)
   
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -152,7 +153,6 @@ contains
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
-    end if    
     
   end subroutine setup_reference_fes
 
@@ -160,6 +160,7 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
 
+    call this%problem_functions%set_case(this%test_params%get_analytical_function_case())
     call this%maxwell_nedelec_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%fe_space%create( triangulation       = this%triangulation, &
          reference_fes       = this%reference_fes, &
@@ -185,7 +186,7 @@ contains
     if ( this%triangulation%get_num_dims() == 3) then 
       call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
     end if 
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
+    call this%fe_space%interpolate(1, this%problem_functions%get_solution(), this%solution)
     call this%maxwell_nedelec_integration%set_fe_function(this%solution)
   end subroutine setup_system
 
@@ -302,23 +303,37 @@ contains
     w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
     
 #ifdef ENABLE_MKL    
-    error_tolerance = 1.0e-04
+    error_tolerance = 1.0e-06
 #else
-    error_tolerance = 1.0e-02
+    error_tolerance = 1.0e-04
 #endif    
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    write(*,'(a20,e32.25)') 'mean_norm:', mean
+    write(*,'(a20,e32.25)') 'l1_norm:', l1
+    write(*,'(a20,e32.25)') 'l2_norm:', l2
+    write(*,'(a20,e32.25)') 'lp_norm:', lp
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
+    write(*,'(a20,e32.25)') 'h1_norm:', h1
+    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
+    if ( this%test_params%get_analytical_function_case() == in_fe_space ) then 
+    massert( abs(mean) < error_tolerance, 'mean-norm not consistent' )
+    massert( l1 < error_tolerance, 'L1-norm not consistent' )
+    massert( l2 < error_tolerance, 'L2-norm not consistent' )
+    massert( lp < error_tolerance, 'Lp-norm not consistent' )
+    massert( linfty < error_tolerance, 'L_infinity-norm not consistent' )
+    massert( h1_s < error_tolerance, 'H1-seminorm not consistent' )
+    massert( h1 < error_tolerance, 'H1-norm not consistent' )
+    massert( hcurl < error_tolerance, 'Hcurl-norm not consistent' )
+    massert( w1p_s < error_tolerance, 'W1ps_norm not consistent' )
+    massert( w1p < error_tolerance, 'W1p-norm not consistent' )
+    massert( w1infty_s < error_tolerance, 'W1_infinity-seminorm not consistent' )
+    massert( w1infty < error_tolerance, 'W1_infinity-norm not consistent' )
+    end if 
     
     call H_error_norm%free()
   end subroutine check_solution 
@@ -355,6 +370,12 @@ contains
     call this%free()
   end subroutine run_simulation
 
+    subroutine free_command_line_parameters(this)
+    implicit none
+    class(test_maxwell_nedelec_driver_t), intent(inout) :: this
+    call this%test_params%free()
+  end subroutine free_command_line_parameters
+  
   subroutine free(this)
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
@@ -375,7 +396,6 @@ contains
        check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free
 
 end module test_maxwell_nedelec_driver_names
