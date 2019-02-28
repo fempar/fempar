@@ -60,7 +60,8 @@ contains
         class(vector_function_parser_t),        intent(inout) :: this
         type(scalar_function_parser_t), target, intent(in)    :: component_1
         type(scalar_function_parser_t), target, intent(in)    :: component_2
-    !----------------------------------------------------------------- 
+    !-----------------------------------------------------------------
+        assert( component_1%get_num_dims()==2 .and. component_2%get_num_dims()==2 )
         call this%free()
         this%ncomponents = 2
         call this%set_num_dims(2)
@@ -78,6 +79,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_2
         type(scalar_function_parser_t), target, intent(in)    :: component_3
     !----------------------------------------------------------------- 
+        assert( component_1%get_num_dims()==3 .and. component_2%get_num_dims()==3 .and. component_3%get_num_dims()==3)
         call this%free()
         this%ncomponents = 3
         call this%set_num_dims(3)
@@ -135,6 +137,7 @@ contains
             nullify(this%components(i)%function)
         enddo
         this%ncomponents = -1
+        call this%set_num_dims(-1) 
     end subroutine vector_function_parser_free
 
 end module vector_function_parser_names

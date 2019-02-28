@@ -56,14 +56,17 @@ module scalar_function_parser_names
 
 contains
 
-    subroutine scalar_function_parser_create(this, expression)
+    subroutine scalar_function_parser_create(this, expression, num_dims)
     !-----------------------------------------------------------------
-    !< Initialize the time independant scalar analytical function
+    !< Initialize the time independant scalar analytical function   
     !-----------------------------------------------------------------
         class(scalar_function_parser_t),     intent(inout) :: this
         character(len=*),                    intent(in)    :: expression
-    !----------------------------------------------------------------- 
+        integer,                             intent(in)    :: num_dims
+    !-----------------------------------------------------------------
+        assert(num_dims==2 .or. num_dims==3) 
         call this%free()
+        call this%set_num_dims(num_dims)
         this%equation = EquationParser(expression, variables)
         assert(this%equation%Error == 0)
     end subroutine scalar_function_parser_create
@@ -110,6 +113,7 @@ contains
         class(scalar_function_parser_t),     intent(inout) :: this
     !----------------------------------------------------------------- 
         !call this%equation%finalize()
+        call this%set_num_dims(-1)
     end subroutine scalar_function_parser_free
 
 end module scalar_function_parser_names

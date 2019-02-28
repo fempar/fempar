@@ -74,6 +74,7 @@ contains
             assert(function%get_num_dims() == first_order_time_derivative%get_num_dims()) 
             this%time_derivatives(1)%function => first_order_time_derivative
         endif 
+        call this%set_num_dims(function%get_num_dims()) 
     end subroutine scalar_function_and_gradient_parser_create
 
 
@@ -154,6 +155,7 @@ contains
         nullify(this%gradient)
         nullify(this%time_derivatives(0)%function)
         nullify(this%time_derivatives(1)%function) 
+        call this%set_num_dims(-1) 
     end subroutine scalar_function_and_gradient_parser_free
 
 

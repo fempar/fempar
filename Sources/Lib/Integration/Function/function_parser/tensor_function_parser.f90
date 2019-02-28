@@ -63,6 +63,7 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_21
         type(scalar_function_parser_t), target, intent(in)    :: component_22
     !----------------------------------------------------------------- 
+        assert( component_11%get_num_dims()==2 .and. component_12%get_num_dims()==2 .and. component_21%get_num_dims()==2 .and. component_22%get_num_dims()==2)
         call this%free()
         this%ncomponents = 4
         call this%set_num_dims(2)
@@ -90,6 +91,9 @@ contains
         type(scalar_function_parser_t), target, intent(in)    :: component_32
         type(scalar_function_parser_t), target, intent(in)    :: component_33
     !----------------------------------------------------------------- 
+        assert( component_11%get_num_dims()==3 .and. component_12%get_num_dims()==3 .and. component_13%get_num_dims()==3 )
+        assert( component_21%get_num_dims()==3 .and. component_22%get_num_dims()==3 .and. component_23%get_num_dims()==3 )
+        assert( component_31%get_num_dims()==3 .and. component_32%get_num_dims()==3 .and. component_33%get_num_dims()==3 )
         call this%free()
         this%ncomponents = 9
         call this%set_num_dims(3)
@@ -160,6 +164,7 @@ contains
             enddo
         enddo
         this%ncomponents = -1
+        call this%set_num_dims(-1) 
     end subroutine tensor_function_parser_free
 
 end module tensor_function_parser_names

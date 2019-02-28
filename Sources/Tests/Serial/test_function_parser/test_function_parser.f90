@@ -103,7 +103,7 @@ program test_function_parser
       if(ops == 2) then
         select case(op)
           case('+')
-            call scalar_function_parser%create("x+y")
+            call scalar_function_parser%create("x+y", num_dims=2)
             call scalar_coded_function_add_1_2_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -113,7 +113,7 @@ program test_function_parser
               call scalar_coded_function_add_1_2_ops%get_value_space(points(i), result(i))
             enddo
           case('*')
-            call scalar_function_parser%create("x*y")
+            call scalar_function_parser%create("x*y", num_dims=2)
             call scalar_coded_function_mul_1_2_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -123,7 +123,7 @@ program test_function_parser
               call scalar_coded_function_mul_1_2_ops%get_value_space(points(i), result(i))
             enddo
           case('/')
-            call scalar_function_parser%create("x/y")
+            call scalar_function_parser%create("x/y", num_dims=2)
             call scalar_coded_function_div_1_2_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -133,7 +133,7 @@ program test_function_parser
               call scalar_coded_function_div_1_2_ops%get_value_space(points(i), result(i))
             enddo
           case('^')
-            call scalar_function_parser%create("x^y")
+            call scalar_function_parser%create("x^y", num_dims=2)
             call scalar_coded_function_pow_1_2_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -146,7 +146,7 @@ program test_function_parser
       elseif(ops == 3) then
         select case(op)
           case('+')
-            call scalar_function_parser%create("x+y+z")
+            call scalar_function_parser%create("x+y+z", num_dims=3)
             call scalar_coded_function_add_1_2_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -156,7 +156,7 @@ program test_function_parser
               call scalar_coded_function_add_1_2_ops%get_value_space(points(i), result(i))
             enddo
           case('*')
-            call scalar_function_parser%create("x*y*z")
+            call scalar_function_parser%create("x*y*z", num_dims=3)
             call scalar_coded_function_mul_1_2_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -166,7 +166,7 @@ program test_function_parser
               call scalar_coded_function_mul_1_2_ops%get_value_space(points(i), result(i))
             enddo
           case('/')
-            call scalar_function_parser%create("x/y/z")
+            call scalar_function_parser%create("x/y/z", num_dims=3)
             call scalar_coded_function_div_1_2_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -176,7 +176,7 @@ program test_function_parser
               call scalar_coded_function_div_1_2_ops%get_value_space(points(i), result(i))
             enddo
           case('^')
-            call scalar_function_parser%create("x^y^z")
+            call scalar_function_parser%create("x^y^z", num_dims=3)
             call scalar_coded_function_pow_1_2_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -189,7 +189,7 @@ program test_function_parser
       elseif(ops == 4) then
         select case(op)
           case('+')
-            call scalar_function_parser%create("x+y+x+y")
+            call scalar_function_parser%create("x+y+x+y", num_dims=2)
             call scalar_coded_function_add_3_5_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -199,7 +199,7 @@ program test_function_parser
               call scalar_coded_function_add_3_5_ops%get_value_space(points(i), result(i))
             enddo
           case('*')
-            call scalar_function_parser%create("x*y*x*y")
+            call scalar_function_parser%create("x*y*x*y", num_dims=2)
             call scalar_coded_function_mul_3_5_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -209,7 +209,7 @@ program test_function_parser
               call scalar_coded_function_mul_3_5_ops%get_value_space(points(i), result(i))
             enddo
           case('/')
-            call scalar_function_parser%create("x/y/x/y")
+            call scalar_function_parser%create("x/y/x/y", num_dims=2)
             call scalar_coded_function_div_3_5_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -219,7 +219,7 @@ program test_function_parser
               call scalar_coded_function_div_3_5_ops%get_value_space(points(i), result(i))
             enddo
           case('^')
-            call scalar_function_parser%create("x^y^x^y")
+            call scalar_function_parser%create("x^y^x^y", num_dims=2)
             call scalar_coded_function_pow_3_5_ops%set_num_dims(2)
             call create_random_points(num, points)
             do i=1, num
@@ -232,7 +232,7 @@ program test_function_parser
       elseif(ops == 5) then
         select case(op)
           case('+')
-            call scalar_function_parser%create("x+y+z+x+y+z")
+            call scalar_function_parser%create("x+y+z+x+y+z", num_dims=3)
             call scalar_coded_function_add_3_5_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -242,7 +242,7 @@ program test_function_parser
               call scalar_coded_function_add_3_5_ops%get_value_space(points(i), result(i))
             enddo
           case('*')
-            call scalar_function_parser%create("x*y*z*x*y*z")
+            call scalar_function_parser%create("x*y*z*x*y*z", num_dims=3)
             call scalar_coded_function_mul_3_5_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -252,7 +252,7 @@ program test_function_parser
               call scalar_coded_function_mul_3_5_ops%get_value_space(points(i), result(i))
             enddo
           case('/')
-            call scalar_function_parser%create("x/y/z/x/y/z")
+            call scalar_function_parser%create("x/y/z/x/y/z", num_dims=3)
             call scalar_coded_function_div_3_5_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -262,7 +262,7 @@ program test_function_parser
               call scalar_coded_function_div_3_5_ops%get_value_space(points(i), result(i))
             enddo
           case('^')
-            call scalar_function_parser%create("x^y^z^x^y^z")
+            call scalar_function_parser%create("x^y^z^x^y^z", num_dims=3)
             call scalar_coded_function_pow_3_5_ops%set_num_dims(3)
             call create_random_points(num, points)
             do i=1, num
@@ -278,8 +278,8 @@ program test_function_parser
       allocate(vector_parser_result(num))
       allocate(vector_result(num))
       if(ops == 2) then
-        call scalar_function_parser_1%create("x+y")
-        call scalar_function_parser_2%create("-x-y")
+        call scalar_function_parser_1%create("x+y", num_dims=2)
+        call scalar_function_parser_2%create("-x-y", num_dims=2)
         call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2)
         call vector_coded_function%set_num_dims(2)
         call create_random_points(num, points)
@@ -290,9 +290,9 @@ program test_function_parser
           call vector_coded_function%get_value_space(points(i), vector_result(i))
         enddo
       elseif(ops == 3) then
-        call scalar_function_parser_1%create("x+y+z")
-        call scalar_function_parser_2%create("-x-y-z")
-        call scalar_function_parser_3%create("x*y*z")
+        call scalar_function_parser_1%create("x+y+z", num_dims=3)
+        call scalar_function_parser_2%create("-x-y-z", num_dims=3)
+        call scalar_function_parser_3%create("x*y*z", num_dims=3)
         call vector_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, scalar_function_parser_3)
         call vector_coded_function%set_num_dims(3)
         call create_random_points(num, points)
@@ -309,10 +309,10 @@ program test_function_parser
       allocate(tensor_result(num))
       if(ops == 2) then
          ! [(x+y, -x-y), (x*y, x/y)]
-        call scalar_function_parser_1%create("x+y")
-        call scalar_function_parser_2%create("-x-y")
-        call scalar_function_parser_3%create("x*y")
-        call scalar_function_parser_4%create("x/y")
+        call scalar_function_parser_1%create("x+y", num_dims=2)
+        call scalar_function_parser_2%create("-x-y", num_dims=2)
+        call scalar_function_parser_3%create("x*y", num_dims=2)
+        call scalar_function_parser_4%create("x/y", num_dims=2)
         call tensor_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, &
                                            scalar_function_parser_3, scalar_function_parser_4)
         call tensor_coded_function%set_num_dims(2)
@@ -325,15 +325,15 @@ program test_function_parser
         enddo
       elseif(ops == 3) then
         ! [(x+y+z, -x-y-z, x*y*z), (x+y-z, -x-y+z, x/y/z), (x-y-z, -x+y-z, x^y^z)]
-        call scalar_function_parser_1%create("x+y+z")
-        call scalar_function_parser_2%create("-x-y-z")
-        call scalar_function_parser_3%create("x*y*z")
-        call scalar_function_parser_4%create("x+y-z")
-        call scalar_function_parser_5%create("-x-y+z")
-        call scalar_function_parser_6%create("x/y/z")
-        call scalar_function_parser_7%create("x-y-z")
-        call scalar_function_parser_8%create("-x+y-z")
-        call scalar_function_parser_9%create("x^y^z")
+        call scalar_function_parser_1%create("x+y+z", num_dims=3)
+        call scalar_function_parser_2%create("-x-y-z", num_dims=3)
+        call scalar_function_parser_3%create("x*y*z", num_dims=3)
+        call scalar_function_parser_4%create("x+y-z", num_dims=3)
+        call scalar_function_parser_5%create("-x-y+z", num_dims=3)
+        call scalar_function_parser_6%create("x/y/z", num_dims=3)
+        call scalar_function_parser_7%create("x-y-z", num_dims=3)
+        call scalar_function_parser_8%create("-x+y-z", num_dims=3)
+        call scalar_function_parser_9%create("x^y^z", num_dims=3)
         call tensor_function_parser%create(scalar_function_parser_1, scalar_function_parser_2, scalar_function_parser_3, &
                                            scalar_function_parser_4, scalar_function_parser_5, scalar_function_parser_6, &
                                            scalar_function_parser_7, scalar_function_parser_8, scalar_function_parser_9)

@@ -66,6 +66,7 @@ contains
         assert(function%get_num_dims() == gradient%get_num_dims())
         this%function => function
         this%gradient => gradient
+        call this%set_num_dims(function%get_num_dims()) 
     end subroutine vector_function_and_gradient_parser_create
 
 
@@ -127,6 +128,7 @@ contains
     !----------------------------------------------------------------- 
         nullify(this%function)
         nullify(this%gradient)
+        call this%set_num_dims(-1) 
     end subroutine vector_function_and_gradient_parser_free
 
 end module vector_function_and_gradient_parser_names
