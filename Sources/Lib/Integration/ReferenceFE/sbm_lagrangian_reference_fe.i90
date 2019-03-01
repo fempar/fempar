@@ -1359,7 +1359,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
   !
   if(phy%my_duties%compute_second_derivatives_is_assigned()) then
      massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'Second derivatives mapping to physical space require a map with Jacobian inverse') 
-     if ( cell_ressemblance == no_ressemblance ) then
+     if ( cell_ressemblance == no_ressemblance .or. cell_ressemblance == is_scaled_and_translated ) then
         call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
         call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
         call memalloc(ntens,wvec1,__FILE__,__LINE__)
@@ -1405,9 +1405,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
         call memfree(wmat1,__FILE__,__LINE__)
         call memfree(wmat2,__FILE__,__LINE__)
         call memfree(wvec1,__FILE__,__LINE__)
-     else if ( cell_ressemblance == is_scaled_and_translated ) then
-        massert (.false., "lagrangian_reference_fe_apply_cell_map_to_interpolation :: 2nd derivatives optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
-     end if
+        wassert (cell_ressemblance == is_scaled_and_translated, "lagrangian_reference_fe_apply_cell_map_to_interpolation :: 2nd derivatives optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
+     end if    
   end if
 end subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation
 

@@ -1,0 +1,58 @@
+#!/bin/sh
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+final_exit_code=0
+if [ -f "$TEST_BINARY_PATH" ]
+then
+      ###############################################################################################################################
+      # Scalar-valued tests
+      ###############################################################################################################################
+
+      # Square + Quads + Uniform refinement     
+      for gorder in 1
+      do
+       for order in 1 2 3 4
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform"
+            $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Hexas + Uniform refinement
+      for gorder in 1
+      do
+       for order in 1 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform -dim 3"
+            $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform -dim 3
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Quads + Adaptive refinement
+      echo "$TEST_BINARY_PATH -order 2 -gorder 1 -af shock -rs error_objective"
+      $TEST_BINARY_PATH -order 2 -gorder 1 -af shock -rs error_objective
+      if [ $? -ne 0 ] 
+      then
+       final_exit_code=1
+      fi
+
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code

@@ -118,18 +118,18 @@ SUBROUTINE push_back(T,i)                     ;\
     T%SIZE_MEMBER_VARIABLE_NAME = 1                      ;\
     T%CAPACITY_MEMBER_VARIABLE_NAME = 1                  ;\
     T%V_MEMBER_VARIABLE_NAME(1)=i                        ;\
-  ELSEIF(T%SIZE_MEMBER_VARIABLE_NAME < T%CAPACITY_MEMBER_VARIABLE_NAME)THEN  ;\
-    T%SIZE_MEMBER_VARIABLE_NAME = T%SIZE_MEMBER_VARIABLE_NAME + 1             ;\
-    T%V_MEMBER_VARIABLE_NAME(T%SIZE_MEMBER_VARIABLE_NAME)=i                   ;\
+  ELSEIF(T%SIZE_MEMBER_VARIABLE_NAME < T%CAPACITY_MEMBER_VARIABLE_NAME)THEN    ;\
+    T%SIZE_MEMBER_VARIABLE_NAME = T%SIZE_MEMBER_VARIABLE_NAME + 1              ;\
+    T%V_MEMBER_VARIABLE_NAME(T%SIZE_MEMBER_VARIABLE_NAME)=i                    ;\
   ELSE                              ;\
-    T%CAPACITY_MEMBER_VARIABLE_NAME = (T%SIZE_MEMBER_VARIABLE_NAME*3)/2+1     ;\
+    T%CAPACITY_MEMBER_VARIABLE_NAME = (T%SIZE_MEMBER_VARIABLE_NAME*3)/2+1      ;\
     ALLOCATE( v_aux(T%CAPACITY_MEMBER_VARIABLE_NAME), STAT = error ) ; check( error == 0 ) ;\
     v_aux(1:T%SIZE_MEMBER_VARIABLE_NAME) = T%V_MEMBER_VARIABLE_NAME(1:T%SIZE_MEMBER_VARIABLE_NAME) ;\
+    T%SIZE_MEMBER_VARIABLE_NAME = T%SIZE_MEMBER_VARIABLE_NAME + 1              ;\
+    v_aux(T%SIZE_MEMBER_VARIABLE_NAME) = i                                     ;\
     FREE_VECTOR_ENTRIES(SIZE_MEMBER_VARIABLE_NAME) \
     DEALLOCATE( T%V_MEMBER_VARIABLE_NAME, STAT = error ) ; check( error == 0 ) ;\
-    call move_alloc( from=v_aux, to=T%V_MEMBER_VARIABLE_NAME ) ;\
-    T%SIZE_MEMBER_VARIABLE_NAME = T%SIZE_MEMBER_VARIABLE_NAME + 1             ;\
-    T%V_MEMBER_VARIABLE_NAME(T%SIZE_MEMBER_VARIABLE_NAME) = i                 ;\
+    call move_alloc( from=v_aux, to=T%V_MEMBER_VARIABLE_NAME )                 ;\
   ENDIF                             ;\
 END SUBROUTINE push_back            ;\
 
