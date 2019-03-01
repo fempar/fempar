@@ -42,12 +42,11 @@ subroutine h_adaptive_algebraic_l1_Hcurl_free(this)
 end subroutine h_adaptive_algebraic_l1_Hcurl_free
 
 !========================================================================================
-subroutine h_adaptive_algebraic_l1_Hcurl_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+subroutine h_adaptive_algebraic_l1_Hcurl_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
   implicit none
   class(h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   integer(ip)            , allocatable :: num_parts_around_dof(:)
   integer(ip)                          :: block_id
@@ -241,12 +240,11 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
   call memfree(object_gid_to_min_neighbour, __FILE__, __LINE__ )
 end subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs
 
-subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse_dofs)
   implicit none
   class(h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
   integer(ip)                            :: ivef_within_cell
@@ -266,6 +264,7 @@ subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par
   type(hash_table_ip_ip_t)               :: visited_dofs
   integer(ip)                            :: istat
   integer(ip)                            :: block_id 
+  type(parameterlist_t), pointer         :: parameter_list
   
   block_id = 1 ! To think where it comes from 
   
@@ -274,6 +273,7 @@ subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par
   assert ( par_environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == par_fe_space%get_num_fe_objects() )
 
+  parameter_list => this%get_parameter_list()
   call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
        use_vertices, &
        use_edges, &
@@ -331,12 +331,11 @@ subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par
 
 end subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs
 
-subroutine h_adaptive_algebraic_l1_Hcurl_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine h_adaptive_algebraic_l1_Hcurl_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix) 
   implicit none
   class(h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object

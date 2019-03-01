@@ -91,7 +91,6 @@ subroutine mlbddc_setup_constraint_matrix (this)
         coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
         call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
                                                        field_id          = field_id, &
-                                                       parameter_list    = this%mlbddc_params, &
                                                        constraint_matrix = this%constraint_matrix)
      end if
   end do
@@ -125,7 +124,6 @@ subroutine mlbddc_setup_weighting_operator (this)
        coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
        call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
                                                        field_id           = field_id, &
-                                                       parameter_list     = this%mlbddc_params, &
                                                        weighting_operator = this%W )
      end if
   end do

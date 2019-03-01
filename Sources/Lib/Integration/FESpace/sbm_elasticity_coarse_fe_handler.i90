@@ -72,12 +72,11 @@ subroutine rigid_body_mode_get_values_set_space( this, point, result )
   end if
 end subroutine rigid_body_mode_get_values_set_space
 
-subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse_dofs)
   implicit none
   class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
   integer(ip)                            :: ivef_within_cell
@@ -95,6 +94,7 @@ subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, param
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
   integer(ip), pointer                   :: fe_dofs(:)
   logical                                :: use_vertices, use_edges, use_faces
+  type(parameterlist_t), pointer         :: parameter_list
 
   par_environment => par_fe_space%get_environment()
   assert ( associated ( par_environment ) )
@@ -106,6 +106,7 @@ subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, param
   num_coarse_dofs_x_edge = num_dims+ num_dims*(num_dims-1)/2 ! This need to be revisited. Do we use edges?
   num_coarse_dofs_x_face = num_dims+ num_dims*(num_dims-1)/2
 
+  parameter_list => this%get_parameter_list()
   call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
        use_vertices, &
        use_edges, &
@@ -176,12 +177,11 @@ subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, param
   call par_fe_space%free_fe_object_iterator(object)
 end subroutine elasticity_l1_get_num_coarse_dofs
 
-subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, constraint_matrix) 
   implicit none
   class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object
@@ -381,14 +381,12 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
 end subroutine elasticity_l1_setup_constraint_matrix_CI
 
 
-subroutine elasticity_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine elasticity_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, constraint_matrix) 
   implicit none
   class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-
   integer(ip), parameter :: CA = 0
   integer(ip), parameter :: CI = 1
   integer(ip), parameter :: CM = 2
@@ -401,33 +399,31 @@ subroutine elasticity_l1_setup_constraint_matrix_multiple(this, field_id, par_fe
 
   !Currently, only strategy CI is developed for vector laplacian
   assert (strategy==CI)
-
   if (strategy == CA) then
      ! Algebraic facet constraints (1/card) not including DOFs on the boundary of the facet that belong to 
      ! other coarse corners, edges
-     call standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+     call standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix)
   else if ( strategy == CI ) then
      ! Typical version of face constraints based on integration, i.e., \int u / \int 1
-     call elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+     call elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, constraint_matrix)
   else if ( strategy == CM ) then
      ! The previous one but making 0 the boundary DOFs in the facet (those on coarse corners, edges)
-     !call elasticity_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+     !call elasticity_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, constraint_matrix)
   else if ( strategy == CB ) then
      ! Putting always 1 and also including DOFs on the boundary of the facet  (on coarse corners, edges)
-     !call elasticity_l1_setup_constraint_matrix_CB(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+     !call elasticity_l1_setup_constraint_matrix_CB(this, field_id, par_fe_space, constraint_matrix)
   else if ( strategy == CC ) then
      ! The algebraic one (1/card) but also including DOFs on the boundary of the facet  (on coarse corners, edges)
-     !call elasticity_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+     !call elasticity_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, constraint_matrix)
   end if
   ! We have that CA = CM and CI = CC (possibly up to some scaling)
 end subroutine elasticity_l1_setup_constraint_matrix_multiple
 
-subroutine elasticity_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+subroutine elasticity_l1_setup_weighting_operator(this, field_id, par_fe_space,  weighting_operator) 
   implicit none
   class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   type(fe_object_iterator_t) :: object
   type(fe_vef_iterator_t)                :: vef

@@ -95,12 +95,11 @@ subroutine stiffness_l1_free(this)
 end subroutine stiffness_l1_free
 
 !========================================================================================
-subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,parameter_list,weighting_operator)
+subroutine stiffness_l1_setup_weighting_operator(this,field_id,par_fe_space,weighting_operator)
   implicit none
   class(stiffness_weighting_l1_coarse_fe_handler_t), intent(in)    :: this
     integer(ip)                         , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
 
   integer(ip)                          :: block_id

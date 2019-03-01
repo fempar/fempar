@@ -54,7 +54,6 @@ module unfitted_l1_coarse_fe_handler_names
     private
 
     class(par_fe_space_t),      pointer     :: par_fe_space   => null()
-    class(parameterlist_t),     pointer     :: parameter_list => null()
 
     type(list_t)                            :: object_gid_to_dof_gids
     integer(ip),                allocatable :: dof_gid_to_cdof_id_in_object(:)
@@ -107,7 +106,7 @@ subroutine unfitted_l1_create(this, fe_nonlinear_operator, parameter_list)
       check(.false.)
   end select
 
-  this%parameter_list => parameter_list
+  call this%set_parameter_list(parameter_list) 
 
   environment => this%par_fe_space%get_environment()
   assert (associated(environment))
@@ -133,19 +132,18 @@ subroutine unfitted_l1_free(this)
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
   call this%stiffness_weighting_l1_coarse_fe_handler_t%free()
   this%par_fe_space   => null()
-  this%parameter_list => null()
+  ! this%parameter_list => null()
   if ( allocated(this%dof_gid_to_cdof_id_in_object) ) call memfree(this%dof_gid_to_cdof_id_in_object,__FILE__,__LINE__)
   if ( allocated(this%object_gid_to_min_neighbour) ) call memfree(this%object_gid_to_min_neighbour,__FILE__,__LINE__)
   call this%object_gid_to_dof_gids%free()
 end subroutine unfitted_l1_free
 
 !========================================================================================
-subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_list,num_coarse_dofs)
+subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,num_coarse_dofs)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
   type(environment_t), pointer  :: environment
@@ -190,12 +188,11 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
 end subroutine unfitted_l1_get_num_coarse_dofs
 
 !========================================================================================
-subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parameter_list,constraint_matrix)
+subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,constraint_matrix)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
 
   type(environment_t), pointer :: environment
@@ -274,7 +271,7 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
 
   call this%par_fe_space%free_fe_object_iterator(object)
 
-  !call this%standard_l1_coarse_fe_handler_t%setup_constraint_matrix(par_fe_space,parameter_list,constraint_matrix)
+  !call this%standard_l1_coarse_fe_handler_t%setup_constraint_matrix(par_fe_space,constraint_matrix)
 
 end subroutine unfitted_l1_setup_constraint_matrix
 
@@ -305,12 +302,14 @@ subroutine unfitted_l1_setup_object_gid_to_dof_gids(this)
   integer(ip), allocatable           :: dof_gids(:)
   integer(ip)                        :: icount
   type(list_iterator_t)              :: dofs_in_object_iterator
+  type(parameterlist_t), pointer     :: parameter_list 
 
   ! We assume a single field for the moment
   field_id = 1
   assert(this%par_fe_space%get_num_fields() == 1)
 
   ! Auxiliary
+  parameter_list => this%get_parameter_list()
   field_to_block => this%par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
   num_dofs  = this%par_fe_space%get_block_num_dofs(block_id)
@@ -324,7 +323,7 @@ subroutine unfitted_l1_setup_object_gid_to_dof_gids(this)
   call memalloc(num_objects,this%object_gid_to_min_neighbour,__FILE__,__LINE__)
   this%object_gid_to_min_neighbour(:) = huge(num_objects)
 
-  call this%get_coarse_space_use_vertices_edges_faces(this%parameter_list,& 
+  call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
                                                       use_vertices, &
                                                       use_edges, &
                                                       use_faces)

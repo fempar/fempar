@@ -933,8 +933,8 @@ module fe_space_names
     procedure, non_overridable, private  :: fe_object_iterator_get_fe_vef
     generic                              :: get_vef                               => fe_object_iterator_get_fe_vef 
     procedure, non_overridable, private  :: get_face                              => fe_object_iterator_get_fe_face
-    procedure, non_overridable           :: get_num_facets                         => fe_object_iterator_get_num_facets
-    procedure, non_overridable           :: get_num_coarse_dofs                => fe_object_iterator_get_num_coarse_dofs
+    procedure, non_overridable           :: get_num_facets                        => fe_object_iterator_get_num_facets
+    procedure, non_overridable           :: get_num_coarse_dofs                   => fe_object_iterator_get_num_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
     procedure, non_overridable           :: create_faces_object_iterator          => fe_object_iterator_create_faces_object_iterator
   end type fe_object_iterator_t
@@ -1110,13 +1110,20 @@ module fe_space_names
  public :: par_fe_space_t
  public :: fe_object_iterator_t
  
-  type, abstract :: l1_coarse_fe_handler_t
+  type, abstract :: l1_coarse_fe_handler_t  
+  private 
+   integer(ip)                             :: field_id
+   type(parameterlist_t), pointer          :: parameter_list => NULL()
   contains
+    procedure          :: set_parameter_list  => l1_coarse_fe_handler_set_parameter_list 
+    procedure          :: get_parameter_list  => l1_coarse_fe_handler_get_parameter_list 
+    procedure          :: l1_coarse_fe_handler_create 
+    generic            :: create              => l1_coarse_fe_handler_create
     ! Deferred methods
-    procedure (l1_free)                                  , deferred :: free 
-    procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
-    procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
-    procedure (l1_setup_weighting_operator)              , deferred :: setup_weighting_operator
+    procedure (l1_free)                                      , deferred :: free 
+    procedure (l1_get_num_coarse_dofs_interface)             , deferred :: get_num_coarse_dofs
+    procedure (l1_setup_constraint_matrix)                   , deferred :: setup_constraint_matrix
+    procedure (l1_setup_weighting_operator)                  , deferred :: setup_weighting_operator
     procedure (l1_apply_inverse_local_change_basis)          , deferred :: apply_inverse_local_change_basis 
     procedure (l1_apply_global_change_basis)                 , deferred :: apply_global_change_basis
     procedure (l1_apply_global_change_basis_transpose)       , deferred :: apply_global_change_basis_transpose
@@ -1134,30 +1141,27 @@ module fe_space_names
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
     ! interface
-    subroutine l1_get_num_coarse_dofs_interface(this, field_id, par_fe_space, parameter_list, num_coarse_dofs) 
+    subroutine l1_get_num_coarse_dofs_interface(this, field_id, par_fe_space, num_coarse_dofs) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, ip
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)         , intent(in)    :: par_fe_space 
-      type(parameterlist_t)        , intent(in)    :: parameter_list
       integer(ip)                  , intent(inout) :: num_coarse_dofs(:)
     end subroutine l1_get_num_coarse_dofs_interface
    
-    subroutine l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, coo_sparse_matrix_t, ip
+    subroutine l1_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, coo_sparse_matrix_t, ip
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
-      type(parameterlist_t)        , intent(in)    :: parameter_list
       type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
     end subroutine l1_setup_constraint_matrix
   
-    subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, rp, ip
+    subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, rp, ip
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       integer(ip)                  , intent(in)     :: field_id
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
-      type(parameterlist_t)         , intent(in)    :: parameter_list
       real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
  
@@ -1192,17 +1196,16 @@ module fe_space_names
   end interface
 
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
-     private
-   contains   
-     procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
-     procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
-     procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
-     procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
-     procedure             :: apply_inverse_local_change_basis          => standard_l1_apply_inverse_local_change_basis
-     procedure             :: apply_global_change_basis                 => standard_l1_apply_global_change_basis
-     procedure             :: apply_global_change_basis_transpose       => standard_l1_apply_global_change_basis_transpose
-     procedure             :: apply_inverse_local_change_basis_transpose=> standard_l1_apply_inverse_local_change_basis_transpose
-     procedure             :: free                                      => standard_l1_free 
+  contains   
+   procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
+   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
+   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
+   procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
+   procedure             :: apply_inverse_local_change_basis          => standard_l1_apply_inverse_local_change_basis
+   procedure             :: apply_global_change_basis                 => standard_l1_apply_global_change_basis
+   procedure             :: apply_global_change_basis_transpose       => standard_l1_apply_global_change_basis_transpose
+   procedure             :: apply_inverse_local_change_basis_transpose=> standard_l1_apply_inverse_local_change_basis_transpose
+   procedure             :: free                                      => standard_l1_free 
   end type standard_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_coarse_fe_handler_t
@@ -1240,29 +1243,29 @@ module fe_space_names
     logical                                 :: use_alternative_basis 
     logical                                 :: is_change_basis_computed 
     logical                                 :: arithmetic_average
-    integer(ip)                             :: field_id 
-    real(rp), pointer                       :: mass_coeff(:) 
-    real(rp), pointer                       :: curl_curl_coeff(:) 
+    real(rp), pointer                       :: mass_coeff(:)
+    real(rp), pointer                       :: curl_curl_coeff(:)
     type(par_sparse_matrix_t), pointer      :: matrix
     integer(ip)                             :: num_interior_dofs
-    integer(ip)                             :: num_total_dofs     
+    integer(ip)                             :: num_total_dofs 
     ! DoF old-new basis correspondence 
     type(hash_table_ip_ip_t)                :: g2l_fes
-    integer(ip), allocatable                :: fe_dofs_new_basis(:,:) 
-    integer(ip), allocatable                :: edge_average_dof_id(:) 
+    integer(ip), allocatable                :: fe_dofs_new_basis(:,:)
+    integer(ip), allocatable                :: edge_average_dof_id(:)
     ! Subedge partitions 
     type(hash_table_ip_ip_t)                :: fine_edge_direction
     type(list_t)                            :: subedges_x_coarse_edge 
-    type(list_t)                            :: sorted_fine_edges_in_coarse_subedge 
+    type(list_t)                            :: sorted_fine_edges_in_coarse_subedge
     ! Change of basis 
     type(sparse_matrix_t)                   :: change_basis_matrix
-    type(direct_solver_t)                   :: direct_solver 
+    type(direct_solver_t)                   :: direct_solver
     type(direct_solver_t)                   :: transpose_direct_solver
     
   contains
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
-    procedure                           :: create                                        => Hcurl_l1_create 
+    procedure                           :: Hcurl_l1_create
+    generic                             :: create                                        => Hcurl_l1_create
     procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
     procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
     procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator 
@@ -1383,7 +1386,7 @@ module fe_space_names
     ! Own methods of coarse_fe_object_iterator_t
     procedure, non_overridable, private  :: coarse_fe_object_iterator_get_fe_vef
     generic                              :: get_vef                                  => coarse_fe_object_iterator_get_fe_vef 
-    procedure, non_overridable           :: get_num_coarse_dofs                   => coarse_fe_object_iterator_get_num_coarse_dofs
+    procedure, non_overridable           :: get_num_coarse_dofs                      => coarse_fe_object_iterator_get_num_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator          => coarse_fe_object_iterator_create_own_coarse_dofs_iterator
   end type coarse_fe_object_iterator_t
     
@@ -1813,6 +1816,7 @@ contains
 #include "sbm_par_fe_space.i90"
 #include "sbm_base_fe_object_iterator.i90"
 #include "sbm_fe_object_iterator.i90"
+#include "sbm_l1_coarse_fe_handler.i90" 
 #include "sbm_standard_coarse_fe_handler.i90"
 #include "sbm_h_adaptive_algebraic_coarse_fe_handler.i90"
 #include "sbm_h_adaptive_algebraic_Hcurl_coarse_fe_handler.i90"

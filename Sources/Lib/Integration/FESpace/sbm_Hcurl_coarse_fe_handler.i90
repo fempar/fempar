@@ -43,7 +43,7 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   if ( .not. environment%am_i_l1_task() ) return
 
   ! Initialize parameters
-  this%parameter_list = parameter_list
+  call this%set_parameter_list(parameter_list)
     
   ! Mandatory parameter: choose BDDC enforced continuity
   assert(this%parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
@@ -60,7 +60,7 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   end if
 
   ! Init parameters 
-  this%mass_coeff => average_mass_coeff
+  this%mass_coeff       => average_mass_coeff
   this%curl_curl_coeff  => average_curl_curl_coeff
 
   this%field_id = field_id
@@ -150,12 +150,11 @@ subroutine Hcurl_l1_free( this )
 end subroutine Hcurl_l1_free
 
 !===============================================================================================
-subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse_dofs)
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
   class(fe_cell_iterator_t), allocatable :: fe
@@ -164,12 +163,13 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   type(fe_object_iterator_t)             :: object
   integer(ip)                            :: coarse_edge
 
-  type(list_iterator_t)       :: coarse_subedge_iterator
-  type(list_iterator_t)       :: fine_edges_iterator
-  type(list_iterator_t)       :: own_dofs
-  integer(ip)                 :: num_fine_edges_in_subedge
-  character(len=:), allocatable :: edge_continuity_algorithm
-  integer(ip)                 :: FPLError
+  type(list_iterator_t)          :: coarse_subedge_iterator
+  type(list_iterator_t)          :: fine_edges_iterator
+  type(list_iterator_t)          :: own_dofs
+  integer(ip)                    :: num_fine_edges_in_subedge
+  character(len=:), allocatable  :: edge_continuity_algorithm
+  integer(ip)                    :: FPLError
+  type(parameterlist_t), pointer :: parameter_list 
 
   environment=> par_fe_space%get_environment()
   assert ( associated ( environment) )
@@ -180,9 +180,10 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   call par_fe_space%create_fe_cell_iterator(fe)
   call par_fe_space%create_fe_vef_iterator(edge)
   call par_fe_space%create_fe_object_iterator(object)
-
-  assert(this%parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
-  FPLError = this%parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
+  
+  parameter_list => this%get_parameter_list()
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
+  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then
      massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems')
   end if
@@ -241,12 +242,11 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
 end subroutine Hcurl_l1_get_num_coarse_dofs
 
 !===============================================================================================
-subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix)
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer           :: environment
   type(fe_object_iterator_t)             :: object
@@ -258,6 +258,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   integer(ip) :: ivef_within_cell
   integer(ip) :: dof_lid, coarse_dof_lid
   integer(ip), pointer    :: fe_dofs(:)
+  type(parameterlist_t) , pointer :: parameter_list
 
   character(len=:), allocatable  :: edge_continuity_algorithm
   integer(ip)                    :: FPLError
@@ -275,9 +276,10 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   environment=> par_fe_space%get_environment()
   assert (associated(environment))
   assert (environment%am_i_l1_task())
-
-  assert(this%parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
-  FPLError = this%parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
+  parameter_list => this%get_parameter_list() 
+  
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
+  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then
      massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems')
      call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
@@ -506,12 +508,11 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
 end subroutine Hcurl_l1_compute_first_order_moment_in_edges
 
 !===============================================================================================
-subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
 
   integer(ip)                          :: block_id
@@ -527,6 +528,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   character(len=:), allocatable        :: weighting_function
   integer(ip) :: FPLError
   ! Fill the parameter-based case 
+  type(parameterlist_t)    , pointer     :: parameter_list
   class(fe_cell_iterator_t), allocatable :: fe
   type(fe_vef_iterator_t)                :: vef
   integer(ip)                            :: set_id
@@ -540,21 +542,15 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   assert(field_id == 1)
   assert(par_fe_space%get_num_fields() == 1)
 
-  ! Clean up
-  if (allocated(weighting_operator) ) then
-     call memfree ( weighting_operator, __FILE__, __LINE__ )
-  end if
-
-  ! Allocate the weighting
   field_to_block => par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
-  call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
-
+  
+   parameter_list => this%get_parameter_list()
   ! Optional parameters
-  if( this%parameter_list%isPresent(bddc_weighting_function_case_key) ) then
-     assert(this%parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
-     FPLError = this%parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
+  if( parameter_list%isPresent(bddc_weighting_function_case_key) ) then
+     assert(parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
+     FPLError = parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
   else
      weighting_function=cardinality 
   end if

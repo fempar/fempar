@@ -4032,7 +4032,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   sum_max_num_coarse_dofs = 0
   max_max_num_coarse_dofs = 0
   do field_id=1, this%num_fields
-    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_x_field(:,field_id))
+    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, num_coarse_dofs_x_field(:,field_id))
     this%ptr_coarse_dofs_x_field(field_id+1) = this%ptr_coarse_dofs_x_field(field_id)
     do i=1, this%get_num_fe_objects()
       this%ptr_coarse_dofs_x_field(field_id+1) = this%ptr_coarse_dofs_x_field(field_id+1) + &
