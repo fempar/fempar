@@ -658,8 +658,10 @@ contains
     check(istat==0)
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       call this%H1_coarse_fe_handler%create(this%parameter_list)
        this%coarse_fe_handlers(1)%p => this%H1_coarse_fe_handler
     else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       call this%standard_coarse_fe_handler%create(this%parameter_list)
        this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
     end if
   end subroutine setup_coarse_fe_handlers
@@ -1067,6 +1069,11 @@ contains
        end do
        deallocate(this%reference_fes, stat=istat)
        check(istat==0)
+    end if
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       call this%H1_coarse_fe_handler%free()
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       call this%standard_coarse_fe_handler%free()
     end if
     if ( allocated(this%coarse_fe_handlers) ) then
        deallocate(this%coarse_fe_handlers, stat=istat)

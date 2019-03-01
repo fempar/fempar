@@ -365,6 +365,7 @@ end subroutine free_timers
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
+    call this%coarse_fe_handler%create(this%parameter_list) 
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
   end subroutine setup_coarse_fe_handlers
 
@@ -780,7 +781,8 @@ end subroutine free_timers
     call this%poisson_integration%free()
 #ifdef ENABLE_MKL    
     call this%mlbddc%free()
-#endif       
+#endif    
+    call this%coarse_fe_handler%free() 
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
