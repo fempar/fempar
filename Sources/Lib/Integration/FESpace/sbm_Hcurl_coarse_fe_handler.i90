@@ -26,6 +26,11 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, average_mass_coeff, average_curl_curl_coeff )
+! Create TBP is in charge of performing the sub-edge partition algorithm, resulting in the lists 
+! subedges_x_coarse_edge, sorted_fine_edges_in_coarse_subedge, which are used to implement 
+! all subroutines iterating over coarse objects (as usual) and over sub-objects in a nested fasion. 
+! Further, it computes the local restriction of the change of basis (art031, Sect. 3.1) and sets-up the 
+! direct solvers for the application of these change of basis. 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer(ip)                           , intent(in)    :: field_id
@@ -85,6 +90,8 @@ end subroutine Hcurl_l1_create
 
 !===============================================================================================
 subroutine Hcurl_l1_setup_direct_solvers( this )
+! Sets-up direct solvers for the application of the inverse of the change of basis and the 
+! transposed inverse of the change of basis. 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer                      :: FPLError
@@ -151,6 +158,12 @@ end subroutine Hcurl_l1_free
 
 !===============================================================================================
 subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse_dofs)
+! In this subroutine, the number of coarse dofs is computed with a loop over all
+! coarse edges and a nested loop over its coarse sub-edges. Three different sets of 
+! coarse DoFs are implemented: tangential average (1 per coarse sub-edge, not scalable for 3D 
+! problems but scalable for 2D ones), tangential average + first order moment ( 2 per coarse subedge if 
+! the coarse edge has at least 2 fine DoFs, 1 otherwise) or all dofs in coarse edge, which adds 
+! as many coarse DOFs as fine DOFs found on top of the edge.
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
@@ -243,6 +256,10 @@ end subroutine Hcurl_l1_get_num_coarse_dofs
 
 !===============================================================================================
 subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix)
+! In this subroutine, the constraint matrix is filled with the three different continuity 
+! algorithms proposed: a) tangential average, computed as in art031, Eq.12. b) tangential average
+! + first order moment, computed as in art031, Sect. 4.3), or one-to-one equality between all 
+! fine DoFs atop coarse edges. 
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
@@ -379,10 +396,9 @@ end subroutine Hcurl_l1_setup_constraint_matrix
 
 !===============================================================================================
 subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, field_id, par_fe_space, constraint_in_edges)
-  ! Integration of first order moment along edges. The integration
-  ! is performed in the Lagrangian-like basis and the change of basis
-  ! is applied accordingly to obtain its expression in the old (original
-  ! Nédélec) basis.
+  ! Integration of first order moment along edges. The integration is performed in the Lagrangian-like 
+  ! basis and the change of basis is applied accordingly to obtain its expression in the old (original
+  ! Nédélec) basis, see art031, Sect. 4.3 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id 
@@ -510,6 +526,9 @@ end subroutine Hcurl_l1_compute_first_order_moment_in_edges
 
 !===============================================================================================
 subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
+! The weight operator is set-up with 5 different choices of the scaling operator, (see art031, Eq.7) 
+! 1) cardinality scaling, 2) mass_coefficient, 3) curl_curl_coefficient, 4) weighted_coefficients 
+! or 5) diagonal entries of the operator. 
   implicit none
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
@@ -637,6 +656,10 @@ end subroutine Hcurl_l1_setup_weighting_operator
 !
 ! -------------------------------------------------------------------------------------------------
 subroutine Hcurl_l1_compute_subedges_info(this, par_fe_space)
+! This subroutine is in charge of counting and splitting coarse edges into coarse subedges 
+! so all identified pathological cases (art031, Sect. 4.1). In a first loop, fine edges 
+! within edge coarse edge are counted. In a second loop, the list of subedges per coarse 
+! edge and its related fine edges are filled. 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
@@ -651,8 +674,7 @@ subroutine Hcurl_l1_compute_subedges_info(this, par_fe_space)
        num_fine_edges_x_coarse_edge, & 
        edge_interior_vertices  ) 
 
-  ! Fill sorted edges list, assign sign with respect to coarse edge and split coarse 
-  ! edges into subedges if necessary
+  ! Fill sorted edges list
   call this%fill_coarse_subedges_and_owned_fine_edges( par_fe_space,               & 
        num_coarse_edges,            & 
        num_fine_edges_x_coarse_edge,& 
@@ -662,6 +684,14 @@ end subroutine Hcurl_l1_compute_subedges_info
 
 !===============================================================================================
 subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
+! The change of basis matrix is computed accordingly to the exposition in art031, Sect. 4.2.
+! The matrix has size( num_interface_dofs, num_interface dofs) and the sparsity pattern 
+! described in art031, Sect.4.2, which is exploited in order to fill the entries of the change of 
+! basis matrix. First, the identity part is filled. Then, all entries (Q^E and Q^f in Sect.4.2) 
+! which belong to the evaluation of Nédélec moments of the Lagrangian-like functions are computed.
+! Finally, the evaluation of the moments for the unit-tangent vector function in the new basis is filled. 
+! As exposed in art031, we implement the restriction of the global change of basis Q to each part, i.e. 
+! Qi = R_i^T Q R_i, where R_i is the usual restriction operator. 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
@@ -742,11 +772,18 @@ contains
 end subroutine Hcurl_l1_compute_change_basis_matrix
 
 subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
-  ! Build FE dofs info for DoFs in the New basis over the vefs that 
-  ! belong to coarse subedges. Further, each coarse subedge has one DoF 
-  ! in the new basis playing the role of average function along the coarse 
-  ! subedge. An array is filled identifying the average DoF in the new basis 
-  ! for every coarse subedge. 
+  ! Build FE dofs info for DoFs in the New basis over the vefs that belong to coarse subedges. 
+  ! FE DOFs is built only for DOFs that are introduced in the new basis, the existing ones 
+  ! preserve its id. Dofs atop coarse E in the new basis are identified with the ids 
+  ! from the DOFs in the old basis (abuse of notation). To determine this correspondence, 
+  ! we assign the first n_E -1 dofs, (where n_E is the number of fine dofs atop coarse E)
+  ! to the internal nodes of the coarse Edge in the same ordering they are found from the 
+  ! first fine edge until the last one in within the same coarse E. 
+  ! Further, each coarse subedge has one DoF in the new basis playing the role of average 
+  ! function along the coarse subedge. An array is filled identifying the average DoF in the 
+  ! new basis for every coarse subedge. In order to help visualization of DOF tags in both cases, 
+  ! a drawing has been added in fempar wiki - Miscellaneous following DoF permutation exposed 
+  ! in Sect. 4.2, which used for the sake of clarity but we can have any permutation of it. 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t) , intent(inout)    :: this
   type(par_fe_space_t)                , intent(inout)    :: par_fe_space
@@ -950,6 +987,9 @@ end subroutine Hcurl_l1_fill_fe_dofs_new_basis
 
 !===============================================================================================
 subroutine Hcurl_l1_fill_interface_discrete_gradient_part( this, par_fe_space )
+! This subroutine evaluates the moments of the original basis ( Nedelec interpolator ) 
+! for the newly introduced gradients of scalar Lagrangian shape functions located at the 
+! internal nodes of the coarse E. (art031, Eq.11 and Sect. 4.2).
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
   type(par_fe_space_t)                  , intent(inout)    :: par_fe_space
@@ -1075,7 +1115,7 @@ end subroutine Hcurl_l1_fill_interface_discrete_gradient_part
 subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_space) 
   ! Fill DoF playing the role of average tangent function in the new basis 
   ! change of basis entries by means of interpolating the unit vector function 
-  ! tangent to the Coarse Edge 
+  ! tangent to the Coarse Edge, (art031, Eq. 11) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
   type(par_fe_space_t)                  , intent(inout)    :: par_fe_space
@@ -1150,7 +1190,8 @@ end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
 !
 ! -------------------------------------------------------------------------------------------------
 subroutine Hcurl_l1_apply_global_change_basis(this, field_id, par_fe_space, x_new, x_old)
-  ! Thanks to structure of change basis, it can be applied locally without 
+  ! Thanks to structure of change basis, the global application of the change of basis 
+  ! to a vector can be performed with local information without 
   ! further consideration and obtain the fully assembled local parts of the global
   ! change of basis (see art031, Sect. 4.2) 
   implicit none 
@@ -1194,8 +1235,9 @@ end subroutine Hcurl_l1_apply_global_change_basis
 
 !===============================================================================================
 subroutine Hcurl_l1_apply_global_change_basis_transpose(this, field_id, par_fe_space, x_old, x_new)
-  ! Due to the structure of the global change of basis, the application of 
-  ! its transpose can be performed in parallel + NN comms. (see art031, Sect. 4.2)
+  ! Due to the structure of the global change of basis (i.e., in the continuous global space), 
+  ! the application of its transpose can be performed in parallel with the restriction of the 
+  ! change of basis to the subdomain + NN comms. (see art031, Sect. 4.2)
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
   integer(ip)                              , intent(in)     :: field_id 
@@ -1243,6 +1285,8 @@ end subroutine Hcurl_l1_apply_global_change_basis_transpose
 
 !===============================================================================================
 subroutine Hcurl_l1_apply_inverse_local_change_basis(this, field_id, par_fe_space, x_old_local, x_new_local) 
+! The application of the local change of basis can be performed directly, as it corresponds to the local 
+! counterpart of the change of basis defined in the sub-assembled space (see art031, Eq.9) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
   integer(ip)                              , intent(in)     :: field_id 
@@ -1280,6 +1324,8 @@ end subroutine Hcurl_l1_apply_inverse_local_change_basis
 
 !===============================================================================================
 subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, field_id, par_fe_space, x_new_local, x_old_local ) 
+! The application of the local transpose change of basis can be performed directly, as it corresponds to the local 
+! counterpart of the change of basis defined in the sub-assembled space (see art031, Eq.9) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
   integer(ip)                              , intent(in)     :: field_id 
@@ -1322,6 +1368,10 @@ end subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose
 ! -------------------------------------------------------------------------------------------------
 subroutine Hcurl_l1_count_coarse_edges_and_owned_fine_edges( this, par_fe_space, num_coarse_edges, &
      num_fine_edges_x_coarse_edge, edge_interior_vertices ) 
+! This subroutine counts the number of fine edges present in every coarse edge. Further, 
+! it stores the vertices of the coarse Edge object in order to identify those 
+! internal nodes that are shared by a different list of subdomains, i.e., vertices, (art031, 
+! parthological case [2] in Sect. 4.1). 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)       , intent(inout)  :: this
   type(par_fe_space_t)                      , intent(in)     :: par_fe_space 
@@ -1418,6 +1468,15 @@ end subroutine Hcurl_l1_count_coarse_edges_and_owned_fine_edges
 
 !===============================================================================================
 subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_space, num_coarse_edges, num_fine_edges_x_coarse_edge, edge_interior_vertices ) 
+! This subroutine fills the lists of coarse subedges within every coarse edge and its owned fine edges, implementing all 
+! required algorithms in art031, Sect. 4.1. In a Coarse edge by coarse edge approach, 
+! First, through the usage of hash tables, stores the number of appearances for every geometrical node present 
+! in the boundary of all fine edges within every coarse edge. This allows to identify every node as interior (counter=2)
+! or node marked to be at the boundary of a coarse sub-edge (counter != 2). Further, by identifying those nodes that 
+! are indeed a coarse vertex we obtain the classification of all nodes into interior or boundary. 
+! Then, with this information we follow art031, Alg. 1 to obtain a) the partition into sub-edges of 
+! every coarse edge such that pathological cases are not present, 2) the classification of all fine edges within 
+! into coarse-subedges + a unique direction of all coarse sub-edges.
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)       , intent(inout)  :: this
   type(par_fe_space_t)                      , intent(in)     :: par_fe_space 
@@ -1612,7 +1671,8 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
 end subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
 
 !===============================================================================================
-subroutine Hcurl_l1_fill_edges_lists( this, num_fine_edges_x_coarse_edge, num_fine_edges_x_subedge, fine_edges_list )    
+subroutine Hcurl_l1_fill_edges_lists( this, num_fine_edges_x_coarse_edge, num_fine_edges_x_subedge, fine_edges_list )   
+! This subroutine transfers the information from the sorted arrays of fine edges into lists 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)     , intent(inout)  :: this
   integer(ip)             , allocatable   , intent(in)     :: num_fine_edges_x_coarse_edge(:)
@@ -1662,6 +1722,8 @@ end subroutine Hcurl_l1_fill_edges_lists
 
 !===============================================================================================
 subroutine assign_and_count_node_types(edge_interior_vertices, num_nodes, node_list, nodes_counter, nodes_type, num_nodes_each_type )
+! This subroutine assigns one node type boundary/interior (see art031, Sect. 4.1) to every 
+! geometrical node which is interior to a coarse Edge. 
   implicit none 
   type(hash_table_ip_ip_t)  , intent(in)    :: edge_interior_vertices
   integer(ip)               , intent(in)    :: num_nodes 
@@ -1698,6 +1760,7 @@ end subroutine assign_and_count_node_types
 
 !===============================================================================================
 function identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type) result(start_node_gid )
+! This subroutine identifies the (unique among processors) starting node for a new coarse Edge. 
   implicit none 
   type(par_fe_space_t)      , intent(in)    :: par_fe_space 
   integer(ip)               , intent(in)    :: num_nodes 
@@ -1749,6 +1812,7 @@ end function identify_following_starting_node
 !===============================================================================================
 function identify_following_starting_fine_edge( par_fe_space, start_node_gid, num_already_sorted_fine_edges, num_fine_edges, & 
      vertices_in_edge, node_list, nodes_counter) result(first_fine_edge) 
+! This subroutine identifies the (unique among processors) starting edge for a new coarse edge.
   implicit none 
   type(par_fe_space_t)     , intent(in)    :: par_fe_space 
   integer(ip)              , intent(in)    :: start_node_gid
@@ -1810,6 +1874,8 @@ end function identify_following_starting_fine_edge
 subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, num_fine_edges_in_coarse_edge, fine_edges_list, vertices_in_edge,  &
      nodes_counter, nodes_type, start_node_gid, first_fine_edge, num_nodes_each_type,        & 
      num_fine_edges_found, offcomponent_fine_edges )
+! This subroutine implements a loop in Alg.1 of art031. Given an initial node and direction, it builds a 
+! path of fine edges by concatenating nodes until a boundary-type node is found. 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)     , intent(inout)  :: this
   integer(ip)                             , intent(in)     :: iedge_coarse 
@@ -1889,7 +1955,7 @@ end subroutine build_path_from_starting_node_and_direction_till_end_node
 
 !===============================================================================================
 subroutine update_nodes_counter ( node_id, nodes_counter, nodes_type, num_nodes_each_type ) 
-  ! This subroutine updates nodes counter and tables 
+  !  Alg 2 in art031: This subroutine updates nodes counter and related hash tables,  
   implicit none 
   integer(ip)              , intent(in)    :: node_id 
   type(hash_table_ip_ip_t) , intent(inout) :: nodes_counter
