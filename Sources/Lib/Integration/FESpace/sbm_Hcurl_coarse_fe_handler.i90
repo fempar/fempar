@@ -282,7 +282,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, constr
   FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then
      massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems')
-     call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
+     call this%compute_first_order_moment_in_edges(field_id, par_fe_space, first_moment_constraint_in_edges)
      first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
   end if
 
@@ -378,13 +378,14 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, constr
 end subroutine Hcurl_l1_setup_constraint_matrix
 
 !===============================================================================================
-subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, constraint_in_edges)
+subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, field_id, par_fe_space, constraint_in_edges)
   ! Integration of first order moment along edges. The integration
   ! is performed in the Lagrangian-like basis and the change of basis
   ! is applied accordingly to obtain its expression in the old (original
   ! Nédélec) basis.
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id 
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(serial_scalar_array_t)           , intent(inout) :: constraint_in_edges
 
@@ -411,10 +412,10 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
   type(list_t), pointer                  :: nodes_n_face
   type(list_iterator_t)                  :: nodes_in_vef_iterator
 
-  call constraint_in_edges%create_and_allocate( par_fe_space%get_block_num_dofs(this%field_id) )
+  call constraint_in_edges%create_and_allocate( par_fe_space%get_block_num_dofs(field_id) )
   call constraint_in_edges%init(0.0_rp)
 
-  ref_fe => par_fe_space%get_reference_fe(this%field_id)
+  ref_fe => par_fe_space%get_reference_fe(field_id)
 
   call par_fe_space%create_fe_cell_iterator(fe_cell)
   call par_fe_space%triangulation%create_cell_iterator(cell)
@@ -490,7 +491,7 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
   end do
 
   ! Change of basis for the assembled vector: C_new*inv(G) = C_old --> SOLVE G^t C_old = C_new 
-  call this%apply_inverse_local_change_basis_transpose( constraint_in_edges, constraint_in_edges )
+  call this%apply_inverse_local_change_basis_transpose( field_id, par_fe_space, constraint_in_edges, constraint_in_edges )
 
   call memfree(elvec, __FILE__, __LINE__ )
   call memfree(cell_coordinates, __FILE__, __LINE__ )
@@ -538,9 +539,6 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weigh
   logical, allocatable                   :: touched_set_id(:)
   real(rp)                               :: char_length
 
-  ! We assume a single field for the moment
-  assert(field_id == 1)
-  assert(par_fe_space%get_num_fields() == 1)
 
   field_to_block => par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
@@ -1151,12 +1149,14 @@ end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
 !                                 Change of basis matrix applications 
 !
 ! -------------------------------------------------------------------------------------------------
-subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
+subroutine Hcurl_l1_apply_global_change_basis(this, field_id, par_fe_space, x_new, x_old)
   ! Thanks to structure of change basis, it can be applied locally without 
   ! further consideration and obtain the fully assembled local parts of the global
   ! change of basis (see art031, Sect. 4.2) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)        , intent(inout)  :: this
+  integer(ip)                                , intent(in)     :: field_id 
+  type(par_fe_space_t)                       , intent(in)     :: par_fe_space
   type(par_scalar_array_t)                   , intent(in)     :: x_new
   type(par_scalar_array_t)                   , intent(inout)  :: x_old
 
@@ -1167,6 +1167,8 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
   type(serial_scalar_array_t)              :: change_basis_times_x
 
   if ( .not. this%use_alternative_basis ) return ! Do-nothing 
+
+  massert ( this%field_id == field_id, 'This coarse_fe_handler_type is specialized for another field_id') 
   massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed') 
 
   x_old_local         => x_old%get_serial_scalar_array()
@@ -1191,11 +1193,13 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
 end subroutine Hcurl_l1_apply_global_change_basis
 
 !===============================================================================================
-subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new)
+subroutine Hcurl_l1_apply_global_change_basis_transpose(this, field_id, par_fe_space, x_old, x_new)
   ! Due to the structure of the global change of basis, the application of 
   ! its transpose can be performed in parallel + NN comms. (see art031, Sect. 4.2)
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+  integer(ip)                              , intent(in)     :: field_id 
+  type(par_fe_space_t)                     , intent(in)     :: par_fe_space
   type(par_scalar_array_t)                 , intent(inout)  :: x_old
   type(par_scalar_array_t)                 , intent(inout)  :: x_new
 
@@ -1206,6 +1210,8 @@ subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new)
   type(serial_scalar_array_t)           :: change_basis_trans_times_x
 
   if ( .not. this%use_alternative_basis ) return ! Do-nothing 
+  
+  massert ( this%field_id == field_id, 'This coarse_fe_handler_type is specialized for another field_id') 
   massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed')
 
   x_old_local         => x_old%get_serial_scalar_array()
@@ -1214,7 +1220,7 @@ subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new)
   ! Arbitrary weighting (1/0) to perform the global Q'*x computation locally 
   call x_old%nullify_non_owned_dofs() 
 
-  call x_new_local%create_view( this%num_interior_dofs + 1,  & 
+  call x_new_local%create_view( this%num_interior_dofs + 1,  &
        this%num_total_dofs,         &
        x_new_local_G )
 
@@ -1236,9 +1242,11 @@ subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new)
 end subroutine Hcurl_l1_apply_global_change_basis_transpose
 
 !===============================================================================================
-subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local) 
+subroutine Hcurl_l1_apply_inverse_local_change_basis(this, field_id, par_fe_space, x_old_local, x_new_local) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+  integer(ip)                              , intent(in)     :: field_id 
+  type(par_fe_space_t)                     , intent(in)     :: par_fe_space
   type(serial_scalar_array_t)              , intent(in)     :: x_old_local
   type(serial_scalar_array_t)              , intent(inout)  :: x_new_local
 
@@ -1247,6 +1255,8 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
   type(serial_scalar_array_t)              :: inv_change_basis_times_x
 
   if ( .not. this%use_alternative_basis ) return ! Do-nothing 
+  
+  massert ( this%field_id == field_id, 'This coarse_fe_handler_type is specialized for another field_id') 
   massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed')
 
   call x_new_local%create_view( this%num_interior_dofs + 1,   & 
@@ -1269,9 +1279,11 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
 end subroutine Hcurl_l1_apply_inverse_local_change_basis
 
 !===============================================================================================
-subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local, x_old_local ) 
+subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, field_id, par_fe_space, x_new_local, x_old_local ) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
+  integer(ip)                              , intent(in)     :: field_id 
+  type(par_fe_space_t)                     , intent(in)     :: par_fe_space
   type(serial_scalar_array_t)              , intent(in)     :: x_new_local
   type(serial_scalar_array_t)              , intent(inout)  :: x_old_local
 
@@ -1280,6 +1292,8 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
   type(serial_scalar_array_t)              :: inv_change_basis_trans_times_x
 
   if ( .not. this%use_alternative_basis ) return ! Do-nothing
+  
+  massert ( this%field_id == field_id, 'This coarse_fe_handler_type is specialized for another field_id') 
   massert ( this%is_change_basis_computed, 'BDDC algorithm required change of basis for H(curl) spaces is not computed')
 
   call x_new_local%create_view( this%num_interior_dofs + 1,  & 

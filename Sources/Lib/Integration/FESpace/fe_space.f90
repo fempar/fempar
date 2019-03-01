@@ -1161,35 +1161,43 @@ module fe_space_names
     subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, rp, ip
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
-      integer(ip)                  , intent(in)     :: field_id
+      integer(ip)                   , intent(in)     :: field_id
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
       real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
  
-    subroutine l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local) 
-      import :: l1_coarse_fe_handler_t, serial_scalar_array_t
+    subroutine l1_apply_inverse_local_change_basis(this, field_id, par_fe_space, x_old_local, x_new_local) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, serial_scalar_array_t
       class(l1_coarse_fe_handler_t)    , intent(in)    :: this
+      integer(ip)                      , intent(in)    :: field_id
+      type(par_fe_space_t)             , intent(in)    :: par_fe_space
       type(serial_scalar_array_t)      , intent(in)    :: x_old_local
       type(serial_scalar_array_t)      , intent(inout) :: x_new_local
     end subroutine l1_apply_inverse_local_change_basis
     
-    subroutine l1_apply_global_change_basis(this, x_new, x_old) 
-      import :: l1_coarse_fe_handler_t, par_scalar_array_t
+    subroutine l1_apply_global_change_basis(this, field_id, par_fe_space, x_new, x_old) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, par_scalar_array_t
       class(l1_coarse_fe_handler_t)         , intent(inout) :: this
+      integer(ip)                           , intent(in)    :: field_id
+      type(par_fe_space_t)                  , intent(in)    :: par_fe_space
       type(par_scalar_array_t)              , intent(in)    :: x_new
       type(par_scalar_array_t)              , intent(inout) :: x_old
     end subroutine l1_apply_global_change_basis
     
-    subroutine l1_apply_global_change_basis_transpose(this, x_old, x_new) 
-      import :: l1_coarse_fe_handler_t, par_scalar_array_t
+    subroutine l1_apply_global_change_basis_transpose(this, field_id, par_fe_space, x_old, x_new) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, par_scalar_array_t
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
+      integer(ip)                   , intent(in)    :: field_id
+      type(par_fe_space_t)          , intent(in)    :: par_fe_space
       type(par_scalar_array_t)      , intent(inout) :: x_old
       type(par_scalar_array_t)      , intent(inout) :: x_new
     end subroutine l1_apply_global_change_basis_transpose
     
-    subroutine l1_apply_inverse_local_change_basis_transpose(this, x_new_local, x_old_local) 
-      import :: l1_coarse_fe_handler_t, serial_scalar_array_t
+    subroutine l1_apply_inverse_local_change_basis_transpose(this, field_id, par_fe_space, x_new_local, x_old_local) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, serial_scalar_array_t
       class(l1_coarse_fe_handler_t)    , intent(in)    :: this
+      integer(ip)                      , intent(in)    :: field_id
+      type(par_fe_space_t)             , intent(in)    :: par_fe_space
       type(serial_scalar_array_t)      , intent(in)    :: x_new_local
       type(serial_scalar_array_t)      , intent(inout) :: x_old_local
     end subroutine l1_apply_inverse_local_change_basis_transpose
