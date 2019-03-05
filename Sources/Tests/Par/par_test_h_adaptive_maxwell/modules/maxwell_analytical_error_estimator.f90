@@ -43,6 +43,8 @@ module maxwell_analytical_error_estimator_names
     type(fe_cell_function_duties_t)                   :: fe_cell_function_duties
     type(vector_field_t)                , allocatable :: work_array_values(:) 
     type(vector_field_t)                , allocatable :: work_array_curls(:) 
+    type(vector_field_t)                , pointer     :: fe_function_values(:)
+    type(vector_field_t)                , allocatable :: fe_function_curls(:) 
    contains
     procedure :: create                    => maee_create
     procedure :: free                      => maee_free
@@ -74,6 +76,7 @@ contains
      call this%fe_cell_function%create(fe_space,1)
      allocate(this%work_array_values(fe_space%get_max_num_quadrature_points()),stat=istat)
      allocate(this%work_array_curls(fe_space%get_max_num_quadrature_points()),stat=istat)
+     allocate(this%fe_function_curls(fe_space%get_max_num_quadrature_points()),stat=istat)
      check(istat==0)
    end if
  end subroutine maee_create
@@ -100,6 +103,11 @@ contains
      deallocate(this%work_array_curls, stat=istat)
      check(istat==0)
    end if
+   if ( allocated(this%fe_function_curls) ) then
+     deallocate(this%fe_function_curls, stat=istat)
+     check(istat==0)
+   end if
+   this%fe_function_values => NULL() 
    call ee_free(this)
  end subroutine maee_free
 
@@ -126,8 +134,6 @@ contains
    real(rp)                  , pointer     :: sq_local_estimate_entries(:)
    class(vector_function_t)  , pointer     :: exact_solution
    real(rp)                                :: solution_value
-   type(vector_field_t)      , pointer     :: fe_function_values(:)
-   type(vector_field_t)      , allocatable :: fe_function_curls(:) 
    class(fe_cell_iterator_t) , allocatable :: fe
    type(quadrature_t)        , pointer     :: quad
    type(point_t)             , pointer     :: quad_coords(:)
@@ -135,7 +141,6 @@ contains
    integer(ip)                             :: qpoint, num_quad_points
    real(rp)                                :: sq_local_estimate_value
    real(rp)                                :: sq_local_curl_estimate_value 
-   type(vector_field_t)                    :: work_array_curl
    integer(ip) :: istat 
    
    environment => this%get_environment()
@@ -184,11 +189,9 @@ contains
          allocate( this%work_array_curls(num_quad_points), stat=istat); check(istat==0)
          end if 
          
-         if ( .not. allocated(fe_function_curls) ) then
-         allocate( fe_function_curls(num_quad_points), stat=istat); check(istat==0)
-         elseif ( size(fe_function_curls) < num_quad_points ) then  
-         deallocate( fe_function_curls, stat=istat); check(istat==0) 
-         allocate( fe_function_curls(num_quad_points), stat=istat); check(istat==0)
+         if ( size(this%fe_function_curls) < num_quad_points ) then  
+         deallocate( this%fe_function_curls, stat=istat); check(istat==0) 
+         allocate( this%fe_function_curls(num_quad_points), stat=istat); check(istat==0)
          end if
                   
          quad_coords => fe%get_quadrature_points_coordinates()
@@ -196,13 +199,13 @@ contains
                                              this%work_array_values(1:num_quad_points) )         
          call exact_solution%get_curls_set( quad_coords, &
                                              this%work_array_curls(1:num_quad_points) ) 
-         fe_function_values => this%fe_cell_function%get_quadrature_points_values()
-         call this%fe_cell_function%compute_quadrature_points_curl_values(fe_function_curls)
+         this%fe_function_values => this%fe_cell_function%get_quadrature_points_values()
+         call this%fe_cell_function%compute_quadrature_points_curl_values(this%fe_function_curls)
          do qpoint = 1, num_quad_points
            factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
            
-           this%work_array_values(qpoint) = this%work_array_values(qpoint) - fe_function_values(qpoint)
-           this%work_array_curls(qpoint)  = this%work_array_curls(qpoint) - fe_function_curls(qpoint)  
+           this%work_array_values(qpoint) = this%work_array_values(qpoint) - this%fe_function_values(qpoint)
+           this%work_array_curls(qpoint)  = this%work_array_curls(qpoint) - this%fe_function_curls(qpoint)  
                        
            sq_local_estimate_value      = sq_local_estimate_value      + factor * this%work_array_values(qpoint) * this%work_array_values(qpoint) 
            sq_local_curl_estimate_value = sq_local_curl_estimate_value + factor * this%work_array_curls(qpoint) * this%work_array_curls(qpoint) 
@@ -212,7 +215,6 @@ contains
        call fe%next()
      end do
      call fe_space%free_fe_cell_iterator(fe)
-     if (allocated(fe_function_curls)) deallocate( fe_function_curls, stat=istat); check(istat==0) 
    end if
    
  end subroutine maee_compute_local_estimates
