@@ -1773,10 +1773,6 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
                                                         corner,&
                                                         vxyz)
        end if
-       do idime = 1, num_dims
-         vxyz(idime) = ( this%bounding_box_limits(idime,2) - this%bounding_box_limits(idime,1) ) * &
-                         vxyz(idime) + this%bounding_box_limits(idime,1)
-       end do
        call raw_per_cell_vertex_coordinates(current)%init(vxyz)
        current = current + 1 
      end do  
