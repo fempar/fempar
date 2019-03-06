@@ -584,7 +584,7 @@ contains
     matrix => this%fe_operator%get_matrix() 
     select type ( matrix ) 
        class is (par_sparse_matrix_t) 
-       call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
+       call this%coarse_fe_handler%create( 1, this%fe_space, this%parameter_list, matrix, this%average_permeability, this%average_resistivity )
        class DEFAULT
        assert(.false.) 
     end select

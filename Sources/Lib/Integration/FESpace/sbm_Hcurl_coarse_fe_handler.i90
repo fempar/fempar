@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, average_mass_coeff, average_curl_curl_coeff )
+subroutine Hcurl_l1_create(this, field_id, par_fe_space, parameter_list, matrix, average_mass_coeff, average_curl_curl_coeff )
 ! Create TBP is in charge of performing the sub-edge partition algorithm, resulting in the lists 
 ! subedges_x_coarse_edge, sorted_fine_edges_in_coarse_subedge, which are used to implement 
 ! all subroutines iterating over coarse objects (as usual) and over sub-objects in a nested fasion. 
@@ -35,41 +35,58 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
-  class(par_sparse_matrix_t) , target   , intent(in)    :: matrix
   type(parameterlist_t)      , target   , intent(in)    :: parameter_list
-  real(rp), target                      , intent(in)    :: average_mass_coeff(:)
-  real(rp), target                      , intent(in)    :: average_curl_curl_coeff(:)
- 
-  character(len=:), allocatable :: continuity_algorithm
-  integer(ip)    :: FPLError
-  type(environment_t), pointer        :: environment
-
+  class(par_sparse_matrix_t) , target   , optional, intent(in)    :: matrix
+  real(rp)                   , target   , optional, intent(in)    :: average_mass_coeff(:)
+  real(rp)                   , target   , optional, intent(in)    :: average_curl_curl_coeff(:)
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(reference_fe_t)    , pointer     :: reference_fe 
+  character(:)             , allocatable :: continuity_algorithm
+  type(environment_t)      , pointer     :: environment
+  logical                                :: is_void_field 
+  
   environment => par_fe_space%get_environment()
   if ( .not. environment%am_i_l1_task() ) return
 
+  ! Initial checks for the requested type 
+  call par_fe_space%create_fe_cell_iterator(fe)
+  is_void_field = .true. 
+  do while (  (.not. fe%has_finished() )) 
+     if ( .not. fe%is_void(field_id)) then 
+        is_void_field = .false.; exit 
+     end if
+     call fe%next() 
+  end do
+
+  if  (.not. is_void_field ) then 
+     reference_fe => fe%get_reference_fe(field_id) 
+     massert( reference_fe%get_fe_type() == fe_type_nedelec, 'H(curl) coarse fe handler must be invoked only for Nedelec-like curl-conforming FE spaces') 
+  end if
+  call par_fe_space%free_fe_cell_iterator(fe)
+  
   ! Initialize parameters
+  this%field_id = field_id
   call this%set_parameter_list(parameter_list)
     
-  ! Mandatory parameter: choose BDDC enforced continuity
-  assert(this%parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
-  FPLError = this%parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=continuity_algorithm)
-  assert(FPLError == 0)
-  if ( par_fe_space%get_num_dims()==2 ) then
-     massert( continuity_algorithm .ne. tangential_average_and_first_order_moment, 'Enforced continuity criteria not allowed for 2D problems' )
-     this%use_alternative_basis=.false.
-  elseif ( par_fe_space%get_num_dims()==3 ) then
-     this%use_alternative_basis = .true.
-     if ( continuity_algorithm == all_dofs_in_coarse_edges) then
-        this%use_alternative_basis = .false.
-     end if
-  end if
-
-  ! Init parameters 
-  this%mass_coeff       => average_mass_coeff
-  this%curl_curl_coeff  => average_curl_curl_coeff
-
-  this%field_id = field_id
-  this%matrix => matrix
+  continuity_algorithm = get_continuity_algorithm(parameter_list, par_fe_space)
+  if ( continuity_algorithm == tangential_average_and_first_order_moment ) then 
+    this%use_alternative_basis=.true. 
+  else 
+    this%use_alternative_basis=.false. 
+  end if 
+  
+  ! Init optional parameters 
+  if ( present( average_mass_coeff) ) then 
+    this%mass_coeff => average_mass_coeff
+  end if 
+  
+  if ( present( average_curl_curl_coeff ) ) then 
+    this%curl_curl_coeff  => average_curl_curl_coeff
+  end if 
+  
+  if ( present( matrix ) ) then 
+    this%matrix => matrix
+  end if 
 
   ! Initialize H(curl) coarse fe handler common used variables 
   this%num_interior_dofs = par_fe_space%get_block_num_interior_dofs(this%field_id)
@@ -142,7 +159,10 @@ subroutine Hcurl_l1_free( this )
   call this%fine_edge_direction%free()
   call this%subedges_x_coarse_edge%free()
   call this%sorted_fine_edges_in_coarse_subedge%free()
-  this%matrix  => null()
+
+  this%mass_coeff      => NULL()
+  this%curl_curl_coeff => NULL() 
+  this%matrix          => NULL()
 
   if ( this%use_alternative_basis ) then
      call memfree( this%edge_average_dof_id, __FILE__, __LINE__ )
@@ -181,7 +201,6 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse
   type(list_iterator_t)          :: own_dofs
   integer(ip)                    :: num_fine_edges_in_subedge
   character(len=:), allocatable  :: edge_continuity_algorithm
-  integer(ip)                    :: FPLError
   type(parameterlist_t), pointer :: parameter_list 
 
   environment=> par_fe_space%get_environment()
@@ -195,11 +214,7 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse
   call par_fe_space%create_fe_object_iterator(object)
   
   parameter_list => this%get_parameter_list()
-  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
-  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
-  if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then
-     massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems')
-  end if
+  edge_continuity_algorithm = get_continuity_algorithm(parameter_list, par_fe_space)
 
   coarse_edge = 0
   do while ( .not. object%has_finished() )
@@ -278,7 +293,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, constr
   type(parameterlist_t) , pointer :: parameter_list
 
   character(len=:), allocatable  :: edge_continuity_algorithm
-  integer(ip)                    :: FPLError
   type(serial_scalar_array_t)    :: first_moment_constraint_in_edges
   real(rp), pointer              :: first_moment_constraint_in_edges_entries(:)
   integer(ip)                    :: coarse_edge
@@ -295,10 +309,8 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, constr
   assert (environment%am_i_l1_task())
   parameter_list => this%get_parameter_list() 
   
-  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
-  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
+  edge_continuity_algorithm = get_continuity_algorithm(parameter_list, par_fe_space)
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then
-     massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems')
      call this%compute_first_order_moment_in_edges(field_id, par_fe_space, first_moment_constraint_in_edges)
      first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
   end if
@@ -563,14 +575,29 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weigh
   block_id = field_to_block(field_id)
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   
-   parameter_list => this%get_parameter_list()
-  ! Optional parameters
+  parameter_list => this%get_parameter_list()
+  
+   ! Optional parameters
   if( parameter_list%isPresent(bddc_weighting_function_case_key) ) then
      assert(parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
      FPLError = parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
   else
      weighting_function=cardinality 
   end if
+  
+  select case ( weighting_function ) 
+  case ( mass_coeff ) 
+     massert( associated( this%mass_coeff ), 'Required scaling has no coefficients associated') 
+  case ( curl_curl_coeff ) 
+     massert( associated( this%curl_curl_coeff ), 'Required scaling has no coefficients associated') 
+  case ( weighted_coefficients ) 
+     massert( associated( this%mass_coeff ) .and. associated( this%curl_curl_coeff ), 'Required scaling has no coefficients associated')
+  case ( stiffness ) 
+     massert( associated( this%matrix ), 'Required scaling has no coefficients associated')
+  case ( cardinality ) 
+  case DEFAULT 
+     massert(.false., 'Hcurl_coarse_fe_handler: selected weighting function is not valid')  
+  end select
 
   allocate( sub_assembled_w(num_dofs), stat=istat); check(istat==0)
   sub_assembled_w = 0.0_rp 
@@ -2055,3 +2082,29 @@ subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, lo
      call memfree( node_ggids, __FILE__, __LINE__ )
   end if
 end subroutine find_node_w_minimum_nonconsecutive_gid
+
+!===============================================================================================
+function get_continuity_algorithm(parameter_list, par_fe_space) 
+  implicit none 
+  type(parameterlist_t)           , intent(in)   :: parameter_list
+  type(par_fe_space_t)            , intent(in)   :: par_fe_space
+  character(len=:), allocatable :: get_continuity_algorithm
+  integer(ip)    :: FPLError
+
+  if( parameter_list%isPresent(bddc_edge_continuity_algorithm_key) ) then
+     assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
+     FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=get_continuity_algorithm); assert(FPLError == 0)
+     select case ( get_continuity_algorithm ) 
+     case( tangential_average, all_dofs_in_coarse_edges ) 
+     case ( tangential_average_and_first_order_moment ) 
+       massert( par_fe_space%get_num_dims() == 3, 'Enforced continuity criteria not allowed for 2D problems' )
+     case DEFAULT 
+       massert( .false., 'Not valid enforced continuity algorithm criteria' )
+     end select 
+  else
+     wassert( .false., 'H(curl) edge continuity algorithm selected by default, it can be assigned with the bddc_edge_continuity_algorithm_key') 
+     if ( par_fe_space%get_num_dims()==2 ) get_continuity_algorithm=tangential_average
+     if ( par_fe_space%get_num_dims()==3 ) get_continuity_algorithm=tangential_average_and_first_order_moment
+  end if
+  
+end function get_continuity_algorithm

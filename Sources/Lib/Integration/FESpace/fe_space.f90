@@ -1252,9 +1252,9 @@ module fe_space_names
     logical                                 :: use_alternative_basis 
     logical                                 :: is_change_basis_computed 
     logical                                 :: arithmetic_average
-    real(rp), pointer                       :: mass_coeff(:)
-    real(rp), pointer                       :: curl_curl_coeff(:)
-    type(par_sparse_matrix_t), pointer      :: matrix
+    real(rp), pointer                       :: mass_coeff(:) => NULL()
+    real(rp), pointer                       :: curl_curl_coeff(:) => NULL() 
+    type(par_sparse_matrix_t), pointer      :: matrix => NULL() 
     integer(ip)                             :: num_interior_dofs
     integer(ip)                             :: num_total_dofs 
     ! DoF old-new basis correspondence 

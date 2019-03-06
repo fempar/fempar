@@ -547,7 +547,7 @@ contains
        matrix => this%fe_affine_operator%get_matrix() 
        select type ( matrix ) 
           class is (par_sparse_matrix_t) 
-          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, & 
+          call this%coarse_fe_handler%create( 1, this%fe_space, this%parameter_list, matrix, & 
                                              this%average_mass_coeff, this%average_curl_curl_coeff )
        end select
     end if
