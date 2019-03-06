@@ -18,3 +18,7 @@
 	path = ThirdParty/XH5For
 	url = https://gitlab.com/fempar/XH5For.git
 	branch = master
+[submodule "ThirdParty/FortranParser"]
+	path = ThirdParty/FortranParser
+	url = https://gitlab.com/fempar/FortranParser.git
+	branch = master
