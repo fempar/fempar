@@ -394,7 +394,23 @@ subroutine void_reference_fe_get_curls_vector(this, actual_cell_interpolation, c
   type(interpolation_t)              , intent(in)     :: actual_cell_interpolation 
   type(vector_field_t), allocatable  , intent(inout)  :: curls(:,:)
   integer(ip)           , optional   , intent(in)     :: qpoints_perm(:)
-  check(.false.)
+  logical     :: reallocate
+  integer(ip) :: istat
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(curls)) reallocate = (size(curls,1) < this%num_shape_functions) .or. &
+                                     (size(curls,2) < actual_cell_interpolation%num_quadrature_points)                             
+  if ((.not. allocated(curls)) .or. reallocate) then
+     if (allocated(curls)) then 
+        deallocate(curls, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(curls(this%num_shape_functions, &
+                    actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+  end if
 end subroutine void_reference_fe_get_curls_vector
 
 subroutine void_reference_fe_get_laplacian_scalar( this, actual_cell_interpolation, & 

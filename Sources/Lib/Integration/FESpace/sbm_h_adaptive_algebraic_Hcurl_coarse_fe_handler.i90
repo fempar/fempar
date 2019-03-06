@@ -145,8 +145,9 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
   type(serial_scalar_array_t), pointer   :: serial_array
   real(rp), pointer                      :: array_entries(:)
   type(hash_table_ip_ip_t)               :: visited_dofs
-  integer(ip)                            :: istat 
-
+  integer(ip)                            :: istat, dummy_val  
+  type(hash_table_ip_ip_t)               :: parts_around_with_void_fes
+  
   block_id = 1 ! To think where it comes from 
   par_environment => par_fe_space%get_environment()
   assert ( associated ( par_environment ) )
@@ -158,7 +159,12 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
   call par_fe_space%create_fe_vef_iterator(vef)
 
   num_objects = par_fe_space%get_num_fe_objects()
+  if ( .not. allocated(object_gid_to_min_neighbour) ) then 
   call memalloc(num_objects,object_gid_to_min_neighbour,__FILE__,__LINE__)
+  elseif ( size(object_gid_to_min_neighbour) /= num_objects ) then 
+  call memfree(object_gid_to_min_neighbour, __FILE__, __LINE__)
+  call memalloc(num_objects,object_gid_to_min_neighbour,__FILE__,__LINE__)
+  end if 
   object_gid_to_min_neighbour = par_environment%get_l1_size()
 
   call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
@@ -169,10 +175,23 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
   ! Fill minimum part identifier for every object 
   do while ( .not. object%has_finished() )
 
+     ! Discard parts_id that do not contains dof info (i.e. void fes around)  
+          call parts_around_with_void_fes%init(2) 
+          do ivef_within_object=1, object%get_num_vefs()
+            call object%get_vef(ivef_within_object,vef)
+            do icell_around=1, vef%get_num_cells_around() 
+            call vef%get_cell_around(icell_around,fe)
+            if ( fe%is_void(field_id) ) then 
+            call parts_around_with_void_fes%put( key=fe%get_my_part(), val=1, stat=istat)
+            end if 
+           end do 
+          end do 
+          
      parts_around_iterator = object%create_parts_around_iterator()
      do while( .not. parts_around_iterator%is_upper_bound() ) 
         part_id = parts_around_iterator%get_current() 
-        if (part_id < object_gid_to_min_neighbour(object%get_gid()) ) then 
+        call parts_around_with_void_fes%get( key=part_id, val=dummy_val, stat=istat)
+        if (part_id < object_gid_to_min_neighbour(object%get_gid()) .and. istat==key_not_found ) then 
            object_gid_to_min_neighbour(object%get_gid()) = part_id 
         end if
         call parts_around_iterator%next() 
@@ -183,7 +202,12 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
 
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call visited_dofs%init(num_dofs)
+  if ( .not. allocated(this%dof_gid_to_cdof_id_in_object) ) then 
   call memalloc(num_dofs,this%dof_gid_to_cdof_id_in_object,__FILE__,__LINE__)
+  elseif ( size(this%dof_gid_to_cdof_id_in_object) /= num_dofs ) then 
+  call memfree(this%dof_gid_to_cdof_id_in_object, __FILE__, __LINE__)
+  call memalloc(num_dofs,this%dof_gid_to_cdof_id_in_object,__FILE__,__LINE__)
+  end if 
   this%dof_gid_to_cdof_id_in_object = 0
 
   call object%first() 

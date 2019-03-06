@@ -13,8 +13,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -nx 2 -ny 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt structured -nx 2 -ny 2 -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH -tt 1 -n 2 2 0 -order $order -gorder $gorder"
+            $TEST_BINARY_PATH -tt 1 -n 2 2 0 -order $order -gorder $gorder 
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -30,8 +30,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 2 -ny 2 -nz 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt structured -dim 3 -nx 2 -ny 2 -nz 2 -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH -tt 1 -dim 3 -n 2 2 2 -order $order -gorder $gorder"
+            $TEST_BINARY_PATH -tt 1 -dim 3 -n 2 2 2 -order $order -gorder $gorder 
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -47,8 +47,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt unstructured -dim 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt unstructured -dim 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH -tt 0 -dim 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
+            $TEST_BINARY_PATH -tt 0 -dim 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder 
             if [ $? -ne 0 ]
             then
              final_exit_code=1
@@ -64,8 +64,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt unstructured -dim 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt unstructured -dim 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder
+            echo "$TEST_BINARY_PATH -tt 0 -dim 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder"
+            $TEST_BINARY_PATH -tt 0 -dim 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder
             if [ $? -ne 0 ]
             then
              final_exit_code=1

@@ -127,6 +127,29 @@ function base_fe_space_get_field_num_dofs( this, field_id )
   end if
 end function base_fe_space_get_field_num_dofs
 
+! Returns the number of owned (local+interface) DoFs associated to field with identifier field_id
+function base_fe_space_get_field_num_owned_dofs( this, field_id )
+  implicit none
+  class(base_fe_space_t), intent(in) :: this
+  integer(ip)           , intent(in) :: field_id
+  integer(ip) :: base_fe_space_get_field_num_owned_dofs
+  class(environment_t), pointer  :: environment
+  type(dof_import_t)  , pointer  :: dof_import
+  integer(ip)         , pointer  :: snd_ptrs(:)
+  environment => this%get_environment()
+  dof_import  => this%get_block_dof_import(field_id)
+  base_fe_space_get_field_num_owned_dofs = 0
+  if ( environment%am_i_l1_task() ) then
+    assert ( field_id >=1 .and. field_id <= this%num_fields ) 
+    base_fe_space_get_field_num_owned_dofs = this%num_dofs_x_field(field_id)
+   ! Withdraw non-owned dofs  
+    snd_ptrs => dof_import%get_snd_ptrs()
+    if ( dof_import%get_num_snd() > 0 ) then 
+    base_fe_space_get_field_num_owned_dofs = base_fe_space_get_field_num_owned_dofs - (snd_ptrs(dof_import%get_num_snd()+1)-1)
+    end if 
+  end if
+end function base_fe_space_get_field_num_owned_dofs
+
 subroutine base_fe_space_set_field_num_dofs( this, field_id, field_num_dofs )
   implicit none
   class(base_fe_space_t), intent(inout) :: this

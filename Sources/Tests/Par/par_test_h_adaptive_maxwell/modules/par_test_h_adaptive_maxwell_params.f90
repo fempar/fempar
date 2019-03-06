@@ -7,6 +7,9 @@ module par_test_h_adaptive_maxwell_params_names
 
   character(len=*), parameter :: even_cells     = 'even_cells'       
   character(len=*), parameter :: inner_region   = 'inner_region'   
+  character(len=*), parameter :: inner_sphere   = 'inner_sphere'
+  character(len=*), parameter :: uniform        = 'uniform'
+  character(len=*), parameter :: error_based    = 'error_based'
   
   character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
@@ -18,9 +21,12 @@ module par_test_h_adaptive_maxwell_params_names
     ! Meshing parameters 
   character(len=*), parameter :: refinement_pattern_case_key   = 'refinement_pattern_case'
   character(len=*), parameter :: domain_limits_key             = 'domain_limits'
-  character(len=*), parameter :: inner_region_size_key         = 'inner_region_size '
+  character(len=*), parameter :: inner_region_size_key         = 'inner_region_size'
+  character(len=*), parameter :: refinement_radius_key         = 'refinement_radius'
   character(len=*), parameter :: num_refinements_key           = 'num_refinements'
   character(len=*), parameter :: min_num_refinements_key       = 'min_num_refinements'
+  ! Solution 
+  character(len=*), parameter :: analytical_function_case_key  = 'analytical_function_case'
 
   type, extends(parameter_handler_t) :: par_test_h_adaptive_maxwell_params_t
      private
@@ -37,14 +43,15 @@ module par_test_h_adaptive_maxwell_params_names
        procedure, non_overridable             :: get_refinement_pattern_case 
        procedure, non_overridable             :: get_domain_limits
        procedure, non_overridable             :: get_inner_region_size 
+       procedure, non_overridable             :: get_refinement_radius
        procedure, non_overridable             :: get_num_refinements 
        procedure, non_overridable             :: get_min_num_refinements
        procedure, non_overridable             :: get_subparts_coupling_criteria
-       !procedure, non_overridable             :: get_num_dims
+       procedure, non_overridable             :: get_analytical_function_case
   end type par_test_h_adaptive_maxwell_params_t
 
   ! Parameters 
-  public :: even_cells, inner_region
+  public :: even_cells, inner_region, inner_sphere, uniform, error_based
   
   ! Types
   public :: par_test_h_adaptive_maxwell_params_t
@@ -80,14 +87,16 @@ contains
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
-    error = list%set(key = use_void_fes_key                  , value =  .false.)                     ; check(error==0)
+    error = list%set(key = use_void_fes_key                  , value =  .true.)                      ; check(error==0)
     error = list%set(key = use_void_fes_case_key             , value =  'popcorn')                   ; check(error==0)
     error = list%set(key = refinement_pattern_case_key       , value = inner_region  )          ; check(error==0)
-    error = list%set(key = domain_limits_key                 , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
+    error = list%set(key = domain_limits_key                 , value = [-1.0,1.0,-1.0,1.0,-1.0,1.0]) ; check(error==0)
     error = list%set(key = inner_region_size_key , value = [0.1,0.1,0.1]) ; check(error==0)
-    error = list%set(key = num_refinements_key               , value = 3) ; check(error==0)
-    error = list%set(key = min_num_refinements_key           , value = 1) ; check(error==0)
+    error = list%set(key = refinement_radius_key , value = 0.1 ) ; check(error==0)
+    error = list%set(key = num_refinements_key               , value = 2) ; check(error==0)
+    error = list%set(key = min_num_refinements_key           , value = 2) ; check(error==0)
     error = list%set(key = coupling_criteria_key             , value = loose_coupling) ; check(error==0)
+    error = list%set(key = analytical_function_case_key      , value = 'in_fe_space' ) ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -109,9 +118,11 @@ contains
     error = switches%set(key = refinement_pattern_case_key   , value = '--refinement_pattern_case' )       ; check(error==0)
     error = switches%set(key = domain_limits_key      , value = '--domain_limits')     ; check(error==0)
     error = switches%set(key = inner_region_size_key   , value = '--inner_region_size') ; check(error==0)
+    error = switches%set(key = refinement_radius_key   , value = '--refinement_radius') ; check(error==0)
     error = switches%set(key = num_refinements_key    , value = '--num_refinements') ; check(error==0)
     error = switches%set(key = min_num_refinements_key, value = '--min_num_refinements') ; check(error==0)
     error = switches%set(key = coupling_criteria_key, value = '--subparts_coupling_criteria') ; check(error==0)
+    error = switches%set(key = analytical_function_case_key   , value = '--analytical_function_case' )       ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -132,9 +143,11 @@ contains
     error = switches_ab%set(key = refinement_pattern_case_key   , value = '-refinement-pattern-case' ); check(error==0)
     error = switches_ab%set(key = domain_limits_key          , value = '-dl')       ; check(error==0)
     error = switches_ab%set(key = inner_region_size_key       , value = '-ir_size')    ; check(error==0)
+    error = switches_ab%set(key = refinement_radius_key       , value = '-R_ref')    ; check(error==0)
     error = switches_ab%set(key = num_refinements_key        , value = '-num_refs')    ; check(error==0)
     error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
     error = switches_ab%set(key = coupling_criteria_key    , value = '-subparts_coupling')    ; check(error==0)
+    error = switches_ab%set(key = analytical_function_case_key   , value = '-function-case' ); check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -151,12 +164,14 @@ contains
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_key              , value  = 'Use a hybrid FE space formed by full and void FEs' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_case_key         , value  = 'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter` ' ); check(error==0)
-    error = helpers%set(key = refinement_pattern_case_key   , value  = 'Select refinement pattern. Possible values: even_cells, centered_refinement' ); check(error==0)
+    error = helpers%set(key = refinement_pattern_case_key   , value  = 'Select refinement pattern. Possible values: even_cells, inner_region, inner_sphere, uniform, error_based' ); check(error==0)
     error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
     error = helpers%set(key = inner_region_size_key  , value = 'Concentric with the domain refined area length) ') ; check(error==0)
+    error = helpers%set(key = refinement_radius_key  , value = 'Concentric with the domain refined area Radius) ') ; check(error==0)
     error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell')                ; check(error==0)
     error = helpers%set(key = min_num_refinements_key     , value = 'Minimum level of refinement for any cell')                ; check(error==0)
     error = helpers%set(key = coupling_criteria_key, value = 'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly') ; check(error==0)
+    error = helpers%set(key = analytical_function_case_key   , value  = 'Select analytical solution case. Possible values: in_fe_space, fichera_2D, fichera_3D' ); check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -183,9 +198,11 @@ contains
     error = required%set(key = refinement_pattern_case_key   , value = .false.) ; check(error==0)
     error = required%set(key = domain_limits_key,                   value = .false.) ; check(error==0)
     error = required%set(key = inner_region_size_key  , value = .false.)  ; check(error==0)
+    error = required%set(key = refinement_radius_key  , value = .false.)  ; check(error==0)
     error = required%set(key = num_refinements_key,                 value = .false.)  ; check(error==0)
     error = required%set(key = min_num_refinements_key,             value = .false.)  ; check(error==0)
     error = required%set(key = coupling_criteria_key,               value = .false.)  ; check(error==0)
+    error = required%set(key = analytical_function_case_key   , value = .false.) ; check(error==0)
 
   end subroutine par_test_h_adaptive_maxwell_params_define_parameters
 
@@ -335,6 +352,19 @@ contains
     error = list%Get(key = inner_region_size_key , Value = get_inner_region_size )
     assert(error==0)
   end function get_inner_region_size
+  
+    !==================================================================================================
+  function get_refinement_radius(this)
+    implicit none
+    class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this
+    real(rp)                                  :: get_refinement_radius
+    type(ParameterList_t), pointer            :: list
+    integer(ip)                               :: error
+    list  => this%get_values()
+    assert(list%isAssignable(refinement_radius_key , get_refinement_radius ))
+    error = list%Get(key = refinement_radius_key , Value = get_refinement_radius )
+    assert(error==0)
+  end function get_refinement_radius
 
   !==================================================================================================
   function get_num_refinements(this)
@@ -375,5 +405,19 @@ contains
     error = list%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
     assert(error==0)
   end function get_subparts_coupling_criteria
+  
+        !==================================================================================================
+  function get_analytical_function_case(this)
+    implicit none
+    class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this
+    character(len=:), allocatable                            :: get_analytical_function_case
+    type(ParameterList_t), pointer                           :: list
+    integer(ip)                                              :: error
+    character(1) :: dummy_string
+    list  => this%get_values()
+    assert(list%isAssignable(analytical_function_case_key, dummy_string))
+    error = list%GetAsString(key = analytical_function_case_key, string = get_analytical_function_case)
+    assert(error==0)
+  end function get_analytical_function_case
 
 end module par_test_h_adaptive_maxwell_params_names
