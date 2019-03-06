@@ -413,7 +413,11 @@ contains
     error = error + switches%set(key = p4est_triang_log_level_key , value = '--P4EST_TRIANG_LOG_LEVEL')
     error = error + values%set(key = p4est_triang_log_level_key   , value = FEMPAR_SC_LP_DEFAULT  )
 
-!    ! BDDC
+    ! BDDC
+    error = error + helpers%set(key = bddc_scaling_function_case_key     , value = 'Scaling type for the BDDC weighting operator')
+    error = error + switches%set(key = bddc_scaling_function_case_key    , value = '--BDDC_SCALING_FUNCTION_CASE')
+    error = error + values%set(key = bddc_scaling_function_case_key      , value = cardinality )
+    
 !    ! I would say that all this should be handled by groups, one for the Dirichlet problem, 
 !    ! one for the Neumann problem, one for the coarse problem, etc
 !    !error = error + values%set(key = mlbddc_coarse_matrix_symmetric_storage , Value= .false. )

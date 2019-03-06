@@ -1252,8 +1252,8 @@ module fe_space_names
     logical                                 :: use_alternative_basis 
     logical                                 :: is_change_basis_computed 
     logical                                 :: arithmetic_average
-    real(rp), pointer                       :: mass_coeff(:) => NULL()
-    real(rp), pointer                       :: curl_curl_coeff(:) => NULL() 
+    real(rp), allocatable                   :: mass_coeff(:)
+    real(rp), allocatable                   :: curl_curl_coeff(:) 
     type(par_sparse_matrix_t), pointer      :: matrix => NULL() 
     integer(ip)                             :: num_interior_dofs
     integer(ip)                             :: num_total_dofs 
@@ -1309,8 +1309,10 @@ module fe_space_names
   character(len=*), parameter :: tangential_average                        = 'tangential_average'
   character(len=*), parameter :: tangential_average_and_first_order_moment = 'tangential_average_and_first_order_moment'
   character(len=*), parameter :: all_dofs_in_coarse_edges                  = 'all_dofs_in_coarse_edges'
-  ! Weighting function 
-  character(len=*), parameter :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
+  ! BDDC Scaling function 
+  character(len=*), parameter :: bddc_scaling_function_case_key = 'bddc_scaling_function_case'
+  character(len=*), parameter :: average_mass_coeff_key         = 'average_mass_coeff' 
+  character(len=*), parameter :: average_curl_curl_coeff_key    = 'average_curl_curl_coeff'
   character(len=*), parameter :: cardinality           = 'cardinality'
   character(len=*), parameter :: curl_curl_coeff       = 'curl_curl_coeff' 
   character(len=*), parameter :: mass_coeff            = 'mass_coeff' 
@@ -1318,6 +1320,7 @@ module fe_space_names
   character(len=*), parameter :: weighted_coefficients = 'weighted_coefficients'
   
   public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
+  public :: bddc_scaling_function_case_key, average_mass_coeff_key, average_curl_curl_coeff_key
   public :: cardinality, curl_curl_coeff, mass_coeff, stiffness, weighted_coefficients 
   public :: Hcurl_l1_coarse_fe_handler_t
 

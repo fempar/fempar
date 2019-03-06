@@ -533,7 +533,7 @@ contains
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
-    integer(ip) :: ilev
+    integer(ip) :: ilev, istat 
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
 
@@ -541,14 +541,17 @@ contains
     
     call this%timer_change_basis_setup%start()
     if ( this%par_environment%am_i_l1_task() ) then       
+    
        ! Compute average parameters to be sent to the preconditioner for weights computation 
        call this%compute_average_parameter_values() 
-
+       ! Assign average coefficient values to the parameter list 
+       istat = this%parameter_list%set(key = average_mass_coeff_key, value = this%average_mass_coeff) ; check(istat==0)
+       istat = this%parameter_list%set(key = average_curl_curl_coeff_key, value = this%average_curl_curl_coeff) ; check(istat==0)
+       
        matrix => this%fe_affine_operator%get_matrix() 
        select type ( matrix ) 
           class is (par_sparse_matrix_t) 
-          call this%coarse_fe_handler%create( 1, this%fe_space, this%parameter_list, matrix, & 
-                                             this%average_mass_coeff, this%average_curl_curl_coeff )
+          call this%coarse_fe_handler%create( 1, this%fe_space, this%parameter_list, matrix )
        end select
     end if
     call this%timer_change_basis_setup%stop()

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine Hcurl_l1_create(this, field_id, par_fe_space, parameter_list, matrix, average_mass_coeff, average_curl_curl_coeff )
+subroutine Hcurl_l1_create(this, field_id, par_fe_space, parameter_list, matrix )
 ! Create TBP is in charge of performing the sub-edge partition algorithm, resulting in the lists 
 ! subedges_x_coarse_edge, sorted_fine_edges_in_coarse_subedge, which are used to implement 
 ! all subroutines iterating over coarse objects (as usual) and over sub-objects in a nested fasion. 
@@ -37,13 +37,15 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, parameter_list, matrix,
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
   type(parameterlist_t)      , target   , intent(in)    :: parameter_list
   class(par_sparse_matrix_t) , target   , optional, intent(in)    :: matrix
-  real(rp)                   , target   , optional, intent(in)    :: average_mass_coeff(:)
-  real(rp)                   , target   , optional, intent(in)    :: average_curl_curl_coeff(:)
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t)    , pointer     :: reference_fe 
   character(:)             , allocatable :: continuity_algorithm
   type(environment_t)      , pointer     :: environment
   logical                                :: is_void_field 
+  integer(ip)                            :: FPLError, istat 
+  character(:), allocatable              :: scaling_function
+  integer(ip) , allocatable              :: array_size_mass_coeff(:)
+  integer(ip) , allocatable              :: array_size_curl_curl_coeff(:)
   
   environment => par_fe_space%get_environment()
   if ( .not. environment%am_i_l1_task() ) return
@@ -68,6 +70,7 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, parameter_list, matrix,
   this%field_id = field_id
   call this%set_parameter_list(parameter_list)
     
+  ! Enforced continuity type 
   continuity_algorithm = get_continuity_algorithm(parameter_list, par_fe_space)
   if ( continuity_algorithm == tangential_average_and_first_order_moment ) then 
     this%use_alternative_basis=.true. 
@@ -75,19 +78,34 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, parameter_list, matrix,
     this%use_alternative_basis=.false. 
   end if 
   
-  ! Init optional parameters 
-  if ( present( average_mass_coeff) ) then 
-    this%mass_coeff => average_mass_coeff
-  end if 
-  
-  if ( present( average_curl_curl_coeff ) ) then 
-    this%curl_curl_coeff  => average_curl_curl_coeff
-  end if 
-  
-  if ( present( matrix ) ) then 
-    this%matrix => matrix
-  end if 
+  ! Scaling function case and set-up requested parameters for each case 
+  if( parameter_list%isPresent(key = bddc_scaling_function_case_key) ) then
+     assert(parameter_list%isAssignable(bddc_scaling_function_case_key, 'string'))
+     FPLError = parameter_list%GetAsString(key=bddc_scaling_function_case_key, string=scaling_function); assert(FPLError == 0)
+    
+     if ( scaling_function == curl_curl_coeff .or. scaling_function == weighted_coefficients  ) then 
+        istat = parameter_list%GetShape(key = average_curl_curl_coeff_key, shape = array_size_curl_curl_coeff); check(istat==0)
+        assert(array_size_curl_curl_coeff(1) >= 1)
+        call memalloc(array_size_curl_curl_coeff(1), this%curl_curl_coeff,__FILE__,__LINE__)
+        assert(parameter_list%isAssignable(average_curl_curl_coeff_key, this%curl_curl_coeff))
+        istat = parameter_list%get(key = average_curl_curl_coeff_key, value = this%curl_curl_coeff ); check(istat==0)
+     end if
 
+     if ( scaling_function == mass_coeff .or. scaling_function == weighted_coefficients  ) then
+        istat = parameter_list%GetShape(key = average_mass_coeff_key, shape = array_size_mass_coeff); check(istat==0)
+        assert(array_size_mass_coeff(1) >= 1)
+        call memalloc(array_size_mass_coeff(1), this%mass_coeff,__FILE__,__LINE__)
+        assert(parameter_list%isAssignable(average_mass_coeff_key, this%mass_coeff))
+        istat = parameter_list%get(key = average_mass_coeff_key, value = this%mass_coeff ); check(istat==0)
+     end if
+
+     if ( scaling_function == stiffness ) then  
+        massert( present(matrix), 'If stiffness scaling is selected, stiffness matrix must be passed' ) 
+        this%matrix => matrix
+     end if
+
+  end if
+    
   ! Initialize H(curl) coarse fe handler common used variables 
   this%num_interior_dofs = par_fe_space%get_block_num_interior_dofs(this%field_id)
   this%num_total_dofs    = par_fe_space%get_field_num_dofs(this%field_id)
@@ -160,9 +178,9 @@ subroutine Hcurl_l1_free( this )
   call this%subedges_x_coarse_edge%free()
   call this%sorted_fine_edges_in_coarse_subedge%free()
 
-  this%mass_coeff      => NULL()
-  this%curl_curl_coeff => NULL() 
-  this%matrix          => NULL()
+  if (allocated(this%mass_coeff))      call memfree( this%mass_coeff, __FILE__, __LINE__)
+  if (allocated(this%curl_curl_coeff)) call memfree( this%curl_curl_coeff, __FILE__, __LINE__)
+  if (associated(this%matrix))         this%matrix  => NULL()
 
   if ( this%use_alternative_basis ) then
      call memfree( this%edge_average_dof_id, __FILE__, __LINE__ )
@@ -557,7 +575,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weigh
   real(rp), pointer                    :: assembled_w(:)
   real(rp), allocatable                :: sub_assembled_w(:)
   integer(ip)                          :: istat
-  character(len=:), allocatable        :: weighting_function
+  character(len=:), allocatable        :: scaling_function
   integer(ip) :: FPLError
   ! Fill the parameter-based case 
   type(parameterlist_t)    , pointer     :: parameter_list
@@ -578,20 +596,20 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weigh
   parameter_list => this%get_parameter_list()
   
    ! Optional parameters
-  if( parameter_list%isPresent(bddc_weighting_function_case_key) ) then
-     assert(parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
-     FPLError = parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
+  if( parameter_list%isPresent(bddc_scaling_function_case_key) ) then
+     assert(parameter_list%isAssignable(bddc_scaling_function_case_key, 'string'))
+     FPLError = parameter_list%GetAsString(key=bddc_scaling_function_case_key, string=scaling_function); assert(FPLError == 0)
   else
-     weighting_function=cardinality 
+     scaling_function=cardinality 
   end if
   
-  select case ( weighting_function ) 
+  select case ( scaling_function ) 
   case ( mass_coeff ) 
-     massert( associated( this%mass_coeff ), 'Required scaling has no coefficients associated') 
+     massert( allocated( this%mass_coeff ), 'Required scaling has no coefficients associated') 
   case ( curl_curl_coeff ) 
-     massert( associated( this%curl_curl_coeff ), 'Required scaling has no coefficients associated') 
+     massert( allocated( this%curl_curl_coeff ), 'Required scaling has no coefficients associated') 
   case ( weighted_coefficients ) 
-     massert( associated( this%mass_coeff ) .and. associated( this%curl_curl_coeff ), 'Required scaling has no coefficients associated')
+     massert( allocated( this%mass_coeff ) .and. allocated( this%curl_curl_coeff ), 'Required scaling has no coefficients associated')
   case ( stiffness ) 
      massert( associated( this%matrix ), 'Required scaling has no coefficients associated')
   case ( cardinality ) 
@@ -602,7 +620,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weigh
   allocate( sub_assembled_w(num_dofs), stat=istat); check(istat==0)
   sub_assembled_w = 0.0_rp 
 
-  select case ( weighting_function ) 
+  select case ( scaling_function ) 
   case ( cardinality ) 
      sub_assembled_w = 1.0_rp 
 
@@ -627,11 +645,11 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, weigh
                     own_dofs = fe%create_own_dofs_on_vef_iterator( fe%get_vef_lid_from_gid(vef%get_gid()), this%field_id ) 
                     do while ( .not. own_dofs%is_upper_bound() )
                        if ( fe_dofs(own_dofs%get_current()) > 0 ) then 
-                          if ( weighting_function == mass_coeff ) then 
+                          if ( scaling_function == mass_coeff ) then 
                              sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%mass_coeff(set_id) 
-                          elseif ( weighting_function == curl_curl_coeff ) then 
+                          elseif ( scaling_function == curl_curl_coeff ) then 
                              sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%curl_curl_coeff(set_id)
-                          elseif ( weighting_function == weighted_coefficients ) then 
+                          elseif ( scaling_function == weighted_coefficients ) then 
                              char_length = fe%compute_volume()**(1.0_rp/par_fe_space%get_num_dims())
                              sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + & 
                                   this%mass_coeff(set_id) + this%curl_curl_coeff(set_id)/(char_length**2)

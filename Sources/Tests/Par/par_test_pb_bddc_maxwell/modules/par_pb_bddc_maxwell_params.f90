@@ -10,7 +10,6 @@ module par_pb_bddc_maxwell_params_names
   character(len=*), parameter :: write_solution_key                   = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key               = 'triangulation_type'    
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
-  character(len=*), parameter :: bddc_weighting_function_case_key     = 'bddc_weighting_function_case'
   character(len=*), parameter :: mass_coeff_white_key                 = 'mass_coeff_white'
   character(len=*), parameter :: curl_curl_coeff_white_key            = 'curl_curl_coeff_white '
   character(len=*), parameter :: mass_coeff_black_key                 = 'mass_coeff_black'
@@ -94,7 +93,7 @@ contains
     error = list%set(key = coarse_space_use_edges_key             , value =  .true.); check(error==0)
     error = list%set(key = coarse_space_use_faces_key             , value =  .false.); check(error==0)
     error = list%set(key = bddc_edge_continuity_algorithm_key     , value =  tangential_average_and_first_order_moment ) ; check(error==0)
-    error = list%set(key = bddc_weighting_function_case_key       , value =  cardinality ) ; check(error==0)
+    error = list%set(key = bddc_scaling_function_case_key         , value =  cardinality ) ; check(error==0)
     error = list%set(key = mass_coeff_white_key                   , value =  1.0 ); check(error==0)
     error = list%set(key = curl_curl_coeff_white_key              , value =  1.0 ); check(error==0)
     error = list%set(key = mass_coeff_black_key                   , value =  1.0 ); check(error==0)
@@ -123,7 +122,7 @@ contains
     error = switches%set(key = coarse_space_use_edges_key         , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key         , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
-    error = switches%set(key = bddc_weighting_function_case_key   , value = '--BDDC_weighting_function_case' ) ; check(error==0)
+    error = switches%set(key = bddc_scaling_function_case_key     , value = '--BDDC_scaling_function_case' ) ; check(error==0)
     error = switches%set(key = mass_coeff_white_key               , value = '--mass_coeff_white' )  ; check(error==0)
     error = switches%set(key = curl_curl_coeff_white_key          , value = '--curl_curl_coeff_white ' )  ; check(error==0)
     error = switches%set(key = mass_coeff_black_key               , value = '--mass_coeff_black' )  ; check(error==0)
@@ -151,7 +150,7 @@ contains
     error = switches_ab%set(key = coarse_space_use_edges_key      , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key      , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = bddc_edge_continuity_algorithm_key, value = '-edge_cont' )  ; check(error==0)
-    error = switches_ab%set(key = bddc_weighting_function_case_key, value = '-bddc_weights' )  ; check(error==0)
+    error = switches_ab%set(key = bddc_scaling_function_case_key  , value = '-bddc_weights' )  ; check(error==0)
     error = switches_ab%set(key = mass_coeff_white_key            , value = '-mass_coeff_white' )  ; check(error==0)
     error = switches_ab%set(key = curl_curl_coeff_white_key       , value = '-curl_curl_coeff_white ' )  ; check(error==0)
     error = switches_ab%set(key = mass_coeff_black_key            , value = '-mass_coeff_black' )  ; check(error==0)
@@ -185,8 +184,8 @@ contains
  
     msg = 'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges' 
     error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
-    msg = 'Define BDDC weighting function from: cardinality (inverse of the cardinality of each dof), curl_curl_coeff, mass_coeff, stiffness (diagonal entries of the operator).'
-    error = helpers%set(key = bddc_weighting_function_case_key, value = msg  ); check(error==0) 
+    msg = 'Define BDDC scaling function from: cardinality (inverse of the cardinality of each dof), curl_curl_coeff, mass_coeff, stiffness (diagonal entries of the operator).'
+    error = helpers%set(key = bddc_scaling_function_case_key, value = msg  ); check(error==0) 
                         
     error = helpers%set(key = mass_coeff_white_key                 , value  = 'mass_coeff_white value' ) ; check(error==0)
     error = helpers%set(key = curl_curl_coeff_white_key            , value  = 'curl_curl_coeff_white  value' )  ; check(error==0)
@@ -215,7 +214,7 @@ contains
     error = required%set(key = coarse_space_use_edges_key          , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key          , value = .false.) ; check(error==0)
     error = required%set(key = bddc_edge_continuity_algorithm_key  , value = .false.) ; check(error==0)
-    error = required%set(key = bddc_weighting_function_case_key    , value = .false.) ; check(error==0)
+    error = required%set(key = bddc_scaling_function_case_key      , value = .false.) ; check(error==0)
     error = required%set(key = mass_coeff_white_key                , value = .false.) ; check(error==0)
     error = required%set(key = curl_curl_coeff_white_key           , value = .false.) ; check(error==0)
     error = required%set(key = mass_coeff_black_key                , value = .false.) ; check(error==0)
