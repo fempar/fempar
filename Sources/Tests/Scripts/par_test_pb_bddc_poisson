@@ -1,6 +1,7 @@
 #!/bin/sh
 export MKL_NUM_THREADS=1
 export OMP_NUM_THREADS=1
+SCRIPT_NAME=$(basename $0)
 MPIEXEC_PATH="$1"
 MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
@@ -9,6 +10,7 @@ TEST_INPUT_DATA_PATH="$5"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
+TMP_OUTPUT="tmp_output_""$SCRIPT_NAME"
 
 # Allowed variation (%) in the number of iterations  w.r.t. the reference solution to return a PASSED test
 allowed_variation=0.05 
@@ -21,26 +23,26 @@ then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
      #test 1
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false. | tee tmp_output"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false.  | tee tmp_output
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false. | tee $TMP_OUTPUT"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -np 3 3 0 1 1 0 -n 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .false.  | tee $TMP_OUTPUT
      # Number of iterations
-     n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     n1=$(grep "CG converged to " $TMP_OUTPUT |sed s/" "" "*/"#"/g|cut -f6 -d#)
      n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test1_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
      if [ $(python -c "print \"%d\" % (1 if abs($n1-$n2)>$allowed_variation*$n2 else 0)") = 1 ]; then 
 	 final_exit_code=1
      fi 
-     rm -f tmp_output 
+     rm -f $TMP_OUTPUT 
 
      #test 2
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true. | tee tmp_output"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true. | tee tmp_output
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true. | tee $TMP_OUTPUT"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc -use-vertices .true. -use-edges .false. -use-faces .true. | tee $TMP_OUTPUT
      # Number of iterations
-     n1=$(grep "CG converged to " tmp_output |sed s/" "" "*/"#"/g|cut -f6 -d#)
+     n1=$(grep "CG converged to " $TMP_OUTPUT |sed s/" "" "*/"#"/g|cut -f6 -d#)
      n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test2_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
      if [ $(python -c "print \"%d\" % (1 if abs($n1-$n2)>$allowed_variation*$n2 else 0)") = 1 ]; then 
 	 final_exit_code=1
      fi 
-     rm -f tmp_output 
+     rm -f $TMP_OUTPUT 
 
    else
       echo "$0: input data directory not found!"
