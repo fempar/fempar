@@ -1109,8 +1109,8 @@ module fe_space_names
    
    end type par_fe_space_t
  
- public :: par_fe_space_t
- public :: fe_object_iterator_t
+  public :: par_fe_space_t
+  public :: fe_object_iterator_t
  
   type, abstract :: l1_coarse_fe_handler_t  
   private 
@@ -1270,7 +1270,6 @@ module fe_space_names
     type(sparse_matrix_t)                   :: change_basis_matrix
     type(direct_solver_t)                   :: direct_solver
     type(direct_solver_t)                   :: transpose_direct_solver
-    
   contains
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free

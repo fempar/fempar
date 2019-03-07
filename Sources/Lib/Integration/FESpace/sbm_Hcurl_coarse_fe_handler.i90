@@ -2086,7 +2086,7 @@ subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, lo
         end do
         call vertex%get_cell_around(ielem_with_max_ggid, fe)
         ivef_within_cell = fe%get_vef_lid_from_gid(vertex%get_gid())
-        node_ggids(inode) = triangulation%generate_non_consecutive_vef_ggid( maximum_cell_around_ggid, ivef_within_cell, 1 )  
+        node_ggids(inode) = triangulation%generate_non_consecutive_vef_ggid( maximum_cell_around_ggid, ivef_within_cell)  
      end do
 
      call par_fe_space%free_fe_cell_iterator(fe)

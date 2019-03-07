@@ -1147,15 +1147,13 @@ module triangulation_names
      generic                             :: create                              => par_triangulation_create
      procedure, private                  :: par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_gids     => par_triangulation_allocate_and_fill_lst_vefs_gids 
-     procedure, nopass, non_overridable  :: generate_non_consecutive_vef_ggid    => par_triangulation_generate_non_consecutive_vef_ggid
+     procedure, nopass, non_overridable  :: generate_non_consecutive_vef_ggid   => par_triangulation_generate_non_consecutive_vef_ggid
   end type par_triangulation_t
     
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given VEF.
-  integer(ip), parameter :: cell_ggid_shift           = 44
+  integer(ip), parameter :: cell_ggid_shift           = 50
   integer(ip), parameter :: vefs_x_reference_fe_shift = 14
-  integer(ip), parameter :: number_fields_shift       = igp*8-(cell_ggid_shift+vefs_x_reference_fe_shift)-1
-  
   type, extends(base_static_triangulation_t) :: coarse_triangulation_t
   contains
      procedure, non_overridable          :: create                              => coarse_triangulation_create
