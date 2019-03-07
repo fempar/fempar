@@ -63,6 +63,18 @@ function nedelec_reference_fe_get_scalar_from_vector_node( this, node )
   check(.false.)
 end function nedelec_reference_fe_get_scalar_from_vector_node
 
+!==================================================================================================
+subroutine nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
+                                                                      subcell_id,             &
+                                                                      nodal_values_on_parent, & 
+                                                                      nodal_values_on_child )
+  implicit none 
+  class(nedelec_reference_fe_t), intent(in)    :: this              
+  integer(ip)                  , intent(in)    :: subcell_id
+  real(rp)                     , intent(in)    :: nodal_values_on_parent(:)
+  real(rp)                     , intent(inout) :: nodal_values_on_child(:)
+  massert(.false.,'Note: you are calling interpolate_nodal_values_on_subcell on a type extension of reference_fe_t where it is not implemented.')
+end subroutine nedelec_reference_fe_interpolate_nodal_values_on_subcell
 
 !**************************************************************************************************
 ! Deferred TBP implementors from reference_fe_t

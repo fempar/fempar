@@ -203,7 +203,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
      ! If norm type requires curl values, Compute their contribution from gradients
      if (norm_requires_curl_values) then  
         select case ( trim(norm_type) )
-        case (hcurl_seminorm)
+        case (hcurl_seminorm, hcurl_norm)
            do q_point=1, n_q_points
               ! Build curl analytical vector from gradients 
               call work_vector%set(1, this%work_array_gradients(q_point,1)%get(2,3) - this%work_array_gradients(q_point,1)%get(3,2) )
@@ -245,7 +245,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
         values_cell_contribution = values_cell_contribution + & 
              sum*fe%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
      end do
-  case (l2_norm,h1_norm)
+  case (l2_norm,h1_norm, hcurl_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
              (this%work_array_values(q_point,1)*this%work_array_values(q_point,1))*&

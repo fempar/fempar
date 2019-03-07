@@ -750,7 +750,7 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
   class(triangulation_t)   , pointer     :: triangulation 
   integer(ip)                            :: vef_lid
   integer(ip)                            :: ielem  
-  logical                                :: local_found 
+  logical                                :: non_void_local_found 
 
   triangulation => this%get_triangulation() 
   if ( triangulation%get_num_cells() == 0) return 
@@ -783,25 +783,25 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
      call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
      call interpolator%create(this, field_id)
      do while (.not. fe%has_finished() )  
-        local_found=.true. 
+        non_void_local_found=.true. 
         if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
            vef_loop: do vef_lid = 1, fe%get_num_vefs() 
               call fe%get_vef(vef_lid, vef)
               if ( .not. vef%is_ghost() .and. vef%is_proper() ) then
-                 local_found = .false.
+                 non_void_local_found = .false.
                  do ielem=1, vef%get_num_cells_around()
                     call vef%get_cell_around(ielem, aux_fe)
-                    if (aux_fe%is_local()) then
-                       local_found = .true.
+                    if (aux_fe%is_local() .and. (.not. aux_fe%is_void(field_id))) then
+                       non_void_local_found = .true.
                        exit 
                     end if
                  end do
-                 if (.not. local_found) exit vef_loop 
+                 if (.not. non_void_local_found) exit vef_loop 
               end if
            end do vef_loop
         end if
 
-        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. local_found) then
+        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. non_void_local_found) then
            call interpolator%evaluate_scalar_function_moments( fe, function, dof_values, time=time )
            call fe_function%insert_nodal_values(fe, field_id, dof_values) 
         end if
@@ -837,7 +837,7 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   class(triangulation_t)   , pointer     :: triangulation 
   integer(ip)                            :: vef_lid
   integer(ip)                            :: ielem  
-  logical                                :: local_found 
+  logical                                :: non_void_local_found 
 
   triangulation => this%get_triangulation() 
   if ( triangulation%get_num_cells() == 0) return 
@@ -870,25 +870,25 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
      call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
      call interpolator%create(this, field_id)
      do while (.not. fe%has_finished() )  
-        local_found=.true. 
+        non_void_local_found=.true. 
         if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
            vef_loop: do vef_lid = 1, fe%get_num_vefs() 
               call fe%get_vef(vef_lid, vef)
               if ( .not. vef%is_ghost() .and. vef%is_proper() ) then
-                 local_found = .false.
+                 non_void_local_found = .false.
                  do ielem=1, vef%get_num_cells_around()
                     call vef%get_cell_around(ielem, aux_fe)
-                    if (aux_fe%is_local()) then
-                       local_found = .true.
+                    if (aux_fe%is_local() .and. (.not. aux_fe%is_void(field_id)) ) then
+                       non_void_local_found = .true.
                        exit 
                     end if
                  end do
-                 if (.not. local_found) exit vef_loop
+                 if (.not. non_void_local_found) exit vef_loop
               end if
            end do vef_loop
         end if
 
-        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. local_found ) then
+        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. non_void_local_found ) then
            call interpolator%evaluate_vector_function_moments( fe, function, dof_values, time=time )
            call fe_function%insert_nodal_values(fe, field_id, dof_values)
         end if
@@ -1023,6 +1023,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   logical                  , allocatable :: is_void_field(:) 
   logical                  , allocatable :: n_face_mask(:,:) 
   logical                                :: reallocate 
+  logical                                :: non_void_local_found
   integer(ip)                            :: ielem
   class(triangulation_t), pointer        :: triangulation 
   
@@ -1100,18 +1101,29 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                  call fe%get_vef(vef_lid, vef)
                  if ( .not. vef%is_ghost() ) then
                     if ( vef%get_set_id() /= 0 .and. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
-                       ! Get scalar boundary functions 
-                       call this%conditions%get_components_code( vef%get_set_id(), components_code )
-                       component_id = offset_component(field_id) + 1
-                       do icomp=1, reference_fe%get_num_field_components()
-                          if ( components_code(component_id+icomp-1) ) then
-                             n_face_mask(icomp, vef_lid) = .true. 
-                             ! Retreive the scalar functions corresponding to the components of the function to be projected
-                             call this%conditions%get_function(vef%get_set_id(),                 &
-                                                               component_id+icomp-1,             &
-                                                               function_scalar_components(icomp, vef_lid)%p)
+                       non_void_local_found = .false.
+                       do ielem=1, vef%get_num_cells_around()
+                          call vef%get_cell_around(ielem, aux_fe)
+                          if ( aux_fe%is_local() .and. (.not. aux_fe%is_void(field_id))) then
+                             non_void_local_found = .true.
+                             exit
                           end if
                        end do
+
+                       if ( fe%is_local() .or. .not. non_void_local_found ) then
+                          ! Get scalar boundary functions 
+                          call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                          component_id = offset_component(field_id) + 1
+                          do icomp=1, reference_fe%get_num_field_components()
+                             if ( components_code(component_id+icomp-1) ) then
+                                n_face_mask(icomp, vef_lid) = .true. 
+                                ! Retreive the scalar functions corresponding to the components of the function to be projected
+                                call this%conditions%get_function(vef%get_set_id(),                 &
+                                                                  component_id+icomp-1,             &
+                                                                  function_scalar_components(icomp, vef_lid)%p)
+                             end if
+                          end do
+                       end if
                     end if
                  end if
               end do

@@ -144,6 +144,7 @@ module fe_space_names
     procedure                                  :: get_field_coupling                           => base_fe_space_get_field_coupling
     procedure, non_overridable                 :: get_total_num_dofs                           => base_fe_space_get_total_num_dofs
     procedure, non_overridable                 :: get_field_num_dofs                           => base_fe_space_get_field_num_dofs
+    procedure, non_overridable                 :: get_field_num_owned_dofs                     => base_fe_space_get_field_num_owned_dofs 
     procedure, non_overridable                 :: set_field_num_dofs                           => base_fe_space_set_field_num_dofs
     procedure                                  :: get_block_num_dofs                           => base_fe_space_get_block_num_dofs
     procedure, non_overridable                 :: get_total_num_interior_dofs                  => base_fe_space_get_total_num_interior_dofs

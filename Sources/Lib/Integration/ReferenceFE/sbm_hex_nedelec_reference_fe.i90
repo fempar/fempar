@@ -1158,3 +1158,31 @@ function hex_nedelec_reference_fe_get_h_refinement_subcell_perm ( this )
   integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subcell_perm(:,:,:)
   hex_nedelec_reference_fe_get_h_refinement_subcell_perm => this%h_refinement_subcell_permutation
 end function hex_nedelec_reference_fe_get_h_refinement_subcell_perm
+
+!==================================================================================================
+subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
+                                                                          subcell_id,             &
+                                                                          nodal_values_on_parent, & 
+                                                                          nodal_values_on_child )
+  implicit none 
+  class(hex_nedelec_reference_fe_t)        , intent(in)    :: this              
+  integer(ip)                              , intent(in)    :: subcell_id
+  real(rp)                                 , intent(in)    :: nodal_values_on_parent(:)
+  real(rp)                                 , intent(inout) :: nodal_values_on_child(:)
+  integer(ip)           :: num_refinements
+  integer(ip)           :: icomp, ishape_fe, ishape_coarser_fe, qpoint
+  real(rp)              :: coefficient
+  type(node_array_t)    :: h_refinement_node_array
+  type(node_iterator_t) :: node_iterator_on_subcell
+    
+  nodal_values_on_child = 0.0_rp
+  do ishape_fe = 1, this%get_num_shape_functions()
+     qpoint    = ishape_fe + subcell_id*this%get_num_shape_functions()
+     do ishape_coarser_fe = 1, this%get_num_shape_functions()
+        call this%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
+        nodal_values_on_child(ishape_fe) = nodal_values_on_child(ishape_fe) + &
+                                           coefficient * nodal_values_on_parent(ishape_coarser_fe)
+     end do
+  end do
+  
+end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
