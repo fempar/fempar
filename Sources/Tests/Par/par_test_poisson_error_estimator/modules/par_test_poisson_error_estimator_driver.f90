@@ -203,6 +203,7 @@ contains
     istat = this%parameter_list%set(key = coarse_space_use_edges_key, value = .true.) ; check(istat==0)
     istat = this%parameter_list%set(key = coarse_space_use_faces_key, value = .true.) ; check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
+    call this%coarse_fe_handler%create(this%parameter_list)
   end subroutine setup_coarse_fe_handlers
   
   subroutine setup_fe_space(this)
@@ -548,6 +549,9 @@ contains
       check(istat==0)
     end if
     if ( allocated(this%coarse_fe_handlers) ) then
+      do i=1, size(this%coarse_fe_handlers)
+        call this%coarse_fe_handlers(i)%p%free()
+      end do
       deallocate(this%coarse_fe_handlers, stat=istat)
       check(istat==0)
     end if
