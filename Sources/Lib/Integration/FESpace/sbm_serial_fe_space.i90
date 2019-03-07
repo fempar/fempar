@@ -1632,7 +1632,6 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   reference_fe      => fe%get_reference_fe(field_id)
   quadrature        => fe_face%get_quadrature()  
   n_q_points        = quadrature%get_num_quadrature_points()
-  
   select case(reference_fe%get_field_type())
   case ( field_type_scalar )
      ! Curl-conforming projection does not make sense with scalar-valued fields

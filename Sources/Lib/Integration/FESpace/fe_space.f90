@@ -1114,7 +1114,6 @@ module fe_space_names
  
   type, abstract :: l1_coarse_fe_handler_t  
   private 
-   integer(ip)                             :: field_id
    type(parameterlist_t), pointer          :: parameter_list => NULL()
   contains
     procedure          :: set_parameter_list  => l1_coarse_fe_handler_set_parameter_list 
@@ -1249,6 +1248,7 @@ module fe_space_names
        
   type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
+    integer(ip)                             :: field_id
     ! Customization 
     logical                                 :: use_alternative_basis 
     logical                                 :: is_change_basis_computed 
