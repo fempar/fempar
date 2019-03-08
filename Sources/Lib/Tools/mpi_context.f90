@@ -130,6 +130,7 @@ module mpi_context_names
      procedure :: gather_to_masterv_igp_1D_array   => mpi_context_gather_to_masterv_igp_1D_array 
      procedure :: gather_to_masterv_rp_1D_array    => mpi_context_gather_to_masterv_rp_1D_array  
      procedure :: gather_to_masterv_rp_2D_array    => mpi_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_master_ip           => mpi_context_scatter_from_master_ip
      procedure :: scatter_from_masterv_rp_1D_array => mpi_context_scatter_from_masterv_rp_1D_array
   end type mpi_context_t
 
@@ -2627,6 +2628,19 @@ contains
     check( istat == mpi_success )
   end subroutine mpi_context_gather_to_masterv_rp_2D_array
 
+  !=============================================================================
+  subroutine mpi_context_scatter_from_master_ip ( this, input_data, output_data )
+    implicit none
+    class(mpi_context_t), intent(in)   :: this
+    integer(ip)         , intent(in)   :: input_data(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(out)  :: output_data
+    integer  :: istat, master
+    master = this%get_num_tasks() - 1 
+    call mpi_scatter( input_data, 1, mpi_context_ip, output_data, 1, mpi_context_ip, master, this%icontxt, istat)
+    check( istat == mpi_success )
+  end subroutine mpi_context_scatter_from_master_ip
+
+  
   !=============================================================================
   subroutine mpi_context_scatter_from_masterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
     implicit none

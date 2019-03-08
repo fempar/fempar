@@ -162,8 +162,10 @@ module execution_context_names
           &                          gather_to_masterv_rp_1D_array, &
           &                          gather_to_masterv_rp_2D_array
 
+     procedure (execution_context_scatter_from_master_ip), deferred :: scatter_from_master_ip
      procedure (execution_context_scatter_from_masterv_rp_1D_array), deferred :: scatter_from_masterv_rp_1D_array                                  
-     generic   :: scatter_from_master => scatter_from_masterv_rp_1D_array
+     generic   :: scatter_from_master => scatter_from_master_ip, &
+                                         scatter_from_masterv_rp_1D_array
 
   end type execution_context_t
 
@@ -812,7 +814,16 @@ module execution_context_names
        integer(ip)             , intent(in)   :: displs(:) ! (this%num_tasks)
        real(rp)                , intent(out)  :: output_data(:)
      end subroutine execution_context_gather_to_masterv_rp_2D_array
-
+     
+     !=============================================================================
+     subroutine execution_context_scatter_from_master_ip ( this, input_data, output_data )
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)   :: this
+       integer(ip)               , intent(in)   :: input_data(:)
+       integer(ip)               , intent(out)  :: output_data
+     end subroutine execution_context_scatter_from_master_ip
+     
      !=============================================================================
      subroutine execution_context_scatter_from_masterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
        import :: execution_context_t, ip, rp

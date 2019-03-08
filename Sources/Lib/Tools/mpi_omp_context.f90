@@ -179,6 +179,7 @@ module mpi_omp_context_names
      procedure :: gather_to_masterv_igp_1D_array   => mpi_omp_context_gather_to_masterv_igp_1D_array 
      procedure :: gather_to_masterv_rp_1D_array    => mpi_omp_context_gather_to_masterv_rp_1D_array  
      procedure :: gather_to_masterv_rp_2D_array    => mpi_omp_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_master_ip           => mpi_omp_context_scatter_from_master_ip
      procedure :: scatter_from_masterv_rp_1D_array => mpi_omp_context_scatter_from_masterv_rp_1D_array
   end type mpi_omp_context_t
 
@@ -2476,6 +2477,24 @@ contains
   !        & output_data, recv_counts, displs, mpi_omp_context_rp, master, this%icontxt, istat)
   !   check( istat == mpi_success )
   ! end subroutine mpi_omp_context_gather_to_masterv_rp_2D_array
+  
+ !=============================================================================
+  subroutine mpi_omp_context_scatter_from_master_ip ( this, input_data, output_data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)   :: this
+    integer(ip)             , intent(in)   :: input_data(:) ! (this%get_num_tasks())
+    integer(ip)             , intent(out)  :: output_data
+    integer  :: istat, master_rank
+    !$OMP BARRIER
+    master_rank   = (this%get_num_tasks() - 1)/this%max_num_threads
+    assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
+    if( (this%current_rank/=master_rank.and.this%current_thread==this%root_thread).or.this%current_rank==master_rank) then
+       call mpi_scatter( input_data , this%max_num_threads, mpi_omp_context_ip, &
+            &           output_data, this%max_num_threads, mpi_omp_context_ip, &
+            &           master_rank, this%icontxt, istat)
+       check( istat == mpi_success )
+    end if
+  end subroutine mpi_omp_context_scatter_from_master_ip
 
   !=============================================================================
   subroutine mpi_omp_context_scatter_from_masterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )

@@ -158,8 +158,10 @@ module environment_names
           environment_l2_from_l1_gatherv_rp_1D_array, &
           environment_l2_from_l1_gatherv_rp_2D_array
 
+     procedure, private :: environment_l2_to_l1_scatter_ip
      procedure, private :: environment_l2_to_l1_scatterv_rp_1D_array                                  
-     generic   :: l2_to_l1_scatter => environment_l2_to_l1_scatterv_rp_1D_array
+     generic   :: l2_to_l1_scatter => environment_l2_to_l1_scatter_ip, &
+                                      environment_l2_to_l1_scatterv_rp_1D_array
 
 
      procedure, private :: environment_l1_to_l2_transfer_ip
@@ -1204,7 +1206,17 @@ contains
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%gather_to_master(input_data, recv_counts, displs, output_data )
   end subroutine environment_l2_from_l1_gatherv_rp_2D_array
-
+  
+  !=============================================================================
+  subroutine environment_l2_to_l1_scatter_ip ( this,  input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(ip)            , intent(in)   :: input_data(:) ! ( this%l1_to_l2_context%get_num_tasks())
+    integer(ip)            , intent(out)  :: output_data 
+    assert( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%scatter_from_master (input_data, output_data )
+  end subroutine environment_l2_to_l1_scatter_ip
+  
   !=============================================================================
   subroutine environment_l2_to_l1_scatterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
     implicit none
@@ -1217,6 +1229,7 @@ contains
     assert( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
   end subroutine environment_l2_to_l1_scatterv_rp_1D_array
+  
  !=============================================================================
   function environment_get_w_context ( this ) result(w_context)
     implicit none 
