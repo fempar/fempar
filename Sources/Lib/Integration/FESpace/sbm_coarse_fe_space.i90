@@ -73,7 +73,6 @@ subroutine coarse_fe_space_create (this, &
      call this%compute_blocks_dof_import(lst_dofs_gids_ghost_extended)
      call this%renum_dofs_first_interior_then_interface()
      call this%setup_coarse_dofs()
-     
      call memfree (lst_dofs_gids_ghost_extended, __FILE__, __LINE__)
      call memfree (lst_vefs_gids_dofs_objects_ghost_extended,  __FILE__, __LINE__)
   else
@@ -565,7 +564,6 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
      base_pointer = 1
      i = field_id
      do while ( .not. coarse_fe%has_finished() )
-
        ! Re-init to zero work array only on those positions we are interested in
        do ivef=1, coarse_fe%get_num_vefs()
           num_assigned_dofs_x_vef(coarse_fe%get_vef_gid(ivef)) = 0

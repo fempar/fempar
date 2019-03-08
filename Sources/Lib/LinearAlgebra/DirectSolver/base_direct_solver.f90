@@ -78,7 +78,12 @@ module base_direct_solver_names
   ! Numeric             | update_matrix + same_nonzero_pattern  | Numeric          ! Re-assigns matrix pointer + activates numerical_setup_pending 
   ! Numeric             | update_matrix + !same_nonzero_pattern | Start            ! Re-assigns matrix pointer + performs free_symbolic()  
 
-  
+    ! A relative tolerance used in evaluate_precision TBPs of base_direct_solver_t
+    ! In particular, we consider the solution provided by the direct solver to be
+    ! "acceptable" if ||b-Ax*||_inf / ||x*||_inf < evaluate_precision_required_precision.
+    ! Obviously, this is only checked in DEBUG mode.
+    real(rp), parameter :: evaluate_precision_required_precision = 1.0e-10_rp
+    public :: evaluate_precision_required_precision
 
     type, abstract :: base_direct_solver_t
     private
@@ -108,6 +113,8 @@ module base_direct_solver_names
         procedure, non_overridable, public :: numerical_setup              => base_direct_solver_numerical_setup
         procedure, non_overridable         :: solve_single_rhs             => base_direct_solver_solve_single_rhs
         procedure, non_overridable         :: solve_several_rhs            => base_direct_solver_solve_several_rhs
+        procedure                          :: evaluate_precision_single_rhs  => base_direct_solver_evaluate_precision_single_rhs 
+        procedure                          :: evaluate_precision_several_rhs => base_direct_solver_evaluate_precision_several_rhs 
         procedure, non_overridable, public :: reset                        => base_direct_solver_reset
         procedure, non_overridable, public :: set_name                     => base_direct_solver_set_name
         procedure, non_overridable, public :: set_matrix                   => base_direct_solver_set_matrix
@@ -133,6 +140,7 @@ module base_direct_solver_names
         procedure, non_overridable, public :: get_Mflops                   => base_direct_solver_get_Mflops
         procedure, non_overridable, public :: log_info                     => base_direct_solver_log_info
         generic,                    public :: solve                        => solve_single_rhs, solve_several_rhs
+        generic,                    public :: evaluate_precision           => evaluate_precision_single_rhs, evaluate_precision_several_rhs
     end type
 
     abstract interface
@@ -234,7 +242,7 @@ contains
         call x%CleanTemp()
         ! post-conditions
     end subroutine base_direct_solver_solve_single_rhs
-
+    
     subroutine base_direct_solver_solve_several_rhs(op, x, y)
         class(base_direct_solver_t),  intent(inout) :: op
         real(rp),                     intent(inout) :: x(:, :)
@@ -244,6 +252,73 @@ contains
         call op%solve_several_rhs_body(x, y)
         ! post-conditions
     end subroutine base_direct_solver_solve_several_rhs
+
+    subroutine base_direct_solver_evaluate_precision_single_rhs(this, x, y)
+      class(base_direct_solver_t),  intent(inout) :: this
+      type(serial_scalar_array_t), intent(in)     :: x
+      type(serial_scalar_array_t), intent(in)     :: y
+
+      type(sparse_matrix_t),  pointer :: matrix
+      type(serial_scalar_array_t)     :: r
+      real(rp),               pointer :: r_real(:)
+      real(rp),               pointer :: x_real(:)
+      real(rp)                        :: err
+      character(len=10)               :: serr
+      matrix => this%get_matrix()
+      call r%clone(x)
+      call r%scal(-1.0,x)
+      call matrix%apply_add(y,r)
+      r_real => r%get_entries()
+      x_real => x%get_entries()
+      err = 0.0
+      if (maxval(abs(x_real))>0) then
+         err = maxval(abs(r_real))/maxval(abs(x_real))
+      end if
+      write(serr,'(e10.3)') err
+      wassert( maxval(abs(r_real))<=evaluate_precision_required_precision*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+      call r%free()
+    end subroutine base_direct_solver_evaluate_precision_single_rhs
+ 
+    subroutine base_direct_solver_evaluate_precision_several_rhs(this, x, y)
+      class(base_direct_solver_t),  intent(inout) :: this
+      real(rp),                     intent(in)    :: x(:, :)
+      real(rp),                     intent(in)    :: y(:, :)
+
+      type(sparse_matrix_t),  pointer                :: matrix
+      type(serial_scalar_array_t)     :: xarr
+      type(serial_scalar_array_t)     :: yarr
+      type(serial_scalar_array_t)     :: rarr
+      real(rp),               pointer :: x_real(:)
+      real(rp),               pointer :: y_real(:)
+      real(rp),               pointer :: r_real(:)
+      integer(ip)                     :: nrhs
+      integer(ip)                     :: i
+      real(rp)                        :: err
+      character(len=10)               :: serr
+
+      nrhs = size(x,2)
+      call xarr%create_and_allocate(size(x,1))
+      call yarr%clone(xarr)
+      call rarr%clone(xarr)
+      x_real =>xarr%get_entries()
+      y_real =>yarr%get_entries()
+      r_real =>rarr%get_entries()
+      do i =1,nrhs
+         x_real(:) = x(:,i)
+         y_real(:) = y(:,i)
+         call rarr%scal(-1.0,xarr)
+         call matrix%apply_add(yarr,rarr)
+         err = 0.0
+         if (maxval(abs(x_real))>0) then
+            err = maxval(abs(r_real))/maxval(abs(x_real))
+         end if
+         write(serr,'(e10.3)') err
+         wassert( maxval(abs(r_real))<=evaluate_precision_required_precision*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+      end do
+      call xarr%free()
+      call yarr%free()
+      call rarr%free()
+    end subroutine base_direct_solver_evaluate_precision_several_rhs
 
     subroutine  base_direct_solver_free_clean(this)
         class(base_direct_solver_t), intent(inout) :: this

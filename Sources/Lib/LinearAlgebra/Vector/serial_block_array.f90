@@ -74,6 +74,7 @@ module serial_block_array_names
      procedure :: insert_subvector  => serial_block_array_insert_subvector
      procedure :: entrywise_product => serial_block_array_entrywise_product
      procedure :: entrywise_invert  => serial_block_array_entrywise_invert
+     procedure :: nullify_non_owned_dofs => serial_block_array_nullify_non_owned_dofs
   end type serial_block_array_t
   
   ! Types
@@ -495,5 +496,13 @@ contains
       call op1%blocks(ib)%entrywise_invert()
     end do
   end subroutine serial_block_array_entrywise_invert
+  
+  subroutine serial_block_array_nullify_non_owned_dofs(this)
+    implicit none
+    class(serial_block_array_t), intent(inout) :: this
+    integer(ip) :: ib
+    massert( this%state == blocks_container_created, 'sba_entrywise_invert: op blocks are not created' )
+    ! Do-nothing, all dofs are owned in a serial array 
+  end subroutine serial_block_array_nullify_non_owned_dofs
   
 end module serial_block_array_names

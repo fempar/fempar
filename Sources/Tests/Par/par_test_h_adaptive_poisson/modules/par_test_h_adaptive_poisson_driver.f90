@@ -413,6 +413,7 @@ end subroutine free_timers
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
+    call this%coarse_fe_handler%create(this%parameter_list) 
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
   end subroutine setup_coarse_fe_handlers
 
@@ -755,6 +756,7 @@ end subroutine free_timers
       deallocate(this%reference_fes, stat=istat)
       check(istat==0)
     end if
+    call this%coarse_fe_handler%free()
     if ( allocated(this%coarse_fe_handlers) ) then
       deallocate(this%coarse_fe_handlers, stat=istat)
       check(istat==0)

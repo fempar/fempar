@@ -51,6 +51,7 @@ module vector_names
      procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
      procedure (entrywise_product_interface), deferred :: entrywise_product
      procedure (entrywise_invert_interface), deferred :: entrywise_invert
+     procedure (nullify_non_owned_dofs), deferred     :: nullify_non_owned_dofs 
      
      procedure :: mold 
      procedure :: sum_vector
@@ -196,6 +197,12 @@ module vector_names
        implicit none
        class(vector_t), intent(inout) :: op1
      end subroutine entrywise_invert_interface
+     ! Set to 0.0 all DOF values for DOFs that are not owned by my part 
+     subroutine nullify_non_owned_dofs(this)
+       import :: vector_t
+       implicit none
+       class(vector_t), intent(inout) :: this
+     end subroutine nullify_non_owned_dofs
   end interface
 
   public :: vector_t
@@ -218,7 +225,7 @@ contains
       allocate(vector, mold=this, stat=istat); check(istat==0);
     end if
   end subroutine mold
-				 
+
   ! res <- op1 + op2
   function sum_vector(op1,op2) result (res)
     implicit none

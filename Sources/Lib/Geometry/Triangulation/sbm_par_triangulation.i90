@@ -402,3 +402,16 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_gids ( this, lst_vefs_li
   call next_vef_lid_avail%free()
 
 end subroutine par_triangulation_allocate_and_fill_lst_vefs_gids
+
+function par_triangulation_generate_non_consecutive_vef_ggid (cell_ggid, ivef_within_cell) result(vef_ggid)
+  implicit none
+  integer(igp), intent(in) :: cell_ggid
+  integer(ip) , intent(in) :: ivef_within_cell
+  integer(igp)             :: vef_ggid
+  assert ( cell_ggid_shift >= 1  )
+  assert ( vefs_x_reference_fe_shift >= 1  )
+  assert ( cell_ggid < ISHFT(int(1,igp),int(cell_ggid_shift,igp) ) ) 
+  assert ( ivef_within_cell < ISHFT(int(1,igp),int(vefs_x_reference_fe_shift,igp) ) )
+  vef_ggid = (cell_ggid-1) + &
+            ISHFT(int(ivef_within_cell-1,igp),int(cell_ggid_shift,igp))
+end function par_triangulation_generate_non_consecutive_vef_ggid

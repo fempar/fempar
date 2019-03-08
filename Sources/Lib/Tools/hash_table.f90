@@ -45,15 +45,15 @@ use types_names
   integer(ip), parameter :: nod_size = 20
 
   ! Public constants
-  integer(ip), parameter :: was_stored     = 1
-  integer(ip), parameter :: now_stored     = 2
-  integer(ip), parameter :: bad_keyval     = 3 ! A given key already stored with a different value
-  integer(ip), parameter :: key_found      = 4
-  integer(ip), parameter :: key_not_found  = 5
-  integer(ip), parameter :: deleted        = 6
-  integer(ip), parameter :: child_not_found          = 10
-  integer(ip), parameter :: new_index      = 11
-  integer(ip), parameter :: old_index      = 12
+  integer(ip), parameter :: was_stored      = 1
+  integer(ip), parameter :: now_stored      = 2
+  integer(ip), parameter :: bad_keyval      = 3 ! A given key already stored with a different value
+  integer(ip), parameter :: key_found       = 4
+  integer(ip), parameter :: key_not_found   = 5
+  integer(ip), parameter :: deleted         = 6
+  integer(ip), parameter :: child_not_found = 10
+  integer(ip), parameter :: new_index       = 11
+  integer(ip), parameter :: old_index       = 12
 
   ! Public status
   character(13), parameter :: stat(7)=(/'was_stored   ',&  

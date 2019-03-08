@@ -56,7 +56,7 @@ private
                    output_handler_patch_field_t, &
                    point_t
          implicit none          
-         class(output_handler_field_generator_t), intent(in)    :: this
+         class(output_handler_field_generator_t), intent(inout) :: this
          type(output_handler_fe_cell_function_t), intent(in)    :: oh_cell_fe_function
          type(point_t)                          , intent(in)    :: visualization_points_coordinates(:)
          type(output_handler_patch_field_t)     , intent(inout) :: patch_field

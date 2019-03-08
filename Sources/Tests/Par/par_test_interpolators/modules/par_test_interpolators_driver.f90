@@ -202,6 +202,7 @@ contains
     integer(ip)                                   , intent(in)    :: test_case
     integer(ip) :: istat, i 
     call this%free_coarse_fe_handlers()
+    call this%coarse_fe_handler%create(this%parameter_list) 
     if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS) then
       allocate(this%coarse_fe_handlers(2), stat=istat); check(istat==0)
       do i=1,2
@@ -218,6 +219,7 @@ contains
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
     integer(ip) :: istat, i 
+    !call this%coarse_fe_handler%free() 
     if ( allocated(this%coarse_fe_handlers) ) then 
       deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0)
     end if

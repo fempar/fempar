@@ -1318,6 +1318,7 @@ function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity( this, fie
   end do
   pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity = result
   call this%free_fe_cell_iterator(fe) 
+  call this%free_fe_vef_iterator(vef) 
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
 end function pfs_compute_ubound_boundary_num_itfc_couplings_by_continuity
 
@@ -1467,6 +1468,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
      call vef%next()
   end do
   call this%free_fe_cell_iterator(fe) 
+  call this%free_fe_vef_iterator(vef) 
   deallocate(fe_dofs, stat=istat ) 
   check (istat==0)
   
@@ -3819,8 +3821,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
   
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
-  
-  
+    
      assert ( associated(this%conditions) )
      call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
 
@@ -3857,24 +3858,29 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
                                             num_subset_strong_dirichlet_dofs, &
                                             global2subset_dirichlet_dofs, &
                                             dof_import)
+     end if  
   
      ! Create linear system 
      call matrix%create(environment, &
                         dof_import, &
-                        symmetric_storage=.false.,       &
-                        is_symmetric=.false.,            &
-                        sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+                        symmetric_storage=.true.,       &
+                        is_symmetric=.true.,            &
+                        sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE)
 
      call rhs%create_and_allocate(environment, dof_import) 
      call rhs%init(0.0_rp)
 
-     ! Create data structures
      call projected_nodal_values%create_and_allocate(environment, dof_import)
- 
+     call projected_nodal_values%init(0.0_rp)
+
+     ! Create data structures
+     if ( environment%am_i_l1_task() ) then
+     
+     call this%create_fe_cell_iterator(fe)
      call this%create_fe_facet_iterator(fe_face)
-     call this%create_fe_cell_iterator(fe) 
+      
      do while ( .not. fe_face%has_finished() )
-        if ( fe_face%is_at_boundary() ) then
+        if ( fe_face%is_at_boundary() .and. fe_face%is_local() ) then
            if ( fe_face%get_set_id() /= 0 ) then
               call fe_face%update_integration() 
               call fe_face%get_cell_around(1,fe)
@@ -3920,6 +3926,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
                     end if
                  
                     reference_fe => fe%get_reference_fe(field_id)
+
                     call matrix%insert(num_rows = reference_fe%get_num_shape_functions(),& 
                                       num_cols = reference_fe%get_num_shape_functions(),& 
                                       ia       = subset_fe_dofs, &
@@ -3939,12 +3946,16 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      end do
      call this%free_fe_cell_iterator(fe) 
      call this%free_fe_facet_iterator(fe_face)
+     ! Prepare arrays for the parallel iterative solver 
      call matrix%convert(csr_format)
+     call rhs%comm()
+     end if 
 
      call parameter_list%init()
      FPLError = parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
      FPLError = FPLError + parameter_list%set(key = ils_output_frequency_key, value = 30)
      assert(FPLError == 0)
+
      call iterative_linear_solver%create(this%get_environment())
      call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_parameters_from_pl(parameter_list)
@@ -3953,6 +3964,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      call iterative_linear_solver%free()
      call parameter_list%free()
      
+  if ( environment%am_i_l1_task() ) then
      projected_nodal_values_serial_scalar_array => projected_nodal_values%get_serial_scalar_array()
      
      ! Insert projected nodal values into strong_dirichlet_values array
@@ -3961,9 +3973,13 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
                                                    size_indices=num_subset_strong_dirichlet_dofs, &
                                                    indices=subset2global_dirichlet_dofs,             &
                                                    values=projected_nodal_values_serial_scalar_array%get_entries())
+     end if
+
      call matrix%free()
      call rhs%free()
      call projected_nodal_values%free()
+
+  if ( environment%am_i_l1_task() ) then
      call dof_import%free()
      call memfree (elmat, __FILE__, __LINE__)
      call memfree (elvec, __FILE__, __LINE__)
@@ -3979,6 +3995,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      call memfree ( subset_fe_dofs, __FILE__, __LINE__ )
      deallocate(fe_dofs, stat=istat ); check (istat==0)
   end if
+
 end subroutine par_fe_space_project_dirichlet_values_curl_conforming 
 
  subroutine par_fe_space_setup_coarse_dofs ( this, parameter_list )
@@ -4015,7 +4032,7 @@ end subroutine par_fe_space_project_dirichlet_values_curl_conforming
   sum_max_num_coarse_dofs = 0
   max_max_num_coarse_dofs = 0
   do field_id=1, this%num_fields
-    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, parameter_list, num_coarse_dofs_x_field(:,field_id))
+    call this%coarse_fe_handlers(field_id)%p%get_num_coarse_dofs(field_id, this, num_coarse_dofs_x_field(:,field_id))
     this%ptr_coarse_dofs_x_field(field_id+1) = this%ptr_coarse_dofs_x_field(field_id)
     do i=1, this%get_num_fe_objects()
       this%ptr_coarse_dofs_x_field(field_id+1) = this%ptr_coarse_dofs_x_field(field_id+1) + &

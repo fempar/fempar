@@ -102,14 +102,13 @@ subroutine tet_nedelec_reference_fe_fill_qpoints_permutations (this, quadrature,
   ndime      = quadrature%get_num_dims()
   n_q_points = quadrature%get_num_quadrature_points()
 
-
   call qpoints_perm%create(n_q_points, &    ! Number of quadrature points
        &                ndime*2**ndime)  ! Number of possible permutations x possible rotations
   forall (i = 1:qpoints_perm%nd1) qpoints_perm%a(i,:) = i
 
 end subroutine tet_nedelec_reference_fe_fill_qpoints_permutations
 
-!==================================================================================================
+!=================================================================================================
 subroutine tet_nedelec_reference_fe_fill (this)
   implicit none
   class(tet_nedelec_reference_fe_t), intent(inout) :: this
@@ -127,6 +126,7 @@ subroutine tet_nedelec_reference_fe_fill (this)
   ! Now we assign an order vector equal to the order of the element for quadratures set up 
   this%order_vector = this%order
 end subroutine tet_nedelec_reference_fe_fill
+
 !**************************************************************************************************
 ! Deferred TBP implementors from nedelec_reference_fe_t
 !**************************************************************************************************
@@ -396,7 +396,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 end subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
+subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
   integer(ip)                             , intent(in)    :: local_edge_id
@@ -427,10 +427,9 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
   call this%fill_interpolation( aux_quadrature, edget_interpolation ) 
   call aux_quadrature%free()
 
-end subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
+end subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_edget
 
 !==================================================================================================
-
 subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local_quadrature, & 
      & facet_lid, subfacet_lid, facet_interpolation )
   implicit none
@@ -695,6 +694,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
            facet_area = 0.5_rp*facet_map%get_det_jacobian(qpoint) 
            ! Each scalar test function is endowed with vector field type  
            ! through v_scalar_shape_test * tangent vectors to the face 
+
            do direction=1,2
               c = (direction-1)*interpolation_2D%num_shape_functions
               call facet_map%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
@@ -842,8 +842,8 @@ end subroutine tet_nedelec_reference_fe_change_basis
 
 !==================================================================================================
 function tet_nedelec_reference_fe_compute_permutation_index(source_reference_fe, target_reference_fe,          &
-     &                                                         source_n_face_id, target_n_face_id,         &
-     &                                                         source_n_faces, target_n_faces)
+     &                                          source_n_face_id, target_n_face_id,         &
+     &                                          source_n_faces, target_n_faces)
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)  :: source_reference_fe
   class(reference_fe_t)               , intent(in)  :: target_reference_fe

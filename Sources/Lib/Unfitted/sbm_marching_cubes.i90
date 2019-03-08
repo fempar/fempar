@@ -27,34 +27,31 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs(this, field_id, par_fe_space, num_coarse_dofs)
   implicit none
   class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                        , intent(in)    :: field_id
   type(par_fe_space_t)               , intent(in)    :: par_fe_space
-  type(parameterlist_t)              , intent(in)    :: parameter_list
   integer(ip)                        , intent(inout) :: num_coarse_dofs(:)
   mcheck(.false.,'This function should never have been called!')
 end subroutine mc_dummy_coarse_fe_handler_get_num_coarse_dofs
 
 !========================================================================================
-subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix) 
   implicit none
   class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                        , intent(in)    :: field_id
   type(par_fe_space_t)               , intent(in)    :: par_fe_space
-  type(parameterlist_t)              , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)          , intent(inout) :: constraint_matrix
   mcheck(.false.,'This function should never have been called!')
 end subroutine mc_dummy_coarse_fe_handler_setup_constraint_matrix
 
 !========================================================================================
-subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
   implicit none
   class(mc_dummy_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                        , intent(in)    :: field_id
   type(par_fe_space_t)               , intent(in)    :: par_fe_space
-  type(parameterlist_t)              , intent(in)    :: parameter_list
   real(rp), allocatable              , intent(inout) :: weighting_operator(:)
   mcheck(.false.,'This function should never have been called!')
 end subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator

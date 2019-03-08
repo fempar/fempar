@@ -45,6 +45,7 @@ module fe_space_names
   use reference_fe_names
   use field_names
   use function_names
+  use function_library_names
   
   use block_layout_names
   use vector_names
@@ -78,7 +79,7 @@ module fe_space_names
   use par_sparse_matrix_names
   use par_scalar_array_names
   use par_sparse_assembler_names
-  
+      
   implicit none
 # include "debug.i90"
   
@@ -403,7 +404,7 @@ module fe_space_names
     generic :: apply_constraints => apply_constraints_array,       &
                                     apply_constraints_matrix,      &
                                     apply_constraints_matrix_array
-				
+    
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_scalar
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_vector
     generic :: evaluate_laplacian_fe_function => fe_cell_iterator_evaluate_laplacian_fe_function_scalar, &
@@ -934,8 +935,8 @@ module fe_space_names
     procedure, non_overridable, private  :: fe_object_iterator_get_fe_vef
     generic                              :: get_vef                               => fe_object_iterator_get_fe_vef 
     procedure, non_overridable, private  :: get_face                              => fe_object_iterator_get_fe_face
-    procedure, non_overridable           :: get_num_facets                         => fe_object_iterator_get_num_facets
-    procedure, non_overridable           :: get_num_coarse_dofs                => fe_object_iterator_get_num_coarse_dofs
+    procedure, non_overridable           :: get_num_facets                        => fe_object_iterator_get_num_facets
+    procedure, non_overridable           :: get_num_coarse_dofs                   => fe_object_iterator_get_num_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator       => fe_object_iterator_create_own_coarse_dofs_iterator
     procedure, non_overridable           :: create_faces_object_iterator          => fe_object_iterator_create_faces_object_iterator
   end type fe_object_iterator_t
@@ -1108,59 +1109,115 @@ module fe_space_names
    
    end type par_fe_space_t
  
- public :: par_fe_space_t
- public :: fe_object_iterator_t
+  public :: par_fe_space_t
+  public :: fe_object_iterator_t
  
-  type, abstract :: l1_coarse_fe_handler_t
+  type, abstract :: l1_coarse_fe_handler_t  
+  private 
+   type(parameterlist_t), pointer          :: parameter_list => NULL()
   contains
+    procedure          :: set_parameter_list  => l1_coarse_fe_handler_set_parameter_list 
+    procedure          :: get_parameter_list  => l1_coarse_fe_handler_get_parameter_list 
+    procedure          :: l1_coarse_fe_handler_create 
+    generic            :: create              => l1_coarse_fe_handler_create
     ! Deferred methods
-    procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
-    procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
-    procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
+    procedure (l1_free)                                      , deferred :: free 
+    procedure (l1_get_num_coarse_dofs_interface)             , deferred :: get_num_coarse_dofs
+    procedure (l1_setup_constraint_matrix)                   , deferred :: setup_constraint_matrix
+    procedure (l1_setup_weighting_operator)                  , deferred :: setup_weighting_operator
+    procedure (l1_apply_inverse_local_change_basis)          , deferred :: apply_inverse_local_change_basis 
+    procedure (l1_apply_global_change_basis)                 , deferred :: apply_global_change_basis
+    procedure (l1_apply_global_change_basis_transpose)       , deferred :: apply_global_change_basis_transpose
+    procedure (l1_apply_inverse_local_change_basis_transpose), deferred :: apply_inverse_local_change_basis_transpose
   end type l1_coarse_fe_handler_t
  
-  abstract interface
+  abstract interface 
+     ! In H(curl) conforming spaces a specific change of basis is needed in the 3D case. 
+     ! In all other cases this subroutine will have no impact 
+     subroutine l1_free( this ) 
+       import :: l1_coarse_fe_handler_t
+       class(l1_coarse_fe_handler_t), intent(inout) :: this
+     end subroutine l1_free
+
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
     ! interface
-    subroutine l1_get_num_coarse_dofs_interface(this, field_id, par_fe_space, parameter_list, num_coarse_dofs) 
+    subroutine l1_get_num_coarse_dofs_interface(this, field_id, par_fe_space, num_coarse_dofs) 
       import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, ip
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)         , intent(in)    :: par_fe_space 
-      type(parameterlist_t)        , intent(in)    :: parameter_list
       integer(ip)                  , intent(inout) :: num_coarse_dofs(:)
     end subroutine l1_get_num_coarse_dofs_interface
    
-    subroutine l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, coo_sparse_matrix_t, ip
+    subroutine l1_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, coo_sparse_matrix_t, ip
       class(l1_coarse_fe_handler_t), intent(in)    :: this
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
-      type(parameterlist_t)        , intent(in)    :: parameter_list
       type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
     end subroutine l1_setup_constraint_matrix
   
-    subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
-      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, rp, ip
+    subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, rp, ip
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
-      integer(ip)                  , intent(in)    :: field_id
+      integer(ip)                   , intent(in)     :: field_id
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
-      type(parameterlist_t)         , intent(in)    :: parameter_list
       real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
+ 
+    subroutine l1_apply_inverse_local_change_basis(this, field_id, par_fe_space, x_old_local, x_new_local) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, serial_scalar_array_t
+      class(l1_coarse_fe_handler_t)    , intent(in)    :: this
+      integer(ip)                      , intent(in)    :: field_id
+      type(par_fe_space_t)             , intent(in)    :: par_fe_space
+      type(serial_scalar_array_t)      , intent(in)    :: x_old_local
+      type(serial_scalar_array_t)      , intent(inout) :: x_new_local
+    end subroutine l1_apply_inverse_local_change_basis
+    
+    subroutine l1_apply_global_change_basis(this, field_id, par_fe_space, x_new, x_old) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, par_scalar_array_t
+      class(l1_coarse_fe_handler_t)         , intent(inout) :: this
+      integer(ip)                           , intent(in)    :: field_id
+      type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+      type(par_scalar_array_t)              , intent(in)    :: x_new
+      type(par_scalar_array_t)              , intent(inout) :: x_old
+    end subroutine l1_apply_global_change_basis
+    
+    subroutine l1_apply_global_change_basis_transpose(this, field_id, par_fe_space, x_old, x_new) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, par_scalar_array_t
+      class(l1_coarse_fe_handler_t) , intent(in)    :: this
+      integer(ip)                   , intent(in)    :: field_id
+      type(par_fe_space_t)          , intent(in)    :: par_fe_space
+      type(par_scalar_array_t)      , intent(inout) :: x_old
+      type(par_scalar_array_t)      , intent(inout) :: x_new
+    end subroutine l1_apply_global_change_basis_transpose
+    
+    subroutine l1_apply_inverse_local_change_basis_transpose(this, field_id, par_fe_space, x_new_local, x_old_local) 
+      import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, serial_scalar_array_t
+      class(l1_coarse_fe_handler_t)    , intent(in)    :: this
+      integer(ip)                      , intent(in)    :: field_id
+      type(par_fe_space_t)             , intent(in)    :: par_fe_space
+      type(serial_scalar_array_t)      , intent(in)    :: x_new_local
+      type(serial_scalar_array_t)      , intent(inout) :: x_old_local
+    end subroutine l1_apply_inverse_local_change_basis_transpose
+    
   end interface
 
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
-    private
-  contains
-    procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
-    procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
-    procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
-    procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
+  contains   
+   procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
+   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
+   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
+   procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
+   procedure             :: apply_inverse_local_change_basis          => standard_l1_apply_inverse_local_change_basis
+   procedure             :: apply_global_change_basis                 => standard_l1_apply_global_change_basis
+   procedure             :: apply_global_change_basis_transpose       => standard_l1_apply_global_change_basis_transpose
+   procedure             :: apply_inverse_local_change_basis_transpose=> standard_l1_apply_inverse_local_change_basis_transpose
+   procedure             :: free                                      => standard_l1_free 
   end type standard_l1_coarse_fe_handler_t
   
-    type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_coarse_fe_handler_t
+  type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_coarse_fe_handler_t
     private
   contains
     procedure             :: setup_weighting_operator                  => h_adaptive_algebraic_l1_setup_weighting_operator
@@ -1168,7 +1225,7 @@ module fe_space_names
     procedure             :: setup_constraint_matrix                   => h_adaptive_algebraic_l1_setup_constraint_matrix
   end type h_adaptive_algebraic_l1_coarse_fe_handler_t
   
-     type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t
+  type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t
     private
     integer(ip)              :: num_dims 
     integer(ip), allocatable :: dof_gid_to_cdof_id_in_object(:) 
@@ -1188,7 +1245,85 @@ module fe_space_names
     procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
     procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
   end type H1_l1_coarse_fe_handler_t
+       
+  type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
+    private 
+    integer(ip)                             :: field_id
+    ! Customization 
+    logical                                 :: use_alternative_basis 
+    logical                                 :: is_change_basis_computed 
+    logical                                 :: arithmetic_average
+    real(rp), allocatable                   :: mass_coeff(:)
+    real(rp), allocatable                   :: curl_curl_coeff(:) 
+    type(par_sparse_matrix_t), pointer      :: matrix => NULL() 
+    integer(ip)                             :: num_interior_dofs
+    integer(ip)                             :: num_total_dofs 
+    ! DoF old-new basis correspondence 
+    type(hash_table_ip_ip_t)                :: g2l_fes
+    integer(ip), allocatable                :: fe_dofs_new_basis(:,:)
+    integer(ip), allocatable                :: edge_average_dof_id(:)
+    ! Subedge partitions 
+    type(hash_table_ip_ip_t)                :: fine_edge_direction
+    type(list_t)                            :: subedges_x_coarse_edge 
+    type(list_t)                            :: sorted_fine_edges_in_coarse_subedge
+    ! Change of basis 
+    type(sparse_matrix_t)                   :: change_basis_matrix
+    type(direct_solver_t)                   :: direct_solver
+    type(direct_solver_t)                   :: transpose_direct_solver
+  contains
+    ! Overriding procedures 
+    procedure                           :: free                                          => Hcurl_l1_free
+    procedure                           :: Hcurl_l1_create
+    generic                             :: create                                        => Hcurl_l1_create
+    procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
+    procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
+    procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator 
+    procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
+    ! Counting & Splitting coarse edges procedures
+    procedure, non_overridable, private :: compute_subedges_info                         => Hcurl_l1_compute_subedges_info
+    procedure, non_overridable, private :: count_coarse_edges_and_owned_fine_edges       => Hcurl_l1_count_coarse_edges_and_owned_fine_edges
+    procedure, non_overridable, private :: fill_coarse_subedges_and_owned_fine_edges     => Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
+    procedure, non_overridable, private :: fill_edges_lists                              => Hcurl_l1_fill_edges_lists
+    ! Fill change of basis operator  
+    procedure, non_overridable, private :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix
+    procedure, non_overridable, private :: setup_direct_solvers                          => Hcurl_l1_setup_direct_solvers
+    procedure, non_overridable, private :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
+    procedure, non_overridable, private :: fill_interface_discrete_gradient_part         => Hcurl_l1_fill_interface_discrete_gradient_part
+    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
+    ! Change of basis application 
+    procedure                           :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
+    procedure                           :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
+    procedure                           :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
+    procedure                           :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
+  end type  Hcurl_l1_coarse_fe_handler_t
+    
+  ! Node type 
+  integer(ip), parameter :: num_node_types     = 2
+  integer(ip), parameter :: edge_boundary_node = 1
+  integer(ip), parameter :: interior_node      = 2
+  ! Fine edge direction related to coarse edge direction 
+  integer(ip), parameter :: opposite_to_coarse_edge = 0
+  integer(ip), parameter :: same_as_coarse_edge     = 1  
+  ! Coarse Edges enforced Continuity algorithm 
+  character(len=*), parameter :: bddc_edge_continuity_algorithm_key        = 'bddc_edge_continuity_algorithm'
+  character(len=*), parameter :: tangential_average                        = 'tangential_average'
+  character(len=*), parameter :: tangential_average_and_first_order_moment = 'tangential_average_and_first_order_moment'
+  character(len=*), parameter :: all_dofs_in_coarse_edges                  = 'all_dofs_in_coarse_edges'
+  ! BDDC Scaling function 
+  character(len=*), parameter :: bddc_scaling_function_case_key = 'bddc_scaling_function_case'
+  character(len=*), parameter :: average_mass_coeff_key         = 'average_mass_coeff' 
+  character(len=*), parameter :: average_curl_curl_coeff_key    = 'average_curl_curl_coeff'
+  character(len=*), parameter :: cardinality           = 'cardinality'
+  character(len=*), parameter :: curl_curl_coeff       = 'curl_curl_coeff' 
+  character(len=*), parameter :: mass_coeff            = 'mass_coeff' 
+  character(len=*), parameter :: stiffness             = 'stiffness'
+  character(len=*), parameter :: weighted_coefficients = 'weighted_coefficients'
   
+  public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
+  public :: bddc_scaling_function_case_key, average_mass_coeff_key, average_curl_curl_coeff_key
+  public :: cardinality, curl_curl_coeff, mass_coeff, stiffness, weighted_coefficients 
+  public :: Hcurl_l1_coarse_fe_handler_t
+
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
     private
     real(rp), public :: diffusion_inclusion = 1.0_rp
@@ -1263,7 +1398,7 @@ module fe_space_names
     ! Own methods of coarse_fe_object_iterator_t
     procedure, non_overridable, private  :: coarse_fe_object_iterator_get_fe_vef
     generic                              :: get_vef                                  => coarse_fe_object_iterator_get_fe_vef 
-    procedure, non_overridable           :: get_num_coarse_dofs                   => coarse_fe_object_iterator_get_num_coarse_dofs
+    procedure, non_overridable           :: get_num_coarse_dofs                      => coarse_fe_object_iterator_get_num_coarse_dofs
     procedure, non_overridable           :: create_own_coarse_dofs_iterator          => coarse_fe_object_iterator_create_own_coarse_dofs_iterator
   end type coarse_fe_object_iterator_t
     
@@ -1558,6 +1693,8 @@ private
 type(edge_map_t)  , allocatable  :: edge_maps(:) 
 type(facet_map_t) , allocatable  :: facet_maps(:) 
 type(cell_map_t)  , allocatable  :: cell_maps(:) 
+class(cell_map_edget_restriction_t), allocatable :: cell_maps_edget_restriction(:)
+class(cell_map_facet_restriction_t), allocatable :: cell_maps_facet_restriction(:)
 ! Quadratures 
 type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
 type(quadrature_t)  , allocatable  :: facet_quadratures(:) 
@@ -1575,10 +1712,32 @@ real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
 real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
 contains   
 procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
-procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
-procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
-generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
+procedure(interpolator_evaluate_discrete_gradient_interface) , deferred :: evaluate_discrete_gradient 
+procedure(interpolator_evaluate_edge_unit_tangent_moments_interface), deferred :: evaluate_edge_unit_tangent_moments
 end type Hcurl_interpolator_t 
+
+abstract interface 
+
+  subroutine interpolator_evaluate_discrete_gradient_interface( this, n_face_mask, fe, lagrangian_fe, elmat )
+    import :: Hcurl_interpolator_t, fe_cell_iterator_t, lagrangian_reference_fe_t, rp
+    implicit none 
+    class(Hcurl_interpolator_t)     , intent(inout) :: this
+    logical                         , intent(in)    :: n_face_mask(:,:) 
+    class(fe_cell_iterator_t)       , intent(in)    :: fe
+    class(lagrangian_reference_fe_t), intent(in)    :: lagrangian_fe 
+    real(rp) , allocatable          , intent(inout) :: elmat(:,:)
+  end subroutine interpolator_evaluate_discrete_gradient_interface
+  
+  subroutine interpolator_evaluate_edge_unit_tangent_moments_interface( this, mask, fe, dof_values )
+    import :: Hcurl_interpolator_t, fe_cell_iterator_t, rp
+    implicit none 
+    class(Hcurl_interpolator_t)     , intent(inout) :: this
+    logical                         , intent(in)    :: mask(:) 
+    class(fe_cell_iterator_t)       , intent(in)    :: fe
+    real(rp) , allocatable          , intent(inout) :: dof_values(:)
+  end subroutine interpolator_evaluate_edge_unit_tangent_moments_interface
+    
+end interface 
 
 type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
 private       
@@ -1591,6 +1750,8 @@ procedure :: create                                             => hex_Hcurl_int
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_tensor_function_moments                   => hex_Hcurl_interpolator_evaluate_tensor_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: evaluate_discrete_gradient                         => hex_Hcurl_interpolator_evaluate_discrete_gradient 
+procedure :: evaluate_edge_unit_tangent_moments                 => hex_Hcurl_interpolator_evaluate_edge_unit_tangent_moments
 procedure :: free                                               => hex_Hcurl_interpolator_free
 end type hex_Hcurl_interpolator_t
 
@@ -1604,6 +1765,8 @@ procedure :: create                                             => tet_Hcurl_int
 procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_tensor_function_moments                   => tet_Hcurl_interpolator_evaluate_tensor_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: evaluate_discrete_gradient                         => tet_Hcurl_interpolator_evaluate_discrete_gradient
+procedure :: evaluate_edge_unit_tangent_moments                 => tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
 
@@ -1665,10 +1828,12 @@ contains
 #include "sbm_par_fe_space.i90"
 #include "sbm_base_fe_object_iterator.i90"
 #include "sbm_fe_object_iterator.i90"
+#include "sbm_l1_coarse_fe_handler.i90" 
 #include "sbm_standard_coarse_fe_handler.i90"
 #include "sbm_h_adaptive_algebraic_coarse_fe_handler.i90"
 #include "sbm_h_adaptive_algebraic_Hcurl_coarse_fe_handler.i90"
 #include "sbm_H1_coarse_fe_handler.i90"
+#include "sbm_Hcurl_coarse_fe_handler.i90"
 #include "sbm_vector_laplacian_coarse_fe_handler.i90"
 #include "sbm_elasticity_coarse_fe_handler.i90"
 

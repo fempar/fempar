@@ -232,6 +232,7 @@ module reference_fe_names
      logical                  :: det_jacobian_positiveness
    contains
      procedure, non_overridable :: create                            => cell_map_create
+     procedure, non_overridable :: restricted_to_edget               => cell_map_restricted_to_edget
      procedure, non_overridable :: restricted_to_facet               => cell_map_restricted_to_facet
      procedure                  :: free                              => cell_map_free
      procedure, non_overridable :: update                            => cell_map_update
@@ -244,6 +245,7 @@ module reference_fe_names
      procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
      procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
      procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
+     procedure, non_overridable :: apply_transposed_inv_jacobian     => cell_map_apply_transposed_inv_jacobian
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
      procedure, non_overridable :: get_last_visited_cell_lev         => cell_map_get_last_visited_cell_lev
   end type cell_map_t
@@ -265,6 +267,7 @@ module reference_fe_names
      procedure, non_overridable :: get_normal        => facet_map_get_normal
      procedure, non_overridable :: get_normals       => facet_map_get_normals
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
+     procedure, non_overridable :: update_coordinates => facet_map_update_coordinates 
   end type facet_map_t
   
   interface assignment(=)
@@ -282,6 +285,7 @@ module reference_fe_names
      procedure, non_overridable :: update       => edge_map_update
      procedure                  :: free         => edge_map_free
      procedure, non_overridable :: get_tangent  => edge_map_get_tangent
+     procedure, non_overridable :: update_coordinates => edge_map_update_coordinates 
   end type edge_map_t
   
   type p_cell_map_t
@@ -296,7 +300,22 @@ module reference_fe_names
   public :: no_ressemblance, is_only_translated, is_scaled_and_translated
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+   type cell_map_edget_restriction_t
+     private
+     integer(ip)                 :: num_edgets = 0
+     integer(ip)                 :: current_edget_lid
+     type(cell_map_t), allocatable :: cell_map(:)
+   contains
+     procedure, non_overridable :: create               => cell_map_edget_restriction_create
+     procedure, non_overridable :: update               => cell_map_edget_restriction_update
+     procedure, non_overridable :: free                 => cell_map_edget_restriction_free
+     procedure, non_overridable :: copy                 => cell_map_edget_restriction_copy
+     procedure, non_overridable :: get_coordinates      => cell_map_edget_restriction_get_coordinates
+     procedure, non_overridable :: get_current_cell_map => cell_map_edget_restriction_get_current_cell_map 
+  end type cell_map_edget_restriction_t
+  
+  public :: cell_map_edget_restriction_t
+  
   type cell_map_facet_restriction_t
      private
      integer(ip)                   :: num_facets = 0
@@ -465,10 +484,12 @@ module reference_fe_names
      ! TBP to create a quadrature for a reference_fe_t
      procedure(create_quadrature_interface)             , deferred :: create_quadrature
      procedure(create_facet_quadrature_interface)        , deferred :: create_facet_quadrature
+     procedure(create_edge_quadrature_interface)        , deferred :: create_edge_quadrature 
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
      procedure(create_interpolation_restricted_to_facet_interface), deferred :: create_interpolation_restricted_to_facet
+     procedure(create_interpolation_restricted_to_edget_interface), deferred :: create_interpolation_restricted_to_edget
      procedure(create_facet_interpolation_interface)    , deferred :: create_facet_interpolation
      procedure(create_edget_interpolation_interface)    , deferred :: create_edget_interpolation
      procedure(assign_cell_map_duties_interface)        , deferred :: assign_cell_map_duties
@@ -586,7 +607,7 @@ module reference_fe_names
      !procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
      !procedure :: get_num_vertices_x_edge => reference_fe_get_num_vertices_x_edge
      !procedure :: get_num_vertices_x_face => reference_fe_get_num_vertices_x_face
-     !procedure :: get_num_edgets => reference_fe_get_num_edgets
+     procedure :: get_num_edgets => reference_fe_get_num_edgets
      !procedure :: get_first_edge_id => reference_fe_get_first_edge_id
      procedure :: get_num_facets => reference_fe_get_num_facets
      procedure :: get_first_facet_id => reference_fe_get_first_facet_id
@@ -610,16 +631,13 @@ module reference_fe_names
      procedure :: get_num_own_dofs_n_face => reference_fe_get_num_own_dofs_n_face
      procedure :: create_own_dofs_on_n_face_iterator => reference_fe_create_own_dofs_on_n_face_iterator
      procedure :: translate_dof_lid_n_face_to_dof_lid_cell => rfe_translate_dof_lid_n_face_to_dof_lid_cell
-
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
 
      procedure :: compute_permutation_index     => reference_fe_compute_permutation_index
      procedure :: permute_dof_LID_n_face        => reference_fe_permute_dof_LID_n_face
      procedure :: get_normal_orientation_factor => reference_fe_get_normal_orientation_factor
-     
      procedure :: get_num_subfacets => reference_fe_get_num_subfacets
-     
      procedure :: get_h_refinement_interpolation => reference_fe_get_h_refinement_interpolation 
      procedure :: get_h_refinement_subedge_permutation => reference_fe_get_h_refinement_subedge_permutation 
      procedure :: get_h_refinement_subfacet_permutation => reference_fe_get_h_refinement_subfacet_permutation 
@@ -660,6 +678,14 @@ module reference_fe_names
        type(quadrature_t)   , intent(inout) :: quadrature
        integer(ip), optional, intent(in)    :: degree
      end subroutine create_facet_quadrature_interface
+     
+     subroutine create_edge_quadrature_interface ( this, quadrature, degree  )
+       import :: reference_fe_t, quadrature_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(quadrature_t)   , intent(inout) :: quadrature
+       integer(ip), optional, intent(in)    :: degree
+     end subroutine create_edge_quadrature_interface
 
      subroutine create_interpolation_interface ( this, quadrature, interpolation, interpolation_duties )
        import :: reference_fe_t, quadrature_t, interpolation_t, interpolation_duties_t
@@ -680,6 +706,16 @@ module reference_fe_names
        type(quadrature_t)   , intent(in)    :: local_quadrature
        type(interpolation_t), intent(inout) :: facet_interpolation
      end subroutine create_interpolation_restricted_to_facet_interface
+     
+     subroutine create_interpolation_restricted_to_edget_interface ( this, edget_lid, &
+                                                      local_quadrature, edget_interpolation )
+       import :: reference_fe_t, ip, quadrature_t, interpolation_t
+       implicit none 
+       class(reference_fe_t), intent(in)    :: this
+       integer(ip)          , intent(in)    :: edget_lid
+       type(quadrature_t)   , intent(in)    :: local_quadrature
+       type(interpolation_t), intent(inout) :: edget_interpolation
+     end subroutine create_interpolation_restricted_to_edget_interface
 
      subroutine create_facet_interpolation_interface ( this, quadrature, facet_interpolation)
        import :: reference_fe_t, ip, quadrature_t, interpolation_t
@@ -1126,7 +1162,8 @@ contains
   procedure (fill_nodal_quadrature_interface)       , private, deferred :: fill_nodal_quadrature
   procedure (change_basis_interface)                , private, deferred :: change_basis
   procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
-  procedure (fill_interp_restricted_to_facet_interface)     , private, deferred :: fill_interp_restricted_to_facet
+  procedure (fill_interp_restricted_to_facet_interface) , private, deferred :: fill_interp_restricted_to_facet
+  procedure (fill_interp_restricted_to_edget_interface) , private, deferred :: fill_interp_restricted_to_edget
   procedure (compute_num_quadrature_points_interface), private, deferred :: compute_num_quadrature_points
   ! Blending function to generate interpolations in the interior (given values on the boundary)
   procedure(blending_interface), deferred :: blending
@@ -1135,8 +1172,10 @@ contains
   procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
   procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
   procedure :: create_facet_quadrature    => lagrangian_reference_fe_create_facet_quadrature
+  procedure :: create_edge_quadrature     => lagrangian_reference_fe_create_edge_quadrature
   procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
   procedure :: create_interpolation_restricted_to_facet => lrfe_create_interpolation_restricted_to_facet
+  procedure :: create_interpolation_restricted_to_edget => lrfe_create_interpolation_restricted_to_edget 
   procedure :: create_facet_interpolation  => lagrangian_reference_fe_create_facet_interpolation
   procedure :: create_edget_interpolation  => lagrangian_reference_fe_create_edget_interpolation
   procedure :: assign_cell_map_duties      => lagrangian_reference_fe_assign_cell_map_duties
@@ -1264,7 +1303,19 @@ abstract interface
     integer(ip)                     , intent(in)    :: subfacet_lid
     type(interpolation_t)           , intent(inout) :: facet_interpolation
   end subroutine fill_interp_restricted_to_facet_interface
-
+  
+    subroutine fill_interp_restricted_to_edget_interface ( this,             &
+                                                          local_edge_id,    &
+                                                          local_quadrature, &
+                                                          edget_interpolation )
+    import :: lagrangian_reference_fe_t, interpolation_t, quadrature_t, ip
+    implicit none 
+    class(lagrangian_reference_fe_t), intent(in)    :: this
+    integer(ip)                     , intent(in)    :: local_edge_id 
+    type(quadrature_t)              , intent(in)    :: local_quadrature
+    type(interpolation_t)           , intent(inout) :: edget_interpolation
+  end subroutine fill_interp_restricted_to_edget_interface
+  
   function compute_num_quadrature_points_interface ( this, degree, dimension )
     import :: lagrangian_reference_fe_t, ip, SPACE_DIM
     implicit none 
@@ -1313,6 +1364,7 @@ procedure :: get_curl_vector                  => raviart_thomas_get_curl_vector
 procedure :: get_curls_vector                  => raviart_thomas_get_curls_vector
 procedure :: create_interpolation             => raviart_thomas_create_interpolation
 procedure :: create_interpolation_restricted_to_facet        => rt_create_interpolation_restricted_to_facet
+procedure :: create_interpolation_restricted_to_edget        => rt_create_interpolation_restricted_to_edget
 procedure :: evaluate_fe_function_scalar          &
     & => raviart_thomas_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -1331,6 +1383,8 @@ procedure, private :: apply_change_basis_matrix_to_interpolation &
     & => rt_apply_change_basis_matrix_to_interpolation 
 procedure          :: apply_change_basis_matrix_to_nodal_values &
     & => rt_apply_change_basis_matrix_to_nodal_values
+procedure, private :: fill_interp_restricted_to_edget & 
+    & => rt_fill_interp_restricted_to_edget 
 end type raviart_thomas_reference_fe_t 
 
 public :: raviart_thomas_reference_fe_t  
@@ -1343,7 +1397,7 @@ type(node_array_t)    :: node_array_vector(SPACE_DIM)
 real(rp), allocatable :: inverse_change_basis_matrix_h_refinement(:,:) 
 contains
 
-procedure (fill_interpolation_restricted_to_edget_interface), private, deferred :: fill_interpolation_restricted_to_edget
+! procedure (fill_interpolation_restricted_to_edget_interface), private, deferred :: fill_interpolation_restricted_to_edget
 
 procedure :: create                          => nedelec_create
 procedure :: free                            => nedelec_free
@@ -1367,10 +1421,9 @@ procedure :: get_curl_vector                 => nedelec_get_curl_vector
 procedure :: get_curls_vector                => nedelec_get_curls_vector
 procedure :: create_interpolation            => nedelec_create_interpolation
 procedure :: create_interpolation_restricted_to_facet       => nedelec_create_interpolation_restricted_to_facet
-procedure :: create_interpolation_restricted_to_edget       => nedelec_create_interpolation_restricted_to_edget
+procedure :: create_interpolation_restricted_to_edget       => nedelec_create_interpolation_restricted_to_edget 
 procedure :: create_facet_interpolation      => nedelec_create_facet_interpolation
 procedure :: create_edget_interpolation      => nedelec_create_edget_interpolation
-procedure :: create_edge_quadrature          => nedelec_create_edge_quadrature
 procedure :: assign_cell_map_duties          => nedelec_assign_cell_map_duties
 procedure :: evaluate_fe_function_scalar          &
     & => nedelec_evaluate_fe_function_scalar
@@ -1394,21 +1447,21 @@ procedure :: interpolate_nodal_values_on_subcell &
     & => nedelec_reference_fe_interpolate_nodal_values_on_subcell
 end type nedelec_reference_fe_t 
 
-abstract interface
-  
-  subroutine fill_interpolation_restricted_to_edget_interface ( this, & 
-                                               local_edge_id, & 
-                                               local_quadrature, & 
-                                               edget_interpolation )
-    import :: nedelec_reference_fe_t, ip, quadrature_t, interpolation_t
-    implicit none 
-    class(nedelec_reference_fe_t), intent(in)    :: this 
-    integer(ip)                  , intent(in)    :: local_edge_id
-    type(quadrature_t)           , intent(in)    :: local_quadrature
-    type(interpolation_t)        , intent(inout) :: edget_interpolation
-  end subroutine fill_interpolation_restricted_to_edget_interface
-  
-end interface 
+!abstract interface
+
+!  subroutine fill_interpolation_restricted_to_edget_interface ( this, & 
+!                                               local_edge_id, & 
+!                                               local_quadrature, & 
+!                                               edget_interpolation )
+!    import :: nedelec_reference_fe_t, ip, quadrature_t, interpolation_t
+!    implicit none 
+!    class(nedelec_reference_fe_t), intent(in)    :: this 
+!    integer(ip)                  , intent(in)    :: local_edge_id
+!    type(quadrature_t)           , intent(in)    :: local_quadrature
+!    type(interpolation_t)        , intent(inout) :: edget_interpolation
+!  end subroutine fill_interpolation_restricted_to_edget_interface
+
+!end interface 
 
 public :: nedelec_reference_fe_t
 
@@ -1452,6 +1505,8 @@ contains
              &  => tlrf_scalar_to_multicomp_coarsening_projection_operator
    procedure, private :: fill_interp_restricted_to_facet                                &
              &  => tet_lagrangian_reference_fe_fill_interp_restricted_to_facet
+   procedure, private :: fill_interp_restricted_to_edget              &
+             & => tet_lagrangian_reference_fe_fill_interp_restricted_to_edget
    procedure, private :: compute_num_quadrature_points                                   &
              &  => tet_lagrangian_reference_fe_compute_num_quadrature_points
    procedure, private :: get_node_local_id                                              &
@@ -1476,7 +1531,7 @@ contains
    procedure, private :: change_basis                                                   &
              & => tet_lagrangian_reference_fe_change_basis
    procedure, private :: apply_change_basis_matrix_to_interpolation                     &
-             & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation 
+             & => tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
    procedure :: compute_permutation_index                                               &
              & => tet_lagrangian_reference_fe_compute_permutation_index
    procedure :: permute_dof_LID_n_face                                                  &
@@ -1556,8 +1611,10 @@ procedure, private :: fill_interpolation                                 &
 & => hex_lagrangian_reference_fe_fill_interpolation
 procedure :: fill_interpolation_pre_basis                                &
 & => hex_lagrangian_reference_fe_fill_interpolation
-procedure, private :: fill_interp_restricted_to_facet                            &
+procedure, private :: fill_interp_restricted_to_facet                    &
 & => hex_lagrangian_reference_fe_fill_interp_restricted_to_facet
+procedure, private :: fill_interp_restricted_to_edget                    &
+& => hex_lagrangian_reference_fe_fill_interp_restricted_to_edget
 ! Concrete TBPs of this derived data type
 procedure, private :: fill_h_refinement_interpolation                    &
 & => hex_lagrangian_reference_fe_fill_h_refinement_interpolation
@@ -1706,8 +1763,8 @@ procedure :: fill_interpolation_pre_basis                       &
 & => hex_nedelec_reference_fe_fill_interpolation_pre_basis
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => hex_nedelec_reference_fe_fill_interp_restricted_to_facet
-procedure, private :: fill_interpolation_restricted_to_edget                            &
-& => hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget
+procedure, private :: fill_interp_restricted_to_edget                            &
+& => hex_nedelec_reference_fe_fill_interp_restricted_to_edget
 procedure, private :: compute_num_quadrature_points                       &
 & => hex_nedelec_reference_fe_compute_num_quadrature_points
 procedure, private :: change_basis &
@@ -1766,8 +1823,8 @@ procedure :: fill_interpolation_pre_basis                       &
 & => tet_nedelec_reference_fe_fill_interpolation_pre_basis   
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => tet_nedelec_reference_fe_fill_interp_restricted_to_facet
-procedure, private :: fill_interpolation_restricted_to_edget              &
-& => tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
+procedure, private :: fill_interp_restricted_to_edget              &
+& => tet_nedelec_reference_fe_fill_interp_restricted_to_edget
 procedure, private :: compute_num_quadrature_points                   &
 &  => tet_nedelec_reference_fe_compute_num_quadrature_points
 procedure, private :: change_basis                                       &
@@ -1787,8 +1844,10 @@ contains
   procedure :: create                      => void_reference_fe_create
   procedure :: create_quadrature           => void_reference_fe_create_quadrature
   procedure :: create_facet_quadrature      => void_reference_fe_create_facet_quadrature
+  procedure :: create_edge_quadrature      => void_reference_fe_create_edge_quadrature 
   procedure :: create_interpolation        => void_reference_fe_create_interpolation
   procedure :: create_interpolation_restricted_to_facet   => void_reference_fe_create_interpolation_restricted_to_facet
+  procedure :: create_interpolation_restricted_to_edget   => void_reference_fe_create_interpolation_restricted_to_edget
   procedure :: create_facet_interpolation  => void_reference_fe_create_facet_interpolation
   procedure :: create_edget_interpolation  => void_reference_fe_create_edget_interpolation
   procedure :: assign_cell_map_duties      => void_reference_fe_assign_cell_map_duties
@@ -1841,7 +1900,6 @@ public :: void_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type cell_integrator_t 
-
 private
 integer(ip)                    :: last_visited_cell_lev = -1
 integer(ip)                    :: num_shape_functions
@@ -2126,6 +2184,8 @@ contains
 #include "sbm_edge_map.i90"
 
 #include "sbm_cell_integrator.i90"
+
+#include "sbm_edget_integrator.i90" 
 
 #include "sbm_facet_integrator.i90"
 

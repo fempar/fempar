@@ -304,6 +304,8 @@ end subroutine free_timers
     implicit none
     class(par_test_nsi_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat, field_id
+    call this%coarse_fe_handler_u%create(this%parameter_list)
+    call this%coarse_fe_handler_p%create(this%parameter_list)
     allocate(this%coarse_fe_handlers(this%par_nsi_integration%get_number_fields()), stat=istat); check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler_u
     this%coarse_fe_handlers(2)%p => this%coarse_fe_handler_p
@@ -509,6 +511,8 @@ end subroutine free_timers
       deallocate(this%reference_fes, stat=istat)
       mcheck(istat==0,'Error deallocating')
     end if
+    call this%coarse_fe_handler_u%free() 
+    call this%coarse_fe_handler_p%free()
     if (allocated(this%coarse_fe_handlers)) then
       deallocate(this%coarse_fe_handlers, stat=istat)
       mcheck(istat==0,'Error deallocating')

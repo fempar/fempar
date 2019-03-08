@@ -385,7 +385,7 @@ subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local
 end subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_facet
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
+subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
   implicit none
   class(hex_nedelec_reference_fe_t)       , intent(in)    :: this
   integer(ip)                             , intent(in)    :: local_edge_id
@@ -412,8 +412,9 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
   end do
   call this%fill_interpolation( aux_quadrature, edget_interpolation ) 
   call aux_quadrature%free()
-end subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget
+end subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_edget
 
+!==================================================================================================
 subroutine hex_nedelec_reference_fe_change_basis(this) 
   implicit none
   class(hex_nedelec_reference_fe_t), intent(inout) ::  this
@@ -542,8 +543,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
           quadrature    = edge_quadrature ) 
 
      call this%create_interpolation_restricted_to_edget (edge_id - d_fe_geo%get_first_n_face_id_of_dim(1)+1, &
-          edge_quadrature, &
-          edget_interpolation )
+                                                         edge_quadrature, &
+                                                         edget_interpolation )
 
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%num_quadrature_points
@@ -559,7 +560,6 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                    + shape_test * v_shape_trial * tangent * factor
               this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) & 
                    + shape_test * v_shape_trial * tangent * h_factor
-
            end do
         end do
      end do

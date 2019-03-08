@@ -234,6 +234,14 @@ function reference_fe_get_num_vertices ( this )
        &                             this%ptr_n_faces_x_dim(1)
 end function reference_fe_get_num_vertices
 
+function reference_fe_get_num_edgets ( this )
+  implicit none
+  class(reference_fe_t), intent(in) :: this
+  integer(ip) :: reference_fe_get_num_edgets
+  reference_fe_get_num_edgets = this%ptr_n_faces_x_dim(this%num_dims) -          &
+       &                        this%ptr_n_faces_x_dim(this%num_dims-1)
+end function reference_fe_get_num_edgets
+
 function reference_fe_get_num_facets ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
@@ -432,6 +440,10 @@ function reference_fe_get_nodal_quadrature ( this )
   assert(.false.)
 end function reference_fe_get_nodal_quadrature
 
+!==================================================================================================
+! Given a permutation index for a pair of elements K1 (source) and K2 (target) that share a vef, a reference fe in which one has the 
+! permutations table, the LID-in-vef of a node in cell K1, and the LID of the face in K1, it returns 
+! the LID-in-cell of the node wrt K2
 
 !==================================================================================================
 function reference_fe_compute_permutation_index(source_reference_fe, target_reference_fe,          &

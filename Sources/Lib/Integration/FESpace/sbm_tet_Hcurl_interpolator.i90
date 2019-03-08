@@ -48,6 +48,8 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
   allocate ( this%edge_maps(num_reference_fes), stat=istat); check(istat==0)
   allocate ( this%facet_maps(num_reference_fes), stat=istat); check(istat==0)
   allocate ( this%cell_maps(num_reference_fes), stat=istat); check(istat==0)
+  allocate ( this%cell_maps_edget_restriction(num_reference_fes), stat=istat); check(istat==0)
+  allocate ( this%cell_maps_facet_restriction(num_reference_fes), stat=istat); check(istat==0)
   ! Quadratures with possible variable degree
   allocate ( this%edge_quadratures(num_reference_fes), stat=istat); check(istat==0)
   allocate ( this%facet_quadratures(num_reference_fes), stat=istat); check(istat==0)
@@ -77,6 +79,7 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
         call reference_fe%create_edge_quadrature( this%edge_quadratures(reference_fe_id) )
 
         call this%edge_maps(reference_fe_id)%create( this%edge_quadratures(reference_fe_id), fe%get_reference_fe_geo() )
+        call this%cell_maps_edget_restriction(reference_fe_id)%create( this%edge_quadratures(reference_fe_id), fe%get_reference_fe_geo() )
         call this%fes_1D(reference_fe_id)%create_interpolation( this%edge_quadratures(reference_fe_id), this%edge_interpolations(reference_fe_id) )
         if (.not. allocated(this%edge_function_values) ) then 
            allocate (this%edge_function_values(this%edge_quadratures(reference_fe_id)%get_num_quadrature_points(),1), stat=istat); check(istat==0)
@@ -88,14 +91,15 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
         if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then 
            ! Create a 2D Lagrangian reference FE of order k-1
            call this%fes_2D(reference_fe_id)%create(topology   = reference_fe%get_topology(),  &
-                num_dims   = 2,                            &
-                order      = reference_fe%get_order()-2,           &
-                field_type = field_type_scalar,            &
-                conformity = .true. )
+                                                    num_dims   = 2,                            &
+                                                    order      = reference_fe%get_order()-2,   &
+                                                    field_type = field_type_scalar,            &
+                                                    conformity = .true. )
 
            call reference_fe%create_facet_quadrature( this%facet_quadratures(reference_fe_id) )
            call this%fes_2D(reference_fe_id)%create_interpolation( this%facet_quadratures(reference_fe_id), this%facet_interpolations(reference_fe_id) )
            call this%facet_maps(reference_fe_id)%create( this%facet_quadratures(reference_fe_id), fe%get_reference_fe_geo() )
+           call this%cell_maps_facet_restriction(reference_fe_id)%create( this%facet_quadratures(reference_fe_id), fe%get_reference_fe_geo() ) 
            if (.not. allocated(this%facet_function_values) ) then 
               allocate (this%facet_function_values(this%facet_quadratures(reference_fe_id)%get_num_quadrature_points(),1), stat=istat); check(istat==0)
            end if
@@ -118,10 +122,10 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
 
            ! Create a D-DIM Lagrangian reference FE of order k-D
            call this%fes_lagrangian(reference_fe_id)%create(topology          = reference_fe%get_topology(), &
-                num_dims          = reference_fe%get_num_dims(),                           &
-                order             = reference_fe%get_order()-reference_fe%get_num_dims(),  &
-                field_type        = field_type_vector,                                     &
-                conformity        = .true. )
+                                                            num_dims          = reference_fe%get_num_dims(),                           &
+                                                            order             = reference_fe%get_order()-reference_fe%get_num_dims(),  &
+                                                            field_type        = field_type_vector,                                     &
+                                                            conformity        = .true. )
 
            call this%fes_lagrangian(reference_fe_id)%create_interpolation( this%cell_quadratures(reference_fe_id), this%cell_interpolations(reference_fe_id))
            if (.not. allocated(this%cell_function_values)) then 
@@ -186,7 +190,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
        reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
-     call this%update_map_coordinates( reference_fe, cell_coordinates, edge_id, this%edge_maps(reference_fe_id) )
+     call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
 
      call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
           reference_fe  = reference_fe,                                           &
@@ -216,7 +220,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      do facet_id = reference_fe%get_first_facet_id(), & 
           reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 
-        call this%update_map_coordinates( reference_fe, cell_coordinates, facet_id, this%facet_maps(reference_fe_id) ) 
+        call this%facet_maps(reference_fe_id)%update_coordinates( facet_id, reference_fe, cell_coordinates ) 
 
         facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
         call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
@@ -346,7 +350,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
         num_quad_points = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
         call this%reallocate_if_needed(num_quad_points , this%edge_function_values)
         call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_edge)
-        call this%update_map_coordinates( reference_fe, cell_coordinates, edge_id, this%edge_maps(reference_fe_id) )
+        call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
 
         call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
              reference_fe  = reference_fe,                                           &
@@ -389,7 +393,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
            num_quad_points =  this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
            call this%reallocate_if_needed(num_quad_points , this%facet_function_values)
            call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_facet)
-           call this%update_map_coordinates( reference_fe, cell_coordinates, facet_id, this%facet_maps(reference_fe_id) ) 
+           call this%facet_maps(reference_fe_id)%update_coordinates( facet_id, reference_fe, cell_coordinates ) 
 
            facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
            call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
@@ -428,6 +432,227 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   end if
 end subroutine tet_Hcurl_interpolator_evaluate_function_components_moments
 
+!==================================================================================================
+subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, fe, lagrangian_fe, elmat)
+  class(tet_Hcurl_interpolator_t) , intent(inout) :: this
+  logical                         , intent(in)    :: n_face_mask(:,:)  
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  class(lagrangian_reference_fe_t), intent(in)    :: lagrangian_fe 
+  real(rp) , allocatable          , intent(inout) :: elmat(:,:)
+
+  integer(ip)                         :: vef_lid 
+  type(list_iterator_t)               :: lagrangian_own_dofs
+  type(interpolation_t)               :: Lagrangian_interpolation_ref
+  type(interpolation_t)               :: Lagrangian_interpolation_phy 
+  type(vector_field_t)                :: grad_shape_trial 
+  ! Edge moments evaluation 
+  type(vector_field_t)                :: tangent
+  integer(ip)                         :: edge_id, edge_lid   
+  type(cell_map_t),          pointer  :: cell_map_restricted_to_edge
+  ! Faces moments evaluation
+  integer(ip)                         :: facet_id, facet_lid
+  type(vector_field_t)                :: col_jacobian
+  real(rp)                            :: facet_measure  
+  integer(ip)                         :: direction
+  type(cell_map_t),          pointer  :: cell_map_restricted_to_facet
+  ! Common integration 
+  class(reference_fe_t), pointer      :: reference_fe 
+  class(reference_fe_t), pointer      :: reference_fe_geo
+  type(point_t)           , pointer   :: aux_coordinates(:)
+  type(point_t)        , pointer      :: cell_coordinates(:) 
+  real(rp)                            :: shape_test, factor 
+  type(vector_field_t)                :: v_shape_test 
+  integer(ip)                         :: idime, ishape, idof, jshape, jdof 
+  integer(ip)                         :: qpoint, num_quad_points 
+  type(list_iterator_t)               :: own_dofs
+  integer(ip)                         :: reference_fe_id
+  integer(ip)                         :: fe_get_lev
+
+  reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
+  reference_fe     => fe%get_reference_fe( this%field_id ) 
+  reference_fe_geo => fe%get_reference_fe_geo() 
+  cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
+  call fe%get_nodes_coordinates( cell_coordinates ) 
+  fe_get_lev = fe%get_level()
+
+  elmat = 0.0_rp 
+  do vef_lid = 1, fe%get_num_vefs() 
+     lagrangian_own_dofs = lagrangian_fe%create_own_dofs_on_n_face_iterator(vef_lid)
+
+     do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
+          reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
+
+        if ( n_face_mask(edge_id, vef_lid) ) then  
+           num_quad_points = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
+           call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
+           edge_lid = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1
+           call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_lid,                             &
+                                                       reference_fe  = reference_fe,                         &
+                                                       quadrature    = this%edge_quadratures(reference_fe_id) )
+
+           call lagrangian_fe%create_interpolation_restricted_to_edget( edge_lid,                               & 
+                                                                        this%edge_quadratures(reference_fe_id), & 
+                                                                        lagrangian_interpolation_ref            )
+
+           ! Map of the cell Lagrangian shape functions evaluated on the edge quadrature  
+            aux_coordinates => this%cell_maps_edget_restriction(reference_fe_id)%get_coordinates(edge_lid)
+            call fe%get_nodes_coordinates(aux_coordinates)
+            call this%cell_maps_edget_restriction(reference_fe_id)%update( fe_get_lev, edge_lid, this%edge_quadratures(reference_fe_id), & 
+                                                                            no_ressemblance, 1.0_rp )
+            cell_map_restricted_to_edge => this%cell_maps_edget_restriction(reference_fe_id)%get_current_cell_map()
+           
+           call lagrangian_interpolation_phy%copy(lagrangian_interpolation_ref)
+           call lagrangian_fe%apply_cell_map( no_ressemblance,              & 
+                                              cell_map_restricted_to_edge,  &
+                                              lagrangian_interpolation_ref, &
+                                              lagrangian_interpolation_phy  )
+
+           ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
+           own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(edge_id)
+           do qpoint = 1, num_quad_points
+              factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
+              call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)        
+              call own_dofs%begin() 
+              do ishape = 1, this%fes_1D(reference_fe_id)%get_num_shape_functions() 
+                 idof = own_dofs%get_current() 
+                 call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
+                 call lagrangian_own_dofs%begin()
+                 do jshape = 1, lagrangian_own_dofs%get_size()
+                    jdof = lagrangian_own_dofs%get_current()
+                    call lagrangian_fe%get_gradient(lagrangian_interpolation_phy, jdof, qpoint, grad_shape_trial)
+                    elmat(idof,jdof) = elmat(idof,jdof) + grad_shape_trial * shape_test * tangent * factor
+                    call lagrangian_own_dofs%next() 
+                 end do
+                 call own_dofs%next() 
+              end do
+           end do
+        end if
+     end do
+
+     if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then
+
+        ! To apply mapping to test functions 
+        call this%cell_maps(reference_fe_id)%update( fe_get_lev, this%cell_quadratures(reference_fe_id), no_ressemblance )
+        
+        do facet_id = reference_fe%get_first_facet_id(), & 
+             reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+
+           if ( n_face_mask(facet_id, vef_lid) ) then  
+              num_quad_points =  this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
+              call this%facet_maps(reference_fe_id)%update_coordinates( facet_id, reference_fe, cell_coordinates ) 
+
+              facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
+              call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
+                   quadrature             = this%facet_quadratures(reference_fe_id) ) 
+
+              call lagrangian_fe%create_interpolation_restricted_to_facet(  facet_id-reference_fe%get_first_facet_id()+1, &
+                   -1,                                           &
+                   this%facet_quadratures(reference_fe_id),      &
+                   lagrangian_interpolation_ref                  )
+              
+            ! Cell map facet restriction 
+            aux_coordinates => this%cell_maps_facet_restriction(reference_fe_id)%get_coordinates(facet_lid, 0)
+            call fe%get_nodes_coordinates(aux_coordinates)
+            call this%cell_maps_facet_restriction(reference_fe_id)%update( fe_get_lev, facet_lid, 0, & 
+                                                                           this%facet_quadratures(reference_fe_id), no_ressemblance, 1.0_rp )
+            cell_map_restricted_to_facet => this%cell_maps_facet_restriction(reference_fe_id)%get_current_cell_map()
+           
+              call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
+              call lagrangian_fe%apply_cell_map( no_ressemblance,              & 
+                                                 cell_map_restricted_to_facet, &
+                                                 lagrangian_interpolation_ref, &
+                                                 lagrangian_interpolation_phy  )
+
+              facet_measure = this%facet_maps(reference_fe_id)%get_measure()  
+              ! Integrate face boundary moments 1/|Face| * int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+              do qpoint = 1, this%facet_quadratures(reference_fe_id)%num_quadrature_points
+                 factor = this%facet_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%facet_quadratures(reference_fe_id)%get_weight(qpoint)
+
+                 own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(facet_id)
+                 do direction = 1, this%fes_2D(reference_fe_id)%get_num_dims() 
+                    call this%facet_maps(reference_fe_id)%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
+                    do ishape=1, this%fes_2D(reference_fe_id)%get_num_shape_functions()
+                       idof = own_dofs%get_current() 
+                       call this%fes_2D(reference_fe_id)%get_value(this%facet_interpolations(reference_fe_id), ishape, qpoint, shape_test)   
+                       call lagrangian_own_dofs%begin()
+                       do jshape = 1, lagrangian_own_dofs%get_size()
+                          jdof = lagrangian_own_dofs%get_current() 
+                          call lagrangian_fe%get_gradient(lagrangian_interpolation_phy, jdof, qpoint, grad_shape_trial)
+                          elmat(idof,jdof) = elmat(idof,jdof) + 1.0_rp/facet_measure  * grad_shape_trial * shape_test * tangent * factor
+                          call lagrangian_own_dofs%next()
+                       end do
+                       call own_dofs%next() 
+                    end do
+                 end do
+
+              end do
+
+           end if
+        end do
+     end if
+  end do
+
+  call lagrangian_interpolation_ref%free() 
+  call lagrangian_interpolation_phy%free() 
+  
+end subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient
+
+! ================================================================================
+subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments( this, mask, fe, dof_values ) 
+  implicit none
+  class(tet_Hcurl_interpolator_t) , intent(inout) :: this
+  logical                         , intent(in)    :: mask(:) 
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+
+  ! Edge moments evaluation 
+  type(vector_field_t)                :: tangent 
+  integer(ip)                         :: edge_id  
+  ! Common integration 
+  class(reference_fe_t), pointer      :: reference_fe 
+  class(reference_fe_t), pointer      :: reference_fe_geo 
+  type(point_t)        , pointer      :: cell_coordinates(:)
+  real(rp)                            :: shape_test, factor 
+  integer(ip)                         :: idime, ishape
+  integer(ip)                         :: qpoint, num_quad_points 
+  integer(ip)                         :: reference_fe_id 
+  integer(ip)                         :: d 
+
+  reference_fe     => fe%get_reference_fe(this%field_id)
+  reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
+  reference_fe_geo => fe%get_reference_fe_geo()
+  cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
+  call fe%get_nodes_coordinates( cell_coordinates ) 
+
+  d = 0
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
+  dof_values = 0.0_rp 
+  do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
+       reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
+
+     if ( mask(edge_id) ) then
+     call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
+
+     call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
+          reference_fe  = reference_fe,                                           &
+          quadrature    = this%edge_quadratures(reference_fe_id) )
+
+     num_quad_points = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
+     ! Integrate edge boundary moments int_edge(f.tau q), q \in P_k-1
+     do qpoint = 1, num_quad_points 
+        factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
+        call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)
+        do ishape=1, this%fes_1D(reference_fe_id)%get_num_shape_functions()
+           call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
+           dof_values(d+ishape) = dof_values(d+ishape) + tangent * tangent * shape_test * factor
+        end do
+     end do
+     end if 
+     d = d + this%fes_1D(reference_fe_id)%get_num_shape_functions()
+  end do
+
+end subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments
+
 ! ================================================================================
 subroutine tet_Hcurl_interpolator_free( this ) 
   implicit none
@@ -440,12 +665,14 @@ subroutine tet_Hcurl_interpolator_free( this )
      call this%fes_1D(i)%free()
      call this%edge_quadratures(i)%free() 
      call this%edge_maps(i)%free() 
+     call this%cell_maps_edget_restriction(i)%free()
      call this%edge_interpolations(i)%free()  
 
      ! Face related data  
      call this%fes_2D(i)%free()
      call this%facet_quadratures(i)%free() 
      call this%facet_maps(i)%free() 
+     call this%cell_maps_facet_restriction(i)%free() 
      call this%facet_interpolations(i)%free() 
 
      ! Element related data  
@@ -459,6 +686,8 @@ subroutine tet_Hcurl_interpolator_free( this )
   deallocate ( this%edge_maps, stat=istat); check(istat==0)
   deallocate ( this%facet_maps, stat=istat); check(istat==0)
   deallocate ( this%cell_maps, stat=istat); check(istat==0)
+  deallocate ( this%cell_maps_edget_restriction, stat=istat); check(istat==0)
+  deallocate ( this%cell_maps_facet_restriction, stat=istat); check(istat==0)
   ! Quadratures with possible variable degree
   deallocate ( this%edge_quadratures, stat=istat); check(istat==0)
   deallocate ( this%facet_quadratures, stat=istat); check(istat==0)

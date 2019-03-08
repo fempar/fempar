@@ -204,3 +204,29 @@ function facet_map_get_raw_normals(this)
  real(rp), pointer :: facet_map_get_raw_normals(:,:)
  facet_map_get_raw_normals => this%normals
 end function  facet_map_get_raw_normals
+
+! ================================================================================
+subroutine facet_map_update_coordinates( this, facet_id, reference_fe, cell_coordinates ) 
+  implicit none 
+  class(facet_map_t)                    , intent(inout) :: this
+  integer(ip)                           , intent(in)    :: facet_id 
+  class(reference_fe_t)                 , intent(in)    :: reference_fe
+  type(point_t)                         , intent(in)    :: cell_coordinates(:)
+   
+  type(point_t), pointer   :: facet_map_coordinates(:)
+  type(list_iterator_t)    :: vertex_iterator
+  integer(ip)              :: vertex_within_facet_id
+  integer(ip)               :: vertex_within_cell_id 
+
+  facet_map_coordinates => this%get_coordinates()
+
+  vertex_within_facet_id = 1
+  vertex_iterator = reference_fe%create_vertices_n_face_iterator(facet_id)
+  do while ( .not. vertex_iterator%is_upper_bound () )
+     vertex_within_cell_id = vertex_iterator%get_current()
+     call facet_map_coordinates(vertex_within_facet_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+     call vertex_iterator%next()
+     vertex_within_facet_id = vertex_within_facet_id + 1
+  end do
+
+end subroutine facet_map_update_coordinates

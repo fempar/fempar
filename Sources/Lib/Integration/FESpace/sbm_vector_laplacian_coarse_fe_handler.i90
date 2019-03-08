@@ -25,12 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, constraint_matrix) 
   implicit none
   class(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
   type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object
@@ -227,14 +226,12 @@ subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe
 end subroutine vector_laplacian_l1_setup_constraint_matrix_CI
 
 
-subroutine vector_laplacian_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine vector_laplacian_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, constraint_matrix) 
   implicit none
   class(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
-  
   integer(ip), parameter :: CA = 0
   integer(ip), parameter :: CI = 1
   integer(ip), parameter :: CM = 2
@@ -251,10 +248,10 @@ subroutine vector_laplacian_l1_setup_constraint_matrix_multiple(this, field_id, 
   if (strategy == CA) then
     ! Algebraic facet constraints (1/card) not including DOFs on the boundary of the facet that belong to 
     ! other coarse corners, edges
-    call standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+    call standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, constraint_matrix)
   else if ( strategy == CI ) then
     ! Typical version of face constraints based on integration, i.e., \int u / \int 1
-    call vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+    call vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, constraint_matrix)
   else if ( strategy == CM ) then
     ! The previous one but making 0 the boundary DOFs in the facet (those on coarse corners, edges)
     !call vector_laplacian_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parameter_list, constraint_matrix)
@@ -275,12 +272,11 @@ end subroutine vector_laplacian_l1_setup_constraint_matrix_multiple
 
 
 
-subroutine vector_laplacian_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+subroutine vector_laplacian_l1_setup_weighting_operator(this, field_id, par_fe_space, weighting_operator) 
   implicit none
   class(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
   type(fe_object_iterator_t) :: object
   type(fe_vef_iterator_t)                :: vef

@@ -211,7 +211,7 @@ contains
       real(rp)    :: eps=1e-15_rp 
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
       real(rp) :: p1_c(256), p2_c(256)
-	     real(rp) :: short_sizes(3), long_sizes(3)
+      real(rp) :: short_sizes(3), long_sizes(3)
 
 
       cell_set_id = 1
@@ -538,7 +538,7 @@ contains
          if (mod(cell_set_id,4)==3) then
             cell_set_id = 1
          end if
-	        else if ( inclusion == 11 ) then
+         else if ( inclusion == 11 ) then
          cell_set_id = 1
          call offset%init(0.0_rp)
          do i=1, num_dims
@@ -601,7 +601,7 @@ contains
          !call origin%set(num_dims,origin%get(num_dims)-short_sizes(num_dims))
          !if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) then 
          !   cell_set_id = 2
-         !end if  	 
+         !end if    
       end if
 
     end function cell_set_id
@@ -658,8 +658,10 @@ contains
     check(istat==0)
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       call this%H1_coarse_fe_handler%create(this%parameter_list)
        this%coarse_fe_handlers(1)%p => this%H1_coarse_fe_handler
     else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       call this%standard_coarse_fe_handler%create(this%parameter_list)
        this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
     end if
   end subroutine setup_coarse_fe_handlers
@@ -1067,6 +1069,11 @@ contains
        end do
        deallocate(this%reference_fes, stat=istat)
        check(istat==0)
+    end if
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       call this%H1_coarse_fe_handler%free()
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       call this%standard_coarse_fe_handler%free()
     end if
     if ( allocated(this%coarse_fe_handlers) ) then
        deallocate(this%coarse_fe_handlers, stat=istat)

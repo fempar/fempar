@@ -1,0 +1,17 @@
+CG:   Iteration   Error Estimate        Tolerance
+CG:           1   1.132804137E+03   1.060956711E-03
+CG:           2   1.506305570E+01   1.060956711E-03
+CG:           3   4.795106520E+00   1.060956711E-03
+CG:           4   2.056909778E+00   1.060956711E-03
+CG:           5   3.651094655E-01   1.060956711E-03
+CG:           6   2.667084945E-01   1.060956711E-03
+CG:           7   1.662576051E-01   1.060956711E-03
+CG:           8   2.486297582E-02   1.060956711E-03
+CG:           9   2.905861860E-03   1.060956711E-03
+CG:          10   9.297728893E-04   1.060956711E-03
+CG converged to    1.060956711E-03  in         10  iterations. 
+num_coarse_dofs:                      12
+Last iteration error estimate:    9.297728893E-04
+num_sub_domains:                               8
+num_total_cells:                             512
+num_dofs (sub-assembled):                   1536
