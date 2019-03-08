@@ -295,7 +295,7 @@ contains
       integer(ip)                     :: i
       real(rp)                        :: err
       character(len=10)               :: serr
-
+      matrix => this%get_matrix()
       nrhs = size(x,2)
       call xarr%create_and_allocate(size(x,1))
       call yarr%clone(xarr)
