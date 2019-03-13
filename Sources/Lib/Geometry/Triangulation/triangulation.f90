@@ -786,6 +786,13 @@ module triangulation_names
      procedure(compute_max_cells_set_id_interface)     , deferred :: compute_max_cells_set_id 
      procedure(resize_disconnected_cells_set_interface), deferred :: resize_disconnected_cells_set
      procedure(fill_disconnected_cells_set_interface)  , deferred :: fill_disconnected_cells_set
+     
+     ! Methods for h-adaptivity
+     procedure(get_refinement_and_coarsening_flags_interface)     , deferred :: get_refinement_and_coarsening_flags 
+     
+     ! Other methods
+     procedure(get_previous_num_local_cells_interface)            , deferred :: get_previous_num_local_cells
+     procedure(get_previous_num_ghost_cells_interface)            , deferred :: get_previous_num_ghost_cells
 
   end type triangulation_t
   
@@ -867,6 +874,24 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_max_num_shape_functions_interface
      end function get_max_num_shape_functions_interface
+     
+     function get_refinement_and_coarsening_flags_interface ( this )
+       import :: triangulation_t, std_vector_integer_ip_t
+       class(triangulation_t),   target, intent(in) :: this
+       type(std_vector_integer_ip_t),    pointer :: get_refinement_and_coarsening_flags_interface
+     end function get_refinement_and_coarsening_flags_interface     
+     
+     function get_previous_num_local_cells_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip) :: get_previous_num_local_cells_interface
+     end function get_previous_num_local_cells_interface  
+     
+     function get_previous_num_ghost_cells_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip) :: get_previous_num_ghost_cells_interface
+     end function get_previous_num_ghost_cells_interface       
 
   end interface
   
@@ -1115,6 +1140,14 @@ module triangulation_names
      procedure, non_overridable, private :: allocate_and_fill_cells_around      => bst_allocate_and_fill_cells_around
      procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
      procedure, non_overridable, private :: find_local_ghost_vefs               => bst_find_local_ghost_vefs
+     
+     ! Methods for h-adaptivity
+     procedure                           :: get_refinement_and_coarsening_flags => bst_get_refinement_and_coarsening_flags
+     
+     ! Other methods
+     procedure                           :: get_previous_num_local_cells        => bst_get_previous_num_local_cells 
+     procedure                           :: get_previous_num_ghost_cells        => bst_get_previous_num_ghost_cells     
+     
   end type base_static_triangulation_t
   
   type, extends(base_static_triangulation_t) :: fine_triangulation_t

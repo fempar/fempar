@@ -4023,10 +4023,12 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
    
 #ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
+  refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()  
+  old_num_local_cells = triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()  
   select type(triangulation)
   class is (p4est_base_triangulation_t)
-    refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
-    p4est_triangulation             => triangulation
+    p4est_triangulation  => triangulation
   class default
     assert(.false.)
   end select
@@ -4034,8 +4036,6 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
   num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
-  old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
   
   ! We have to resize the this%field_cell_to_ref_fes(:) corresponding to all fields
   ! at once before the next loop, because it is a precondition of fe_cell_iterator_t%set_gid()
@@ -4139,13 +4139,13 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   
 #ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
+  refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
+  old_num_local_cells = triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+  old_num_cells       = old_num_local_cells+old_num_ghost_cells
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
-    p4est_triangulation => triangulation  
-    refinement_and_coarsening_flags => p4est_triangulation%get_refinement_and_coarsening_flags()
-    old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-    old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
-    old_num_cells = old_num_local_cells+old_num_ghost_cells
+    p4est_triangulation => triangulation
   class default
     assert(.false.)
   end select
@@ -4304,14 +4304,14 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   integer(ip)                                     :: error
   
 #ifdef ENABLE_P4EST  
-    triangulation => this%get_triangulation()
+  triangulation => this%get_triangulation()
+  refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()    
+  old_num_local_cells = triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+  old_num_cells       = old_num_local_cells+old_num_ghost_cells  
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
     p4est_triangulation => triangulation  
-    refinement_and_coarsening_flags => p4est_triangulation%get_refinement_and_coarsening_flags()
-    old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-    old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
-    old_num_cells = old_num_local_cells+old_num_ghost_cells
   class default
     assert(.false.)
   end select

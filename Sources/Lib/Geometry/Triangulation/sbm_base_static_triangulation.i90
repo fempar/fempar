@@ -830,11 +830,38 @@ subroutine bst_free_vef_iterator ( this, vef )
   end if
 end subroutine bst_free_vef_iterator
   
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Procedures related to h-adaptivity
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function bst_get_refinement_and_coarsening_flags ( this ) 
+  implicit none
+  class(base_static_triangulation_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: bst_get_refinement_and_coarsening_flags
+  mcheck(.false., "This procedure can not be called when a static triangulation is used!")
+end function bst_get_refinement_and_coarsening_flags
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Other
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+function bst_get_previous_num_local_cells ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_previous_num_local_cells
+  bst_get_previous_num_local_cells = this%num_local_cells
+end function bst_get_previous_num_local_cells
+
+function bst_get_previous_num_ghost_cells ( this )
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_previous_num_ghost_cells
+  bst_get_previous_num_ghost_cells = this%num_ghost_cells
+end function bst_get_previous_num_ghost_cells 
 
 function bst_get_num_proper_vefs ( this ) 
   implicit none
