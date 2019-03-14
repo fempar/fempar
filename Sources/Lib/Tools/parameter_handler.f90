@@ -49,10 +49,13 @@ module parameter_handler_names
         type(ParameterList_t)         :: switches_ab
         type(ParameterList_t)         :: helpers
         type(ParameterList_t)         :: required
+        type(ParameterList_t)         :: choices
     contains
         procedure(define_parameters_interface),       deferred                 :: define_parameters 
         procedure                                  :: create                   => parameter_handler_create
         procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
+        procedure, non_overridable, private        :: add0D                    => parameter_handler_add0D
+        procedure, non_overridable, private        :: add1D                    => parameter_handler_add1D
         procedure, non_overridable                 :: add_to_cli               => parameter_handler_add_to_cli
         procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
         procedure, non_overridable                 :: init_cli                 => parameter_handler_init_cli
@@ -63,8 +66,10 @@ module parameter_handler_names
         procedure, non_overridable                 :: get_switches             => parameter_handler_get_switches   
         procedure, non_overridable                 :: get_switches_ab          => parameter_handler_get_switches_ab
         procedure, non_overridable                 :: get_helpers              => parameter_handler_get_helpers    
-        procedure, non_overridable                 :: get_required             => parameter_handler_get_required   
+        procedure, non_overridable                 :: get_required             => parameter_handler_get_required 
+        procedure, non_overridable                 :: get_choices              => parameter_handler_get_choices 
         procedure, non_overridable                 :: initialize_lists         => parameter_handler_initialize_lists  
+        generic,   public                          :: add                      => add0D, add1D 
     end type parameter_handler_t
 
     public :: parameter_handler_t
@@ -196,6 +201,18 @@ contains
     end function parameter_handler_get_required
 
 
+    function parameter_handler_get_choices(this) result(choices)
+    !------------------------------------------------------------------
+    !< Return pointer to choices dictionary
+    !------------------------------------------------------------------
+        implicit none
+        class(parameter_handler_t), target, intent(in) :: this
+        type(ParameterList_t),      pointer            :: choices
+    !------------------------------------------------------------------
+        choices => this%choices
+    end function parameter_handler_get_choices
+
+
     subroutine parameter_handler_free(this)
     !------------------------------------------------------------------
     !< Free the parameter_handler_t
@@ -209,6 +226,7 @@ contains
         call this%helpers%free()
         call this%required%free()
         call this%helpers%free()
+        call this%choices%free()
         call this%cli%free()
     end subroutine parameter_handler_free
 
@@ -265,7 +283,58 @@ contains
             call Iterator%Next()
         end do
     end subroutine parameter_handler_assert_lists_consistency
-   
+
+
+    subroutine parameter_handler_add0D(this, key, switch, value, help, switch_ab, required)
+    !------------------------------------------------------------------
+    !< Add a new argument to command line interface
+    !------------------------------------------------------------------
+        implicit none
+        class(parameter_handler_t), intent(inout) :: this
+        character(len=*),           intent(in)    :: key
+        character(len=*),           intent(in)    :: switch
+        class(*),                   intent(in)    :: value 
+        character(len=*),           intent(in)    :: help
+        character(len=*), optional, intent(in)    :: switch_ab
+        logical,          optional, intent(in)    :: required
+        integer                                   :: error
+    !------------------------------------------------------------------
+        error = this%switches%Set(key=key, value=switch); assert(error==0)
+        error = this%helpers%Set(key=key,  value=help);   assert(error==0)
+        error = this%values%Set(key=key,   value=value);  assert(error==0)
+        if(present(switch_ab)) then
+            error = this%switches_ab%Set(key=key, value=value); assert(error==0)
+        endif
+        if(present(required)) then
+            error = this%required%Set(key=key, value=required); assert(error==0)
+        endif
+    end subroutine parameter_handler_add0D
+
+    subroutine parameter_handler_add1D(this, key, switch, value, help, switch_ab, required)
+    !------------------------------------------------------------------
+    !< Add a new argument to command line interface
+    !------------------------------------------------------------------
+        implicit none
+        class(parameter_handler_t), intent(inout) :: this
+        character(len=*),           intent(in)    :: key
+        character(len=*),           intent(in)    :: switch
+        class(*),                   intent(in)    :: value(:) 
+        character(len=*),           intent(in)    :: help
+        character(len=*), optional, intent(in)    :: switch_ab
+        logical,          optional, intent(in)    :: required
+        integer                                   :: error
+    !------------------------------------------------------------------
+        error = this%switches%Set(key=key, value=switch); assert(error==0)
+        error = this%helpers%Set(key=key,  value=help);   assert(error==0)
+        error = this%values%Set(key=key,   value=value);  assert(error==0)
+        if(present(switch_ab)) then
+            error = this%switches_ab%Set(key=key, value=value); assert(error==0)
+        endif
+        if(present(required)) then
+            error = this%required%Set(key=key, value=required); assert(error==0)
+        endif
+    end subroutine parameter_handler_add1D
+  
    
     subroutine parameter_handler_add_to_cli(this)
     !------------------------------------------------------------------
@@ -485,6 +554,7 @@ contains
         call this%switches_ab%init()
         call this%helpers%init()
         call this%required%init()
+        call this%choices%init()
     end subroutine parameter_handler_initialize_lists
 
 
