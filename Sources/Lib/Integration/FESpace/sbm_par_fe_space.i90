@@ -4473,13 +4473,11 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   type(fe_function_t)  , intent(inout) :: fe_function
-  class(triangulation_t), pointer :: triangulation
-  class(p4est_base_triangulation_t),  pointer     :: p4est_triangulation  
-  type(fe_function_t) :: transformed_fe_function
-  type(std_vector_integer_ip_t), pointer :: refinement_and_coarsening_flags
+  type(fe_function_t)                        :: transformed_fe_function
+  type(std_vector_integer_ip_t), pointer     :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
-  type(std_vector_integer_ip_t) :: old_lst_dofs_gids
-  integer(ip), pointer :: old_field_fe_dofs(:)
+  type(std_vector_integer_ip_t)              :: old_lst_dofs_gids
+  integer(ip),                   pointer     :: old_field_fe_dofs(:)
   integer(ip) :: num_children_x_cell
   integer(ip) :: transformation_flag
   integer(ip) :: subcell_id, old_cell_lid, new_cell_lid
@@ -4502,18 +4500,11 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   
   
 #ifdef ENABLE_P4EST  
-  triangulation => this%get_triangulation()  
-  environment => triangulation%get_environment()
+  environment => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
-     select type(triangulation)
-        class is (p4est_par_triangulation_t)
-        p4est_triangulation => triangulation
-        class default
-        assert(.false.)
-     end select
      refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
   
-     if ( p4est_triangulation%get_num_cells() > 0 ) then
+     if ( this%triangulation%get_num_cells() > 0 ) then
         old_num_local_cells = this%triangulation%get_previous_num_local_cells()
         old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
 
@@ -4523,7 +4514,7 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
         call this%update_after_refine_coarsen(old_ptr_dofs_x_fe,old_lst_dofs_gids)
 
         call this%new_fe_function_nodal_values%resize(0)
-        call this%new_fe_function_nodal_values%resize(this%ptr_dofs_x_fe(1)%get(triangulation%get_num_cells()+1)-1)
+        call this%new_fe_function_nodal_values%resize(this%ptr_dofs_x_fe(1)%get(this%triangulation%get_num_cells()+1)-1)
         p_new_fe_function_nodal_values => this%new_fe_function_nodal_values%get_pointer()
 
         call this%create_fe_cell_iterator(new_fe)
@@ -4608,7 +4599,7 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
         end do
 
         ! Retrieve set IDs from ghost cells
-        cell_import => triangulation%get_cell_import()
+        cell_import => this%triangulation%get_cell_import()
         call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                                   cell_import%get_neighbours_ids(),&
                                                   cell_import%get_rcv_ptrs(),&
@@ -4922,13 +4913,11 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   type(p_fe_function_t), intent(inout) :: fe_functions(:)
-  class(triangulation_t), pointer :: triangulation
-  class(p4est_base_triangulation_t),  pointer     :: p4est_triangulation  
-  type(fe_function_t) :: transformed_fe_function
-  type(std_vector_integer_ip_t), pointer :: refinement_and_coarsening_flags
+  type(fe_function_t)                        :: transformed_fe_function
+  type(std_vector_integer_ip_t), pointer     :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
-  type(std_vector_integer_ip_t) :: old_lst_dofs_gids
-  integer(ip), pointer :: old_field_fe_dofs(:)
+  type(std_vector_integer_ip_t)              :: old_lst_dofs_gids
+  integer(ip)                  , pointer     :: old_field_fe_dofs(:)
   integer(ip) :: num_children_x_cell
   integer(ip) :: transformation_flag
   integer(ip) :: subcell_id, old_cell_lid, new_cell_lid
@@ -4952,18 +4941,11 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   
   
 #ifdef ENABLE_P4EST  
-  triangulation => this%get_triangulation()
-  environment => triangulation%get_environment()
+  environment => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
-     select type(triangulation)
-        class is (p4est_par_triangulation_t)
-        p4est_triangulation => triangulation
-        class default
-        assert(.false.)
-     end select
      refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
      
-     if ( p4est_triangulation%get_num_cells() > 0 ) then
+     if ( this%triangulation%get_num_cells() > 0 ) then
         old_num_local_cells = this%triangulation%get_previous_num_local_cells()
         old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
 
@@ -4973,7 +4955,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
         call this%update_after_refine_coarsen(old_ptr_dofs_x_fe,old_lst_dofs_gids)
 
         call this%new_fe_function_nodal_values%resize(0)
-        call this%new_fe_function_nodal_values%resize(this%ptr_dofs_x_fe(1)%get(triangulation%get_num_cells()+1)-1)
+        call this%new_fe_function_nodal_values%resize(this%ptr_dofs_x_fe(1)%get(this%triangulation%get_num_cells()+1)-1)
         p_new_fe_function_nodal_values => this%new_fe_function_nodal_values%get_pointer()
 
         call this%create_fe_cell_iterator(new_fe)
@@ -5060,7 +5042,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
           end do
           
           ! Retrieve set IDs from ghost cells
-          cell_import => triangulation%get_cell_import()
+          cell_import => this%triangulation%get_cell_import()
           call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                                     cell_import%get_neighbours_ids(),&
                                                     cell_import%get_rcv_ptrs(),&
