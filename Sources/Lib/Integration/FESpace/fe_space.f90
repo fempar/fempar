@@ -70,7 +70,6 @@ module fe_space_names
   use std_vector_real_rp_names
   use std_vector_integer_ip_names
   use std_vector_integer_igp_names
-  use p4est_triangulation_names
 
   ! Parallel modules
   use environment_names
