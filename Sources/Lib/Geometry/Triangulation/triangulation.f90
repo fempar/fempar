@@ -793,6 +793,18 @@ module triangulation_names
      ! Other methods
      procedure(get_previous_num_local_cells_interface)            , deferred :: get_previous_num_local_cells
      procedure(get_previous_num_ghost_cells_interface)            , deferred :: get_previous_num_ghost_cells
+     
+     ! Methods to perform nearest neighbor exchange
+     procedure(get_migration_num_snd_interface)                   , deferred :: get_migration_num_snd
+     procedure(get_migration_lst_snd_interface)                   , deferred :: get_migration_lst_snd
+     procedure(get_migration_snd_ptrs_interface)                  , deferred :: get_migration_snd_ptrs
+     procedure(get_migration_pack_idx_interface)                  , deferred :: get_migration_pack_idx
+     procedure(get_migration_num_rcv_interface)                   , deferred :: get_migration_num_rcv
+     procedure(get_migration_lst_rcv_interface)                   , deferred :: get_migration_lst_rcv
+     procedure(get_migration_rcv_ptrs_interface)                  , deferred :: get_migration_rcv_ptrs
+     procedure(get_migration_unpack_idx_interface)                , deferred :: get_migration_unpack_idx
+     procedure(get_migration_new2old_interface)                   , deferred :: get_migration_new2old
+     procedure(get_migration_old2new_interface)                   , deferred :: get_migration_old2new
 
   end type triangulation_t
   
@@ -891,7 +903,67 @@ module triangulation_names
        import :: triangulation_t, ip
        class(triangulation_t),   intent(in) :: this
        integer(ip) :: get_previous_num_ghost_cells_interface
-     end function get_previous_num_ghost_cells_interface       
+     end function get_previous_num_ghost_cells_interface
+     
+     function get_migration_num_snd_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip) :: get_migration_num_snd_interface
+     end function get_migration_num_snd_interface
+     
+     function get_migration_lst_snd_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_lst_snd_interface(:)
+     end function get_migration_lst_snd_interface
+     
+     function get_migration_snd_ptrs_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_snd_ptrs_interface(:)
+     end function get_migration_snd_ptrs_interface
+     
+     function get_migration_pack_idx_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_pack_idx_interface(:)
+     end function get_migration_pack_idx_interface
+     
+     function get_migration_num_rcv_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip) :: get_migration_num_rcv_interface
+     end function get_migration_num_rcv_interface
+     
+     function get_migration_lst_rcv_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_lst_rcv_interface(:)
+     end function get_migration_lst_rcv_interface
+     
+     function get_migration_rcv_ptrs_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_rcv_ptrs_interface(:)
+     end function get_migration_rcv_ptrs_interface
+     
+     function get_migration_unpack_idx_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_unpack_idx_interface(:)
+     end function get_migration_unpack_idx_interface
+     
+     function get_migration_new2old_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_new2old_interface(:)
+     end function get_migration_new2old_interface
+     
+     function get_migration_old2new_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t),   intent(in) :: this
+       integer(ip), pointer :: get_migration_old2new_interface(:)
+     end function get_migration_old2new_interface     
 
   end interface
   
@@ -934,6 +1006,11 @@ module triangulation_names
   public :: subparts_coupling_criteria_key 
   public :: loose_coupling
   public :: strong_coupling 
+  
+  integer(ip), parameter :: refinement = 1 
+  integer(ip), parameter :: coarsening = -1 
+  integer(ip), parameter :: do_nothing = 0   
+  public :: refinement, coarsening, do_nothing  
   
   type, extends(cell_iterator_t) :: bst_cell_iterator_t
     private
@@ -1131,6 +1208,16 @@ module triangulation_names
      generic,                            private :: cell_unpack            => bst_cell_unpack_vef_ggids, &
                                                                               bst_cell_unpack_vef_ggids_and_dim, &
                                                                               bst_cell_unpack_vef_ggids_and_coordinates
+     procedure                           :: get_migration_num_snd          => bst_get_migration_num_snd
+     procedure                           :: get_migration_lst_snd          => bst_get_migration_lst_snd
+     procedure                           :: get_migration_snd_ptrs         => bst_get_migration_snd_ptrs
+     procedure                           :: get_migration_pack_idx         => bst_get_migration_pack_idx
+     procedure                           :: get_migration_num_rcv          => bst_get_migration_num_rcv
+     procedure                           :: get_migration_lst_rcv          => bst_get_migration_lst_rcv
+     procedure                           :: get_migration_rcv_ptrs         => bst_get_migration_rcv_ptrs
+     procedure                           :: get_migration_unpack_idx       => bst_get_migration_unpack_idx
+     procedure                           :: get_migration_new2old          => bst_get_migration_new2old
+     procedure                           :: get_migration_old2new          => bst_get_migration_old2new
 
      ! Private methods for creating vef-related data
      procedure, non_overridable, private :: compute_num_vefs                    => bst_compute_num_vefs

@@ -3221,6 +3221,76 @@ subroutine p4est_free_vef_iterator ( this, vef )
   end if
 end subroutine p4est_free_vef_iterator
 
+function p4est_bt_get_migration_num_snd(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_bt_get_migration_num_snd
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_num_snd
+
+function p4est_bt_get_migration_lst_snd(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_lst_snd(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_lst_snd
+
+function p4est_bt_get_migration_snd_ptrs(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_snd_ptrs(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_snd_ptrs
+
+function p4est_bt_get_migration_pack_idx(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_pack_idx(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_pack_idx
+
+function p4est_bt_get_migration_num_rcv(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_bt_get_migration_num_rcv
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_num_rcv
+
+function p4est_bt_get_migration_lst_rcv(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_lst_rcv(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_lst_rcv
+
+function p4est_bt_get_migration_rcv_ptrs(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_rcv_ptrs(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_rcv_ptrs
+
+function p4est_bt_get_migration_unpack_idx(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_unpack_idx(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_unpack_idx
+
+function p4est_bt_get_migration_new2old(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_new2old(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_bt_get_migration_new2old
+
+function p4est_bt_get_migration_old2new(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_bt_get_migration_old2new(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes') 
+end function p4est_bt_get_migration_old2new
+
 SUBROUTINE p4est_eval_connectivity(Conn,nbSide,Flip,Mortar)
   IMPLICIT NONE
   INTEGER(P4EST_F90_QLEVEL),INTENT(IN)   :: Conn   ! p4est Side,Flip,Mortar encoding

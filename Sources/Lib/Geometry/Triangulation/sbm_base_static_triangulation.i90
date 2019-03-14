@@ -840,8 +840,84 @@ function bst_get_refinement_and_coarsening_flags ( this )
   implicit none
   class(base_static_triangulation_t), target, intent(in) :: this
   type(std_vector_integer_ip_t), pointer :: bst_get_refinement_and_coarsening_flags
-  mcheck(.false., "This procedure can not be called when a static triangulation is used!")
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
 end function bst_get_refinement_and_coarsening_flags
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! Procedures to perform nearest neighbor exchange
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+function bst_get_migration_num_snd(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_migration_num_snd
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_num_snd
+
+function bst_get_migration_lst_snd(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_lst_snd(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_lst_snd
+
+function bst_get_migration_snd_ptrs(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_snd_ptrs(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_snd_ptrs
+
+function bst_get_migration_pack_idx(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_pack_idx(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_pack_idx
+
+function bst_get_migration_num_rcv(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_migration_num_rcv
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_num_rcv
+
+function bst_get_migration_lst_rcv(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_lst_rcv(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_lst_rcv
+
+function bst_get_migration_rcv_ptrs(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_rcv_ptrs(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_rcv_ptrs
+
+function bst_get_migration_unpack_idx(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_unpack_idx(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_unpack_idx
+
+function bst_get_migration_new2old(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_new2old(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function bst_get_migration_new2old
+
+function bst_get_migration_old2new(this)
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: bst_get_migration_old2new(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes') 
+end function bst_get_migration_old2new
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
