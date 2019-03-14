@@ -4023,9 +4023,9 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
    
 #ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
-  refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()  
-  old_num_local_cells = triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()  
+  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()  
+  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()  
   select type(triangulation)
   class is (p4est_base_triangulation_t)
     p4est_triangulation  => triangulation
@@ -4139,9 +4139,9 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   
 #ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
-  refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
-  old_num_local_cells = triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
+  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
   old_num_cells       = old_num_local_cells+old_num_ghost_cells
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
@@ -4305,13 +4305,13 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   
 #ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
-  refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()    
-  old_num_local_cells = triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()    
+  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
   old_num_cells       = old_num_local_cells+old_num_ghost_cells  
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
-    p4est_triangulation => triangulation  
+    p4est_triangulation => triangulation
   class default
     assert(.false.)
   end select

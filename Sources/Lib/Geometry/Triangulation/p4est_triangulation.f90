@@ -569,8 +569,8 @@ module p4est_triangulation_names
     procedure                                    :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
-    procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
-    procedure                 , non_overridable  :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
+    procedure                                    :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
+    procedure                                    :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
     
     procedure, private                           :: allocate_and_gen_reference_fe_geo_scratch_data     => p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
     procedure, private                           :: free_reference_fe_geo_scratch_data                 => p4est_bt_free_reference_fe_geo_scratch_data

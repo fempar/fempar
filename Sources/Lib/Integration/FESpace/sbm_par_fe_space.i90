@@ -4511,11 +4511,11 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
         class default
         assert(.false.)
      end select
-     refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
+     refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
   
      if ( p4est_triangulation%get_num_cells() > 0 ) then
-        old_num_local_cells = triangulation%get_previous_num_local_cells()
-        old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+        old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+        old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
 
         old_num_cells = old_num_ghost_cells + old_num_local_cells
         massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )        
@@ -4961,11 +4961,11 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
         class default
         assert(.false.)
      end select
-     refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
+     refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
      
      if ( p4est_triangulation%get_num_cells() > 0 ) then
-        old_num_local_cells = triangulation%get_previous_num_local_cells()
-        old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+        old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+        old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
 
         old_num_cells = old_num_local_cells + old_num_ghost_cells
         massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )
@@ -5207,8 +5207,8 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
     new2old     => p4est_par_triangulation%get_migration_new2old()
     
     if ( p4est_par_triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
-      old_num_local_cells = triangulation%get_previous_num_local_cells()
-      old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+      old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+      old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
       call this%update_after_redistribute(old_ptr_dofs_x_fe, &
                                           old_lst_dofs_gids)
     
@@ -5435,8 +5435,8 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
     new2old     => p4est_par_triangulation%get_migration_new2old()
     
     if ( p4est_par_triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
-      old_num_local_cells = triangulation%get_previous_num_local_cells()
-      old_num_ghost_cells = triangulation%get_previous_num_ghost_cells()
+      old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+      old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
       call this%update_after_redistribute(old_ptr_dofs_x_fe, &
                                           old_lst_dofs_gids)
     
