@@ -65,7 +65,7 @@ subroutine cell_map_facet_restriction_update( this, cell_lev, facet_lid, subface
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
   call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(cell_lev,quadrature,cell_ressemblance,scaling_factor)
- end subroutine cell_map_facet_restriction_update
+end subroutine cell_map_facet_restriction_update
 
 !==================================================================================================
 subroutine cell_map_facet_restriction_update_interpolation( this, quadrature, reference_fe_geometry )
