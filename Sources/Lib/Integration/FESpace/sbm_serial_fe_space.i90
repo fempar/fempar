@@ -4006,8 +4006,7 @@ end subroutine serial_fe_space_setup_hanging_node_constraints
 
 subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  class(triangulation_t)       , pointer     :: triangulation
+  class(serial_fe_space_t),        intent(inout) :: this
   type(std_vector_integer_ip_t), pointer     :: refinement_and_coarsening_flags
   class(fe_cell_iterator_t)    , allocatable :: new_fe
   class(reference_fe_t)        , pointer     :: reference_fe
@@ -4018,24 +4017,16 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   integer(ip)                                :: transformation_flag
   integer(ip)                                :: old_reference_fe_id
   integer(ip)                                :: old_num_local_cells, old_num_ghost_cells
-  class(p4est_base_triangulation_t), pointer :: p4est_triangulation 
   integer(ip) :: istat
    
-#ifdef ENABLE_P4EST  
-  triangulation => this%get_triangulation()
-  select type(triangulation)
-  class is (p4est_base_triangulation_t)
-    refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
-    p4est_triangulation             => triangulation
-  class default
-    assert(.false.)
-  end select
+#ifdef ENABLE_P4EST
+  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()  
+  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()  
   
   call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
   num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
-  old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
   
   ! We have to resize the this%field_cell_to_ref_fes(:) corresponding to all fields
   ! at once before the next loop, because it is a precondition of fe_cell_iterator_t%set_gid()
@@ -4114,8 +4105,6 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   type(fe_function_t)     , intent(inout) :: fe_function
-  class(triangulation_t), pointer     :: triangulation
-  class(p4est_base_triangulation_t),  pointer     :: p4est_triangulation    
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t)     , allocatable :: old_ptr_dofs_x_fe(:)
@@ -4137,18 +4126,11 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   type(block_layout_t)                            :: block_layout
   integer(ip)                                     :: error
   
-#ifdef ENABLE_P4EST  
-  triangulation => this%get_triangulation()
-  select type(triangulation)
-  class is (p4est_serial_triangulation_t)
-    p4est_triangulation => triangulation  
-    refinement_and_coarsening_flags => p4est_triangulation%get_refinement_and_coarsening_flags()
-    old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-    old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
-    old_num_cells = old_num_local_cells+old_num_ghost_cells
-  class default
-    assert(.false.)
-  end select
+#ifdef ENABLE_P4EST
+  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
+  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
+  old_num_cells       = old_num_local_cells+old_num_ghost_cells
     
   call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
   massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )
@@ -4280,7 +4262,6 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   class(serial_fe_space_t), intent(inout) :: this
   type(p_fe_function_t)   , intent(inout) :: fe_functions(:)
   class(triangulation_t), pointer     :: triangulation
-  class(p4est_base_triangulation_t),  pointer     :: p4est_triangulation  
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t)     , allocatable :: old_ptr_dofs_x_fe(:)
@@ -4303,18 +4284,11 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   integer(ip)                                     :: ifunc
   integer(ip)                                     :: error
   
-#ifdef ENABLE_P4EST  
-    triangulation => this%get_triangulation()
-  select type(triangulation)
-  class is (p4est_serial_triangulation_t)
-    p4est_triangulation => triangulation  
-    refinement_and_coarsening_flags => p4est_triangulation%get_refinement_and_coarsening_flags()
-    old_num_local_cells = p4est_triangulation%get_previous_num_local_cells()
-    old_num_ghost_cells = p4est_triangulation%get_previous_num_ghost_cells()
-    old_num_cells = old_num_local_cells+old_num_ghost_cells
-  class default
-    assert(.false.)
-  end select
+#ifdef ENABLE_P4EST
+  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()    
+  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
+  old_num_cells       = old_num_local_cells+old_num_ghost_cells  
   
   call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
   massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )
