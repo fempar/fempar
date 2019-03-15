@@ -285,7 +285,7 @@ contains
     end subroutine parameter_handler_assert_lists_consistency
 
 
-    subroutine parameter_handler_add0D(this, key, switch, value, help, switch_ab, required)
+    subroutine parameter_handler_add0D(this, key, switch, value, help, switch_ab, required, choices, group)
     !------------------------------------------------------------------
     !< Add a new argument to command line interface
     !------------------------------------------------------------------
@@ -297,20 +297,71 @@ contains
         character(len=*),           intent(in)    :: help
         character(len=*), optional, intent(in)    :: switch_ab
         logical,          optional, intent(in)    :: required
+        class(*),         optional, intent(in)    :: choices(:)
+        character(len=*), optional, intent(in)    :: group
+        type(ParameterList_t),      pointer       :: switches
+        type(ParameterList_t),      pointer       :: values
+        type(ParameterList_t),      pointer       :: helpers
+        type(ParameterList_t),      pointer       :: switches_ab
+        type(ParameterList_t),      pointer       :: requires
+        type(ParameterList_t),      pointer       :: choice
         integer                                   :: error
     !------------------------------------------------------------------
-        error = this%switches%Set(key=key, value=switch); assert(error==0)
-        error = this%helpers%Set(key=key,  value=help);   assert(error==0)
-        error = this%values%Set(key=key,   value=value);  assert(error==0)
+        if(present(group)) then
+            if(this%switches%isSublist(key=group)) then
+                error = this%switches%getSublist(key=group, Sublist=switches); assert(error == 0)
+            else
+                switches => this%switches%NewSublist(key=group)
+            endif
+            if(this%values%isSublist(key=group)) then
+                error = this%values%getSublist(key=group, Sublist=values); assert(error == 0)
+            else
+                values => this%values%NewSublist(key=group)
+            endif
+            if(this%helpers%isSublist(key=group)) then
+                error = this%helpers%getSublist(key=group, Sublist=helpers); assert(error == 0)
+            else
+                helpers => this%helpers%NewSublist(key=group)
+            endif
+            if(present(switch_ab) .and. this%switches_ab%isSublist(key=group)) then
+                error = this%switches_ab%getSublist(key=group, Sublist=switches_ab); assert(error == 0)
+            else
+                switches_ab => this%switches_Ab%NewSublist(key=group)
+            endif
+            if(present(required) .and. this%required%isSublist(key=group)) then
+                error = this%required%getSublist(key=group, Sublist=requires); assert(error == 0)
+            else
+                requires => this%required%NewSublist(key=group)
+            endif
+            if(present(choices) .and. this%choices%isSublist(key=group)) then
+                error = this%choices%getSublist(key=group, Sublist=choice); assert(error == 0)
+            else
+                choice => this%choices%NewSublist(key=group)
+            endif
+        else
+            switches    => this%get_switches()
+            values      => this%get_values()
+            helpers     => this%get_helpers()
+            if(present(switch_ab)) switches_ab => this%get_switches_ab()
+            if(present(required))  requires    => this%get_required()
+            if(present(choices))   choice      => this%get_choices()
+        endif
+        error = switches%Set(key=key, value=switch); assert(error==0)
+        error = helpers%Set(key=key,  value=help);   assert(error==0)
+        error = values%Set(key=key,   value=value);  assert(error==0)
         if(present(switch_ab)) then
-            error = this%switches_ab%Set(key=key, value=value); assert(error==0)
+            error = switches_ab%Set(key=key, value=value); assert(error==0)
         endif
         if(present(required)) then
-            error = this%required%Set(key=key, value=required); assert(error==0)
+            error = requires%Set(key=key, value=required); assert(error==0)
+        endif
+        if(present(choices)) then
+            error = choice%Set(key=key, value=choices); assert(error==0)
         endif
     end subroutine parameter_handler_add0D
 
-    subroutine parameter_handler_add1D(this, key, switch, value, help, switch_ab, required)
+
+    subroutine parameter_handler_add1D(this, key, switch, value, help, switch_ab, required, choices, group)
     !------------------------------------------------------------------
     !< Add a new argument to command line interface
     !------------------------------------------------------------------
@@ -322,16 +373,66 @@ contains
         character(len=*),           intent(in)    :: help
         character(len=*), optional, intent(in)    :: switch_ab
         logical,          optional, intent(in)    :: required
+        class(*),         optional, intent(in)    :: choices(:) 
+        character(len=*), optional, intent(in)    :: group
+        type(ParameterList_t),      pointer       :: switches
+        type(ParameterList_t),      pointer       :: values
+        type(ParameterList_t),      pointer       :: helpers
+        type(ParameterList_t),      pointer       :: switches_ab
+        type(ParameterList_t),      pointer       :: requires
+        type(ParameterList_t),      pointer       :: choice
         integer                                   :: error
     !------------------------------------------------------------------
-        error = this%switches%Set(key=key, value=switch); assert(error==0)
-        error = this%helpers%Set(key=key,  value=help);   assert(error==0)
-        error = this%values%Set(key=key,   value=value);  assert(error==0)
+        if(present(group)) then
+            if(this%switches%isSublist(key=group)) then
+                error = this%switches%getSublist(key=group, Sublist=switches); assert(error == 0)
+            else
+                switches => this%switches%NewSublist(key=group)
+            endif
+            if(this%values%isSublist(key=group)) then
+                error = this%values%getSublist(key=group, Sublist=values);assert(error == 0)
+            else
+                values => this%values%NewSublist(key=group)
+            endif
+            if(this%helpers%isSublist(key=group)) then
+                error = this%helpers%getSublist(key=group, Sublist=helpers);assert(error == 0)
+            else
+                helpers => this%helpers%NewSublist(key=group)
+            endif
+            if(present(switch_ab) .and. this%switches_ab%isSublist(key=group)) then
+                error = this%switches_ab%getSublist(key=group, Sublist=switches_ab);assert(error == 0)
+            else
+                switches_ab => this%switches_Ab%NewSublist(key=group)
+            endif
+            if(present(required) .and. this%required%isSublist(key=group)) then
+                error = this%required%getSublist(key=group, Sublist=requires);assert(error == 0)
+            else
+                requires => this%required%NewSublist(key=group)
+            endif
+            if(present(choices)  .and. this%choices%isSublist(key=group)) then
+                error = this%choices%getSublist(key=group, Sublist=choice); assert(error == 0)
+            else
+                choice => this%choices%NewSublist(key=group)
+            endif
+        else
+            switches    => this%get_switches()
+            values      => this%get_values()
+            helpers     => this%get_helpers()
+            if(present(switch_ab)) switches_ab => this%get_switches_ab()
+            if(present(required))  requires    => this%get_required()
+            if(present(choices))   choice      => this%get_choices()
+        endif
+        error = switches%Set(key=key, value=switch); assert(error==0)
+        error = helpers%Set(key=key,  value=help);   assert(error==0)
+        error = values%Set(key=key,   value=value);  assert(error==0)
         if(present(switch_ab)) then
-            error = this%switches_ab%Set(key=key, value=value); assert(error==0)
+            error = switches_ab%Set(key=key, value=value); assert(error==0)
         endif
         if(present(required)) then
-            error = this%required%Set(key=key, value=required); assert(error==0)
+            error = requires%Set(key=key, value=required); assert(error==0)
+        endif
+        if(present(choices)) then
+            error = choice%Set(key=key, value=choices); assert(error==0)
         endif
     end subroutine parameter_handler_add1D
   
@@ -353,9 +454,10 @@ contains
         type(ParameterList_t), pointer             :: helpers_sublist
         type(ParameterList_t), pointer             :: required_sublist
         type(ParameterList_t), pointer             :: values_sublist
+        type(ParameterList_t), pointer             :: choices_sublist
     !------------------------------------------------------------------
         error = 0
-        call this%add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values)
+        call this%add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values,this%choices)
         Iterator = this%switches%GetIterator()
         do while (.not. Iterator%HasFinished())
             if(.not. Iterator%isSublist()) then
@@ -368,18 +470,20 @@ contains
             error = this%helpers%GetSubList(key,helpers_sublist); assert(error==0);
             error = this%required%GetSubList(key,required_sublist); assert(error==0);
             error = this%values%GetSubList(key,values_sublist); assert(error==0);
-            call this%add_to_cli_group(switches_sublist, &
-                                  switches_ab_sublist,&
-                                  helpers_sublist, &
-                                  required_sublist, &
-                                  values_sublist, &
-                                  key)
+            error = this%choices%GetSubList(key,choices_sublist); assert(error==0);
+            call this%add_to_cli_group(switches_sublist,    &
+                                       switches_ab_sublist, &
+                                       helpers_sublist,     &
+                                       required_sublist,    &
+                                       values_sublist,      &
+                                       choices_sublist,     &
+                                       key)
             call Iterator%Next()
         enddo
     end subroutine parameter_handler_add_to_cli
 
 
-    subroutine parameter_handler_add_to_cli_group(this,switches,switches_ab,helpers,required,values,group)
+    subroutine parameter_handler_add_to_cli_group(this,switches,switches_ab,helpers,required,values,choices,group)
     !------------------------------------------------------------------
     !< Add to command line interface group procedure
     !------------------------------------------------------------------
@@ -390,12 +494,13 @@ contains
         type(parameterlist_t),      intent(in)    :: helpers
         type(parameterlist_t),      intent(in)    :: required
         type(parameterlist_t),      intent(in)    :: values
+        type(parameterlist_t),      intent(in)    :: choices
         character(*), optional,     intent(in)    :: group
         integer(ip)                               :: error
         character(len=:), allocatable             :: switch, switch_ab, help
         logical                                   :: is_required
         integer(ip)                               :: ivalue
-        character(len=:), allocatable             :: key, cvalue
+        character(len=:), allocatable             :: key, cvalue, choice
         type(ParameterListIterator_t)             :: Iterator
     !------------------------------------------------------------------
         error = 0
@@ -410,25 +515,48 @@ contains
             if ( switches_ab%isPresent(key = key) ) then
                 error = error + switches_ab%GetAsString(key = key , String = switch_ab)
             end if
+            if ( choices%isPresent(key = key) ) then
+                error = error + choices%GetAsString(key = key , String = choice)
+            end if
             error = error + helpers%GetAsString    (key = key , String = help)
             !error = error + required%Get           (key = key , value = is_required)
             is_required = .false.
             error = error + values%GetAsString     (key = key , string = cvalue, separator=" ")
             if(values%GetDimensions(Key=Iterator%GetKey()) == 0) then 
                 if ( switches_ab%isPresent(key = key) ) then
-                    call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+                    if ( choices%isPresent(key = key) ) then
+                        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+                                     required=is_required,choices=choice,act='store',def=cvalue,error=error)
+                    else
+                        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
                                      required=is_required,act='store',def=cvalue,error=error)
+                    end if
                 else 
-                    call this%cli%add(group=group,switch=switch,help=help, &
+                    if ( choices%isPresent(key = key) ) then
+                        call this%cli%add(group=group,switch=switch,help=help, &
+                                     required=is_required,choices=choice,act='store',def=cvalue,error=error)
+                    else
+                        call this%cli%add(group=group,switch=switch,help=help, &
                                      required=is_required,act='store',def=cvalue,error=error)
+                    endif
                 end if  
             else if(values%GetDimensions(Key=Iterator%GetKey()) == 1) then 
                 if ( switches_ab%isPresent(key = key) ) then
-                    call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+                    if ( choices%isPresent(key = key) ) then
+                        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+                                     required=is_required,choices=choice,act='store',def=cvalue,error=error,nargs='+')
+                    else
+                        call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
                                      required=is_required,act='store',def=cvalue,error=error,nargs='+')
+                    endif
                 else 
-                    call this%cli%add(group=group,switch=switch, help=help, &
+                    if ( choices%isPresent(key = key) ) then
+                        call this%cli%add(group=group,switch=switch, help=help, &
+                                     required=is_required,choices=choice,act='store',def=cvalue,error=error,nargs='+')
+                    else
+                        call this%cli%add(group=group,switch=switch, help=help, &
                                      required=is_required,act='store',def=cvalue,error=error,nargs='+')
+                    endif
                 end if
                 else
                 write(*,*) 'Rank >1 arrays not supported by CLI'
@@ -444,7 +572,6 @@ contains
     !------------------------------------------------------------------
     !< Parse command line arguments and fill parameter lists
     !------------------------------------------------------------------
-        implicit none
         class(parameter_handler_t), intent(inout) :: this
         type(parameterlist_t), pointer            :: switches_sublist
         type(parameterlist_t), pointer            :: values_sublist
