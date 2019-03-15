@@ -548,10 +548,8 @@ contains
       deallocate(this%reference_fes, stat=istat)
       check(istat==0)
     end if
+    call this%coarse_fe_handler%free()
     if ( allocated(this%coarse_fe_handlers) ) then
-      do i=1, size(this%coarse_fe_handlers)
-        call this%coarse_fe_handlers(i)%p%free()
-      end do
       deallocate(this%coarse_fe_handlers, stat=istat)
       check(istat==0)
     end if
