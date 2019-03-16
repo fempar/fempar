@@ -4103,8 +4103,8 @@ end subroutine serial_fe_space_project_facet_integration_arrays
 
 subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_function )
   implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  type(fe_function_t)     , intent(inout) :: fe_function
+  class(serial_fe_space_t)          , intent(inout) :: this
+  type(fe_function_t)     , optional, intent(inout) :: fe_function
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   type(std_vector_integer_ip_t)     , allocatable :: old_ptr_dofs_x_fe(:)
@@ -4127,116 +4127,102 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   integer(ip)                                     :: error
   
 #ifdef ENABLE_P4EST
-  refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
-  old_num_local_cells = this%triangulation%get_previous_num_local_cells()
-  old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
-  old_num_cells       = old_num_local_cells+old_num_ghost_cells
-    
-  call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
-  massert ( old_num_cells == refinement_and_coarsening_flags%size(), 'Incorrect size of refinement_and_coarsening_flags' )
-  massert ( old_num_cells == (old_ptr_dofs_x_fe(1)%size()-1), 'Incorrect size of refinement_and_coarsening_flags' )
-  
-  call this%project_field_cell_to_ref_fes()
-  !call this%check_cell_vs_fe_topology_consistency()
-  call this%fill_facet_gids()
-  call this%project_fe_integration_arrays()
-  call this%project_facet_integration_arrays()
-  call this%allocate_and_init_ptr_lst_dofs_gids()
-  call this%allocate_and_init_at_strong_dirichlet_bound()
-  call this%allocate_and_init_has_fixed_dofs()
-  call this%allocate_and_init_has_hanging_dofs_x_fe()
-  call this%fill_same_reference_fe_or_void_x_field()
-  call this%allocate_and_fill_gen_dof_num_scratch_data()
-  call this%set_up_strong_dirichlet_bcs()
-  
-  ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-  call this%generate_global_dof_numbering()
-  
-  call this%create_fe_cell_iterator(new_fe)
-  reference_fe => new_fe%get_reference_fe_geo()
-  num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
-  call memalloc(num_children_x_cell, &
-                this%get_max_num_shape_functions(),old_nodal_values,__FILE__,__LINE__)
-  call memalloc(this%get_max_num_shape_functions(),new_nodal_values,__FILE__,__LINE__)
-  
-  call transformed_fe_function%create(this)
-  
-  old_cell_lid = 1
-  new_cell_lid = 1
-  do while ( old_cell_lid .le. old_num_local_cells )
-    transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-    do field_id = 1,this%get_num_fields()
-      call new_fe%set_gid(new_cell_lid)
-      current_old_cell_lid = old_cell_lid
-      current_new_cell_lid = new_cell_lid
-      reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
-      num_nodes_field = reference_fe%get_num_shape_functions()
-      old_field_fe_dofs => get_field_fe_dofs()
-      call fe_function%gather_nodal_values( field_id,                & 
-                                            old_field_fe_dofs,      &
-                                            num_nodes_field,      & 
-                                            this%get_field_blocks(), &
-                                            old_nodal_values(1,1:num_nodes_field) )
-      if ( transformation_flag == do_nothing ) then
-        call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                          field_id, &
-                                                          old_nodal_values(1,1:num_nodes_field) )
-        current_new_cell_lid = current_new_cell_lid + 1
-      else if ( transformation_flag == refinement ) then
-         do subcell_id = 0,num_children_x_cell-1
-            if ( .not. new_fe%is_void(field_id) ) then 
-               call reference_fe%interpolate_nodal_values_on_subcell( subcell_id,                            & 
-                                                                      old_nodal_values(1,1:num_nodes_field), &
-                                                                      new_nodal_values(1:num_nodes_field) )
-               call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                                 field_id, &
-                                                                 new_nodal_values(1:num_nodes_field) )
-            end if
-            current_new_cell_lid = current_new_cell_lid + 1
-            call new_fe%set_gid(current_new_cell_lid)
-         end do
-      else if ( transformation_flag == coarsening ) then
-        do subcell_id = 1,num_children_x_cell-1
-          current_old_cell_lid = current_old_cell_lid + 1
-          old_field_fe_dofs => get_field_fe_dofs()
-          call fe_function%gather_nodal_values( field_id,                & 
-                                                old_field_fe_dofs,      &
-                                                num_nodes_field,      & 
-                                                this%get_field_blocks(), &
-                                                old_nodal_values(subcell_id+1,1:num_nodes_field) )
-        end do
-        if ( .not. new_fe%is_void(field_id) ) then 
-           call reference_fe%project_nodal_values_on_cell( old_nodal_values(:,1:num_nodes_field), &
-                                                           new_nodal_values(1:num_nodes_field) )
-           call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                             field_id, &
-                                                             new_nodal_values(1:num_nodes_field) )
-        end if
-        current_new_cell_lid = current_new_cell_lid + 1
-      else
-        massert(.false.,'Unrecognised refinement and coarsening flag')
-      end if
-    end do
-    old_cell_lid = current_old_cell_lid
-    new_cell_lid = current_new_cell_lid
-    old_cell_lid = old_cell_lid + 1
-  end do
+  if ( present(fe_function) ) then  
+     refinement_and_coarsening_flags => this%triangulation%get_refinement_and_coarsening_flags()
+     old_num_local_cells = this%triangulation%get_previous_num_local_cells()
+     old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
+     old_num_cells       = old_num_local_cells+old_num_ghost_cells
 
-  massert ( new_cell_lid - 1 == this%triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
-  
-  call fe_function%create(this)
-  fe_function = transformed_fe_function
-  call this%update_hanging_dof_values(fe_function)
-  
-  call this%free_fe_cell_iterator(new_fe)
-  call transformed_fe_function%free()
-  call memfree(old_nodal_values,__FILE__,__LINE__)
-  call memfree(new_nodal_values,__FILE__,__LINE__)
-  do field_id = 1,this%num_fields
-    call old_ptr_dofs_x_fe(field_id)%free()
-  end do
-  deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
-  call old_lst_dofs_gids%free()
+     call this%update_after_refine_coarsen(old_ptr_dofs_x_fe,old_lst_dofs_gids)
+     
+     call this%create_fe_cell_iterator(new_fe)
+     reference_fe => new_fe%get_reference_fe_geo()
+     num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
+     call memalloc(num_children_x_cell, &
+          this%get_max_num_shape_functions(),old_nodal_values,__FILE__,__LINE__)
+     call memalloc(this%get_max_num_shape_functions(),new_nodal_values,__FILE__,__LINE__)
+
+     call transformed_fe_function%create(this)
+
+     old_cell_lid = 1
+     new_cell_lid = 1
+     do while ( old_cell_lid .le. old_num_local_cells )
+        transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
+        do field_id = 1,this%get_num_fields()
+           call new_fe%set_gid(new_cell_lid)
+           current_old_cell_lid = old_cell_lid
+           current_new_cell_lid = new_cell_lid
+           reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
+           num_nodes_field = reference_fe%get_num_shape_functions()
+           old_field_fe_dofs => get_field_fe_dofs()
+           call fe_function%gather_nodal_values( field_id,                & 
+                old_field_fe_dofs,      &
+                num_nodes_field,      & 
+                this%get_field_blocks(), &
+                old_nodal_values(1,1:num_nodes_field) )
+           if ( transformation_flag == do_nothing ) then
+              call transformed_fe_function%insert_nodal_values( new_fe,   &
+                   field_id, &
+                   old_nodal_values(1,1:num_nodes_field) )
+              current_new_cell_lid = current_new_cell_lid + 1
+           else if ( transformation_flag == refinement ) then
+              do subcell_id = 0,num_children_x_cell-1
+                 if ( .not. new_fe%is_void(field_id) ) then 
+                    call reference_fe%interpolate_nodal_values_on_subcell( subcell_id,                            & 
+                         old_nodal_values(1,1:num_nodes_field), &
+                         new_nodal_values(1:num_nodes_field) )
+                    call transformed_fe_function%insert_nodal_values( new_fe,   &
+                         field_id, &
+                         new_nodal_values(1:num_nodes_field) )
+                 end if
+                 current_new_cell_lid = current_new_cell_lid + 1
+                 call new_fe%set_gid(current_new_cell_lid)
+              end do
+           else if ( transformation_flag == coarsening ) then
+              do subcell_id = 1,num_children_x_cell-1
+                 current_old_cell_lid = current_old_cell_lid + 1
+                 old_field_fe_dofs => get_field_fe_dofs()
+                 call fe_function%gather_nodal_values( field_id,                & 
+                      old_field_fe_dofs,      &
+                      num_nodes_field,      & 
+                      this%get_field_blocks(), &
+                      old_nodal_values(subcell_id+1,1:num_nodes_field) )
+              end do
+              if ( .not. new_fe%is_void(field_id) ) then 
+                 call reference_fe%project_nodal_values_on_cell( old_nodal_values(:,1:num_nodes_field), &
+                      new_nodal_values(1:num_nodes_field) )
+                 call transformed_fe_function%insert_nodal_values( new_fe,   &
+                      field_id, &
+                      new_nodal_values(1:num_nodes_field) )
+              end if
+              current_new_cell_lid = current_new_cell_lid + 1
+           else
+              massert(.false.,'Unrecognised refinement and coarsening flag')
+           end if
+        end do
+        old_cell_lid = current_old_cell_lid
+        new_cell_lid = current_new_cell_lid
+        old_cell_lid = old_cell_lid + 1
+     end do
+
+     massert ( new_cell_lid - 1 == this%triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
+
+     call fe_function%create(this)
+     fe_function = transformed_fe_function
+     call this%update_hanging_dof_values(fe_function)
+
+     call this%free_fe_cell_iterator(new_fe)
+     call transformed_fe_function%free()
+     call memfree(old_nodal_values,__FILE__,__LINE__)
+     call memfree(new_nodal_values,__FILE__,__LINE__)
+     do field_id = 1,this%num_fields
+        call old_ptr_dofs_x_fe(field_id)%free()
+     end do
+     deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
+     call old_lst_dofs_gids%free()
+  else
+     call this%update_after_refine_coarsen()
+  end if 
   
 contains
   
@@ -4419,6 +4405,46 @@ contains
 #endif  
     
 end subroutine serial_fe_space_refine_and_coarsen_fe_function_array
+
+subroutine serial_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
+  implicit none
+  class(serial_fe_space_t)                            , intent(inout) :: this
+  type(std_vector_integer_ip_t), allocatable, optional, intent(inout) :: old_ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t)             , optional, intent(inout) :: old_lst_dofs_gids
+  type(environment_t), pointer :: environment
+  integer(ip) :: field_id
+  type(block_layout_t), pointer :: block_layout
+#ifdef DEBUG
+  if ( present(old_ptr_dofs_x_fe) .or. present(old_lst_dofs_gids) ) then
+    assert ( present(old_lst_dofs_gids) ) 
+    assert ( present(old_ptr_dofs_x_fe) )
+  end if 
+#endif
+  
+#ifdef ENABLE_P4EST  
+  environment   => this%triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     if ( present (old_ptr_dofs_x_fe) ) then 
+       call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
+     end if
+     call this%project_field_cell_to_ref_fes()
+     call this%fill_facet_gids()
+     call this%project_fe_integration_arrays()
+     call this%project_facet_integration_arrays()
+     call this%allocate_and_init_ptr_lst_dofs_gids()
+     call this%allocate_and_init_at_strong_dirichlet_bound()
+     call this%allocate_and_init_has_fixed_dofs()
+     call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
+     call this%set_up_strong_dirichlet_bcs()
+     ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+     call this%generate_global_dof_numbering()
+  end if
+#else  
+  call this%not_enabled_error()
+#endif
+end subroutine serial_fe_space_update_after_refine_coarsen
 
 subroutine serial_fe_space_update_hanging_dof_values (this, fe_function )
   implicit none
