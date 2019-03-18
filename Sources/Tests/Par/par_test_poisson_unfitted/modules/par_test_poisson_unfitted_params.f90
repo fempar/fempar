@@ -62,6 +62,10 @@ contains
     class(par_test_poisson_unfitted_params_t), intent(inout) :: this
     character(len=:), allocatable                            :: msg
 
+    msg = 'structured (*) or unstructured (*) triangulation?'
+    write(msg(13:13),'(i1)') triangulation_generate_structured
+    write(msg(33:33),'(i1)') triangulation_generate_from_mesh
+
     ! common
     call this%add(dir_path_key,'--dir-path', '.', 'Directory of the source files', switch_ab='-d')
     call this%add(prefix_key, '--prefix', 'square', 'Name of the GiD files', switch_ab='-p')
