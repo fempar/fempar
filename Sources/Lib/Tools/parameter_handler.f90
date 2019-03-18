@@ -350,7 +350,7 @@ contains
         error = helpers%Set(key=key,  value=help);   assert(error==0)
         error = values%Set(key=key,   value=value);  assert(error==0)
         if(present(switch_ab)) then
-            error = switches_ab%Set(key=key, value=value); assert(error==0)
+            error = switches_ab%Set(key=key, value=switch_ab); assert(error==0)
         endif
         if(present(required)) then
             error = requires%Set(key=key, value=required); assert(error==0)
@@ -426,7 +426,7 @@ contains
         error = helpers%Set(key=key,  value=help);   assert(error==0)
         error = values%Set(key=key,   value=value);  assert(error==0)
         if(present(switch_ab)) then
-            error = switches_ab%Set(key=key, value=value); assert(error==0)
+            error = switches_ab%Set(key=key, value=switch_ab); assert(error==0)
         endif
         if(present(required)) then
             error = requires%Set(key=key, value=required); assert(error==0)
