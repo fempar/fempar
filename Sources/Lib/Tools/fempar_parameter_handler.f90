@@ -404,7 +404,6 @@ contains
     error = error + switches%set(key = struct_hex_triang_num_parts_x_dir_key    , value = '--STRUCT_HEX_TRIANG_NUM_PARTS_X_DIR')
     error = error + values%set(key = struct_hex_triang_num_parts_x_dir_key      , value = [1,1,1])
 
-
     error = error + helpers%set(key = struct_hex_triang_domain_limits_key     , value = 'Domain interval per direction')
     error = error + switches%set(key = struct_hex_triang_domain_limits_key    , value = '--STRUCT_HEX_TRIANG_DOMAIN_LIMITS')
     error = error + values%set(key = struct_hex_triang_domain_limits_key      , value = [0.0,1.0,0.0,1.0,0.0,1.0] )
@@ -412,6 +411,14 @@ contains
     error = error + helpers%set(key = p4est_triang_log_level_key  , value = 'p4est library level of logging output')
     error = error + switches%set(key = p4est_triang_log_level_key , value = '--P4EST_TRIANG_LOG_LEVEL')
     error = error + values%set(key = p4est_triang_log_level_key   , value = FEMPAR_SC_LP_DEFAULT  )
+    
+    error = error + helpers%set(key = p4est_triang_2_1_k_balance_key, value = 'value of k for 2:1 k-balanced forest-of-octrees (use with care, at present, only k={0,1} supported/tested)')
+    error = error + switches%set(key = p4est_triang_2_1_k_balance_key, value = '--P4EST_TRIANG_2_1_K_BALANCE')
+    error = error + values%set(key = p4est_triang_2_1_k_balance_key, value = default_p4est_triang_2_1_k_balance )
+    
+    error = error + helpers%set(key = p4est_triang_k_ghost_cells_key, value = 'value of k for the k-ghost cells set of each processor (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
+    error = error + switches%set(key = p4est_triang_k_ghost_cells_key, value = '--P4EST_TRIANG_K_GHOST_CELLS')
+    error = error + values%set(key = p4est_triang_k_ghost_cells_key, value = default_p4est_triang_k_ghost_cells )
 
     ! BDDC
     error = error + helpers%set(key = bddc_scaling_function_case_key     , value = 'Scaling type for the BDDC weighting operator')

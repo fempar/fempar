@@ -136,23 +136,25 @@ module p4est_bindings_names
      !=================================================================================================================================
      !> summary: Creates p4est_mesh from p4est
      !=================================================================================================================================
-     subroutine F90_p4est_mesh_new(p4est, p4est_ghost, p4est_mesh) bind(c,name="F90_p4est_mesh_new")
+     subroutine F90_p4est_mesh_new(k_ghost_cells, p4est, p4est_ghost, p4est_mesh) bind(c,name="F90_p4est_mesh_new")
        use, intrinsic :: iso_c_binding
        implicit none
-       type(c_ptr), value, intent(in)     :: p4est
-       type(c_ptr)       , intent(inout)  :: p4est_ghost
-       type(c_ptr)       , intent(inout)  :: p4est_mesh
+       integer(c_int), value, intent(in)     :: k_ghost_cells
+       type(c_ptr)   , value, intent(in)     :: p4est
+       type(c_ptr)          , intent(inout)  :: p4est_ghost
+       type(c_ptr)          , intent(inout)  :: p4est_mesh
      end subroutine F90_p4est_mesh_new
      
      !=================================================================================================================================
      !> summary: Creates p8est_mesh from p8est
      !=================================================================================================================================
-     subroutine F90_p8est_mesh_new(p8est, p8est_ghost, p8est_mesh) bind(c,name="F90_p8est_mesh_new")
+     subroutine F90_p8est_mesh_new(k_ghost_cells, p8est, p8est_ghost, p8est_mesh) bind(c,name="F90_p8est_mesh_new")
        use, intrinsic :: iso_c_binding
        implicit none
-       type(c_ptr), value, intent(in)     :: p8est
-       type(c_ptr)       , intent(inout)  :: p8est_ghost
-       type(c_ptr)       , intent(inout)  :: p8est_mesh
+       integer(c_int), value, intent(in)     :: k_ghost_cells
+       type(c_ptr)   , value, intent(in)     :: p8est
+       type(c_ptr)          , intent(inout)  :: p8est_ghost
+       type(c_ptr)          , intent(inout)  :: p8est_mesh
      end subroutine F90_p8est_mesh_new
      
      !=================================================================================================================================
@@ -315,21 +317,23 @@ module p4est_bindings_names
      end subroutine F90_p8est_copy
      
      !=================================================================================================================================
-     !> summary: 2:1 (FULL) balance the size differences of neighboring elements in a forest
+     !> summary: 2:1 k-balance the size differences of neighboring elements in a forest
      !=================================================================================================================================
-     subroutine F90_p4est_balance(p4est) bind(c,name="F90_p4est_balance")
+     subroutine F90_p4est_balance(k_2_1_balance, p4est) bind(c,name="F90_p4est_balance")
        use, intrinsic :: iso_c_binding
        implicit none
-       type(c_ptr), value       , intent(in)     :: p4est
+       integer(c_int), value, intent(in) :: k_2_1_balance
+       type(c_ptr)   , value, intent(in) :: p4est
      end subroutine F90_p4est_balance
 
      !=================================================================================================================================
-     !> summary: 2:1 (FULL) balance the size differences of neighboring elements in a forest
+     !> summary: 2:1 k-balance the size differences of neighboring elements in a forest
      !=================================================================================================================================
-     subroutine F90_p8est_balance(p8est) bind(c,name="F90_p8est_balance")
+     subroutine F90_p8est_balance(k_2_1_balance, p8est) bind(c,name="F90_p8est_balance")
        use, intrinsic :: iso_c_binding
        implicit none
-       type(c_ptr), value       , intent(in)     :: p8est
+       integer(c_int), value, intent(in) :: k_2_1_balance
+       type(c_ptr)   , value, intent(in) :: p8est
      end subroutine F90_p8est_balance
      
      !=================================================================================================================================
