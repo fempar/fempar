@@ -60,7 +60,12 @@ module p4est_triangulation_names
   private
  
   ! Parameter handling
-  character(len=*), parameter :: p4est_triang_log_level_key  = 'p4est_triang_log_level'
+  character(len=*), parameter :: p4est_triang_log_level_key     = 'p4est_triang_log_level'
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_key = 'p4est_triang_2_1_k_balance'
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_key = 'p4est_triang_k_ghost_cells'
+  
+  integer(ip), parameter :: default_p4est_triang_2_1_k_balance = 0
+  integer(ip), parameter :: default_p4est_triang_k_ghost_cells = 0
   
   ! Numbers designating the level of logging output.
   !
@@ -84,6 +89,10 @@ module p4est_triangulation_names
   integer(ip), parameter :: FEMPAR_SC_LP_DEFAULT = SC_LP_SILENT    
   
   public :: p4est_triang_log_level_key
+  public :: p4est_triang_2_1_k_balance_key
+  public :: p4est_triang_k_ghost_cells_key
+  public :: default_p4est_triang_2_1_k_balance
+  public :: default_p4est_triang_k_ghost_cells
   public :: SC_LP_DEFAULT
   public :: SC_LP_ALWAYS     
   public :: SC_LP_TRACE
@@ -456,6 +465,9 @@ module p4est_triangulation_names
      
   type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
+    integer(ip) :: k_2_1_balance            = -1
+    integer(ip) :: k_ghost_cells            = -1
+    
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
  
