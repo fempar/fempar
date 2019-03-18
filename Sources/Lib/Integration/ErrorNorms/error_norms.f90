@@ -107,6 +107,8 @@ module error_norms_names
      ! values, gradients and curls. Size = (max_num_quadrature_points, 1). A 2-rank array 
      ! is required provided the current interface of tensor-valued function_t data types
      type(vector_field_t)    , allocatable :: work_array_values(:,:)
+     type(vector_field_t)    , allocatable :: work_array_curls(:,:)
+     type(vector_field_t)    , allocatable :: fe_function_curls(:)
      type(tensor_field_t)    , allocatable :: work_array_gradients(:,:)
    contains
      procedure, non_overridable          :: create                    => error_norms_vector_create
