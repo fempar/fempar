@@ -67,165 +67,60 @@ contains
   subroutine par_test_maxwell_params_define_parameters(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t), intent(inout) :: this
-    type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
-    integer(ip)    :: error
-    character(len=:), allocatable            :: msg
+    character(len=:), allocatable                      :: msg
 
-    list        => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
-    required    => this%get_required()
-
-    error = list%set(key = dir_path_key                           , value = '.'); check(error==0)
-    error = list%set(key = prefix_key                             , value = 'square'); check(error==0)
-    error = list%set(key = dir_path_out_key                       , value = '.'); check(error==0)
-    error = list%set(key = struct_hex_triang_num_dims_key         , value =  3); check(error==0)     
-    error = list%set(key = struct_hex_triang_num_cells_dir        , value =  [8,8,8]); check(error==0)
-    error = list%set(key = struct_hex_triang_is_dir_periodic_key  , value =  [0,0,0]); check(error==0)
-    error = list%set(key = struct_hex_triang_num_levels_key       , value =  2); check(error==0)
-    error = list%set(key = struct_hex_triang_num_parts_x_dir_key  , value =  [2,2,2,1,1,1,0,0,0]); check(error==0)
-    error = list%set(key = reference_fe_geo_order_key             , value =  1); check(error==0)
-    error = list%set(key = reference_fe_order_key                 , value =  1); check(error==0)
-    error = list%set(key = write_solution_key                     , value =  .false.); check(error==0)
-    error = list%set(key = triang_generate_key                    , value =  triangulation_generate_structured); check(error==0)
-    error = list%set(key = coarse_space_use_vertices_key          , value =  .true.); check(error==0)
-    error = list%set(key = coarse_space_use_edges_key             , value =  .true.); check(error==0)
-    error = list%set(key = coarse_space_use_faces_key             , value =  .false.); check(error==0)
-    error = list%set(key = bddc_edge_continuity_algorithm_key     , value =  tangential_average_and_first_order_moment ) ; check(error==0)
-    error = list%set(key = bddc_scaling_function_case_key         , value =  cardinality ) ; check(error==0)
-    error = list%set(key = mass_coeff_white_key                   , value =  1.0 ); check(error==0)
-    error = list%set(key = curl_curl_coeff_white_key              , value =  1.0 ); check(error==0)
-    error = list%set(key = mass_coeff_black_key                   , value =  1.0 ); check(error==0)
-    error = list%set(key = curl_curl_coeff_black_key              , value =  1.0 ); check(error==0)
-    error = list%set(key = materials_distribution_case_key        , value =  homogeneous); check(error==0) 
-    error = list%set(key = materials_coefficient_case_key         , value =  unit_constant); check(error==0) 
-    error = list%set(key = channels_ratio_key                     , value =  0.1 ); check(error==0)
-    error = list%set(key = num_peaks_curl_curl_coeff_key          , value =  3)   ; check(error==0)
-    error = list%set(key = num_peaks_mass_coeff_key               , value =  3)   ; check(error==0)
-    error = list%set(key = rpb_bddc_threshold_key                 , value = 10.0 ); check(error==0)
-    error = list%set(key = boundary_mass_trick_key                , value =  .false.); check(error==0)
-    
-    ! Only some of them are controlled from cli
-    error = switches%set(key = dir_path_key                       , value = '--dir-path'); check(error==0)
-    error = switches%set(key = prefix_key                         , value = '--prefix'); check(error==0)
-    error = switches%set(key = dir_path_out_key                   , value = '--dir-path-out'); check(error==0)
-    error = switches%set(key = struct_hex_triang_num_dims_key     , value = '--dim'); check(error==0)
-    error = switches%set(key = struct_hex_triang_num_cells_dir    , value = '--number_of_cells'); check(error==0)
-    error = switches%set(key = struct_hex_triang_num_levels_key   , value = '--number_of_levels'); check(error==0)
-    error = switches%set(key = struct_hex_triang_num_parts_x_dir_key , value = '--number_of_parts_per_dir')  ; check(error==0)
-    error = switches%set(key = reference_fe_geo_order_key         , value = '--reference-fe-geo-order')   ; check(error==0)
-    error = switches%set(key = reference_fe_order_key             , value = '--reference-fe-order'    )   ; check(error==0)
-    error = switches%set(key = write_solution_key                 , value = '--write-solution'        )   ; check(error==0)
-    error = switches%set(key = triang_generate_key                , value = '--triangulation-type'    )   ; check(error==0)
-    error = switches%set(key = coarse_space_use_vertices_key      , value = '--coarse-space-use-vertices'); check(error==0)
-    error = switches%set(key = coarse_space_use_edges_key         , value = '--coarse-space-use-edges' )  ; check(error==0)
-    error = switches%set(key = coarse_space_use_faces_key         , value = '--coarse-space-use-faces' )  ; check(error==0)
-    error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
-    error = switches%set(key = bddc_scaling_function_case_key     , value = '--BDDC_scaling_function_case' ) ; check(error==0)
-    error = switches%set(key = mass_coeff_white_key               , value = '--mass_coeff_white' )  ; check(error==0)
-    error = switches%set(key = curl_curl_coeff_white_key          , value = '--curl_curl_coeff_white ' )  ; check(error==0)
-    error = switches%set(key = mass_coeff_black_key               , value = '--mass_coeff_black' )  ; check(error==0)
-    error = switches%set(key = curl_curl_coeff_black_key          , value = '--curl_curl_coeff_black' )  ; check(error==0)
-    error = switches%set(key = materials_distribution_case_key    , value = '--materials_distribution_case' )  ; check(error==0)
-    error = switches%set(key = materials_coefficient_case_key     , value = '--materials_coefficient_case' )  ; check(error==0)
-    error = switches%set(key = channels_ratio_key                 , value = '--channels_ratio' )  ; check(error==0)
-    error = switches%set(key = num_peaks_curl_curl_coeff_key      , value = '--num_peaks_curl_curl_coeff' )  ; check(error==0)
-    error = switches%set(key = num_peaks_mass_coeff_key           , value = '--num_peaks_mass_coeff' )  ; check(error==0)
-    error = switches%set(key = rpb_bddc_threshold_key             , value = '--rpb_bddc_threshold' )  ; check(error==0)
-    error = switches%set(key = boundary_mass_trick_key            , value = '--boundary_mass_trick' )  ; check(error==0)
-                                                             
-    error = switches_ab%set(key = dir_path_key                    , value = '-d'); check(error==0) 
-    error = switches_ab%set(key = prefix_key                      , value = '-p'); check(error==0) 
-    error = switches_ab%set(key = dir_path_out_key                , value = '-o'); check(error==0) 
-    error = switches_ab%set(key = struct_hex_triang_num_dims_key  , value = '-dm') ; check(error==0)
-    error = switches_ab%set(key = struct_hex_triang_num_cells_dir , value = '-n') ; check(error==0) 
-    error = switches_ab%set(key = struct_hex_triang_num_levels_key, value = '-l') ; check(error==0)
-    error = switches_ab%set(key = struct_hex_triang_num_parts_x_dir_key, value = '-np') ; check(error==0)
-    error = switches_ab%set(key = reference_fe_geo_order_key      , value = '-gorder')   ; check(error==0)
-    error = switches_ab%set(key = reference_fe_order_key          , value = '-order')    ; check(error==0)
-    error = switches_ab%set(key = write_solution_key              , value = '-wsolution'); check(error==0)
-    error = switches_ab%set(key = triang_generate_key             , value = '-tt')       ; check(error==0)
-    error = switches_ab%set(key = coarse_space_use_vertices_key   , value = '-use-vertices'); check(error==0)
-    error = switches_ab%set(key = coarse_space_use_edges_key      , value = '-use-edges' )  ; check(error==0)
-    error = switches_ab%set(key = coarse_space_use_faces_key      , value = '-use-faces' )  ; check(error==0)
-    error = switches_ab%set(key = bddc_edge_continuity_algorithm_key, value = '-edge_cont' )  ; check(error==0)
-    error = switches_ab%set(key = bddc_scaling_function_case_key  , value = '-bddc_weights' )  ; check(error==0)
-    error = switches_ab%set(key = mass_coeff_white_key            , value = '-mass_coeff_white' )  ; check(error==0)
-    error = switches_ab%set(key = curl_curl_coeff_white_key       , value = '-curl_curl_coeff_white ' )  ; check(error==0)
-    error = switches_ab%set(key = mass_coeff_black_key            , value = '-mass_coeff_black' )  ; check(error==0)
-    error = switches_ab%set(key = curl_curl_coeff_black_key       , value = '-curl_curl_coeff_black' )  ; check(error==0)
-    error = switches_ab%set(key = materials_distribution_case_key , value = '-materials_case' )  ; check(error==0)
-    error = switches_ab%set(key = materials_coefficient_case_key  , value = '-coefficient_case' )  ; check(error==0)
-    error = switches_ab%set(key = channels_ratio_key              , value = '-channels_ratio' )  ; check(error==0)
-    error = switches_ab%set(key = num_peaks_curl_curl_coeff_key   , value = '-num_peaks_curl_curl_coeff' )  ; check(error==0)
-    error = switches_ab%set(key = num_peaks_mass_coeff_key        , value = '-num_peaks_mass_coeff' )  ; check(error==0)
-    error = switches_ab%set(key = rpb_bddc_threshold_key          , value = '-rpb_bddc_threshold' )  ; check(error==0)
-    error = switches_ab%set(key = boundary_mass_trick_key         , value = '-bmass_trick' )  ; check(error==0)
-
-    error = helpers%set(key = dir_path_key                        , value = 'Directory of the source files') ; check(error==0)
-    error = helpers%set(key = prefix_key                          , value = 'Name of the GiD files'); check(error==0)
-    error = helpers%set(key = dir_path_out_key                    , value = 'Output Directory') ; check(error==0)
-    error = helpers%set(key = struct_hex_triang_num_dims_key      , value = 'Number of space dimensions'); check(error==0)
-    error = helpers%set(key = struct_hex_triang_num_cells_dir     , value = 'Number of cells per dir') ; check(error==0)
-    error = helpers%set(key = struct_hex_triang_num_levels_key    , value = 'Number of levels') ; check(error==0)
-    error = helpers%set(key = struct_hex_triang_num_parts_x_dir_key, value = 'Number of parts per dir and per level') ; check(error==0)
-    error = helpers%set(key = reference_fe_geo_order_key          , value = 'Order of the triangulation reference fe'); check(error==0)
-    error = helpers%set(key = reference_fe_order_key              , value = 'Order of the fe space reference fe') ; check(error==0)
-    error = helpers%set(key = write_solution_key                  , value = 'Write solution in VTK format') ; check(error==0)
-    error = helpers%set(key = coarse_space_use_vertices_key       , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
-    error = helpers%set(key = coarse_space_use_edges_key          , value  = 'Include edge coarse DoFs in coarse FE space' ); check(error==0)
-    error = helpers%set(key = coarse_space_use_faces_key          , value  = 'Include face coarse DoFs in coarse FE space' ); check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
-    error = helpers%set(key = triang_generate_key     , value = msg)  ; check(error==0)
- 
-    msg = 'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges' 
-    error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
-    msg = 'Define BDDC scaling function from: cardinality (inverse of the cardinality of each dof), curl_curl_coeff, mass_coeff, stiffness (diagonal entries of the operator).'
-    error = helpers%set(key = bddc_scaling_function_case_key, value = msg  ); check(error==0) 
-                        
-    error = helpers%set(key = mass_coeff_white_key                 , value  = 'mass_coeff_white value' ) ; check(error==0)
-    error = helpers%set(key = curl_curl_coeff_white_key            , value  = 'curl_curl_coeff_white  value' )  ; check(error==0)
-    error = helpers%set(key = mass_coeff_black_key                 , value  = 'mass_coeff_black value' ) ; check(error==0)
-    error = helpers%set(key = curl_curl_coeff_black_key            , value  = 'curl_curl_coeff_black value' )  ; check(error==0)
-    error = helpers%set(key = materials_distribution_case_key      , value  = 'Materials distribution case: choose between: checkerboard, channels, radial, heterogeneous' )  ; check(error==0)
-    error = helpers%set(key = materials_coefficient_case_key       , value  = 'Materials coefficient case: choose between: constant, sinusoidal' )  ; check(error==0)
-    error = helpers%set(key = channels_ratio_key                   , value  = 'Ratio channel/non-channel of the cross section for every direction)' ) ; check(error==0)
-    error = helpers%set(key = num_peaks_curl_curl_coeff_key        , value  = 'Number of peaks for the sinusoidal function describing the curl_curl_coeff' ) ; check(error==0)
-    error = helpers%set(key = num_peaks_mass_coeff_key             , value  = 'Number of peaks for the sinusoidal function describing the mass_coeff' ) ; check(error==0)
-    error = helpers%set(key = rpb_bddc_threshold_key               , value  = 'Threshold for the relaxed PB-BDDC subparts partition' ) ; check(error==0)
-    error = helpers%set(key = boundary_mass_trick_key              , value  = 'Is the boundary mass trick active?' ); check(error==0)
-    
-    error = required%set(key = dir_path_key                        , value = .false.) ; check(error==0)
-    error = required%set(key = prefix_key                          , value = .false.) ; check(error==0)
-    error = required%set(key = dir_path_out_key                    , value = .false.) ; check(error==0)
-    error = required%set(key = struct_hex_triang_num_dims_key      , value = .false.) ; check(error==0)
-    error = required%set(key = struct_hex_triang_num_cells_dir     , value = .false.) ; check(error==0)
-    error = required%set(key = struct_hex_triang_num_levels_key    , value = .false.) ; check(error==0)
-    error = required%set(key = struct_hex_triang_num_parts_x_dir_key, value = .false.) ; check(error==0)
-    error = required%set(key = reference_fe_geo_order_key          , value = .false.) ; check(error==0)
-    error = required%set(key = reference_fe_order_key              , value = .false.) ; check(error==0)
-    error = required%set(key = write_solution_key                  , value = .false.) ; check(error==0)
-    error = required%set(key = triang_generate_key                 , value = .false.) ; check(error==0)
-    error = required%set(key = coarse_space_use_vertices_key       , value = .false.) ; check(error==0)
-    error = required%set(key = coarse_space_use_edges_key          , value = .false.) ; check(error==0)
-    error = required%set(key = coarse_space_use_faces_key          , value = .false.) ; check(error==0)
-    error = required%set(key = bddc_edge_continuity_algorithm_key  , value = .false.) ; check(error==0)
-    error = required%set(key = bddc_scaling_function_case_key      , value = .false.) ; check(error==0)
-    error = required%set(key = mass_coeff_white_key                , value = .false.) ; check(error==0)
-    error = required%set(key = curl_curl_coeff_white_key           , value = .false.) ; check(error==0)
-    error = required%set(key = mass_coeff_black_key                , value = .false.) ; check(error==0)
-    error = required%set(key = curl_curl_coeff_black_key           , value = .false.) ; check(error==0)
-    error = required%set(key = materials_distribution_case_key     , value = .false.) ; check(error==0)
-    error = required%set(key = materials_coefficient_case_key      , value = .false.) ; check(error==0)
-    error = required%set(key = channels_ratio_key                  , value = .false.) ; check(error==0)
-    error = required%set(key = num_peaks_curl_curl_coeff_key       , value = .false. ) ; check(error==0) 
-    error = required%set(key = num_peaks_mass_coeff_key            , value = .false. ) ; check(error==0)
-    error = required%set(key = rpb_bddc_threshold_key              , value = .false.) ; check(error==0)
-    error = required%set(key = boundary_mass_trick_key             , value = .false.) ; check(error==0)
+
+    ! Common
+    call this%add(dir_path_key,'--dir-path', '.', 'Directory of the source files', switch_ab='-d')
+    call this%add(prefix_key, '--prefix', 'square', 'Name of the GiD files', switch_ab='-p')
+    call this%add(dir_path_out_key, '--dir-path-out', '.', 'Output Directory', switch_ab='-o')
+    call this%add(struct_hex_triang_num_dims_key, '--dim', 2, 'Number of space dimensions', switch_ab='-dm')
+    call this%add(struct_hex_triang_num_cells_dir, '--num_cells', [12,12,12], 'Number of cells per dir', switch_ab='-n')
+    call this%add(struct_hex_triang_is_dir_periodic_key, '--STRUCT_HEX_TRIANG_IS_DIR_PERIODIC', [0,0,0], 'Is the mesh periodic for every dimension')           
+    call this%add(struct_hex_triang_num_levels_key, '--num_levels', 3, 'Number of levels', switch_ab='-l')
+    call this%add(struct_hex_triang_num_parts_x_dir_key, '--num_parts_x_dir', [4,4,0,2,2,0,1,1,0], 'Number of parts per dir and per level', switch_ab='-np')
+    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
+    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
+    call this%add(triang_generate_key, '--trinagulation-type', triangulation_generate_from_mesh, msg, switch_ab='-tt')
+    call this%add(coarse_space_use_vertices_key, '--coarse-space-use-vertices', .true., 'Include vertex coarse DoFs in coarse FE space', switch_ab='-use-vertices')
+    call this%add(coarse_space_use_edges_key, '--coarse-space-use-edges', .true., 'Include edge coarse DoFs in coarse FE space', switch_ab='-use-edges')
+    call this%add(coarse_space_use_faces_key, '--coarse-space-use-faces', .true., 'Include face coarse DoFs in coarse FE space', switch_ab='-use-faces')
+
+    ! Specific
+    call this%add(bddc_edge_continuity_algorithm_key, '--BDDC_edge_continuity_algorithm', tangential_average_and_first_order_moment, &
+                  'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges', &
+                  switch_ab='-edge_cont')
+    call this%add(bddc_scaling_function_case_key, '--BDDC_scaling_function_case', cardinality, &
+                  'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges', &
+                  switch_ab='-bddc_weights')
+    call this%add(mass_coeff_white_key, '--mass_coeff_white', 1.0_rp, 'mass_coeff_white value', switch_ab='-mass_coeff_white')
+    call this%add(curl_curl_coeff_white_key, '--curl_curl_coeff_white', 1.0_rp, 'curl_curl_coeff_white  value', switch_ab='-curl_curl_coeff_white')
+    call this%add(mass_coeff_black_key, '--mass_coeff_black', 1.0_rp, 'mass_coeff_black value', switch_ab='-mass_coeff_black')
+    call this%add(curl_curl_coeff_black_key, '--curl_curl_coeff_black', 1.0_rp, 'curl_curl_coeff_black value', switch_ab='-curl_curl_coeff_black')
+    call this%add(materials_distribution_case_key, '--materials_distribution_case', homogeneous, &
+                  'Materials distribution case: choose between: checkerboard, channels, radial, heterogeneous', &
+                  switch_ab='-materials_case')
+    call this%add(materials_coefficient_case_key, '--materials_coefficient_case', unit_constant, &
+                  'Materials coefficient case: choose between: constant, sinusoidal', &
+                  switch_ab='-coefficient_case')
+    call this%add(channels_ratio_key, '--channels_ratio', 0.1_rp, &
+                  'Ratio channel/non-channel of the cross section for every direction)', &
+                  switch_ab='-channels_ratio')
+    call this%add(num_peaks_curl_curl_coeff_key, '--num_peaks_curl_curl_coeff', 3, &
+                  'Number of peaks for the sinusoidal function describing the curl_curl_coeff', &
+                  switch_ab='-num_peaks_curl_curl_coeff')
+    call this%add(num_peaks_mass_coeff_key, '--num_peaks_mass_coeff', 3, &
+                  'Number of peaks for the sinusoidal function describing the mass_coeff', &
+                  switch_ab='-num_peaks_mass_coeff')
+    call this%add(rpb_bddc_threshold_key, '--rpb_bddc_threshold', 10.0_rp, &
+                  'Threshold for the relaxed PB-BDDC subparts partition', &
+                  switch_ab='-rpb_bddc_threshold')
+    call this%add(boundary_mass_trick_key, '--boundary_mass_trick', .false., 'Is the boundary mass trick active?', switch_ab='-bmass_trick')
 
   end subroutine par_test_maxwell_params_define_parameters
 
