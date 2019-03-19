@@ -44,59 +44,23 @@ contains
   subroutine partitioner_input_define_parameters(this)
     implicit none
     class(partitioner_input_t), intent(inout) :: this
-    type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
-    integer(ip) :: error
+    integer(ip)                               :: error
 
-    list        => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
-    required    => this%get_required()
+    call this%add(dir_path_key, '--dir-path', '.', 'Directory of the source files', switch_ab='-d')
+    call this%add(prefix_key, '--prefix', 'square', 'Name of the GiD files', switch_ab='-p')
+    call this%add(dir_path_out_key, '--dir-path-out', '.', 'Output Directory', switch_ab='-o')
+    call this%add(num_parts_key, '--num_parts', 16, 'Number of parts of the mesh', switch_ab='-n')
+    call this%add(num_levels_distribution_key, '--num_levels', 1, 'Number of levels', switch_ab='-l')
+    call this%add(num_parts_x_level_key, '--num_parts_x_level', [16,4,1,0,0], 'Number of parts per level (array of fixed size 5)', switch_ab='-npl')
 
-    error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
-    error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
-    error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
-    error = list%set(key = num_parts_key           , value =  16)              ; check(error==0)
-    error = list%set(key = num_levels_distribution_key          , value =  1)               ; check(error==0)
-    error = list%set(key = num_parts_x_level_key , value =  [16,4,1,0,0])    ; check(error==0)
-    error = list%set(key = strategy_key            , value = part_kway)        ; check(error==0)
-    error = list%set(key = debug_key               , value =  0)               ; check(error==0)
-    error = list%set(key = metis_option_debug_key  , value =  2)               ; check(error==0)
-    error = list%set(key = metis_option_ufactor_key, value = 30)               ; check(error==0)
-    error = list%set(key = metis_option_minconn_key, value =  0)               ; check(error==0)
-    error = list%set(key = metis_option_contig_key , value =  1)               ; check(error==0)
-    error = list%set(key = metis_option_ctype_key  , value = METIS_CTYPE_SHEM) ; check(error==0)
-    error = list%set(key = metis_option_iptype_key , value = METIS_IPTYPE_EDGE); check(error==0)
-
-    ! Only some of them are controlled from cli
-    error = switches%set(key = dir_path_key    , value = '--dir-path')                  ; check(error==0)
-    error = switches%set(key = prefix_key      , value = '--prefix')                    ; check(error==0)
-    error = switches%set(key = dir_path_out_key, value = '--dir-path-out')              ; check(error==0)
-    error = switches%set(key = num_parts_key   , value = '--num_parts')                 ; check(error==0)
-    error = switches%set(key = num_levels_distribution_key  , value = '--num_levels')                ; check(error==0)
-    error = switches%set(key = num_parts_x_level_key, value = '--num_parts_x_level'); check(error==0)
-
-    error = switches_ab%set(key = dir_path_key    , value = '-d')             ; check(error==0)
-    error = switches_ab%set(key = prefix_key      , value = '-p')             ; check(error==0)
-    error = switches_ab%set(key = dir_path_out_key, value = '-o')             ; check(error==0)
-    error = switches_ab%set(key = num_parts_key   , value = '-n')             ; check(error==0)
-    error = switches_ab%set(key = num_levels_distribution_key  , value = '-l')             ; check(error==0)
-    error = switches_ab%set(key = num_parts_x_level_key   , value = '-npl') ; check(error==0)
-
-    error = helpers%set(key = dir_path_key    , value = 'Directory of the source files')                               ; check(error==0)
-    error = helpers%set(key = prefix_key      , value = 'Name of the GiD files')                                       ; check(error==0)
-    error = helpers%set(key = dir_path_out_key, value = 'Output Directory')                                            ; check(error==0)
-    error = helpers%set(key = num_parts_key   , value = 'Number of parts of the mesh')                                 ; check(error==0)
-    error = helpers%set(key = num_levels_distribution_key  , value = 'Number of levels')                                            ; check(error==0)
-    error = helpers%set(key = num_parts_x_level_key   , value = 'Number of parts per level (array of fixed size 5)') ; check(error==0)
-
-    error = required%set(key = dir_path_key    , value = .false.)           ; check(error==0)
-    error = required%set(key = prefix_key      , value = .false.)           ; check(error==0)
-    error = required%set(key = dir_path_out_key, value = .false.)           ; check(error==0)
-    error = required%set(key = num_parts_key   , value = .false.)           ; check(error==0)
-    error = required%set(key = num_levels_distribution_key  , value = .false.)           ; check(error==0)
-    error = required%set(key = num_parts_x_level_key  , value = .false.)  ; check(error==0)
-
+    call this%add(strategy_key, '--strategy', part_kway, 'Partitioning strategy')
+    call this%add(debug_key, '--debug',  0, 'Debug mode')
+    call this%add(metis_option_debug_key, '--metis_debug',  2, 'Metis debug option')
+    call this%add(metis_option_ufactor_key, '--metis_ufactor', 30, 'Metis ufactor option')
+    call this%add(metis_option_minconn_key, '--metis_minconn', 0, 'Metis minconn option')
+    call this%add(metis_option_contig_key, '--metis_contig', 1, 'Metis contig option')
+    call this%add(metis_option_ctype_key, '--metis_ctype', METIS_CTYPE_SHEM, 'Metis ctype option')
+    call this%add(metis_option_iptype_key, '--metis_iptype', METIS_IPTYPE_EDGE, 'Metis iptype option')
   end subroutine partitioner_input_define_parameters
 
 end module partitioner_input_names
