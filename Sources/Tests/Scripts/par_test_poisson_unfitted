@@ -6,35 +6,26 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
 
 if [ -d "$DIR" ]
 then
 if [ -f "$TEST_BINARY_PATH" ]
 then
-  #if [ -d "$TEST_INPUT_DATA_PATH" ] 
-  #then
 
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true."
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 2 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true.
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 -in_space .true."
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 -in_space .true.
      if [ $? -ne 0 ] 
      then
       final_exit_code=1
      fi
 
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true."
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true.
-     if [ $? -ne 0 ] 
-     then
-      final_exit_code=1
-     fi
-
-   #else
-   #   echo "$0: input data directory not found!"
-   #   final_exit_code=1
-   #fi
 else
   echo "$0: BINARY not found! Value PROVIDED: $4."
   final_exit_code=1
