@@ -47,15 +47,6 @@ program test_steady_poisson
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
-  !* This is a pointer to the finite element used to map the reference cell to the physical space. Usually, it is first order.
-  !* The FE space used for this purpose will be extracted from the triangulation.
-  class(reference_fe_t), pointer       :: reference_fe_geo
-!!!!!  !* This is a pointer to the reference finite element used to approximate the Poisson problem.
-!!!!!  type(p_reference_fe_t)               :: reference_fe
-!!!!!  type(p_reference_fe_t), allocatable  :: reference_fes(:) 
-!!!!!  !* The triangulation can provide a reference_fe... too complicated.
-!!!!!  !* SB: Provide the topology in a different way!!!!
-!!!!!  class(cell_iterator_t), allocatable  :: cell
   !* The fe_space_t is the global finite element space to be used.
   type(serial_fe_space_t)              :: fe_space
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
@@ -82,9 +73,9 @@ program test_steady_poisson
   type(iterative_linear_solver_t)      :: iterative_linear_solver
   type(ParameterList_t), pointer       :: iterative_solver_params    
   !* The output handler type is used to print the results
-  type(output_handler_t) :: output_handler
+  type(output_handler_t)               :: output_handler
   !* The following object automatically compute error norms given a fe_function_t and the analytical solution.
-  type(error_norms_scalar_t) :: error_norm
+  type(error_norms_scalar_t)           :: error_norm
   !*
   !* Local variables
   integer(ip) :: fe_order, istat, error, i, boundary_ids
@@ -174,10 +165,11 @@ program test_steady_poisson
     !* Set parameters of the direct solver
     error = 0
     error = error + direct_solver_params%set(key = dls_type_key,        value = pardiso_mkl)
-    error = error + direct_solver_params%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
-    error = error + direct_solver_params%set(key = pardiso_mkl_message_level, value = 0)
+    !* Set parameters of the direct solver
+    error = error + direct_solver_params%set(key = pardiso_mkl_message_level, value = 1)
     check(error == 0)
     call direct_solver%set_type_from_pl(direct_solver_params)
+    call direct_solver%set_parameters_from_pl(direct_solver_params)
     !* Next, we set the matrix in our system from the fe_affine operator
     call direct_solver%set_matrix(fe_affine_operator%get_matrix())
     !* We extract a pointer to the free nodal values of our FE function, which is the plae in which we will store the result.
