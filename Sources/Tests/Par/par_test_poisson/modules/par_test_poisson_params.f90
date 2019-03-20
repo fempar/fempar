@@ -38,11 +38,6 @@ contains
   subroutine par_test_poisson_params_define_parameters(this)
     implicit none
     class(par_test_poisson_params_t), intent(inout) :: this
-    character(len=:), allocatable                   :: msg
-
-    msg = 'structured (*) or unstructured (*) triangulation?'
-    write(msg(13:13),'(i1)') triangulation_generate_structured
-    write(msg(33:33),'(i1)') triangulation_generate_from_mesh
 
     ! Common
     call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
