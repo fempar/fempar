@@ -6,18 +6,21 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
 
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 lst_integration_schemes="forward_euler#backward_euler#trapezoidal_rule#mid_point_implicit#mid_point_explicit#imex_rk_2_2_1_implicit#imex_rk_2_2_1_explicit#imex_rk_2_2_2_implicit#imex_rk_2_2_2_explicit#imex_rk_2_3_implicit#imex_rk_2_3_explicit#runge_kutta_3#runge_kutta_4#runge_kutta_4_3_8#imex_rk_4_3_implicit#imex_rk_4_3_explicit"
 
-num_integration_schemes=7
+num_integration_schemes=16
 
 if [ -f "$TEST_BINARY_PATH" ]
 then
-# if [ -d "$TEST_INPUT_DATA_PATH" ] 
-#   then
+
       ###############################################################################################################################
       # Convergence order tests of transient poisson
       ###############################################################################################################################
@@ -26,43 +29,16 @@ then
       while [ $id_scheme -le $num_integration_schemes ]
       do 
           integration_scheme=$(echo $lst_integration_schemes|cut -f$id_scheme -d#)
-          echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -rk-scheme $integration_scheme -test .true. -tf 0" 
-          $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -rk-scheme $integration_scheme -test .true. -tf 0          
+          echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -rk-scheme $integration_scheme -test .true. -tf 0" 
+          $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -rk-scheme $integration_scheme -test .true. -tf 0          
           if [ $? -ne 0 ]
           then
             final_exit_code=1
-          fi
-
-#          echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 12 12 0 -rk-scheme $integration_scheme -test .true. -tf 0" 
-#          $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 12 12 0 -rk-scheme $integration_scheme -test .true. -tf 0          
-#          if [ $? -ne 0 ]
-#          then
-#            final_exit_code=1
-#          fi
-
-          if [ "$(echo $integration_scheme | grep -E 'backward|implicit')" != "" ]
-          then
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -rk-scheme $integration_scheme -dt 1 -tf 10 "
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0 -rk-scheme $integration_scheme -dt 1 -tf 10
-            if [ $? -ne 0 ]
-            then
-              final_exit_code=1
-            fi
-
-#            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 12 12 0 -rk-scheme $integration_scheme -dt 1 -tf 10 "
-#            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 12 12 0 -rk-scheme $integration_scheme -dt 1 -tf 10
-#            if [ $? -ne 0 ]
-#            then
-#              final_exit_code=1
-#            fi
+            exit $final_exit_code
           fi
       let id_scheme=id_scheme+1
       done
-# Add more size and shape variations for non-fast test
-#   else
-#      echo "$0: input data directory not found!"
-#      final_exit_code=1
-#   fi
+
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."
   final_exit_code=1

@@ -17,7 +17,7 @@ module par_test_transient_poisson_params_names
   character(len=*), parameter :: time_integration_scheme_key = 'time_integration_scheme'
   character(len=*), parameter :: is_test_key                 = 'is_test'
   
-  type, extends(parameter_handler_t) :: par_test_transient_poisson_params_t
+  type, extends(fempar_parameter_handler_t) :: par_test_transient_poisson_params_t
      private
      contains
        procedure :: define_parameters  => par_test_transient_poisson_params_define_parameters
@@ -45,27 +45,13 @@ contains
   subroutine par_test_transient_poisson_params_define_parameters(this)
     implicit none
     class(par_test_transient_poisson_params_t), intent(inout) :: this
-    character(len=:), allocatable                             :: msg
 
-    msg = 'structured (*) or unstructured (*) triangulation?'
-    write(msg(13:13),'(i1)') triangulation_generate_structured
-    write(msg(33:33),'(i1)') triangulation_generate_from_mesh
-
-    call this%add(dir_path_key,'--dir-path', '.', 'Directory of the source files', switch_ab='-d')
-    call this%add(prefix_key, '--prefix', 'square', 'Name of the GiD files', switch_ab='-p')
-    call this%add(dir_path_out_key, '--dir-path-out', '.', 'Output Directory', switch_ab='-o')
-    call this%add(struct_hex_triang_num_dims_key, '--dim', 2, 'Number of space dimensions', switch_ab='-dm')
-    call this%add(struct_hex_triang_num_cells_dir, '--num_cells', [12,12,12], 'Number of cells per dir', switch_ab='-n')
-    call this%add(struct_hex_triang_is_dir_periodic_key, '--STRUCT_HEX_TRIANG_IS_DIR_PERIODIC', [0,0,0], 'Is the mesh periodic for every dimension')           
-    call this%add(struct_hex_triang_num_levels_key, '--num_levels', 3, 'Number of levels', switch_ab='-l')
-    call this%add(struct_hex_triang_num_parts_x_dir_key, '--num_parts_x_dir', [4,4,0,2,2,0,1,1,0], 'Number of parts per dir and per level', switch_ab='-np')
+    ! Common
     call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
-    call this%add(triang_generate_key, '--triangulation-type', triangulation_generate_from_mesh, msg, switch_ab='-tt')
-    call this%add(coarse_space_use_vertices_key, '--coarse-space-use-vertices', .true., 'Include vertex coarse DoFs in coarse FE space', switch_ab='-use-vertices')
-    call this%add(coarse_space_use_edges_key, '--coarse-space-use-edges', .true., 'Include edge coarse DoFs in coarse FE space', switch_ab='-use-edges')
-    call this%add(coarse_space_use_faces_key, '--coarse-space-use-faces', .true., 'Include face coarse DoFs in coarse FE space', switch_ab='-use-faces')
+
+    ! Specific
     call this%add(use_void_fes_key, '--use-void-fes', .false., 'Use a hybrid FE space formed by full and void FEs', switch_ab='-use-voids')
     call this%add(use_void_fes_case_key, '--use-void-fes-case', 'popcorn', 'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter` ', switch_ab='-use-voids-case')
     call this%add(initial_time_key, '--initial-time', 0.0_rp, 'Initial time: t0', switch_ab='-t0')
