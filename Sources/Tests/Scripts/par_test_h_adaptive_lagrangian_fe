@@ -6,118 +6,105 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
 
 if [ -d "$DIR" ]
 then
     if [ -f "$TEST_BINARY_PATH" ]
     then
 
-	for order in 1 2 3 
-	do  
+	    for order in 1 2 3 
+	    do  
             if [ $order -eq 1 ] 
             then 
-		for refinement_pattern in even_cells inner_region 
-		do 
-		    for num_refinements in 3 4
-		    do 
-			for num_parts in 8 9 10 11 12 17 18 19   
-			do 
-			    num_tasks=`expr "$num_parts" + 1` 
+		        for refinement_pattern in even_cells inner_region 
+		        do 
+		            for num_refinements in 3 4
+		            do 
+			            for num_parts in 8 9 10 11 12 17 18 19   
+			            do 
+			                num_tasks=`expr "$num_parts" + 1` 
 
-			    #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
-			    #$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern 
-			    #if [ $? -ne 0 ] 
-			    #then
-				#final_exit_code=1
-			    #fi
+                            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $triang_generate_flag 0 $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+			                $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern
+			                if [ $? -ne 0 ] 
+			                then
+                                final_exit_code=1
+                                exit $final_exit_code
+			                fi
+			            done 
+		            done 
+		        done
 
-        		    echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
-			    $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern
-			    if [ $? -ne 0 ] 
-			    then
-				final_exit_code=1
-			    fi
+		        for refinement_pattern in inner_region 
+		        do 
+		            for num_refinements in 6 7
+		            do 
+			            for num_parts in 8 9 10 11 12 17 18 19   
+			            do 
+			                num_tasks=`expr "$num_parts" + 1` 
 
-                            #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter"
-			    #$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter
-			    #if [ $? -ne 0 ] 
-			    #then
-			    #	final_exit_code=1
-			    #fi
+                            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $triang_generate_flag 0 $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter"
+			                $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter
+			                if [ $? -ne 0 ] 
+			                then
+                                final_exit_code=1
+                                exit $final_exit_code
+			                fi
 
-			    #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
-			    #$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn
-			    #if [ $? -ne 0 ] 
-			    #then
-			    #	final_exit_code=1
-			    #fi
-
-			done 
-		    done 
-		done
-
-		for refinement_pattern in inner_region 
-		do 
-		    for num_refinements in 6 7
-		    do 
-			for num_parts in 8 9 10 11 12 17 18 19   
-			do 
-			    num_tasks=`expr "$num_parts" + 1` 
-
-                            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter"
-			    $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter
-			    if [ $? -ne 0 ] 
-			    then
-				final_exit_code=1
-			    fi
-
-			    echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
-			    $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn
-			    if [ $? -ne 0 ] 
-			    then
-				final_exit_code=1
-			    fi
-
-			done 
-		    done 
-		done
-		
+			                echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
+			                $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn
+			                if [ $? -ne 0 ] 
+			                then
+                                final_exit_code=1
+                                exit $final_exit_code
+			                fi
+			            done 
+		            done 
+		        done
+		    
             else 
                 # TESTING high order h_adaptivity for a fixed case 
-		num_tasks=6 
-		num_refinements=3
-		refinement_pattern=even_cells 
+		        num_tasks=6 
+		        num_refinements=3
+		        refinement_pattern=even_cells 
 
-		echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
-		$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern 
-		if [ $? -ne 0 ] 
-		then
-		    final_exit_code=1
-		fi
+		        echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+		        $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern 
+		        if [ $? -ne 0 ] 
+		        then
+		            final_exit_code=1
+                    exit $final_exit_code
+		        fi
 
-		
-		echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH  -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
-		$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn
-		if [ $? -ne 0 ] 
-		then
-		    final_exit_code=1
-		fi
-  
-		echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH  -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
-		$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case quarter
-		if [ $? -ne 0 ] 
-		then
-		    final_exit_code=1
-		fi
+		        
+		        echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
+		        $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn
+		        if [ $? -ne 0 ] 
+		        then
+		            final_exit_code=1
+                    exit $final_exit_code
+		        fi
+          
+		        echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
+		        $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case quarter
+		        if [ $? -ne 0 ] 
+		        then
+		            final_exit_code=1
+                    exit $final_exit_code
+		        fi
 
             fi 
         done 
     else
-	echo "$0: BINARY not found! Value PROVIDED: $4."
-	final_exit_code=1
+	    echo "$0: BINARY not found! Value PROVIDED: $4."
+	    final_exit_code=1
     fi
 else
     echo "$0: PART not found! Value PROVIDED: $DIR/part."
