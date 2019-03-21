@@ -177,7 +177,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
+    call this%test_params%process_parameters()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
 
