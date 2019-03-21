@@ -223,7 +223,3 @@ contains
   end subroutine integrate_galerkin
   
 end module poisson_discrete_integration_names
-
-
-
-
