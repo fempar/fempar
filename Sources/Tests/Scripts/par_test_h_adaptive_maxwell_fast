@@ -6,56 +6,47 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
 
 if [ -d "$DIR" ]
 then
 if [ -f "$TEST_BINARY_PATH" ]
 then
-  #if [ -d "$TEST_INPUT_DATA_PATH" ] 
-  #then
-
-
-   for order in 1 2  
+   for order in 1 #2 3 
    do
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -order $order"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -order $order
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order
      if [ $? -ne 0 ] 
      then
       final_exit_code=1
+      exit $final_exit_code
      fi
 
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -order $order"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -order $order
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order
      if [ $? -ne 0 ]
      then
       final_exit_code=1
+      exit $final_exit_code
      fi
    done  
    
-   for order in 1 
+   for order in 1 #2
    do
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH  -l 2 -order $order --dim 3"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -order $order --dim 3
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order $struct_hex_triang_num_dims_flag 3"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order $struct_hex_triang_num_dims_flag 3
      if [ $? -ne 0 ] 
      then
       final_exit_code=1
+      exit $final_exit_code
      fi
-
-     #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3"
-     #$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3
-     #if [ $? -ne 0 ]
-     #then
-     # final_exit_code=1
-     #fi
    done  
-
-   #else
-   #   echo "$0: input data directory not found!"
-   #   final_exit_code=1
-   #fi
 else
   echo "$0: BINARY not found! Value PROVIDED: $4."
   final_exit_code=1
