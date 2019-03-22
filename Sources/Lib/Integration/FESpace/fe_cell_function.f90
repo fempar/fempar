@@ -93,18 +93,18 @@ module fe_cell_function_names
      procedure, non_overridable :: move_alloc_gradients_in               => fe_cell_function_vector_move_alloc_gradients_in
      procedure, non_overridable :: move_alloc_gradients_out              => fe_cell_function_vector_move_alloc_gradients_out
      procedure, non_overridable :: get_field_id                          => fe_cell_function_vector_get_field_id
-     procedure, non_overridable :: get_nodal_values                      => fe_cell_function_vector_get_nodal_values      
+     procedure, non_overridable :: get_nodal_values                      => fe_cell_function_vector_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_vector_get_quadrature_points_values
      procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_vector_get_quadrature_points_gradients
      procedure, non_overridable :: get_quadrature_points_laplacians      => fe_cell_function_vector_get_quadrature_points_laplacians
      procedure, non_overridable :: compute_quadrature_points_curl_values => fe_cell_function_vector_compute_quadrature_points_curl_values
      procedure, non_overridable :: get_value                             => fe_cell_function_vector_get_value
-     procedure, non_overridable :: get_gradient                          => fe_cell_function_vector_get_gradient 
+     procedure, non_overridable :: get_gradient                          => fe_cell_function_vector_get_gradient
      procedure, non_overridable :: get_laplacian                         => fe_cell_function_vector_get_laplacian
-     procedure, non_overridable :: compute_curl                          => fe_cell_function_vector_compute_curl 
-     procedure, non_overridable :: compute_divergence                    => fe_cell_function_vector_compute_divergence 
-     procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_vector_set_current_num_nodes
-     procedure, non_overridable :: set_current_num_quadrature_points  => fe_cell_function_vector_set_current_num_quadrature_points
+     procedure, non_overridable :: compute_curl                          => fe_cell_function_vector_compute_curl
+     procedure, non_overridable :: compute_divergence                    => fe_cell_function_vector_compute_divergence
+     procedure, non_overridable :: set_current_num_nodes                 => fe_cell_function_vector_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points     => fe_cell_function_vector_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => fe_cell_function_vector_free
   end type fe_cell_function_vector_t
   

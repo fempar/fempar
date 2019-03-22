@@ -70,7 +70,6 @@ module fe_space_names
   use std_vector_real_rp_names
   use std_vector_integer_ip_names
   use std_vector_integer_igp_names
-  use p4est_triangulation_names
 
   ! Parallel modules
   use environment_names
@@ -885,7 +884,7 @@ module fe_space_names
      procedure,                  private :: serial_fe_space_refine_and_coarsen_fe_function_array
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
-
+     procedure                           :: update_after_refine_coarsen                   => serial_fe_space_update_after_refine_coarsen
      procedure                           :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
      procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
      
@@ -1094,7 +1093,6 @@ module fe_space_names
    generic                                     :: redistribute                                            => par_fe_space_redistribute_single_fe_function, &
                                                                                                              par_fe_space_redistribute_fe_function_array
    procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
-   procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
    procedure,                          private :: project_field_cell_to_ref_fes                           => par_fe_space_project_field_cell_to_ref_fes
    procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
    procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays

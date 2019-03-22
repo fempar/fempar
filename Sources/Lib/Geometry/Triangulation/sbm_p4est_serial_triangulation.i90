@@ -80,6 +80,21 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     p4est_log_level = FEMPAR_SC_LP_DEFAULT
   end if
   
+  if( parameters%isPresent(key = p4est_triang_2_1_k_balance_key ) ) then
+    assert(parameters%isAssignable(p4est_triang_2_1_k_balance_key, this%k_2_1_balance))
+    istat = parameters%get(key = p4est_triang_2_1_k_balance_key, value = this%k_2_1_balance); check(istat==0)
+  else
+    this%k_2_1_balance = default_p4est_triang_2_1_k_balance
+  end if
+
+  if( parameters%isPresent(key = p4est_triang_k_ghost_cells_key ) ) then
+    assert(parameters%isAssignable(p4est_triang_k_ghost_cells_key, this%k_ghost_cells))
+    istat = parameters%get(key = p4est_triang_k_ghost_cells_key, value = this%k_ghost_cells); check(istat==0)
+  else
+    this%k_ghost_cells = default_p4est_triang_k_ghost_cells
+  end if
+  
+  
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
                                      1, &
@@ -208,7 +223,9 @@ subroutine p4est_serial_triangulation_free ( this)
     
   if (allocated(this%global_first_quadrant)) &
     call memfree(this%global_first_quadrant, __FILE__, __LINE__)
-    
+  
+  this%k_2_1_balance  = -1
+  this%k_ghost_cells = -1
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
   this%bounding_box_limits = 0.0_rp

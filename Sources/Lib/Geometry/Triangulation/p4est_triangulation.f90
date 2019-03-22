@@ -60,7 +60,12 @@ module p4est_triangulation_names
   private
  
   ! Parameter handling
-  character(len=*), parameter :: p4est_triang_log_level_key  = 'p4est_triang_log_level'
+  character(len=*), parameter :: p4est_triang_log_level_key     = 'p4est_triang_log_level'
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_key = 'p4est_triang_2_1_k_balance'
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_key = 'p4est_triang_k_ghost_cells'
+  
+  integer(ip), parameter :: default_p4est_triang_2_1_k_balance = 0
+  integer(ip), parameter :: default_p4est_triang_k_ghost_cells = 0
   
   ! Numbers designating the level of logging output.
   !
@@ -84,6 +89,10 @@ module p4est_triangulation_names
   integer(ip), parameter :: FEMPAR_SC_LP_DEFAULT = SC_LP_SILENT    
   
   public :: p4est_triang_log_level_key
+  public :: p4est_triang_2_1_k_balance_key
+  public :: p4est_triang_k_ghost_cells_key
+  public :: default_p4est_triang_2_1_k_balance
+  public :: default_p4est_triang_k_ghost_cells
   public :: SC_LP_DEFAULT
   public :: SC_LP_ALWAYS     
   public :: SC_LP_TRACE
@@ -358,11 +367,6 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_EDGES_SUBEDGE_FACE_NEIGHBOUR_3D(NUM_EDGES_3D/4, NUM_SUBEDGES_EDGE_3D) = &
                                                   reshape( [ 2, 4, 6, &
                                                              1, 3, 5 ], [NUM_EDGES_3D/4,NUM_SUBEDGES_EDGE_3D] )
-                                                  
-  integer(ip), parameter :: refinement = 1 
-  integer(ip), parameter :: coarsening = -1 
-  integer(ip), parameter :: do_nothing = 0 
-  
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
@@ -461,6 +465,9 @@ module p4est_triangulation_names
      
   type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
+    integer(ip) :: k_2_1_balance            = -1
+    integer(ip) :: k_ghost_cells            = -1
+    
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
  
@@ -569,8 +576,8 @@ module p4est_triangulation_names
     procedure                                    :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
-    procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
-    procedure                 , non_overridable  :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
+    procedure                                    :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
+    procedure                                    :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
     
     procedure, private                           :: allocate_and_gen_reference_fe_geo_scratch_data     => p4est_bt_allocate_and_gen_reference_fe_geo_scratch_data
     procedure, private                           :: free_reference_fe_geo_scratch_data                 => p4est_bt_free_reference_fe_geo_scratch_data
@@ -582,6 +589,18 @@ module p4est_triangulation_names
     ! VEF traversals-related TBPs
     procedure                                   :: create_vef_iterator                   => p4est_create_vef_iterator
     procedure                                   :: free_vef_iterator                     => p4est_free_vef_iterator
+    
+    ! Methods to perform nearest neighbor exchange
+    procedure                                   :: get_migration_num_snd                 => p4est_bt_get_migration_num_snd
+    procedure                                   :: get_migration_lst_snd                 => p4est_bt_get_migration_lst_snd
+    procedure                                   :: get_migration_snd_ptrs                => p4est_bt_get_migration_snd_ptrs
+    procedure                                   :: get_migration_pack_idx                => p4est_bt_get_migration_pack_idx
+    procedure                                   :: get_migration_num_rcv                 => p4est_bt_get_migration_num_rcv
+    procedure                                   :: get_migration_lst_rcv                 => p4est_bt_get_migration_lst_rcv
+    procedure                                   :: get_migration_rcv_ptrs                => p4est_bt_get_migration_rcv_ptrs
+    procedure                                   :: get_migration_unpack_idx              => p4est_bt_get_migration_unpack_idx
+    procedure                                   :: get_migration_new2old                 => p4est_bt_get_migration_new2old
+    procedure                                   :: get_migration_old2new                 => p4est_bt_get_migration_old2new    
 
 #ifndef ENABLE_P4EST
     procedure, non_overridable :: not_enabled_error => p4est_base_triangulation_not_enabled_error
@@ -589,7 +608,6 @@ module p4est_triangulation_names
   end type p4est_base_triangulation_t
   
   public :: p4est_base_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
-  public :: refinement, coarsening, do_nothing
   
   type, extends(p4est_base_triangulation_t) ::  p4est_serial_triangulation_t
     private

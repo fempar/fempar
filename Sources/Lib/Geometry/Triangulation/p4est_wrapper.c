@@ -275,38 +275,66 @@ void F90_p8est_set_user_pointer(int * user_data, p8est_t * p8est)
     p8est_reset_data(p8est,sizeof(int),init_fn_callback_3d,(void *)user_data);
 }
 
-void F90_p4est_mesh_new(p4est_t        *p4est,
+void F90_p4est_mesh_new(const int k_ghost_cells, 
+                        p4est_t        *p4est,
                         p4est_ghost_t **ghost_out,
                         p4est_mesh_t  **mesh_out )
 {
   p4est_mesh_t       *mesh;
   p4est_ghost_t      *ghost;
   
+  P4EST_ASSERT(k_ghost_cells >= 0 &&  k_ghost_cells <= 1);
+  
   F90_p4est_mesh_destroy(mesh_out);
   F90_p4est_ghost_destroy(ghost_out);
 
   //create ghost layer and mesh
-  ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
-  mesh = p4est_mesh_new (p4est,ghost,P4EST_CONNECT_FULL);
+  switch (k_ghost_cells)
+  {
+      case 0:
+          ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
+          mesh = p4est_mesh_new (p4est,ghost,P4EST_CONNECT_FULL);
+          break;
+      case 1:
+          ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FACE);
+          mesh = p4est_mesh_new (p4est,ghost,P4EST_CONNECT_FACE);
+          break;
+  }
   
   //return mesh and ghost as pointer address;
   *mesh_out=(p4est_mesh_t *)mesh;
   *ghost_out=(p4est_ghost_t *)ghost;
 }
 
-void F90_p8est_mesh_new(p8est_t        *p8est,
+void F90_p8est_mesh_new(const int k_ghost_cells,
+                        p8est_t        *p8est,
                         p8est_ghost_t **ghost_out,
                         p8est_mesh_t  **mesh_out )
 {
   p8est_mesh_t       *mesh;
   p8est_ghost_t      *ghost;
   
+  P4EST_ASSERT(k_ghost_cells >= 0 &&  k_ghost_cells <= 1);
+  
   F90_p8est_mesh_destroy(mesh_out);
   F90_p8est_ghost_destroy(ghost_out);
 
-  //create ghost layer and mesh
-  ghost = p8est_ghost_new (p8est, P8EST_CONNECT_FULL);
-  mesh = p8est_mesh_new (p8est,ghost,P8EST_CONNECT_FULL);
+  //create ghost layer and mesh  
+  switch (k_ghost_cells)
+  {
+      case 0:
+          ghost = p8est_ghost_new (p8est, P8EST_CONNECT_FULL);
+          mesh = p8est_mesh_new (p8est,ghost,P8EST_CONNECT_FULL);
+          break;
+      case 1:
+          ghost = p8est_ghost_new (p8est, P8EST_CONNECT_EDGE);
+          mesh = p8est_mesh_new (p8est,ghost,P8EST_CONNECT_EDGE);
+          break;
+      case 2:
+          ghost = p8est_ghost_new (p8est, P8EST_CONNECT_FACE);
+          mesh = p8est_mesh_new (p8est,ghost,P8EST_CONNECT_FACE);
+          break;
+  }
   
   //return mesh and ghost as pointer address;
   *mesh_out=(p8est_mesh_t *)mesh;
@@ -895,14 +923,35 @@ void F90_p8est_copy( p8est_t * p8est_input, p8est_t ** p8est_output )
    *p8est_output = p8est_copy(p8est_input,0);
 }
 
-void F90_p4est_balance( p4est_t * p4est )
+void F90_p4est_balance( const int k_2_1_balance, p4est_t * p4est )
 {
-  p4est_balance(p4est, P4EST_CONNECT_FULL, NULL);
+  P4EST_ASSERT(k_2_1_balance >= 0 &&  k_2_1_balance <= 1);
+  switch (k_2_1_balance)
+   {
+    case 0:
+       p4est_balance(p4est, P4EST_CONNECT_FULL, NULL);
+       break;
+    case 1:
+       p4est_balance(p4est, P4EST_CONNECT_FACE, NULL);
+       break;
+    }
 }
 
-void F90_p8est_balance( p8est_t * p8est )
+void F90_p8est_balance( const int k_2_1_balance, p8est_t * p8est )
 {
-  p8est_balance(p8est, P8EST_CONNECT_FULL, NULL);
+  P4EST_ASSERT(k_2_1_balance >= 0 &&  k_2_1_balance <= 2);
+  switch (k_2_1_balance)
+  {
+      case 0:
+          p8est_balance(p8est, P8EST_CONNECT_FULL, NULL);
+          break;
+      case 1:
+          p8est_balance(p8est, P8EST_CONNECT_EDGE, NULL);
+          break;
+      case 2:
+          p8est_balance(p8est, P8EST_CONNECT_FACE, NULL);
+          break;    
+  }
 }
 
 int weight_callback_2d(p4est_t * p4est,

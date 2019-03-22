@@ -197,7 +197,8 @@ type, extends(operator_t) :: jacobi_preconditioner_t
    procedure                 , private :: nullify_operator       => jacobi_preconditioner_nullify_operator 
      
    ! Update-matrix related TBPs
-   procedure                           :: update_matrix          => jacobi_preconditioner_update_matrix
+   procedure                           :: update_matrix           => jacobi_preconditioner_update_matrix
+   procedure                           :: reallocate_after_remesh => jacobi_preconditioner_reallocate_after_remesh
 end type jacobi_preconditioner_t
 
  ! See issue #270 (open as of Jan 11th 2019)
@@ -610,6 +611,16 @@ contains
      end if
    end if 
  end subroutine jacobi_preconditioner_update_matrix
+ 
+ subroutine jacobi_preconditioner_reallocate_after_remesh(this)
+  implicit none
+  class(jacobi_preconditioner_t), intent(inout) :: this
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  call this%free_numerical_setup()
+  call this%free_symbolic_setup()
+  call this%create_vector_spaces()
+end subroutine jacobi_preconditioner_reallocate_after_remesh
+ 
 
  !> summary: Creates a *temporary* instance of [[jacobi_preconditioner_t]]
  !> from an instance of [[fe_operator_t]].

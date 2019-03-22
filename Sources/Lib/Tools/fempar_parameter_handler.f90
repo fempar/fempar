@@ -260,6 +260,8 @@ contains
         call this%add(struct_hex_triang_domain_limits_key, '--STRUCT_HEX_TRIANG_DOMAIN_LIMITS', [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain interval per direction')
 
         call this%add(p4est_triang_log_level_key, '--P4EST_TRIANG_LOG_LEVEL', FEMPAR_SC_LP_DEFAULT, 'p4est library level of logging output')
+        call this%add(p4est_triang_2_1_k_balance_key,'--P4EST_TRIANG_2_1_K_BALANCE', default_p4est_triang_2_1_k_balance,  'value of k for 2:1 k-balanced forest-of-octrees (use with care, at present, only k={0,1} supported/tested)')
+        call this%add(p4est_triang_k_ghost_cells_key, '--P4EST_TRIANG_K_GHOST_CELLS', default_p4est_triang_k_ghost_cells, 'value of k for the k-ghost cells set of each processor (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
 
         ! BDDC
         call this%add(bddc_scaling_function_case_key, '--BDDC_SCALING_FUNCTION_CASE', cardinality, 'Scaling type for the BDDC weighting operator')
