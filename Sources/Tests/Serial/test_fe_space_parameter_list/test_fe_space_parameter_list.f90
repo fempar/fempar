@@ -30,7 +30,6 @@
 program test_steady_poisson
 !* uses the `fempar_names` and `test_steady_poisson_driver_names`:
   use fempar_names
-  use poisson_analytical_functions_names
   use poisson_discrete_integration_names  
   !* First, declare the `test_driver` and the `world_context`.
   implicit none  
@@ -51,12 +50,14 @@ program test_steady_poisson
   type(serial_fe_space_t)              :: fe_space
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
   type(strong_boundary_conditions_t)   :: poisson_conditions
-  !* An analytical_function_t with the expression of the desired source term, which is just 0 in this case.
-  type(source_term_t)                  :: source_term
-  !* An analytical_function_t with the expression of the desired Dirichlet boundary condition.
-  type(boundary_function_t)            :: boundary_function
-  !* An analytical_function_t with the expression of exact solution of the problem, to check the code.
-  type(solution_function_t)            :: exact_solution
+  !* A scalar_function_parser_t with the expression of the desired source term, which is just 0 in this case.
+  type(scalar_function_parser_t)       :: source_term
+  !* A scalar_function_parser_t with the expression of the desired Dirichlet boundary condition.
+  type(scalar_function_parser_t)       :: boundary_function
+  !* A scalar_function_parser_t with the expression of exact solution of the problem, to check the code.
+  !* As the norms we are calculating in this tutorial only require the value of the function we can simply use a scalar_function_parser_t.
+  !* If we want to calculate a norm that requires also the gradientes (e.g. H1), we should compose a scalar_function_and_gradient_parser_t from a scalar_function_parser_t containing the expression of the solution and a vector_function_parser_t containing the expression of the gradient of the solution. 
+  type(scalar_function_parser_t)       :: exact_solution
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                  :: solution
   !* poisson_discrete_integration_t provides the definition of the blilinear form and right-hand side of the problem at hand.
@@ -121,6 +122,21 @@ program test_steady_poisson
   !*           5     
   call triangulation%create(serial_environment, parameter_list)
   !* Set the boundary Dirichlet data, using a user-defined analytical function (see below) with the expression we want.
+
+  !* Constant source term function.
+  call source_term%create(expression="0", num_dims=triangulation%get_num_dims())
+  if(triangulation%get_num_dims() == 2) then
+    !* Boundary function in 2 dimensions is "x+y".
+    call boundary_function%create(expression="x+y", num_dims=2)
+    !* Exact solution function in 2 dimensions is "x+y". 
+    call exact_solution%create(expression="x+y", num_dims=2)
+  elseif(triangulation%get_num_dims() == 3) then
+    !* Boundary function in 3 dimension is "x+y+z".
+    call boundary_function%create(expression="x+y+z", num_dims=3)
+    !* Exact solution function in 3 dimensions is "x+y+z". 
+    call exact_solution%create(expression="x+y+z", num_dims=3)
+  endif
+
   call boundary_function%set_num_dims(triangulation%get_num_dims())
   boundary_ids = 8 
   if ( triangulation%get_num_dims() == 3) boundary_ids = 26

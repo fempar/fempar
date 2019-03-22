@@ -28,92 +28,6 @@
 
 !****************************************************************************************************
 
-module poisson_analytical_functions_names
-  use fempar_names
-  implicit none
-# include "debug.i90"
-  private
-  type, extends(scalar_function_t) :: source_term_t
-    private 
-   contains
-     procedure :: get_value_space    => source_term_get_value_space
-  end type source_term_t
-
-  type, extends(scalar_function_t) :: boundary_function_t
-    private
-   contains
-     procedure :: get_value_space => boundary_function_get_value_space
-  end type boundary_function_t
-
-  type, extends(scalar_function_t) :: solution_function_t
-    private 
-   contains
-     procedure :: get_value_space    => solution_function_get_value_space
-     procedure :: get_gradient_space => solution_function_get_gradient_space
-  end type solution_function_t
-
-  public :: source_term_t, boundary_function_t, solution_function_t
-contains  
-
-  !===============================================================================================
-  subroutine source_term_get_value_space ( this, point, result )
-    implicit none
-    class(source_term_t), intent(in)    :: this
-    type(point_t)       , intent(in)    :: point
-    real(rp)            , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    result = 0.0_rp 
-  end subroutine source_term_get_value_space
-
-  !===============================================================================================
-  subroutine boundary_function_get_value_space ( this, point, result )
-    implicit none
-    class(boundary_function_t), intent(in)  :: this
-    type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    if ( this%get_num_dims() == 2 ) then
-      result = point%get(1)+ point%get(2) ! x+y
-    else if ( this%get_num_dims() == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
-    end if  
-  end subroutine boundary_function_get_value_space 
-
-  !===============================================================================================
-  subroutine solution_function_get_value_space ( this, point, result )
-    implicit none
-    class(solution_function_t), intent(in)    :: this
-    type(point_t)             , intent(in)    :: point
-    real(rp)                  , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    if ( this%get_num_dims() == 2 ) then
-      result = point%get(1)+ point%get(2) ! x+y 
-    else if ( this%get_num_dims() == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
-    end if  
-      
-  end subroutine solution_function_get_value_space
-  
-  !===============================================================================================
-  subroutine solution_function_get_gradient_space ( this, point, result )
-    implicit none
-    class(solution_function_t), intent(in)    :: this
-    type(point_t)             , intent(in)    :: point
-    type(vector_field_t)      , intent(inout) :: result
-    assert ( this%get_num_dims() == 2 .or. this%get_num_dims() == 3 )
-    if ( this%get_num_dims() == 2 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-    else if ( this%get_num_dims() == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
-    end if
-  end subroutine solution_function_get_gradient_space
-
-end module poisson_analytical_functions_names
-!***************************************************************************************************
-
 module poisson_discrete_integration_names
   use fempar_names
   use poisson_analytical_functions_names
@@ -122,8 +36,8 @@ module poisson_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: poisson_discrete_integration_t
-     type(source_term_t), pointer :: source_term 
-     type(fe_function_t)                 , pointer :: fe_function          => NULL()
+     class(scalar_function_t), pointer :: source_term 
+     type(fe_function_t),      pointer :: fe_function          => NULL()
    contains
      procedure :: set_source_term
      procedure :: set_fe_function
@@ -136,7 +50,7 @@ contains
   subroutine set_source_term ( this, source_term )
      implicit none
      class(poisson_discrete_integration_t)        , intent(inout) :: this
-     type(source_term_t)    , target, intent(in)    :: source_term
+     class(scalar_function_t),              target, intent(in)    :: source_term
      this%source_term => source_term
   end subroutine set_source_term
 
