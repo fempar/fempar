@@ -90,6 +90,19 @@ then
 
             fi 
         done 
+  
+  order=2
+		num_tasks=9 
+		num_refinements=4
+		refinement_pattern=inner_region
+  
+		echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH  -l 1 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn -prec-type jacobi"
+		$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 1 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case quarter -prec-type jacobi
+		if [ $? -ne 0 ] 
+		then
+		    final_exit_code=1
+		fi
+        
     else
 	echo "$0: BINARY not found! Value PROVIDED: $4."
 	final_exit_code=1
