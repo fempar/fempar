@@ -129,14 +129,14 @@ program test_steady_poisson
   call triangulation%create(serial_environment, parameter_list)
 
   !* User-defined functions for the source term, boundary function and exact solution in 2D case
-  source_term_expression = '0'
+  source_term_expression       = '0'
   boundary_function_expression = 'x+y'
-  exact_solution_expression = 'x+y' 
+  exact_solution_expression    = 'x+y' 
   if(triangulation%get_num_dims() == 3) then
     !* User-defined functions for the source term, boundary function and exact solution in 3D case
-    source_term_expression = '0'
+    source_term_expression       = '0'
     boundary_function_expression = 'x+y+z' 
-    exact_solution_expression = "x+y+z" 
+    exact_solution_expression    = "x+y+z" 
   end if 
   !* Create source term, boundary and exact solution objects given its analytical expressions.  
   call source_term%create(expression=source_term_expression, num_dims=triangulation%get_num_dims()) 
