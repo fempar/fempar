@@ -59,18 +59,16 @@ program test_stokes_parameter_list
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
   type(strong_boundary_conditions_t)   :: stokes_conditions
   !* An analytical_function_t with the expression of the desired source term, which is just 0 in this case.
-  type(vector_field_t) :: zero_vector
-  type(constant_vector_function_t)            :: source_term
-  !type(source_term_t)                  :: source_term
+  type(vector_function_parser_t)       :: source_term
   !* An analytical_function_t with the expression of the desired Dirichlet boundary condition.
-  type(constant_scalar_function_t)            :: zero_function
-  type(constant_scalar_function_t)            :: one_function
+  type(scalar_function_parser_t)       :: zero_function
+  type(scalar_function_parser_t)       :: one_function
   !* An analytical_function_t with the expression of exact solution of the problem, to check the code.
   !type(solution_function_t)            :: exact_solution
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                  :: solution
   !* stokes_discrete_integration_t provides the definition of the blilinear form and right-hand side of the problem at hand.
-  type(stokes_discrete_integration_t) :: stokes_integration
+  type(stokes_discrete_integration_t)  :: stokes_integration
   !* A fe_affine_operator_t that represents the affine operator the solution of which is the one we want, i.e., B = Ax-f.
   !* The solution is the root of this operator.
   type(fe_affine_operator_t)           :: fe_affine_operator
@@ -107,16 +105,15 @@ program test_stokes_parameter_list
   call triangulation%create(serial_environment,parameter_list)
 
   !* Set the boundary Dirichlet data, using a user-defined analytical function (see below) with the expression we want.
-  call zero_function%create(0.0_rp)
-  call one_function%create(1.0_rp)
+  call zero_function%create(expression="0", num_dims=triangulation%get_num_dims())
+  call one_function%create(expression="1",  num_dims=triangulation%get_num_dims())
   !call old_stokes_conditions%set_boundary_function(boundary_function)
 
   !* Next, we build the global FE space. It only requires to know the triangulation, the Dirichlet data, and the reference FE to be
   !* used.
   ! The structured mesh generator has 8 (corner+edge) boundary objects (w/ different set id) in the triangulation, following the
   ! same numbering as the 2-cube in the FEMPAR article. Analogously, 26 (corner+edge+face) boundary objects in 3D.
-  boundary_ids = 8
-  if ( triangulation%get_num_dims() == 3) boundary_ids = 26
+  boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
   call stokes_conditions%create()
   do i = 1, boundary_ids
     call stokes_conditions%insert_boundary_condition(boundary_id=i, field_id=1, &
@@ -160,9 +157,7 @@ program test_stokes_parameter_list
   call fe_space%set_up_cell_integration()
 
   ! Now, we define the source term with the function we have created in our module.
-  !call source_term%set_num_dims(triangulation%get_num_dims())
-  call zero_vector%init(0.0)
-  call source_term%create(zero_vector)
+  call source_term%create(zero_function)
   call stokes_integration%set_source_term(source_term)
   call stokes_integration%set_viscosity(1.0_rp)
 
@@ -215,8 +210,6 @@ program test_stokes_parameter_list
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()
-  
-  
   
   !* Now, we want to compute error wrt an exact solution. It needs the FE space above to be constructed.                                       
   !call error_norm%create(fe_space,1)  
