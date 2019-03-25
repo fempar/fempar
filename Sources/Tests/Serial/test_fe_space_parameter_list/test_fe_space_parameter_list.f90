@@ -48,6 +48,12 @@ program test_steady_poisson
   type(serial_triangulation_t)         :: triangulation
   !* The fe_space_t is the global finite element space to be used.
   type(serial_fe_space_t)              :: fe_space
+  !* String containing the analytical expression of the source term
+  character(len=:), allocatable        :: source_term_expression
+  !* String containing the analytical expression of the boundary function
+  character(len=:), allocatable        :: boundary_function_expression
+  !* String containing the analytical expression of the exact solution
+  character(len=:), allocatable        :: exact_solution_expression  
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
   type(strong_boundary_conditions_t)   :: poisson_conditions
   !* A scalar_function_parser_t with the expression of the desired source term, which is just 0 in this case.
@@ -121,25 +127,24 @@ program test_steady_poisson
   !*      1 - - - - 2
   !*           5     
   call triangulation%create(serial_environment, parameter_list)
-  !* Set the boundary Dirichlet data, using a user-defined analytical function (see below) with the expression we want.
 
-  !* Constant source term function.
-  call source_term%create(expression="0", num_dims=triangulation%get_num_dims())
-  if(triangulation%get_num_dims() == 2) then
-    !* Boundary function in 2 dimensions is "x+y".
-    call boundary_function%create(expression="x+y", num_dims=2)
-    !* Exact solution function in 2 dimensions is "x+y". 
-    call exact_solution%create(expression="x+y", num_dims=2)
-  elseif(triangulation%get_num_dims() == 3) then
-    !* Boundary function in 3 dimension is "x+y+z".
-    call boundary_function%create(expression="x+y+z", num_dims=3)
-    !* Exact solution function in 3 dimensions is "x+y+z". 
-    call exact_solution%create(expression="x+y+z", num_dims=3)
-  endif
+  !* User-defined functions for the source term, boundary function and exact solution in 2D case
+  source_term_expression = '0'
+  boundary_function_expression = 'x+y'
+  exact_solution_expression = 'x+y' 
+  if(triangulation%get_num_dims() == 3) then
+    !* User-defined functions for the source term, boundary function and exact solution in 3D case
+    source_term_expression = '0'
+    boundary_function_expression = 'x+y+z' 
+    exact_solution_expression = "x+y+z" 
+  end if 
+  !* Create source term, boundary and exact solution objects given its analytical expressions.  
+  call source_term%create(expression=source_term_expression, num_dims=triangulation%get_num_dims()) 
+  call boundary_function%create(expression=boundary_function_expression, num_dims=triangulation%get_num_dims()) 
+  call exact_solution%create(expression=exact_solution_expression, num_dims=triangulation%get_num_dims())
 
   call boundary_function%set_num_dims(triangulation%get_num_dims())
-  boundary_ids = 8 
-  if ( triangulation%get_num_dims() == 3) boundary_ids = 26
+  boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
   call poisson_conditions%create()
   do i = 1, boundary_ids
     call poisson_conditions%insert_boundary_condition(boundary_id=i, field_id=1, cond_type=component_1, boundary_function=boundary_function)
