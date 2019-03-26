@@ -1,6 +1,12 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then   
       $TEST_BINARY_PATH

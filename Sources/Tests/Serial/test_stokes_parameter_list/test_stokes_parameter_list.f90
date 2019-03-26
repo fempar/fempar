@@ -138,21 +138,8 @@ program test_stokes_parameter_list
   call stokes_conditions%insert_boundary_condition(boundary_id=4, field_id=1, &
                                                    cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
-                                                   cond_type=component_1, boundary_function=one_function)
-  error = 0
-  error = error + parameter_list%set(key = fes_num_fields_key, value = 2)
-  error = error + parameter_list%set(key = fes_num_ref_fes_key, value = 2)
-  error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian Lagrangian' )
-  error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = [2, 1])
-  error = error + parameter_list%set(key = fes_ref_fe_conformities_key, value =  [.true., .true.])
-  error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = [.true., .false.])
-  error = error + parameter_list%set(key = fes_field_types_key, value =  field_type_vector // " " // field_type_scalar)
-  error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
-  mcheck(error==0,'Failed parameter set')
-  
-  call parameter_list%print()
-  
-  !
+                                                   cond_type=component_1, boundary_function=one_function)  
+
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = stokes_conditions, &
                         parameters               = parameter_list )
@@ -246,20 +233,22 @@ program test_stokes_parameter_list
   call fempar_finalize()
   contains
     subroutine test_stokes_parameter_list_define_fempar_parameters(this)
-    implicit none
-    class(fempar_parameter_handler_t), intent(inout) :: this
-    type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
-    integer(ip) :: error
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
 
-    values      => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
+      ! Manage a new fempar parameter
+      call this%add(key='viscosity', switch= '--VISCOSITY', Value=1.0, help= 'Value of the viscosity')
 
-    error = 0
-    error = error + helpers%set(key = 'viscosity'     , Value= 'Value of the viscosity')
-    error = error + switches%set(key = 'viscosity'    , Value= '--VISCOSITY')
-    error = error + values%set(key = 'viscosity'      , Value= '1.0')
+      ! Update default fempar parameter values
+      call this%update(key=fes_num_fields_key,          value=2)
+      call this%update(key=fes_num_ref_fes_key,         value=2)
+      call this%update(key=fes_ref_fe_types_key,        value='Lagrangian Lagrangian')
+      call this%update(key=fes_ref_fe_orders_key,       value=[2, 1])
+      call this%update(key=fes_ref_fe_conformities_key, value=[.true., .true.])
+      call this%update(key=fes_ref_fe_continuities_key, value=[.true., .false.])
+      call this%update(key=fes_field_types_key,         value=field_type_vector // " " // field_type_scalar)
+      call this%update(key=fes_field_blocks_key,        value=[1, 1])
+
     end subroutine  test_stokes_parameter_list_define_fempar_parameters
 end program test_stokes_parameter_list
 

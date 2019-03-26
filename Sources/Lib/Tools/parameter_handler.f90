@@ -56,6 +56,8 @@ module parameter_handler_names
         procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
         procedure, non_overridable, private        :: add0D                    => parameter_handler_add0D
         procedure, non_overridable, private        :: add1D                    => parameter_handler_add1D
+        procedure, non_overridable, private        :: update0D                 => parameter_handler_update0D
+        procedure, non_overridable, private        :: update1D                 => parameter_handler_update1D
         procedure, non_overridable                 :: add_to_cli               => parameter_handler_add_to_cli
         procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
         procedure, non_overridable                 :: init_cli                 => parameter_handler_init_cli
@@ -69,7 +71,8 @@ module parameter_handler_names
         procedure, non_overridable                 :: get_required             => parameter_handler_get_required 
         procedure, non_overridable                 :: get_choices              => parameter_handler_get_choices 
         procedure, non_overridable                 :: initialize_lists         => parameter_handler_initialize_lists  
-        generic,   public                          :: add                      => add0D, add1D 
+        generic,   public                          :: add                      => add0D, add1D
+        generic,   public                          :: update                   => update0D, update1D 
     end type parameter_handler_t
 
     public :: parameter_handler_t
@@ -435,6 +438,58 @@ contains
             error = choice%Set(key=key, value=choices); assert(error==0)
         endif
     end subroutine parameter_handler_add1D
+
+
+
+    subroutine parameter_handler_update0D(this, key, value, group)
+    !------------------------------------------------------------------
+    !< Update a scalar value given an argument key
+    !------------------------------------------------------------------
+        implicit none
+        class(parameter_handler_t), intent(inout) :: this
+        character(len=*),           intent(in)    :: key
+        class(*),                   intent(in)    :: value 
+        character(len=*), optional, intent(in)    :: group
+        type(ParameterList_t),      pointer       :: values
+        integer                                   :: error
+    !------------------------------------------------------------------
+        if(present(group)) then
+            if(this%values%isSublist(key=group)) then
+                error = this%values%getSublist(key=group, Sublist=values); assert(error == 0)
+            else
+                values => this%values%NewSublist(key=group)
+            endif
+        else
+            values => this%get_values()
+        endif
+        error = values%Set(key=key,   value=value);  assert(error==0)
+    end subroutine parameter_handler_update0D
+
+
+    subroutine parameter_handler_update1D(this, key, value, group)
+    !------------------------------------------------------------------
+    !< Update a vector value given an argument key
+    !------------------------------------------------------------------
+        implicit none
+        class(parameter_handler_t), intent(inout) :: this
+        character(len=*),           intent(in)    :: key
+        class(*),                   intent(in)    :: value(:) 
+        character(len=*), optional, intent(in)    :: group
+        type(ParameterList_t),      pointer       :: values
+        integer                                   :: error
+    !------------------------------------------------------------------
+        if(present(group)) then
+            if(this%values%isSublist(key=group)) then
+                error = this%values%getSublist(key=group, Sublist=values);assert(error == 0)
+            else
+                values => this%values%NewSublist(key=group)
+            endif
+        else
+            values => this%get_values()
+        endif
+        error = values%Set(key=key,   value=value);  assert(error==0)
+    end subroutine parameter_handler_update1D
+
   
    
     subroutine parameter_handler_add_to_cli(this)
