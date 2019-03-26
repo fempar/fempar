@@ -51,7 +51,7 @@ module test_transient_poisson_driver_names
 
      !* Place-holder for parameter-value set provided through command-line interface
      type(test_transient_poisson_params_t)   :: test_params
-     type(ParameterList_t)                   :: parameter_list
+     type(ParameterList_t), pointer          :: parameter_list
 
      !* Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
@@ -122,8 +122,15 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_transient_poisson_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+!    call this%test_params%create(progname    = 'test_transient_poisson',    &
+!                                 version     = '',                          &
+!                                 authors     = '',                          &
+!                                 license     = '',                          &
+!                                 description = 'FEMPAR test to solve the 2D Poisson PDE with known analytical solution.' // &
+!                                               'Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
+!                                 examples    = ['test_transient_poisson -h  ', 'test_transient_poisson -h  ' ])
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
   !************************************************************************************************
   !* ### Environment setup
@@ -175,7 +182,7 @@ contains
     call this%triangulation%create(this%serial_environment,this%parameter_list)
     !call this%triangulation%print()
     !* In case the triangulation is *structured*, the boundary ( `set_id = 1`) is set at the dimension limit:
-    if ( this%test_params%get_triangulation_type() == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -621,6 +628,7 @@ contains
     call this%finalize_output()
     !* Finally *frees* again all the used data
     call this%free()
+    call this%test_params%free()
   end subroutine run_simulation
   !*
   !* ### Free procedure
@@ -655,7 +663,6 @@ contains
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
-    call this%test_params%free()
     call this%oh%free()
   end subroutine free
 

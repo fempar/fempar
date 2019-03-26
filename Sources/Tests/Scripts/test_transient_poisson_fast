@@ -1,7 +1,11 @@
 #!/bin/bash
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
 
 lst_integration_schemes="forward_euler#backward_euler#trapezoidal_rule#mid_point_implicit#mid_point_explicit#imex_rk_2_2_1_implicit#imex_rk_2_2_1_explicit#imex_rk_2_2_2_implicit#imex_rk_2_2_2_explicit#imex_rk_2_3_implicit#imex_rk_2_3_explicit#runge_kutta_3#runge_kutta_4#runge_kutta_4_3_8#imex_rk_4_3_implicit#imex_rk_4_3_explicit"
 
@@ -19,20 +23,22 @@ then
       while [ $id_scheme -le $num_integration_schemes ]
       do 
           integration_scheme=$(echo $lst_integration_schemes|cut -f$id_scheme -d#)
-          echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -test .true. "
-          $TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -test .true.
+          echo "$TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -test .true."
+          $TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -test .true.
           if [ $? -ne 0 ]
           then
             final_exit_code=1
+            break
           fi
           
           if [ "$(echo $integration_scheme | grep -E 'backward|implicit')" != "" ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -dt 1 -tf 10 "
-            $TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -dt 1 -tf 10
+            echo "$TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -dt 1 -tf 10"
+            $TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -dt 1 -tf 10
             if [ $? -ne 0 ]
             then
               final_exit_code=1
+              break
             fi
           fi
       let id_scheme=id_scheme+1
