@@ -2128,7 +2128,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: num_vefs
   integer(ip) :: cell_gid, base_pos_dofs, base_pos, start_pos
-  logical :: all_local, all_ghosts
+  logical :: all_non_void_local, all_non_void_ghosts
   integer(igp) :: dof_ggid
   integer(ip) :: i, j, k, aux, part_neighbour_nearest_neighbour 
   integer(ip) :: offset_dofs 
@@ -2242,14 +2242,16 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
         call parts_neighbours_nearest_neighbours_visited%init(10)
         call lst_parts_neighbours_nearest_neighbours%resize(0)
 
-        all_ghosts = .true.
-        all_local  = .true.
+        all_non_void_ghosts = .true.
+        all_non_void_local  = .true.
         do ielem=1, vef%get_num_cells_around()
           call vef%get_cell_around(ielem,fe)
-          if ( fe%is_local() ) then
-            all_ghosts = .false.
-          else
-            all_local  = .false.
+          if ( .not. fe%is_void(field_id) ) then
+            if ( fe%is_local() ) then
+              all_non_void_ghosts = .false.
+            else
+              all_non_void_local  = .false.
+            end if
           end if
        
           if ( fe%is_ghost() ) then
@@ -2305,7 +2307,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
            ! independently of the value of num_parts_local and 
            ! num_parts_neighbours_nearest_neighbours I will only introduce 
            ! a single non-owner connection in raw_interface_data
-           if (all_ghosts) then 
+           if (all_non_void_ghosts) then 
               call dofs_gid%push_back(dof_gid)
               call dofs_max_part_id%push_back(max_part_id)
               call insert_new_itfc_coupling_in_raw_itfc_data(max_part_id, -1, dofs_ggid(dof_gid) )
@@ -2315,7 +2317,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                  call dofs_gid%push_back(dof_gid)
                  call dofs_max_part_id%push_back(max_part_id)
                  part_id = parts_visited(ipart)
-                 if (all_local) then
+                 if (all_non_void_local) then
                     call insert_new_itfc_coupling_in_raw_itfc_data(part_id, -2, dofs_ggid(dof_gid) )
                  else
                     call insert_new_itfc_coupling_in_raw_itfc_data(part_id, num_parts_nearest_neighbours + &
@@ -2331,7 +2333,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                  ! We believe that "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0" is true.
                  ! In such a case, the if (all_local) statement is NOT required (only the else). We leave it here 
                  ! as a sanity-check
-                 if (all_local) then
+                 if (all_non_void_local) then
                     wassert ( num_parts_neighbours_nearest_neighbours == 0, "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0 not TRUE!!!")
                     call insert_new_itfc_coupling_in_raw_itfc_data(part_id, -2, dofs_ggid(dof_gid) ) 
                  else
