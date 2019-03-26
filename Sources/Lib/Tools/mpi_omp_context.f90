@@ -2486,13 +2486,14 @@ contains
     integer(ip)             , intent(in)   :: input_data(:) ! (this%get_num_tasks())
     integer(ip)             , intent(out)  :: output_data
     integer  :: istat, master_rank
+    mcheck( .false., 'mpi_omp_context_t::scatter_from_master_ip: This TPB has not been tested' )
     !$OMP BARRIER
     master_rank   = (this%get_num_tasks() - 1)/this%max_num_threads
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
     if( (this%current_rank/=master_rank.and.this%current_thread==this%root_thread).or.this%current_rank==master_rank) then
        call mpi_scatter( input_data , this%max_num_threads, mpi_omp_context_ip, &
-            &           output_data, this%max_num_threads, mpi_omp_context_ip, &
-            &           master_rank, this%icontxt, istat)
+            &            output_data, this%max_num_threads, mpi_omp_context_ip, &
+            &            master_rank, this%icontxt, istat)
        check( istat == mpi_success )
     end if
   end subroutine mpi_omp_context_scatter_from_master_ip
@@ -2509,7 +2510,8 @@ contains
     integer :: istat, master_rank, recv_size,i,j
     integer(ip), allocatable :: send_counts_(:)
     integer(ip), allocatable :: displs_(:)
-
+    
+    mcheck( .false., 'mpi_omp_context_t::scatter_from_masterv_ip_1D_array: This TPB has not been tested' )
     master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
     assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
@@ -2543,14 +2545,14 @@ contains
              ip1_buffer(i+1)=ip1_buffer(i+1)+ip1_buffer(i)
           end do
           recv_size = ip1_buffer(this%num_threads)
-          if(size(rp1_v_buffer)<recv_size) &
-               & call memrealloc(recv_size,rp1_v_buffer,__FILE__,__LINE__,lb1=0)
+          if(size(ip1_v_buffer)<recv_size) &
+               & call memrealloc(recv_size,ip1_v_buffer,__FILE__,__LINE__,lb1=0)
           call mpi_scatterv( input_data, send_counts_, displs_, mpi_omp_context_ip, &
                &             ip1_v_buffer, recv_size, mpi_omp_context_ip, master_rank, this%icontxt, istat)
           check( istat == mpi_success )
        end if
        !$OMP BARRIER
-       output_data = rp1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1)
+       output_data = ip1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1)
     end if
     call memfree(send_counts_,__FILE__,__LINE__)
     call memfree(displs_,__FILE__,__LINE__)
