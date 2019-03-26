@@ -165,14 +165,6 @@ program test_stokes_parameter_list
 
   !* Now, the discrete integration has all the information needed. We can fill the affine operator b - Ax.
   call fe_affine_operator%compute()
-
-  !* Next, we want to get the root of the operator, i.e., solve Ax = b. We are going to use an iterative solver. We overwrite the
-  !* default values in the parameter list for tolerance, type of sover (Conjugate Gradient) and max number of iterations.
-  error = 0
-  error = error + parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
-  error = error + parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
-  error = error + parameter_list%set(key = ils_type_key, value = fgmres_name )
-  assert(error == 0)
   
   !* Now, we create a serial iterative solver with the values in the parameter list.
   call iterative_linear_solver%create(fe_space%get_environment())
@@ -228,10 +220,10 @@ program test_stokes_parameter_list
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
 
-      ! Manage a new fempar parameter
+      !* Manage a new fempar parameter
       call this%add(key='viscosity', switch= '--VISCOSITY', Value=1.0, help= 'Value of the viscosity')
 
-      ! Update default fempar parameter values
+      !* Update default FE space fempar parameter values
       call this%update(key=fes_num_fields_key,          value=2)
       call this%update(key=fes_num_ref_fes_key,         value=2)
       call this%update(key=fes_ref_fe_types_key,        value='Lagrangian Lagrangian')
@@ -240,6 +232,14 @@ program test_stokes_parameter_list
       call this%update(key=fes_ref_fe_continuities_key, value=[.true., .false.])
       call this%update(key=fes_field_types_key,         value=field_type_vector // " " // field_type_scalar)
       call this%update(key=fes_field_blocks_key,        value=[1, 1])
+
+      !* We want to get the root of the operator, i.e., solve Ax = b. 
+      !* We are going to use an iterative solver. 
+      !* We overwrite the default values in the parameter list for tolerance,
+      !* type of solver (Conjugate Gradient) and max number of iterations.
+      call this%update(key=ils_rtol_key,               value=1.0e-12_rp)
+      call this%update(key=ils_max_num_iterations_key, value=5000)
+      call this%update(key=ils_type_key,               value=fgmres_name)
 
     end subroutine  test_stokes_parameter_list_define_fempar_parameters
 end program test_stokes_parameter_list
