@@ -254,21 +254,3 @@ program test_stokes_parameter_list
     error = error + values%set(key = 'viscosity'      , Value= '1.0')
     end subroutine  test_stokes_parameter_list_define_fempar_parameters
 end program test_stokes_parameter_list
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
