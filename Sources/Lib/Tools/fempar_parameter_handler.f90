@@ -51,13 +51,13 @@ module fempar_parameter_handler_names
     private 
         procedure(define_user_parameters), pointer :: define_user_parameters => NULL()
     contains
-        procedure                           :: process_parameters                      => fph_process_parameters
-        procedure, private, non_overridable :: define_fempar_parameters                => fph_define_fempar_parameters
-        procedure                           :: define_parameters                       => fph_define_parameters
-        procedure                           :: free                                    => fph_free
-        procedure                           :: get_dir_path => fph_get_dir_path
-        procedure                           :: get_dir_path_out => fph_get_dir_path_out
-        procedure                           :: get_prefix => fph_get_prefix
+        procedure                           :: process_parameters       => fph_process_parameters
+        procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
+        procedure                           :: define_parameters        => fph_define_parameters
+        procedure                           :: free                     => fph_free
+        procedure                           :: get_dir_path             => fph_get_dir_path
+        procedure                           :: get_dir_path_out         => fph_get_dir_path_out
+        procedure                           :: get_prefix               => fph_get_prefix
     end type fempar_parameter_handler_t
   
     interface
