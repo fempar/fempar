@@ -107,7 +107,6 @@ program test_stokes_parameter_list
   !* Set the boundary Dirichlet data, using a user-defined analytical function (see below) with the expression we want.
   call zero_function%create(expression="0", num_dims=triangulation%get_num_dims())
   call one_function%create(expression="1",  num_dims=triangulation%get_num_dims())
-  !call old_stokes_conditions%set_boundary_function(boundary_function)
 
   !* Next, we build the global FE space. It only requires to know the triangulation, the Dirichlet data, and the reference FE to be
   !* used.
