@@ -43,10 +43,11 @@ module vector_function_parser_names
     contains
         procedure :: create_2D            => vector_function_parser_create_2D
         procedure :: create_3D            => vector_function_parser_create_3D
+        procedure :: create_isotropic     => vector_function_parser_create_isotropic
         procedure :: get_value_space      => vector_function_parser_get_value_space
         procedure :: get_value_space_time => vector_function_parser_get_value_space_time
         procedure :: free                 => vector_function_parser_free
-        generic   :: create               => create_2D, create_3D        
+        generic   :: create               => create_2D, create_3D, create_isotropic
     end type vector_function_parser_t
 
     public :: vector_function_parser_t
@@ -87,6 +88,24 @@ contains
         this%components(2)%function => component_2
         this%components(3)%function => component_3
     end subroutine vector_function_parser_create_3D
+
+
+    subroutine vector_function_parser_create_isotropic( this, component)
+    !-----------------------------------------------------------------
+    !< Initialize a time independant vector analytical function
+    !-----------------------------------------------------------------
+        class(vector_function_parser_t),        intent(inout) :: this
+        type(scalar_function_parser_t), target, intent(in)    :: component
+        integer                                               :: num_dims
+    !-----------------------------------------------------------------
+        num_dims = component%get_num_dims()
+        assert(num_dims == 2 .or. num_dims == 3)
+        if(num_dims == 2) then
+            call this%create(component_1=component, component_2=component)
+        elseif(num_dims == 3) then
+            call this%create(component_1=component, component_2=component, component_3=component)
+        endif 
+    end subroutine vector_function_parser_create_isotropic
 
 
     subroutine vector_function_parser_get_value_space( this, point, result )

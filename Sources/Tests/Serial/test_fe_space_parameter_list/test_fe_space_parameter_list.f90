@@ -30,7 +30,6 @@
 program test_steady_poisson
 !* uses the `fempar_names` and `test_steady_poisson_driver_names`:
   use fempar_names
-  use poisson_analytical_functions_names
   use poisson_discrete_integration_names  
   !* First, declare the `test_driver` and the `world_context`.
   implicit none  
@@ -49,14 +48,22 @@ program test_steady_poisson
   type(serial_triangulation_t)         :: triangulation
   !* The fe_space_t is the global finite element space to be used.
   type(serial_fe_space_t)              :: fe_space
+  !* String containing the analytical expression of the source term
+  character(len=:), allocatable        :: source_term_expression
+  !* String containing the analytical expression of the boundary function
+  character(len=:), allocatable        :: boundary_function_expression
+  !* String containing the analytical expression of the exact solution
+  character(len=:), allocatable        :: exact_solution_expression  
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
   type(strong_boundary_conditions_t)   :: poisson_conditions
-  !* An analytical_function_t with the expression of the desired source term, which is just 0 in this case.
-  type(source_term_t)                  :: source_term
-  !* An analytical_function_t with the expression of the desired Dirichlet boundary condition.
-  type(boundary_function_t)            :: boundary_function
-  !* An analytical_function_t with the expression of exact solution of the problem, to check the code.
-  type(solution_function_t)            :: exact_solution
+  !* A scalar_function_parser_t with the expression of the desired source term, which is just 0 in this case.
+  type(scalar_function_parser_t)       :: source_term
+  !* A scalar_function_parser_t with the expression of the desired Dirichlet boundary condition.
+  type(scalar_function_parser_t)       :: boundary_function
+  !* A scalar_function_parser_t with the expression of exact solution of the problem, to check the code.
+  !* As the norms we are calculating in this tutorial only require the value of the function we can simply use a scalar_function_parser_t.
+  !* If we want to calculate a norm that requires also the gradientes (e.g. H1), we should compose a scalar_function_and_gradient_parser_t from a scalar_function_parser_t containing the expression of the solution and a vector_function_parser_t containing the expression of the gradient of the solution. 
+  type(scalar_function_parser_t)       :: exact_solution
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                  :: solution
   !* poisson_discrete_integration_t provides the definition of the blilinear form and right-hand side of the problem at hand.
@@ -120,10 +127,24 @@ program test_steady_poisson
   !*      1 - - - - 2
   !*           5     
   call triangulation%create(serial_environment, parameter_list)
-  !* Set the boundary Dirichlet data, using a user-defined analytical function (see below) with the expression we want.
+
+  !* User-defined functions for the source term, boundary function and exact solution in 2D case
+  source_term_expression       = '0'
+  boundary_function_expression = 'x+y'
+  exact_solution_expression    = 'x+y' 
+  if(triangulation%get_num_dims() == 3) then
+    !* User-defined functions for the source term, boundary function and exact solution in 3D case
+    source_term_expression       = '0'
+    boundary_function_expression = 'x+y+z' 
+    exact_solution_expression    = "x+y+z" 
+  end if 
+  !* Create source term, boundary and exact solution objects given its analytical expressions.  
+  call source_term%create(expression=source_term_expression, num_dims=triangulation%get_num_dims()) 
+  call boundary_function%create(expression=boundary_function_expression, num_dims=triangulation%get_num_dims()) 
+  call exact_solution%create(expression=exact_solution_expression, num_dims=triangulation%get_num_dims())
+
   call boundary_function%set_num_dims(triangulation%get_num_dims())
-  boundary_ids = 8 
-  if ( triangulation%get_num_dims() == 3) boundary_ids = 26
+  boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
   call poisson_conditions%create()
   do i = 1, boundary_ids
     call poisson_conditions%insert_boundary_condition(boundary_id=i, field_id=1, cond_type=component_1, boundary_function=boundary_function)
