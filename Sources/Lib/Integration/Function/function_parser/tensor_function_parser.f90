@@ -43,10 +43,11 @@ module tensor_function_parser_names
     contains
         procedure :: create_2D            => tensor_function_parser_create_2D
         procedure :: create_3D            => tensor_function_parser_create_3D
+        procedure :: create_isotropic     => tensor_function_parser_create_isotropic
         procedure :: get_value_space      => tensor_function_parser_get_value_space
         procedure :: get_value_space_time => tensor_function_parser_get_value_space_time
         procedure :: free                 => tensor_function_parser_free
-        generic   :: create               => create_2D, create_3D        
+        generic   :: create               => create_2D, create_3D, create_isotropic
     end type tensor_function_parser_t
 
     public :: tensor_function_parser_t
@@ -107,6 +108,27 @@ contains
         this%components(3,2)%function => component_32
         this%components(3,3)%function => component_33
     end subroutine tensor_function_parser_create_3D
+
+
+    subroutine tensor_function_parser_create_isotropic( this, component)
+    !-----------------------------------------------------------------
+    !< Initialize a time independant tensor analytical function
+    !-----------------------------------------------------------------
+        class(tensor_function_parser_t),        intent(inout) :: this
+        type(scalar_function_parser_t), target, intent(in)    :: component
+        integer                                               :: num_dims
+    !-----------------------------------------------------------------
+        num_dims = component%get_num_dims()
+        assert(num_dims == 2 .or. num_dims == 3)
+        if(num_dims == 2) then
+            call this%create(component_11=component, component_12=component, &
+                             component_21=component, component_22=component)
+        elseif(num_dims == 3) then
+            call this%create(component_11=component, component_12=component, component_13=component, &
+                             component_21=component, component_22=component, component_23=component, &
+                             component_31=component, component_32=component, component_33=component)
+        endif 
+    end subroutine tensor_function_parser_create_isotropic
 
 
     subroutine tensor_function_parser_get_value_space( this, point, result )
