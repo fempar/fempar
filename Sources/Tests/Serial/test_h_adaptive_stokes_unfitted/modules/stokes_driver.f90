@@ -62,7 +62,7 @@ module stokes_driver_names
      private 
      
      type(stokes_params_t)                        :: test_params
-     type(ParameterList_t)                        :: parameter_list
+     type(ParameterList_t), pointer               :: parameter_list
      type(unfitted_p4est_serial_triangulation_t)  :: triangulation
      class(level_set_function_t), allocatable     :: level_set_function
      type(serial_unfitted_fe_space_t)             :: fe_space 
@@ -83,6 +83,7 @@ module stokes_driver_names
    contains
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
+     procedure                  :: free_command_line_parameters
      procedure                  :: setup_environment
      procedure                  :: free_environment
      procedure        , private :: setup_levelset
@@ -108,9 +109,16 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(stokes_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(stokes_driver_t ), intent(inout) :: this
+    call this%test_params%free()
+    nullify(this%parameter_list)
+  end subroutine free_command_line_parameters
   
   subroutine setup_environment(this, world_context)
     implicit none
@@ -325,7 +333,7 @@ contains
       diri_set_id_u = 0
       diri_set_id_u_and_p = 0
     end if
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
 
        call this%triangulation%create_vef_iterator(vef)
        call this%triangulation%create_cell_iterator(cell)
@@ -1227,7 +1235,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free  
   
 

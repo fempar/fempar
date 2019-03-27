@@ -2,10 +2,16 @@
 SCRIPT_NAME=$(basename $0)
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
- #if [ -d "$TEST_INPUT_DATA_PATH" ] 
+ #if [ $dir_path_flag "$TEST_INPUT_DATA_PATH" ] 
  #  then
       ###############################################################################################################################
       # Scalar-valued tests
@@ -45,13 +51,14 @@ then
                     dom="-1.0 1.0"
                   fi
 
-                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -cid 1 -bcid 5 -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -d $SCRIPT_NAME -p $SCRIPT_NAME"
+                  cmd="$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -cid 1 -bcid 5 -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst $dir_path_flag $SCRIPT_NAME $prefix_flag $SCRIPT_NAME"
         
                   echo $cmd
                   $cmd
                   if [ $? -ne 0 ] 
                   then
                    final_exit_code=1
+                   break 5
                   fi
         
                 fi

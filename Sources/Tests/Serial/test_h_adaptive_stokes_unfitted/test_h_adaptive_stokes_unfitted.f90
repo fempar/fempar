@@ -39,6 +39,7 @@ program test_unfitted_h_adaptive_poisson
   call driver%setup_environment(world_context)
   call driver%run_simulation()
   call driver%free_environment()
+  call driver%free_command_line_parameters()
   call fempar_finalize()
   call world_context%free(finalize=.true.)
 end program test_unfitted_h_adaptive_poisson

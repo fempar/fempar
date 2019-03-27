@@ -32,88 +32,34 @@ module stokes_params_names
   implicit none
   private
 
-  type stokes_params_t  
-     private 
-     ! IO parameters
-     character(len=:), allocatable :: default_dir_path 
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_fe_formulation
-     character(len=:), allocatable :: default_reference_fe_geo_order
-     character(len=:), allocatable :: default_reference_fe_order
-     character(len=:), allocatable :: default_write_solution
-     character(len=:), allocatable :: default_write_matrix
-     character(len=:), allocatable :: default_write_error_norms
-     character(len=:), allocatable :: default_write_aggr_info
-     character(len=:), allocatable :: default_laplacian_type
-     character(len=:), allocatable :: default_triangulation_type
-     character(len=:), allocatable :: default_num_dims
-     character(len=:), allocatable :: default_nx
-     character(len=:), allocatable :: default_ny
-     character(len=:), allocatable :: default_nz
-     character(len=:), allocatable :: default_is_periodic_in_x
-     character(len=:), allocatable :: default_is_periodic_in_y
-     character(len=:), allocatable :: default_is_periodic_in_z
-     character(len=:), allocatable :: default_max_level
-     character(len=:), allocatable :: default_case_id
-     character(len=:), allocatable :: default_bc_case_id
-     character(len=:), allocatable :: default_check_solution
-     character(len=:), allocatable :: default_unfitted_boundary_is_dirichlet
-     character(len=:), allocatable :: default_is_constant_nitches_beta
-     character(len=:), allocatable :: default_use_constraints
-     character(len=:), allocatable :: default_levelset_function_type
-     character(len=:), allocatable :: default_levelset_tolerance
-     character(len=:), allocatable :: default_domain_limits
-     character(len=:), allocatable :: default_only_setup
-     character(len=:), allocatable :: default_strong_dirichlet_on_fitted_boundary
-     character(len=:), allocatable :: default_refinement_pattern
-     character(len=:), allocatable :: default_lin_solver_type
-     character(len=:), allocatable :: default_use_levelset_complement
+  character(len=*), parameter :: fe_formulation_key            = 'fe_formulation'
+  character(len=*), parameter :: laplacian_type_key            = 'laplacian_type'
+  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key            = 'write_solution'
+  character(len=*), parameter :: write_matrix_key              = 'write_matrix'
+  character(len=*), parameter :: write_error_norms_key         = 'write_error_norms'
+  character(len=*), parameter :: write_aggr_info_key           = 'write_aggr_info'
+  character(len=*), parameter :: max_level_key                 = 'max_level'
+  character(len=*), parameter :: case_id_key                   = 'case_id'        
+  character(len=*), parameter :: bc_case_id_key                = 'bc_case_id'        
+  character(len=*), parameter :: check_solution_key            = 'check_solution'
+  character(len=*), parameter :: is_dirichlet_key              = 'is_dirichlet'
+  character(len=*), parameter :: is_beta_constant_key          = 'is_beta_constant'
+  character(len=*), parameter :: use_constraints_key           = 'use_constraints'
+  character(len=*), parameter :: levelset_type_key             = 'levelset_type'
+  character(len=*), parameter :: levelset_tol_key              = 'levelset_tol'
+  character(len=*), parameter :: domain_limits_key             = 'domain_limits'
+  character(len=*), parameter :: only_setup_key                = 'only_setup'
+  character(len=*), parameter :: strong_dirichlet_key          = 'strong_dirichlet'
+  character(len=*), parameter :: refinement_pattern_key        = 'refinement_pattern'
+  character(len=*), parameter :: lin_solver_type_key           = 'lin_solver_type'
+  character(len=*), parameter :: use_levelset_complement_key   = 'use_levelset_compoment'
 
-     type(Command_Line_Interface):: cli 
 
-     ! IO parameters
-     character(len=str_cla_len)    :: dir_path
-     character(len=str_cla_len)    :: prefix
-     character(len=str_cla_len)    :: dir_path_out
-     character(len=str_cla_len)    :: fe_formulation
-     integer(ip)                   :: reference_fe_geo_order
-     integer(ip)                   :: reference_fe_order
-     logical                       :: write_solution
-     logical                       :: write_matrix
-     logical                       :: write_error_norms
-     logical                       :: write_aggr_info
-     character(len=str_cla_len)    :: laplacian_type
-
-     character(len=str_cla_len)    :: triangulation_type
-     integer(ip) :: num_dims     
-     integer(ip) :: num_of_cells_x_dir(0:SPACE_DIM-1)
-     integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
-     integer(ip) :: max_level
-     integer(ip) :: case_id
-     integer(ip) :: bc_case_id
-     logical :: check_sol
-     logical :: unfitted_boundary_is_dirichlet
-     logical :: is_constant_nitches_beta
-     logical :: use_constraints
-     character(len=str_cla_len)    :: levelset_function_type
-     real(rp) :: levelset_tolerance
-     real(rp)    :: domain_limits(2)
-     logical :: only_setup
-     logical :: strong_dirichlet_on_fitted_boundary
-     character(len=str_cla_len)    :: refinement_pattern
-     character(len=str_cla_len)    :: lin_solver_type
-     logical :: use_levelset_complement
-
+  type, extends(fempar_parameter_handler_t) :: stokes_params_t  
    contains
-     procedure, non_overridable             :: create       => stokes_create
-     procedure, non_overridable, private    :: set_default  => stokes_set_default
-     procedure, non_overridable, private    :: add_to_cli   => stokes_add_to_cli
-     procedure, non_overridable             :: parse        => stokes_parse 
-     procedure, non_overridable             :: free         => stokes_free
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_dir_path_out
+     procedure                              :: define_parameters   => stokes_define_parameters
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
@@ -144,69 +90,9 @@ module stokes_params_names
   public :: stokes_params_t
 
 contains
-
-  subroutine stokes_create(this)
-    implicit none
-    class(stokes_params_t), intent(inout) :: this
-    
-    call this%free()
-    
-     ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'test_poisson',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D Poisson PDE with known analytical solution. &
-                                  Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['test_poisson -h  ', 'test_poisson -h  ' ])
-    
-    call this%set_default()
-    call this%add_to_cli()
-  end subroutine stokes_create
-  
-  subroutine stokes_set_default(this)
-    implicit none
-    class(stokes_params_t), intent(inout) :: this
-    ! IO parameters
-    this%default_dir_path       = 'data/'
-    this%default_prefix         = 'square'
-    this%default_dir_path_out   = 'output/'
-    this%default_reference_fe_geo_order = '1'
-    this%default_reference_fe_order = '1'
-    this%default_write_solution = '.false.'
-    this%default_write_matrix   = '.false.'
-    this%default_write_error_norms = '.false.'
-    this%default_write_aggr_info   = '.false.'
-    this%default_laplacian_type = 'scalar'
-    
-    this%default_triangulation_type = 'unstructured'
-    this%default_num_dims = '2'
-    this%default_nx = '1'
-    this%default_ny = '1'
-    this%default_nz = '1'
-    this%default_is_periodic_in_x = '0'
-    this%default_is_periodic_in_y = '0'
-    this%default_is_periodic_in_z = '0'
-    this%default_max_level = '3'
-    this%default_case_id = '1'
-    this%default_bc_case_id = '1'
-    this%default_check_solution = '.true.'
-    this%default_unfitted_boundary_is_dirichlet = '.true.'
-    this%default_is_constant_nitches_beta       = '.false.'
-    this%default_use_constraints = '.true.'
-    this%default_levelset_function_type = 'sphere'
-    this%default_levelset_tolerance = '1.0e-6'
-    this%default_domain_limits = '0.0 1.0'
-    this%default_only_setup = '.false.'
-    this%default_strong_dirichlet_on_fitted_boundary = '.true.'
-    this%default_refinement_pattern = 'uniform'
-    this%default_lin_solver_type = 'pardiso'
-    this%default_use_levelset_complement = '.false.'
-    
-  end subroutine stokes_set_default
   
   !==================================================================================================
-  subroutine stokes_add_to_cli(this)
+  subroutine stokes_define_parameters(this)
     implicit none
     class(stokes_params_t) , intent(inout) :: this
 
@@ -214,404 +100,332 @@ contains
     integer(ip) :: error
 
     ! IO parameters
-    call this%cli%add(switch='--dir-path',switch_ab='-d',                              &
-         &            help='Directory of the source files',required=.false., act='store',                &
-         &            def=trim(this%default_dir_path),error=error)
-    check(error==0)
-    call this%cli%add(switch='--prefix',switch_ab='-p',help='Name of the GiD files',  &
-         &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
-         &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
-         &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--write-matrix',switch_ab='-wmatrix',help='Write matrix in matrix market format',&
-         &            required=.false.,act='store',def=trim(this%default_write_matrix),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--write-error-norms',switch_ab='-werrornorms',help='Write error norms in csv format',&
-         &            required=.false.,act='store',def=trim(this%default_write_error_norms),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--write-aggr-info',switch_ab='-waggrinfo',help='Write info about the aggregates in csv format',&
-         &            required=.false.,act='store',def=trim(this%default_write_aggr_info),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
-         &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
-    check(error==0)
-    call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
-         &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_of_dims',switch_ab='-dim',help='Number of space dimensions',&
-         &            required=.false.,act='store',def=trim(this%default_num_dims),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_of_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
-         &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_of_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
-         &            required=.false.,act='store',def=trim(this%default_ny),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_of_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
-         &            required=.false.,act='store',def=trim(this%default_nz),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_x),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_y',switch_ab='-py',help='Is the mesh periodic in y',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_y),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--max_level',switch_ab='-maxl',help='Maximum h-refinement level allowed',&
-         &            required=.false.,act='store',def=trim(this%default_max_level),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--case_id',switch_ab='-cid',help='Id of the functions used in the run',&
-         &            required=.false.,act='store',def=trim(this%default_case_id),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--bc_case_id',switch_ab='-bcid',help='Id of the boundary setup used in the run',&
-         &            required=.false.,act='store',def=trim(this%default_bc_case_id),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
-         &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--is_dirichlet',switch_ab='-is_diri',help='True if the unfitted boundary is dirichlet',&
-         &            required=.false.,act='store',def=trim(this%default_unfitted_boundary_is_dirichlet),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--is_beta_constant',switch_ab='-is_bconst',help='True if the Nitsches beta is constant',&
-         &            required=.false.,act='store',def=trim(this%default_is_constant_nitches_beta),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--use_constraints',switch_ab='-uconstraints',help='Use or not the constraints provided by the cut cell aggregation',&
-         &            required=.false.,act='store',def=trim(this%default_use_constraints),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--levelset-type',switch_ab='-lstype',help='Name of the levelset function',&
-         &            required=.false.,act='store',def=trim(this%default_levelset_function_type),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--levelset-tol',switch_ab='-lstol',help='Tolerance for the levelset function',&
-         &            required=.false.,act='store',def=trim(this%default_levelset_tolerance),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='Info about the domain limits',&
-         &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error,nargs='2') 
-    check(error==0) 
-    call this%cli%add(switch='--only-setup',switch_ab='-osetup',help='True if compute only the setup of the problem, i.e., skip discrete integration and linear solver',&
-         &            required=.false.,act='store',def=trim(this%default_only_setup),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--strong_dirichlet',switch_ab='-sdiri',help='True if strong dirichlet conditions are imposed on the body-fitted boundary',&
-         &            required=.false.,act='store',def=trim(this%default_strong_dirichlet_on_fitted_boundary),error=error) 
-    call this%cli%add(switch='--refinement_pattern',switch_ab='-rpattern',help='name of the refinement pattern to use',&
-         &            required=.false.,act='store',def=trim(this%default_refinement_pattern),error=error) 
-    call this%cli%add(switch='--lin_solver_type',switch_ab='-lsolver',help='name of the linear solver to use',&
-         &            required=.false.,act='store',def=trim(this%default_lin_solver_type),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--use_levelset_complement',switch_ab='-ulscomp',help='if true then we use the complement of the levelset',&
-         &            required=.false.,act='store',def=trim(this%default_use_levelset_complement),error=error) 
-    check(error==0) 
-  end subroutine stokes_add_to_cli
-  
-  subroutine stokes_parse(this,parameter_list)
-    implicit none
-    class(stokes_params_t), intent(inout) :: this
-    type(ParameterList_t)       , intent(inout) :: parameter_list
-    integer(ip) :: istat
-    
-    call this%cli%parse(error=istat); check(istat==0)
-    
-    ! IO parameters
-    call this%cli%get(switch='-d',val=this%dir_path    ,error=istat); check(istat==0)
-    call this%cli%get(switch='-p',val=this%prefix       ,error=istat); check(istat==0)
-    call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
-    call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
-    call this%cli%get(switch='-wmatrix',val=this%write_matrix,error=istat); check(istat==0)
-    call this%cli%get(switch='-werrornorms',val=this%write_error_norms,error=istat); check(istat==0)
-    call this%cli%get(switch='-waggrinfo',val=this%write_aggr_info,error=istat); check(istat==0)
-    call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
-    call this%cli%get(switch='-nx',val=this%num_of_cells_x_dir(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-ny',val=this%num_of_cells_x_dir(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-nz',val=this%num_of_cells_x_dir(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-maxl',val=this%max_level,error=istat); check(istat==0)
-    call this%cli%get(switch='-cid',val=this%case_id,error=istat); check(istat==0)
-    call this%cli%get(switch='-bcid',val=this%bc_case_id,error=istat); check(istat==0)
-    call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
-    call this%cli%get(switch='-is_diri',val=this%unfitted_boundary_is_dirichlet,error=istat); check(istat==0)
-    call this%cli%get(switch='-is_bconst',val=this%is_constant_nitches_beta,error=istat); check(istat==0)
-    call this%cli%get(switch='-uconstraints',val=this%use_constraints,error=istat); check(istat==0)
-    call this%cli%get(switch='-lstype',val=this%levelset_function_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-lstol',val=this%levelset_tolerance,error=istat); check(istat==0)
-    call this%cli%get(switch='-dom',val=this%domain_limits,error=istat); check(istat==0)
-    call this%cli%get(switch='-osetup',val=this%only_setup,error=istat); check(istat==0)
-    call this%cli%get(switch='-sdiri',val=this%strong_dirichlet_on_fitted_boundary,error=istat); check(istat==0)
-    call this%cli%get(switch='-rpattern',val=this%refinement_pattern,error=istat); check(istat==0)
-    call this%cli%get(switch='-lsolver',val=this%lin_solver_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-ulscomp',val=this%use_levelset_complement,error=istat); check(istat==0)
-
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
-    istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
-    istat = istat + parameter_list%set(key = triang_geometric_interpolation_order_key  , value = this%reference_fe_geo_order)
-    check(istat==0)
-
-    if(trim(this%triangulation_type)=='unstructured') then
-       istat = parameter_list%set(key = triang_generate_key, value = triangulation_generate_from_mesh)
-    else if(trim(this%triangulation_type)=='structured') then
-       istat = parameter_list%set(key = triang_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = this%num_of_cells_x_dir)
-       istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key        , value = this%is_dir_periodic)
-    end if
-    check(istat==0)
-  end subroutine stokes_parse  
-
-  subroutine stokes_free(this)
-    implicit none
-    class(stokes_params_t), intent(inout) :: this
-    if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
-    if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
-    if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
-    if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
-    if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
-    if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
-    if(allocated(this%default_write_matrix)) deallocate(this%default_write_matrix)
-    if(allocated(this%default_write_error_norms)) deallocate(this%default_write_error_norms)
-    if(allocated(this%default_write_aggr_info)) deallocate(this%default_write_aggr_info)
-    if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
-    if(allocated(this%default_max_level)) deallocate(this%default_max_level)
-    if(allocated(this%default_case_id)) deallocate(this%default_case_id)
-    if(allocated(this%default_bc_case_id)) deallocate(this%default_bc_case_id)
-    if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
-    if(allocated(this%default_unfitted_boundary_is_dirichlet)) deallocate(this%default_unfitted_boundary_is_dirichlet)
-    if(allocated(this%default_is_constant_nitches_beta)) deallocate(this%default_is_constant_nitches_beta)
-    if(allocated(this%default_use_constraints)) deallocate(this%default_use_constraints)
-    if(allocated(this%default_levelset_function_type)) deallocate(this%default_levelset_function_type)
-    if(allocated(this%default_levelset_tolerance)) deallocate(this%default_levelset_tolerance)
-    if(allocated(this%default_domain_limits)) deallocate(this%default_domain_limits)
-    if(allocated(this%default_only_setup)) deallocate(this%default_only_setup)
-    if(allocated(this%default_strong_dirichlet_on_fitted_boundary)) deallocate(this%default_strong_dirichlet_on_fitted_boundary)
-    if(allocated(this%default_refinement_pattern)) deallocate(this%default_refinement_pattern)
-    if(allocated(this%default_lin_solver_type)) deallocate(this%default_lin_solver_type)
-    if(allocated(this%default_use_levelset_complement)) deallocate(this%default_use_levelset_complement)
-    call this%cli%free()
-  end subroutine stokes_free
-
+    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
+    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
+    call this%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
+    call this%add(write_error_norms_key, '--write-error-norms', .false., 'Write error norms in csv format', switch_ab='-werrornorms') 
+    call this%add(write_aggr_info_key, '--write-aggr-info', .false., 'Write info about the aggregates in csv format', switch_ab='-waggrinfo') 
+    call this%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
+    call this%add(max_level_key, '--max_level', 3, 'Maximum h-refinement level allowed', switch_ab='-maxl') 
+    call this%add(case_id_key, '--case_id', 1, 'Id of the functions used in the run', switch_ab='-cid') 
+    call this%add(bc_case_id_key, '--bc_case_id', 1, 'Id of the boundary setup used in the run', switch_ab='-bcid') 
+    call this%add(check_solution_key, '--check_solution', .true., 'Check or not the solution', switch_ab='-check') 
+    call this%add(is_dirichlet_key, '--is_dirichlet', .true., 'True if the unfitted boundary is dirichlet', switch_ab='-is_diri') 
+    call this%add(is_beta_constant_key, '--is_beta_constant', .false., 'True if the Nitsches beta is constant', switch_ab='-is_bconst') 
+    call this%add(use_constraints_key, '--use_constraints', .true., 'Use or not the constraints provided by the cut cell aggregation', switch_ab='-uconstraints') 
+    call this%add(levelset_type_key, '--levelset-type', 'sphere', 'Name of the levelset function', switch_ab='-lstype') 
+    call this%add(levelset_tol_key, '--levelset-tol', 1.0e-6_rp,'Tolerance for the levelset function', switch_ab='-lstol') 
+    call this%add(domain_limits_key, '--domain-limits', [ 0.0_rp, 1.0_rp], 'Info about the domain limits', switch_ab='-dom') 
+    call this%add(only_setup_key, '--only-setup', .false., &
+                'True if compute only the setup of the problem, i.e., skip discrete integration and linear solver', &
+                switch_ab='-osetup') 
+    call this%add(strong_dirichlet_key, '--strong_dirichlet', .true., &
+                'True if strong dirichlet conditions are imposed on the body-fitted boundary', &
+                switch_ab='-sdiri') 
+    call this%add(refinement_pattern_key, '--refinement_pattern', 'uniform', 'name of the refinement pattern to use', switch_ab='-rpattern') 
+    call this%add(lin_solver_type_key, '--lin_solver_type', 'pardiso', 'name of the linear solver to use', switch_ab='-lsolver') 
+    call this%add(use_levelset_complement_key, '--use_levelset_complement', .false., 'if true then we use the complement of the levelset', switch_ab='-ulscomp') 
+  end subroutine stokes_define_parameters
   ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path
-    get_dir_path = trim(this%dir_path)
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_prefix
-    get_prefix = trim(this%prefix)
-  end function get_prefix
-
-  !==================================================================================================
-  function get_dir_path_out(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path_out
-    get_dir_path_out = trim(this%dir_path_out)
-  end function get_dir_path_out
   
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_geo_order
-    get_reference_fe_geo_order = this%reference_fe_geo_order
+    integer(ip)                         :: get_reference_fe_geo_order
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
+    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+    assert(error==0)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_order
-    get_reference_fe_order = this%reference_fe_order
+    integer(ip)                         :: get_reference_fe_order
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
+    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
+    assert(error==0)
   end function get_reference_fe_order
   
   !==================================================================================================
   function get_write_solution(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_write_solution
-    get_write_solution = this%write_solution
+    logical                             :: get_write_solution
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(write_solution_key, get_write_solution))
+    error = list%Get(key = write_solution_key, Value = get_write_solution)
+    assert(error==0)
   end function get_write_solution
 
   !==================================================================================================
   function get_write_matrix(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_write_matrix
-    get_write_matrix = this%write_matrix
+    logical                             :: get_write_matrix
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(write_matrix_key, get_write_matrix))
+    error = list%Get(key = write_matrix_key, Value = get_write_matrix)
+    assert(error==0)
   end function get_write_matrix
 
   !==================================================================================================
   function get_write_error_norms(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_write_error_norms
-    get_write_error_norms = this%write_error_norms
+    logical                             :: get_write_error_norms
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(write_error_norms_key, get_write_error_norms))
+    error = list%Get(key = write_error_norms_key, Value = get_write_error_norms)
+    assert(error==0)
   end function get_write_error_norms
 
   !==================================================================================================
   function get_write_aggr_info(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_write_aggr_info
-    get_write_aggr_info = this%write_aggr_info
+    logical                             :: get_write_aggr_info
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(write_aggr_info_key, get_write_aggr_info))
+    error = list%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
+    assert(error==0)
   end function get_write_aggr_info
   
   !==================================================================================================
   function get_laplacian_type(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_laplacian_type
-    get_laplacian_type = trim(this%laplacian_type)
+    character(len=:), allocatable       :: get_laplacian_type
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(laplacian_type_key, get_laplacian_type))
+    error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
+    assert(error==0)
   end function get_laplacian_type 
   
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_triangulation_type
-    get_triangulation_type = trim(this%triangulation_type)
+    integer(ip)                         :: get_triangulation_type
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
+    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
+    assert(error==0)
   end function get_triangulation_type 
   
   !==================================================================================================
   function get_num_dims(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    integer(ip) :: get_num_dims
-    get_num_dims = this%num_dims
+    integer(ip)                         :: get_num_dims
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(struct_hex_triang_num_dims_key, get_num_dims))
+    error = list%Get(key = struct_hex_triang_num_dims_key, Value = get_num_dims)
+    assert(error==0)
   end function get_num_dims
 
   !==================================================================================================
   function get_max_level(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    integer(ip) :: get_max_level
-    get_max_level = this%max_level
+    integer(ip)                         :: get_max_level
+   type(ParameterList_t), pointer       :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(max_level_key, get_max_level))
+    error = list%Get(key = max_level_key, Value = get_max_level)
+    assert(error==0)
   end function get_max_level
 
   !==================================================================================================
   function get_case_id(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    integer(ip) :: get_case_id
-    get_case_id = this%case_id
+    integer(ip)                         :: get_case_id
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(case_id_key, get_case_id))
+    error = list%Get(key = case_id_key, Value = get_case_id)
+    assert(error==0)
   end function get_case_id
 
   !==================================================================================================
   function get_bc_case_id(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    integer(ip) :: get_bc_case_id
-    get_bc_case_id = this%bc_case_id
+    integer(ip)                         :: get_bc_case_id
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(bc_case_id_key, get_bc_case_id))
+    error = list%Get(key = bc_case_id_key, Value = get_bc_case_id)
+    assert(error==0)
   end function get_bc_case_id
 
   !==================================================================================================
   function are_checks_active(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: are_checks_active
-    are_checks_active = this%check_sol
+    logical                             :: are_checks_active
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(check_solution_key, are_checks_active))
+    error = list%Get(key = check_solution_key, Value = are_checks_active)
+    assert(error==0)
   end function are_checks_active
 
   !==================================================================================================
   function get_unfitted_boundary_is_dirichlet(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_unfitted_boundary_is_dirichlet
-    get_unfitted_boundary_is_dirichlet = this%unfitted_boundary_is_dirichlet
+    logical                             :: get_unfitted_boundary_is_dirichlet
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(is_dirichlet_key, get_unfitted_boundary_is_dirichlet))
+    error = list%Get(key = is_dirichlet_key, Value = get_unfitted_boundary_is_dirichlet)
+    assert(error==0)
   end function get_unfitted_boundary_is_dirichlet
 
   !==================================================================================================
   function get_is_constant_nitches_beta(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_is_constant_nitches_beta
-    get_is_constant_nitches_beta = this%is_constant_nitches_beta
+    logical                             :: get_is_constant_nitches_beta
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(is_beta_constant_key, get_is_constant_nitches_beta))
+    error = list%Get(key = is_beta_constant_key, Value = get_is_constant_nitches_beta)
+    assert(error==0)
   end function get_is_constant_nitches_beta
 
   !==================================================================================================
   function get_use_constraints(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_use_constraints
-    get_use_constraints = this%use_constraints
+    logical                             :: get_use_constraints
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(use_constraints_key, get_use_constraints))
+    error = list%Get(key = use_constraints_key, Value = get_use_constraints)
+    assert(error==0)
   end function get_use_constraints
 
   !==================================================================================================
   function get_levelset_function_type(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_levelset_function_type
-    get_levelset_function_type = trim(this%levelset_function_type)
+    character(len=:), allocatable       :: get_levelset_function_type
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(levelset_type_key, get_levelset_function_type))
+    error = list%GetAsString(key = levelset_type_key, string = get_levelset_function_type)
+    assert(error==0)
   end function get_levelset_function_type 
 
   !==================================================================================================
   function get_levelset_tolerance(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    real(rp) :: get_levelset_tolerance
-    get_levelset_tolerance = this%levelset_tolerance
+    real(rp)                            :: get_levelset_tolerance
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(levelset_tol_key, get_levelset_tolerance))
+    error = list%Get(key = levelset_tol_key, Value = get_levelset_tolerance)
+    assert(error==0)
   end function get_levelset_tolerance
 
   !==================================================================================================
   function get_domain_limits(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    real(rp) :: get_domain_limits(2)
-    get_domain_limits = this%domain_limits
+    real(rp)                            :: get_domain_limits(2)
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(domain_limits_key, get_domain_limits))
+    error = list%Get(key = domain_limits_key, Value = get_domain_limits)
+    assert(error==0)
   end function get_domain_limits 
 
   !==================================================================================================
   function get_only_setup(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_only_setup
-    get_only_setup = this%only_setup
+    logical                             :: get_only_setup
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(only_setup_key, get_only_setup))
+    error = list%Get(key = only_setup_key, Value = get_only_setup)
+    assert(error==0)
   end function get_only_setup
 
   !==================================================================================================
   function is_strong_dirichlet_on_fitted_boundary(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: is_strong_dirichlet_on_fitted_boundary
-    is_strong_dirichlet_on_fitted_boundary = this%strong_dirichlet_on_fitted_boundary
+    logical                             :: is_strong_dirichlet_on_fitted_boundary
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(strong_dirichlet_key, is_strong_dirichlet_on_fitted_boundary))
+    error = list%Get(key = strong_dirichlet_key, Value = is_strong_dirichlet_on_fitted_boundary)
+    assert(error==0)
   end function is_strong_dirichlet_on_fitted_boundary
 
   !==================================================================================================
   function get_refinement_pattern(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_refinement_pattern
-    get_refinement_pattern = trim(this%refinement_pattern)
+    character(len=:), allocatable       :: get_refinement_pattern
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(refinement_pattern_key, get_refinement_pattern))
+    error = list%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
+    assert(error==0)
   end function get_refinement_pattern 
 
   !==================================================================================================
   function get_lin_solver_type(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_lin_solver_type
-    get_lin_solver_type = trim(this%lin_solver_type)
+    character(len=:), allocatable       :: get_lin_solver_type
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(lin_solver_type_key, get_lin_solver_type))
+    error = list%GetAsString(key = lin_solver_type_key, string = get_lin_solver_type)
+    assert(error==0)
   end function get_lin_solver_type 
 
   !==================================================================================================
@@ -619,7 +433,12 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical :: get_use_levelset_complement
-    get_use_levelset_complement = this%use_levelset_complement
+    type(ParameterList_t), pointer      :: list
+    integer(ip)                         :: error
+    list  => this%get_values()
+    assert(list%isAssignable(use_levelset_complement_key, get_use_levelset_complement))
+    error = list%Get(key = use_levelset_complement_key, Value = get_use_levelset_complement)
+    assert(error==0)
   end function get_use_levelset_complement
 
 end module stokes_params_names
