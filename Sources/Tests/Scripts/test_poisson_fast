@@ -1,121 +1,149 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
  if [ -d "$TEST_INPUT_DATA_PATH" ] 
    then
-      ###############################################################################################################################
-      # Scalar-valued tests
-      ###############################################################################################################################
+    ###############################################################################################################################
+    # Scalar-valued tests
+    ###############################################################################################################################
 
-      # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
+    # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 1
       do
        for order in 4
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -nx 5 -ny 5 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG"
-            $TEST_BINARY_PATH -tt structured -nx 5 -ny 5 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 5 5 0 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 5 5 0 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Circle + Quads        
+    # Circle + Quads        
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 4
       do
        for order in 4
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/circle.gid --prefix circle -order $order -gorder $gorder"
-            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/circle.gid --prefix circle -order $order -gorder $gorder
+            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -gorder $gorder
             if [ $? -ne 0 ]
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Square + Triangles + dG      
+    # Square + Triangles + dG      
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 1
       do
        for order in 1
        do
          if [ $order -ge $gorder ]
          then
-           echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder -f dG"
-           $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder -f dG
+           echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG"
+           $TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG
            if [ $? -ne 0 ]
            then
             final_exit_code=1
+            break 2
            fi
          fi
        done
       done
-      
-      # Cube + Tetrahedra + dG
+    fi
+     
+    # Cube + Tetrahedra + dG
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 1
       do
         for order in 1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder -f dG"
-            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder -f dG
+            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder -f dG"
+            $TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder -f dG
             if [ $? -ne 0 ]
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      ###############################################################################################################################
-      # Vector-valued tests
-      ###############################################################################################################################
+    ###############################################################################################################################
+    # Vector-valued tests
+    ###############################################################################################################################
 
-      # Circle + Quads        
+    # Circle + Quads        
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 4
       do
        for order in 4
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/circle.gid --prefix circle -order $order -gorder $gorder  -lt vector"
-            $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/circle.gid --prefix circle -order $order -gorder $gorder  -lt vector
+            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -gorder $gorder  -lt vector"
+            $TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -gorder $gorder  -lt vector
             if [ $? -ne 0 ]
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Cube + Tetrahedra
+    # Cube + Tetrahedra
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 1 
       do
         for order in 1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder  -lt vector"
-            $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder  -lt vector
+            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder  -lt vector"
+            $TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder  -lt vector
             if [ $? -ne 0 ]
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
-
+    fi
 
    else
       echo "$0: input data directory not found!"
