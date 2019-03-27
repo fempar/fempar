@@ -32,46 +32,12 @@ module mixed_laplacian_rt_params_names
   implicit none
   private
 
-  type mixed_laplacian_rt_params_t 
-     private 
-     ! IO parameters
-     character(len=:), allocatable :: default_dir_path
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_reference_fe_geo_order
-     character(len=:), allocatable :: default_reference_fe_order
-     character(len=:), allocatable :: default_triangulation_type
-     character(len=:), allocatable :: default_num_dims
-     character(len=:), allocatable :: default_nx
-     character(len=:), allocatable :: default_ny
-     character(len=:), allocatable :: default_nz
-     character(len=:), allocatable :: default_is_periodic_in_x
-     character(len=:), allocatable :: default_is_periodic_in_y
-     character(len=:), allocatable :: default_is_periodic_in_z
+  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order' 
 
-     
-     type(Command_Line_Interface):: cli 
-
-     ! IO parameters
-     character(len=str_cla_len)    :: dir_path
-     character(len=str_cla_len)    :: prefix
-     character(len=str_cla_len)    :: dir_path_out
-     integer(ip)                   :: reference_fe_geo_order
-     integer(ip)                   :: reference_fe_order
-     character(len=str_cla_len)    :: triangulation_type
-     integer(ip)                   :: num_dims     
-     integer(ip)                   :: num_cells_x_dir(0:SPACE_DIM-1)
-     integer(ip)                   :: is_dir_periodic(0:SPACE_DIM-1)
-     
+  type, extends(fempar_parameter_handler_t) :: mixed_laplacian_rt_params_t      
    contains
-     procedure, non_overridable             :: create       => mixed_laplacian_rt_create
-     procedure, non_overridable, private    :: set_default  => mixed_laplacian_rt_set_default
-     procedure, non_overridable, private    :: add_to_cli   => mixed_laplacian_rt_add_to_cli
-     procedure, non_overridable             :: parse        => mixed_laplacian_rt_parse 
-     procedure, non_overridable             :: free         => mixed_laplacian_rt_free
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_dir_path_out
+     procedure                              :: define_parameters   => mixed_laplacian_rt_define_parameters
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
   end type mixed_laplacian_rt_params_t
@@ -80,48 +46,9 @@ module mixed_laplacian_rt_params_names
   public :: mixed_laplacian_rt_params_t
 
 contains
-
-  subroutine mixed_laplacian_rt_create(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t), intent(inout) :: this
-    
-    call this%free()
-    
-     ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'mixed_laplacian_rt',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D/3D Mixed Laplacian PDE with known analytical solution. &
-                                  Boundary indicators on boundary vertices, edges, or faces are ignored, i.e., no &
-                                  need of strong boundary conditions', &
-         &        examples    = ['mixed_laplacian_rt -h  ', 'mixed_laplacian_rt -h  ' ])
-    
-    call this%set_default()
-    call this%add_to_cli()
-  end subroutine mixed_laplacian_rt_create
-  
-  subroutine mixed_laplacian_rt_set_default(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t), intent(inout) :: this
-    ! IO parameters
-    this%default_dir_path       = 'data/'
-    this%default_prefix         = 'square'
-    this%default_dir_path_out   = 'output/'
-    this%default_reference_fe_geo_order = '1'
-    this%default_reference_fe_order = '1'
-    this%default_triangulation_type = 'unstructured'
-    this%default_num_dims = '2'
-    this%default_nx = '1'
-    this%default_ny = '1'
-    this%default_nz = '1'
-    this%default_is_periodic_in_x = '0'
-    this%default_is_periodic_in_y = '0'
-    this%default_is_periodic_in_z = '0'
-  end subroutine mixed_laplacian_rt_set_default
   
   !==================================================================================================
-  subroutine mixed_laplacian_rt_add_to_cli(this)
+  subroutine mixed_laplacian_rt_define_parameters(this)
     implicit none
     class(mixed_laplacian_rt_params_t) , intent(inout) :: this
 
@@ -129,140 +56,36 @@ contains
     integer(ip) :: error
 
     ! IO parameters
-    call this%cli%add(switch='--dir-path',switch_ab='-d',                              &
-         &            help='Directory of the source files',required=.false., act='store',                &
-         &            def=trim(this%default_dir_path),error=error)
-    check(error==0)
-    call this%cli%add(switch='--prefix',switch_ab='-p',help='Name of the GiD files',  &
-         &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
-         &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
-    check(error==0)
-    call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
-         &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_dims',switch_ab='-dim',help='Number of space dimensions',&
-         &            required=.false.,act='store',def=trim(this%default_num_dims),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
-         &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
-         &            required=.false.,act='store',def=trim(this%default_ny),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
-         &            required=.false.,act='store',def=trim(this%default_nz),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_x),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_y',switch_ab='-py',help='Is the mesh periodic in y',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_y),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
-    check(error==0) 
-    
-  end subroutine mixed_laplacian_rt_add_to_cli
+    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')     
+  end subroutine mixed_laplacian_rt_define_parameters
   
-  subroutine mixed_laplacian_rt_parse(this,parameter_list)
-    implicit none
-    class(mixed_laplacian_rt_params_t), intent(inout) :: this
-    type(ParameterList_t)       , intent(inout) :: parameter_list
-    integer(ip) :: istat
-    
-    call this%cli%parse(error=istat); check(istat==0)
-    
-    ! IO parameters
-    call this%cli%get(switch='-d',val=this%dir_path    ,error=istat); check(istat==0)
-    call this%cli%get(switch='-p',val=this%prefix      ,error=istat); check(istat==0)
-    call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
-    call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
-    call this%cli%get(switch='-nx',val=this%num_cells_x_dir(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-ny',val=this%num_cells_x_dir(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-nz',val=this%num_cells_x_dir(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
-
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
-    istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
-    istat = istat + parameter_list%set(key = triang_geometric_interpolation_order_key  , value = this%reference_fe_geo_order)
-    check(istat==0)
-    
-    if(trim(this%triangulation_type)=='unstructured') then
-       istat = parameter_list%set(key = triang_generate_key, value = triangulation_generate_from_mesh)
-    else if(trim(this%triangulation_type)=='structured') then
-       istat = parameter_list%set(key = triang_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = this%num_cells_x_dir)
-       istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key        , value = this%is_dir_periodic)
-    end if
-    check(istat==0)
-    
-  end subroutine mixed_laplacian_rt_parse  
-
-  subroutine mixed_laplacian_rt_free(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t), intent(inout) :: this
-    if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
-    if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
-    if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
-    if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
-    if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
-    call this%cli%free()
-  end subroutine mixed_laplacian_rt_free
-
   ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path
-    get_dir_path = trim(this%dir_path)
-  end function get_dir_path
 
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_prefix
-    get_prefix = trim(this%prefix)
-  end function get_prefix
-
-  !==================================================================================================
-  function get_dir_path_out(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path_out
-    get_dir_path_out = trim(this%dir_path_out)
-  end function get_dir_path_out
-  
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
     class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_geo_order
-    get_reference_fe_geo_order = this%reference_fe_geo_order
+    integer(ip)                                     :: get_reference_fe_geo_order
+    type(ParameterList_t), pointer                  :: list
+    integer(ip)                                     :: error
+    list  => this%get_values()
+    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
+    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+    assert(error==0)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_order
-    get_reference_fe_order = this%reference_fe_order
+    integer(ip)                                     :: get_reference_fe_order
+    type(ParameterList_t), pointer                  :: list
+    integer(ip)                                     :: error
+    list  => this%get_values()
+    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
+    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
+    assert(error==0)
   end function get_reference_fe_order
   
 end module mixed_laplacian_rt_params_names

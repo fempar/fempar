@@ -1,44 +1,57 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
 # if [ -d "$TEST_INPUT_DATA_PATH" ] 
 #   then
-      # Square + Quads        
+    # Square + Quads        
+    if [ $final_exit_code -eq 0 ] 
+    then  
       for gorder in 1
       do
        for order in 4 # 1 2 5
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -nx 2 -ny 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt structured -nx 2 -ny 2 -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder 
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Square + Quads        
+    # Square + Quads
+    if [ $final_exit_code -eq 0 ] 
+    then          
       for gorder in 1
       do
        for order in 1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 2 -ny 2 -nz 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt structured -dim 3 -nx 2 -ny 2 -nz 2 -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder 
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 #   else
 #      echo "$0: input data directory not found!"
 #      final_exit_code=1
