@@ -1,7 +1,12 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
@@ -10,43 +15,51 @@ then
       # Scalar-valued tests
       ###############################################################################################################################
 
-      # Square + Quads        
+    # Square + Quads        
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
        for order in 1 2 3
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 4 -ny 4 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt structured -dim 2 -nx 4 -ny 4 -in_space .true. -order $order -gorder $gorder 
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 4 4 0 -in_space .true. -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 4 4 0 -in_space .true. -order $order -gorder $gorder 
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-
-      # Cube + Hexas       
+    # Cube + Hexas
+    if [ $final_exit_code -eq 0 ] 
+    then       
       for gorder in 1
       do
        for order in 1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 4 -ny 4 -nz 4 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH  -tt structured -dim 3 -nx 4 -ny 4 -nz 4 -in_space .true. -order $order -gorder $gorder
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 -in_space .true. -order $order -gorder $gorder"
+            $TEST_BINARY_PATH  $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 -in_space .true. -order $order -gorder $gorder
             if [ $? -ne 0 ]
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-
-      # Square + Tets        
+    # Square + Tets
+    if [ $final_exit_code -eq 0 ] 
+    then        
       for gorder in 1
       do
        for order in 1 2 3
@@ -55,19 +68,22 @@ then
           do
             if [ $order -ge $gorder ]
             then
-              echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid --prefix square_tetrahedra_"$nelem"x"$nelem" -dim 2 -in_space .true. -order $order -gorder $gorder"
-              $TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid --prefix square_tetrahedra_"$nelem"x"$nelem" -dim 2 -in_space .true. -order $order -gorder $gorder 
+              echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 2 -in_space .true. -order $order -gorder $gorder"
+              $TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 2 -in_space .true. -order $order -gorder $gorder 
               if [ $? -ne 0 ] 
               then
                final_exit_code=1
+               break 3
               fi
             fi
           done
         done
       done
+    fi
 
-
-      # Cube + Tets      
+    # Cube + Tets
+    if [ $final_exit_code -eq 0 ] 
+    then      
       for gorder in 1
       do
        for order in 1
@@ -76,36 +92,34 @@ then
           do
             if [ $order -ge $gorder ]
             then
-              echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder"
-              $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder
+              echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder"
+              $TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder
               if [ $? -ne 0 ]
               then
                final_exit_code=1
+               break 3
               fi
             fi
           done
         done
       done
+    fi
 
+    if [ $final_exit_code -eq 0 ] 
+    then
       order=1
       gorder=1
       nelem=3
       if [ $order -ge $gorder ]
       then
-        echo "$TEST_BINARY_PATH --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder"
-        $TEST_BINARY_PATH  --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid --prefix cube_tetrahedra_"$nelem"x"$nelem" -dim 3 -in_space .true. -order $order -gorder $gorder
+        echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder"
+        $TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder
         if [ $? -ne 0 ]
         then
           final_exit_code=1
         fi
       fi
-
-
-      ###############################################################################################################################
-      # Vector-valued tests
-      ###############################################################################################################################
-
-
+    fi
 
    else
       echo "$0: input data directory not found!"

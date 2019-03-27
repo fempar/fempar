@@ -57,7 +57,7 @@ module test_poisson_unfitted_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_unfitted_params_t)   :: test_params
-     type(ParameterList_t)         :: parameter_list
+     type(ParameterList_t), pointer         :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_unfitted_triangulation_t)              :: triangulation
@@ -94,6 +94,7 @@ module test_poisson_unfitted_driver_names
    contains
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
+     procedure                  :: free_command_line_parameters
      procedure                  :: setup_environment
      procedure                  :: free_environment
      procedure        , private :: setup_levelset
@@ -121,9 +122,16 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_poisson_unfitted_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(test_poisson_unfitted_driver_t ), intent(inout) :: this
+    call this%test_params%free()
+    nullify(this%parameter_list)
+  end subroutine free_command_line_parameters
   
   subroutine setup_environment(this, world_context)
     implicit none
@@ -149,13 +157,7 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    if ( this%test_params%get_triangulation_type() == 'structured' ) then
-      assert( this%parameter_list%isPresent    (key = struct_hex_triang_num_dims_key) )
-      assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dims) )
-      istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dims); check(istat==0)
-    else
-      num_dims = this%test_params%get_num_dims()
-    end if
+    num_dims = this%test_params%get_num_dims()
 
     !TODO we assume it is a sphere
     select case ('sphere')
@@ -833,7 +835,6 @@ end subroutine compute_fitted_boundary_surface
     if ( allocated(this%level_set_function) ) then
       deallocate( this%level_set_function, stat=istat ); check(istat == 0)
     end if
-    call this%test_params%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free
 
