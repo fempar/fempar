@@ -1,17 +1,24 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
       ###############################################################################################################################
       # Scalar-valued tests
       ###############################################################################################################################
 
-      # Square + Quads + Uniform refinement     
+    # Square + Quads + Uniform refinement
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
-       for order in 1 2 3 4
+       for order in 3 4 #1 2 
         do
           if [ $order -ge $gorder ]
           then
@@ -20,35 +27,44 @@ then
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
       
-      # Square + Hexas + Uniform refinement
+    # Square + Hexas + Uniform refinement
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
        for order in 1 2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform -dim 3"
-            $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform -dim 3
+            echo "$TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform $struct_hex_triang_num_dims_flag 3"
+            $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform $struct_hex_triang_num_dims_flag 3
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
       
-      # Square + Quads + Adaptive refinement
+    # Square + Quads + Adaptive refinement
+    if [ $final_exit_code -eq 0 ] 
+    then
       echo "$TEST_BINARY_PATH -order 2 -gorder 1 -af shock -rs error_objective"
       $TEST_BINARY_PATH -order 2 -gorder 1 -af shock -rs error_objective
       if [ $? -ne 0 ] 
       then
        final_exit_code=1
       fi
+    fi
 
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."
