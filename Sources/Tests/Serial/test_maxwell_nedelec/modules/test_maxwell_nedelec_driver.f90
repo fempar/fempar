@@ -95,7 +95,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
-    call this%test_params%create()
+    call this%test_params%process_parameters()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
   
@@ -374,6 +374,7 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     call this%test_params%free()
+    nullify(this%parameter_list)
   end subroutine free_command_line_parameters
   
   subroutine free(this)

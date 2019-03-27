@@ -1,78 +1,100 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
  if [ -d "$TEST_INPUT_DATA_PATH" ] 
-   then
-      # Square + Quads       
-      for gorder in 1
-      do
-       for order in 1 2 3
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH -tt 1 -n 2 2 0 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt 1 -n 2 2 0 -order $order -gorder $gorder 
-            if [ $? -ne 0 ] 
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
+ then
 
-      # Cube + Hexas         
+    # Square + Quads   
+    if [ $final_exit_code -eq 0 ] 
+    then        
       for gorder in 1
       do
-       for order in 1 2 3
+       for order in 2 3 #1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt 1 -dim 3 -n 2 2 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt 1 -dim 3 -n 2 2 2 -order $order -gorder $gorder 
-            if [ $? -ne 0 ] 
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder 
+            if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Square +  Tetrahedra       
+    # Cube + Hexas         
+    if [ $final_exit_code -eq 0 ] 
+    then    
       for gorder in 1
       do
-       for order in 1 2 3
+       for order in 2 3 #1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt 0 -dim 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt 0 -dim 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder 
-            if [ $? -ne 0 ]
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder 
+            if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Cube + Tetrahedra
+    # Square +  Tetrahedra
+    if [ $final_exit_code -eq 0 ] 
+    then           
       for gorder in 1
       do
-        for order in 1 2 3
+       for order in 2 3 #1
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt 0 -dim 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt 0 -dim 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder
-            if [ $? -ne 0 ]
+            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 2 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 2 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder 
+            if [ $? $struct_hex_triang_num_cells_dir_flage 0 ]
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
+
+    # Cube + Tetrahedra
+    if [ $final_exit_code -eq 0 ] 
+    then    
+      for gorder in 1
+      do
+        for order in 2 3 #1
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder"
+            $TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder
+            if [ $? $struct_hex_triang_num_cells_dir_flage 0 ]
+            then
+             final_exit_code=1
+             break 2
+            fi
+          fi
+        done
+      done
+    fi
 
    else
       echo "$0: input data directory not found!"
