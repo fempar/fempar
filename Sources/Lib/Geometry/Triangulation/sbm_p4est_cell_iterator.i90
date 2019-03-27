@@ -158,6 +158,7 @@ function p4est_cell_iterator_get_num_vefs (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip)                        :: p4est_cell_iterator_get_num_vefs
+  p4est_cell_iterator_get_num_vefs = 0
   if ( this%num_dims == 2 ) then
     p4est_cell_iterator_get_num_vefs = NUM_VEFS_2D
   else if ( this%num_dims == 3 ) then
@@ -169,6 +170,7 @@ function p4est_cell_iterator_get_num_vertices (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip) :: p4est_cell_iterator_get_num_vertices
+  p4est_cell_iterator_get_num_vertices = 0
   if ( this%num_dims == 2 ) then
     p4est_cell_iterator_get_num_vertices = NUM_CORNERS_2D
   else if ( this%num_dims == 3 ) then
