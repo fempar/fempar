@@ -98,6 +98,8 @@ module serial_context_names
      procedure :: gather_to_masterv_igp_1D_array   => serial_context_gather_to_masterv_igp_1D_array
      procedure :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
      procedure :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_master_ip           => serial_context_scatter_from_master_ip
+     procedure :: scatter_from_masterv_ip_1D_array => serial_context_scatter_from_masterv_ip_1D_array
      procedure :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
   end type serial_context_t
 
@@ -729,6 +731,29 @@ contains
     output_data = 0.0_rp ! needed to satisfy the intent
   end subroutine serial_context_gather_to_masterv_rp_2D_array
 
+  !=============================================================================
+  subroutine serial_context_scatter_from_master_ip ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)   :: this
+    integer(ip)            , intent(in)   :: input_data(:)
+    integer(ip)            , intent(out)  :: output_data
+    check(.false.)       ! This routine should be never called
+    output_data = 0_ip  ! needed to satisfy the intent
+  end subroutine serial_context_scatter_from_master_ip
+
+  !=============================================================================
+  subroutine serial_context_scatter_from_masterv_ip_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
+    implicit none
+    class(serial_context_t), intent(in)   :: this
+    integer(ip)            , intent(in)   :: input_data(:)
+    integer(ip)            , intent(in)   :: send_counts(:)
+    integer(ip)            , intent(in)   :: displs(:)
+    integer(ip)            , intent(in)   :: output_data_size
+    integer(ip)            , intent(out)  :: output_data(output_data_size)
+    check(.false.)       ! This routine should be never called
+    output_data = 0.0_rp ! needed to satisfy the intent
+  end subroutine serial_context_scatter_from_masterv_ip_1D_array
+  
   !=============================================================================
   subroutine serial_context_scatter_from_masterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
     implicit none

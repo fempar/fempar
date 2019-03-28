@@ -179,6 +179,8 @@ module mpi_omp_context_names
      procedure :: gather_to_masterv_igp_1D_array   => mpi_omp_context_gather_to_masterv_igp_1D_array 
      procedure :: gather_to_masterv_rp_1D_array    => mpi_omp_context_gather_to_masterv_rp_1D_array  
      procedure :: gather_to_masterv_rp_2D_array    => mpi_omp_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_master_ip           => mpi_omp_context_scatter_from_master_ip
+     procedure :: scatter_from_masterv_ip_1D_array => mpi_omp_context_scatter_from_masterv_ip_1D_array
      procedure :: scatter_from_masterv_rp_1D_array => mpi_omp_context_scatter_from_masterv_rp_1D_array
   end type mpi_omp_context_t
 
@@ -2476,7 +2478,88 @@ contains
   !        & output_data, recv_counts, displs, mpi_omp_context_rp, master, this%icontxt, istat)
   !   check( istat == mpi_success )
   ! end subroutine mpi_omp_context_gather_to_masterv_rp_2D_array
+  
+ !=============================================================================
+  subroutine mpi_omp_context_scatter_from_master_ip ( this, input_data, output_data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)   :: this
+    integer(ip)             , intent(in)   :: input_data(:) ! (this%get_num_tasks())
+    integer(ip)             , intent(out)  :: output_data
+    integer  :: istat, master_rank
+    mcheck( .false., 'mpi_omp_context_t::scatter_from_master_ip: This TPB has not been tested' )
+    !$OMP BARRIER
+    master_rank   = (this%get_num_tasks() - 1)/this%max_num_threads
+    assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
+    if( (this%current_rank/=master_rank.and.this%current_thread==this%root_thread).or.this%current_rank==master_rank) then
+       call mpi_scatter( input_data , this%max_num_threads, mpi_omp_context_ip, &
+            &            output_data, this%max_num_threads, mpi_omp_context_ip, &
+            &            master_rank, this%icontxt, istat)
+       check( istat == mpi_success )
+    end if
+  end subroutine mpi_omp_context_scatter_from_master_ip
+  
+  !=============================================================================
+  subroutine mpi_omp_context_scatter_from_masterv_ip_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)   :: this
+    integer(ip)         , intent(in)   :: input_data(:)
+    integer(ip)         , intent(in)   :: send_counts(:) ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: displs(:)      ! (this%get_num_tasks())
+    integer(ip)         , intent(in)   :: output_data_size
+    integer(ip)         , intent(out)  :: output_data(output_data_size)
+    integer :: istat, master_rank, recv_size,i,j
+    integer(ip), allocatable :: send_counts_(:)
+    integer(ip), allocatable :: displs_(:)
+    
+    mcheck( .false., 'mpi_omp_context_t::scatter_from_masterv_ip_1D_array: This TPB has not been tested' )
+    master_rank   = (this%get_num_tasks()-1)/this%max_num_threads
+    assert( (this%type==mpi_omp_context_homogeneous.and.this%current_rank/=master_rank).or.(this%current_rank==master_rank))
 
+    call memalloc(this%num_ranks,send_counts_,__FILE__,__LINE__)
+    call memalloc(this%num_ranks,displs_,__FILE__,__LINE__)
+    do i=1,this%num_ranks-1
+       send_counts_(i) = 0
+       do j=1,this%max_num_threads
+          send_counts_(i) = send_counts_(i) + send_counts((i-1)*this%max_num_threads+j)
+       end do
+    end do
+    send_counts_(this%num_ranks) = send_counts((this%num_ranks-1)*this%max_num_threads+1)
+    ! JP: I would like to eliminate displ from the interface and assume that data is always
+    ! contiguous in the output vector. Here I assume this is the case and I don't use displ 
+    displs_(1) = 0
+    do i=2, this%num_ranks
+      displs_(i) = displs_(i-1) + send_counts_(i-1)
+    end do
+    if(this%current_rank==master_rank) then
+       call mpi_scatterv( input_data, send_counts_, displs_, mpi_omp_context_ip, &
+         &                output_data, output_data_size, mpi_omp_context_ip, &
+         &                master_rank, this%icontxt, istat)
+       check( istat == mpi_success )
+    else if(this%current_rank/=master_rank) then
+       ! Compute size of receiving buffer
+       ip1_buffer(this%current_thread+1) = output_data_size
+       !$OMP BARRIER
+       if(this%current_thread==this%root_thread) then
+          ip1_buffer(0)=0
+          do i=0,this%num_threads-1
+             ip1_buffer(i+1)=ip1_buffer(i+1)+ip1_buffer(i)
+          end do
+          recv_size = ip1_buffer(this%num_threads)
+          if(size(ip1_v_buffer)<recv_size) &
+               & call memrealloc(recv_size,ip1_v_buffer,__FILE__,__LINE__,lb1=0)
+          call mpi_scatterv( input_data, send_counts_, displs_, mpi_omp_context_ip, &
+               &             ip1_v_buffer, recv_size, mpi_omp_context_ip, master_rank, this%icontxt, istat)
+          check( istat == mpi_success )
+       end if
+       !$OMP BARRIER
+       output_data = ip1_v_buffer(ip1_buffer(this%current_thread):ip1_buffer(this%current_thread+1)-1)
+    end if
+    call memfree(send_counts_,__FILE__,__LINE__)
+    call memfree(displs_,__FILE__,__LINE__)
+
+  end subroutine mpi_omp_context_scatter_from_masterv_ip_1D_array
+  
+  
   !=============================================================================
   subroutine mpi_omp_context_scatter_from_masterv_rp_1D_array ( this, input_data, send_counts, displs, output_data_size, output_data )
     implicit none
