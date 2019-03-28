@@ -96,9 +96,6 @@ contains
     implicit none
     class(stokes_params_t) , intent(inout) :: this
 
-    ! Locals
-    integer(ip) :: error
-
     ! IO parameters
     call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
@@ -127,6 +124,7 @@ contains
     call this%add(lin_solver_type_key, '--lin_solver_type', 'pardiso', 'name of the linear solver to use', switch_ab='-lsolver') 
     call this%add(use_levelset_complement_key, '--use_levelset_complement', .false., 'if true then we use the complement of the levelset', switch_ab='-ulscomp') 
   end subroutine stokes_define_parameters
+
   ! GETTERS *****************************************************************************************
   
   !==================================================================================================

@@ -59,8 +59,8 @@ module test_unfitted_h_adaptive_poisson_driver_names
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_poisson_params_t)   :: test_params
-     type(ParameterList_t)         :: parameter_list
+     type(test_poisson_params_t)    :: test_params
+     type(ParameterList_t), pointer :: parameter_list
      
      ! Cells and lower dimension objects container
      type(unfitted_p4est_serial_triangulation_t) :: triangulation
@@ -96,6 +96,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
    contains
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
+     procedure                  :: free_command_line_parameters
      procedure                  :: setup_environment
      procedure                  :: free_environment
      procedure        , private :: setup_levelset
@@ -125,9 +126,16 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    call this%test_params%free()
+    nullify(this%parameter_list)
+  end subroutine free_command_line_parameters
   
   subroutine setup_environment(this, world_context)
     implicit none
@@ -207,7 +215,7 @@ contains
     call this%triangulation%create(this%parameter_list,this%level_set_function, this%serial_environment)
 
     ! Impose Dirichlet in the boundary of the background mesh
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -1228,7 +1236,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free  
   
 
