@@ -436,36 +436,12 @@ contains
 
   subroutine define_test_function_parameters(this)
     class(fempar_parameter_handler_t), intent(inout) :: this
-    type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
-    integer(ip) :: error
 
-    values      => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
-
-    error = 0
-    error = error + helpers%set(key = 'num_ops',        Value= 'Dimension of the function to evaluate (2/3)')
-    error = error + switches%set(key = 'num_ops',       Value= '--TEST_NUM_OPERATORS')
-    error = error + values%set(key = 'num_ops',         Value= 2)
-
-    error = error + helpers%set(key = 'function_type',  Value= 'Type of the function to evaluate (scalar)')
-    error = error + switches%set(key = 'function_type', Value= '--TEST_FUNCTION_TYPE')
-    error = error + values%set(key = 'function_type',   Value= 'scalar')
-
-    error = error + helpers%set(key = 'num_points',     Value= 'Number of points to evaluate')
-    error = error + switches%set(key = 'num_points',    Value= '--TEST_NUM_POINTS')
-    error = error + values%set(key = 'num_points',      Value= 9999)
-
-    error = error + helpers%set(key = 'operator',       Value= 'Operator of the function to evaluate')
-    error = error + switches%set(key = 'operator',      Value= '--TEST_OPERATOR')
-    error = error + values%set(key = 'operator',        Value= '+')
-
-    error = error + helpers%set(key = 'test_name',      Value= 'Type of the function to evaluate (none/pointers)')
-    error = error + switches%set(key = 'test_name',     Value= '--TEST_FUNCTION_NAME')
-    error = error + values%set(key = 'test_name',       Value= 'none')
-
-    assert(error == 0)
+    call this%add('num_ops', '--TEST_NUM_OPERATORS', 2, 'Dimension of the function to evaluate (2/3)')
+    call this%add('function_type', '--TEST_FUNCTION_TYPE', 'scalar', 'Type of the function to evaluate (scalar)')
+    call this%add('num_points', '--TEST_NUM_POINTS', 9999, 'Number of points to evaluate')
+    call this%add('operator', '--TEST_OPERATOR', '+', 'Operator of the function to evaluate')
+    call this%add('test_name', '--TEST_FUNCTION_NAME', 'none', 'Type of the function to evaluate (none/pointers)')
   end subroutine  define_test_function_parameters
 
   subroutine create_random_points(num, points)

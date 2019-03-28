@@ -7,6 +7,8 @@ then
     points=100000
     type='scalar'
 
+  if [ $final_exit_code -eq 0 ] 
+  then    
     for op in '+' '/' '*' '^'
     do
       for ops in 2 3
@@ -16,10 +18,14 @@ then
         if [ $? -ne 0 ] 
         then
           final_exit_code=1
+          break 2
         fi
       done
     done
+  fi
 
+  if [ $final_exit_code -eq 0 ] 
+  then    
     for type in 'vector' 'tensor' 'scalar_function_and_gradient' 'vector_function_and_gradient'
     do
       for ops in 2 3
@@ -29,9 +35,11 @@ then
         if [ $? -ne 0 ] 
           then
           final_exit_code=1
+          break 2
         fi
       done
     done
+  fi
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."
   final_exit_code=1
