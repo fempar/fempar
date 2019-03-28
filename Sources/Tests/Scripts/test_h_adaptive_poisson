@@ -1,163 +1,150 @@
-!/bin/sh
+#!/bin/sh
 SCRIPT_NAME=$(basename $0)
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_parameters
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
-# if [ -d "$TEST_INPUT_DATA_PATH" ] 
-#   then
-      ###############################################################################################################################
-      # Scalar-valued tests
-      ###############################################################################################################################
 
-      # Square + Quads 
+    ###############################################################################################################################
+    # Scalar-valued tests
+    ###############################################################################################################################
+
+    # Square + Quads 
+    if [ $final_exit_code -eq 0 ] 
+    then    
       for gorder in 1
       do
-       for order in 2 3 4 5 6 7 8 
+       for order in 3 4 5 6 7 8 #2 
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
-      
-      # Square + Quads + dG
+    fi      
+
+    # Square + Quads + dG
+    if [ $final_exit_code -eq 0 ] 
+    then    
       for gorder in 1
       do
-       for order in 2 3 4 5 6 7 8 
+       for order in 3 4 5 6 7 8 #2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -f dG"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -f dG
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2  -order $order -f dG"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 -order $order -f dG
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
       
-      # Square + Quads + Hybrid Void/Full FEs (half pattern)
+    # Square + Quads + Hybrid Void/Full FEs (half pattern)
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
        for order in 2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
       
-      # Square + Quads + Hybrid Void/Full FEs + dG (half pattern)
+    # Square + Quads + Hybrid Void/Full FEs + dG (half pattern)
+    if [ $final_exit_code -eq 0 ] 
+    then    
       for gorder in 1
       do
        for order in 2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
+    fi
       
-      # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
+    ###############################################################################################################################
+    # Vector-valued tests
+    ###############################################################################################################################
+
+    # Square + Quads
+    if [ $final_exit_code -eq 0 ] 
+    then    
       for gorder in 1
       do
-       for order in 2
+       for order in 3 4 5 6 7 8 #2 
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2  -order $order -lt vector"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2  -order $order -lt vector
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
-      
-      # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
+    fi
+
+    # Cube + Hexas
+    if [ $final_exit_code -eq 0 ] 
+    then     
       for gorder in 1
       do
-       for order in 2
+       for order in 3 4 #2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG -o $SCRIPT_NAME -p $SCRIPT_NAME
+            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done
       done
-      
-      ###############################################################################################################################
-      # Vector-valued tests
-      ###############################################################################################################################
+    fi
 
-      # Square + Quads
-      for gorder in 1
-      do
-       for order in 2 3 4 5 6 7 8 
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector"
-            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector
-            if [ $? -ne 0 ] 
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
-
-
-      # Cube + Hexas 
-      for gorder in 1
-      do
-       for order in 2 3 4
-        do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME"
-            $TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true. -o $SCRIPT_NAME -p $SCRIPT_NAME
-            if [ $? -ne 0 ] 
-            then
-             final_exit_code=1
-            fi
-          fi
-        done
-      done
-
-
-
- #  else
- #     echo "$0: input data directory not found!"
- #     final_exit_code=1
- #  fi
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."
   final_exit_code=1

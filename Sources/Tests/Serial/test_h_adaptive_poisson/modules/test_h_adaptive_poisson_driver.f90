@@ -50,8 +50,8 @@ module test_h_adaptive_poisson_driver_names
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_poisson_params_t)   :: test_params
-     type(ParameterList_t)         :: parameter_list
+     type(test_poisson_params_t)    :: test_params
+     type(ParameterList_t), pointer :: parameter_list
      
      ! Cells and lower dim objects container
      type(p4est_serial_triangulation_t)           :: triangulation
@@ -85,6 +85,7 @@ module test_h_adaptive_poisson_driver_names
    contains
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
+     procedure                  :: free_command_line_parameters
      procedure                  :: setup_environment
      procedure                  :: free_environment
      procedure        , private :: setup_triangulation
@@ -113,9 +114,16 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
+
+  subroutine free_command_line_parameters(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
+    call this%test_params%free()
+    nullify(this%parameter_list)
+  end subroutine free_command_line_parameters
   
   subroutine setup_environment(this, world_context)
     implicit none
@@ -204,7 +212,7 @@ contains
         call this%triangulation%fill_cells_set(cell_set_ids)
     end if
     
-    if ( this%test_params%get_triangulation_type() == 'structured') then
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured) then
 
       ! Set all the vefs on the interface between full/void if there are void fes
       if ( this%test_params%get_use_void_fes()) then
@@ -923,7 +931,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free  
   
 

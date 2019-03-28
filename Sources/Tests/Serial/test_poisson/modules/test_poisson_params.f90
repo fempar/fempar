@@ -59,39 +59,10 @@ module test_poisson_params_names
 
 contains
   
-!  subroutine test_poisson_set_default(this)
-!    implicit none
-!    class(test_poisson_params_t), intent(inout) :: this
-!    ! IO parameters
-!    this%default_dir_path       = 'data/'
-!    this%default_prefix         = 'square'
-!    this%default_dir_path_out   = 'output/'
-!    this%default_fe_formulation = 'cG'
-!    this%default_reference_fe_geo_order = '1'
-!    this%default_reference_fe_order = '1'
-!    this%default_write_solution = '.false.'
-!    this%default_laplacian_type = 'scalar'
-!    
-!    this%default_triangulation_type = 'unstructured'
-!    this%default_num_dims = '2'
-!    this%default_nx = '1'
-!    this%default_ny = '1'
-!    this%default_nz = '1'
-!    this%default_is_periodic_in_x = '0'
-!    this%default_is_periodic_in_y = '0'
-!    this%default_is_periodic_in_z = '0'
-!    
-!    this%default_use_void_fes = '.false.'
-!    this%default_use_void_fes_case = 'popcorn'
-!  end subroutine test_poisson_set_default
-  
   !==================================================================================================
   subroutine test_poisson_define_parameters(this)
     implicit none
     class(test_poisson_params_t) , intent(inout) :: this
-
-    ! Locals
-    integer(ip) :: error
 
     ! IO parameters
     call this%add(fe_formulation_key, '--fe-formulation', 'cG', 'cG or dG FE formulation for Poisson problem (cG,dG)', switch_ab='-f')
