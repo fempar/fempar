@@ -95,19 +95,23 @@ program test_steady_poisson
   call fempar_init()
   !* Initialize the FEMPAR context 
   call world_context%create()
+
   !* Initialize the list of parameters with all the options that are provided by FEMPAR
   !* It involves to create a parameter handler that is usually used to extract the values
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
   call parameter_handler%process_parameters()
+
+  !* Overwrite fempar default parameters for the integration
+  call parameter_handler%update(struct_hex_triang_num_dims_key, value = 2 )              ! Number of space dimensions
+  call parameter_handler%update(struct_hex_triang_num_cells_dir, value = [10,10,10] )    ! Number of cells per each dimension
+  call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                   ! Reference finite element orders
+  call parameter_handler%update(fes_ref_fe_types_key, value = 'Lagrangian' )             ! Reference finite element types
+
+  !* Obtain the list containing all fempar parameters
   parameter_list => parameter_handler%get_values()
-  !* Set parameters for the integration
-  error = 0
-  error = error + parameter_list%set(key = struct_hex_triang_num_dims_key, value = 2 )              ! Number of space dimensions
-  error = error + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = [10,10,10] )    ! Number of cells per each dimension
-  error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = [ 1 ] )                   ! Reference finite element orders
-  error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian' )             ! Reference finite element types
+  
   mcheck(error==0,'Failed parameter set')
   !* Print the list of parameters
   !    call parameter_list%print()
