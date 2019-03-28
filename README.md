@@ -17,9 +17,11 @@ Finite Element Multiphysics PARallel solvers
 
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
-We strongly recommend to use the `configure` script in `$FEMPARDIR/Tools`. Information of the script can be obtained by typing `configure --help`.
+We strongly recommend to use the `configure` script in `$FEMPARDIR/Tools`, where we assume hereafter that `FEMPARDIR` is an environment variable pointing to the path 
+of the root directory of FEMPAR's git repository. Information of the script can be obtained by typing `configure --help`.
 
-We also strongly recommend to use the `module` functionality described above, in order to easily switch between different compilers and compiler versions, and to automatically have a well-defined environment.
+We also strongly recommend to use the `module` functionality, in order to easily switch between different compilers and compiler versions, and to automatically have a well-defined environment.
+Instructions to set up this functionality can be found [here](https://gitlab.com/fempar/fempar/wikis/how%20to%20setup%20modules%20environment).
 For instance, the compilation of **FEMPAR** using the previous two functionalities using a ++GNU++ compiler would read:
 
 ```
