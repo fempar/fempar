@@ -280,7 +280,11 @@ function p4est_vef_iterator_is_at_interior (this)
   implicit none
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_is_at_interior
-  p4est_vef_iterator_is_at_interior = .false.
+  if ( this%is_local() ) then
+    p4est_vef_iterator_is_at_interior = .not. this%is_at_interface()
+  else
+    p4est_vef_iterator_is_at_interior = .false.
+  end if
 end function p4est_vef_iterator_is_at_interior
 
 function p4est_vef_iterator_is_local (this)
@@ -288,7 +292,7 @@ function p4est_vef_iterator_is_local (this)
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_is_local 
   assert ( this%is_within_valid_range() )
-  p4est_vef_iterator_is_local  = .true.
+  p4est_vef_iterator_is_local  = .not. this%is_ghost()
 end function p4est_vef_iterator_is_local
 
 function p4est_vef_iterator_is_at_interface (this)

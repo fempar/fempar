@@ -243,21 +243,3 @@ program test_stokes_parameter_list
 
     end subroutine  test_stokes_parameter_list_define_fempar_parameters
 end program test_stokes_parameter_list
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
