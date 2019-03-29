@@ -49,7 +49,7 @@ then
       final_exit_code=1
      fi
 
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12"
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12
      if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
      then
@@ -70,8 +70,8 @@ then
         final_exit_code=1
      fi
 
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12 -use-voids T -use-voids-case popcorn"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12 -use-voids T -use-voids-case popcorn
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12 -use-voids T -use-voids-case popcorn"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12 -use-voids T -use-voids-case popcorn
      if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
      then
        final_exit_code=1
