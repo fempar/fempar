@@ -16,7 +16,10 @@ if [ -f "$TEST_BINARY_PATH" ]
 then
  if [ -d "$TEST_INPUT_DATA_PATH" ] 
    then
-      # Square + Quads       
+
+    # Square + Quads
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
        for order in 1 #2 3
@@ -28,13 +31,16 @@ then
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
-             exit $final_exit_code
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Cube + Hexas         
+    # Cube + Hexas         
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
        for order in 1 #2 3
@@ -46,13 +52,16 @@ then
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
-             exit $final_exit_code
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Square +  Tetrahedra       
+    # Square +  Tetrahedra       
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
        for order in 1 #2 3
@@ -64,13 +73,16 @@ then
             if [ $? -ne 0 ]
             then
              final_exit_code=1
-             exit $final_exit_code
+             break 2
             fi
           fi
         done
       done
+    fi
 
-      # Cube + Tetrahedra
+    # Cube + Tetrahedra
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1
       do
         for order in 1 2 3
@@ -82,11 +94,12 @@ then
             if [ $? -ne 0 ]
             then
              final_exit_code=1
-             exit $final_exit_code
+             break 2
             fi
           fi
         done
       done
+    fi
 
    else
       echo "$0: input data directory not found!"

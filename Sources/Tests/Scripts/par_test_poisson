@@ -20,7 +20,10 @@ if [ -f "$TEST_BINARY_PATH" ]
 then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
-      # Square + Quads (4 parts)
+
+    # Square + Quads (4 parts)
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1 # 2 3 4 5 6
       do
         for order in 1 2 3 # 4 5 6
@@ -39,12 +42,18 @@ then
     	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.prt.* 
     	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.env.*
     	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.*post.*
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
           fi
         done
       done
+    fi
 
-
-      # Square + Tets        
+    # Square + Tets        
+    if [ $final_exit_code -eq 0 ] 
+    then
       for gorder in 1 #2 3 4 5 6
       do
        for order in 1 2 3 #4 5 6
@@ -64,13 +73,19 @@ then
     	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.prt.* 
     	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.env.*
     	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.*post.*
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
           fi
-       done
-    done
+        done
+      done
+    fi
 
-
-    # Cube + Hexas        
-    for gorder in 1 #2 3 4 5 6
+    # Cube + Hexas
+    if [ $final_exit_code -eq 0 ] 
+    then        
+      for gorder in 1 #2 3 4 5 6
       do
        for order in 1 2 3 #1 2 3 4 5 6
         do
@@ -87,12 +102,19 @@ then
     	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.prt.*
     	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.env.*
     	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.*post.*
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
           fi
-       done
-    done
+        done
+      done
+    fi
 
-    # Cube + Tets        
-    for gorder in 1 #2 3 4 5 6
+    # Cube + Tets
+    if [ $final_exit_code -eq 0 ] 
+    then        
+      for gorder in 1 #2 3 4 5 6
       do
        for order in 1 2 #1 2 3 4 5 6
         do
@@ -109,10 +131,14 @@ then
     	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.prt.*
     	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.env.*
     	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.*post.*
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
           fi
-       done
-    done
-
+        done
+      done
+    fi
 
 
    else

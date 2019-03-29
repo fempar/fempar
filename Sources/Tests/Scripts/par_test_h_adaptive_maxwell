@@ -18,6 +18,8 @@ if [ -d "$DIR" ]
 then
 if [ -f "$TEST_BINARY_PATH" ]
 then
+  if [ $final_exit_code -eq 0 ] 
+  then
    for order in 2 3 #1 
    do
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order"
@@ -25,7 +27,7 @@ then
      if [ $? -ne 0 ] 
      then
       final_exit_code=1
-      exit $final_exit_code
+      break 1
      fi
 
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order"
@@ -33,10 +35,13 @@ then
      if [ $? -ne 0 ]
      then
       final_exit_code=1
-      exit $final_exit_code
+      break 1
      fi
    done  
+  fi
    
+  if [ $final_exit_code -eq 0 ] 
+  then
    for order in 2 #1
    do
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 -order $order $struct_hex_triang_num_dims_flag 3"
@@ -44,9 +49,10 @@ then
      if [ $? -ne 0 ] 
      then
       final_exit_code=1
-      exit $final_exit_code
+      break 1
      fi
-   done  
+   done
+  fi  
 else
   echo "$0: BINARY not found! Value PROVIDED: $4."
   final_exit_code=1

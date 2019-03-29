@@ -36,7 +36,7 @@ then
 			                if [ $? -ne 0 ] 
 			                then
                                 final_exit_code=1
-                                exit $final_exit_code
+                                break 4
 			                fi
 			            done 
 		            done 
@@ -55,7 +55,7 @@ then
 			                if [ $? -ne 0 ] 
 			                then
                                 final_exit_code=1
-                                exit $final_exit_code
+                                break 4
 			                fi
 
 			                echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
@@ -63,7 +63,7 @@ then
 			                if [ $? -ne 0 ] 
 			                then
                                 final_exit_code=1
-                                exit $final_exit_code
+                                break 4
 			                fi
 			            done 
 		            done 
@@ -80,7 +80,7 @@ then
 		        if [ $? -ne 0 ] 
 		        then
 		            final_exit_code=1
-                    exit $final_exit_code
+                    break 1
 		        fi
 
 		        
@@ -89,7 +89,7 @@ then
 		        if [ $? -ne 0 ] 
 		        then
 		            final_exit_code=1
-                    exit $final_exit_code
+                    break 1
 		        fi
           
 		        echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
@@ -97,7 +97,7 @@ then
 		        if [ $? -ne 0 ] 
 		        then
 		            final_exit_code=1
-                    exit $final_exit_code
+                    break 1
 		        fi
 
             fi 

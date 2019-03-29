@@ -30,6 +30,7 @@ then
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
           fi
         done

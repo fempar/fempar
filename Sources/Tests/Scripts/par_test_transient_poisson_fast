@@ -34,7 +34,7 @@ then
           if [ $? -ne 0 ]
           then
             final_exit_code=1
-            exit $final_exit_code
+            break 1
           fi
       let id_scheme=id_scheme+1
       done
