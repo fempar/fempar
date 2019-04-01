@@ -343,7 +343,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(coarse_fe_handler_type_key, get_coarse_fe_handler_type))
+    assert(list%isAssignable(coarse_fe_handler_type_key, 'string'))
     error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
     assert(error==0)
   end function get_coarse_fe_handler_type 
@@ -356,7 +356,7 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(discrete_integration_type_key, get_discrete_integration_type))
+    assert(list%isAssignable(discrete_integration_type_key, 'string'))
     error = list%GetAsString(key = discrete_integration_type_key, string = get_discrete_integration_type)
     assert(error==0)
   end function get_discrete_integration_type 
