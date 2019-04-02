@@ -2491,6 +2491,8 @@ subroutine serial_fe_space_count_dofs ( this )
      call fe%next()
   end do
   
+  ! Initialize num_total_free_ghost_dofs
+  this%num_total_free_ghost_dofs = 0
   call fe%first()
   do while(.not. fe%has_finished())
      if ( fe%is_ghost() ) then
@@ -2603,7 +2605,7 @@ subroutine serial_fe_space_list_dofs ( this )
   integer(ip) :: block_id, field_id
   integer(ip) :: ivef, jvef, vef_gid
   integer(ip) :: previous_dof_block
-  integer(ip) :: current_fixed_dof, previous_fixed_dof
+  integer(ip) :: current_fixed_dof, previous_fixed_dof, current_free_ghost_dof
   integer(ip) :: source_cell_id, source_vef_lid
   logical     :: no_dofs_assigned_yet, fe_is_local, add_dofs
   integer(ip) :: ielem
@@ -2777,15 +2779,16 @@ subroutine serial_fe_space_list_dofs ( this )
      call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
   end if
 
-  this%num_hanging_dofs = current_fixed_dof - this%num_fixed_dofs
+  this%num_hanging_dofs  = current_fixed_dof - this%num_fixed_dofs
+  current_free_ghost_dof = fields_current_dof(this%num_fields)
 
   ! Loop over ghost cells. No need to ask whether the current cell is ghost
   call fe%set_gid(this%triangulation%get_num_local_cells()+1)
   do while(.not. fe%has_finished())      
      do field_id = 1, this%num_fields
         if ( .not. fe%is_void(field_id)) then
+           call fe%generate_own_dofs_cell ( field_id, current_free_ghost_dof )
            if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-              call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
               do ivef = 1, fe%get_num_vefs()
                  call fe%get_vef(ivef, vef)
                  if ( vef%is_ghost() ) then
@@ -2793,12 +2796,12 @@ subroutine serial_fe_space_list_dofs ( this )
                     no_dofs_assigned_yet = ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 )
                     if ( vef%is_proper() .or. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
                        if ( no_dofs_assigned_yet ) then
-                          previous_dof_block = fields_current_dof(field_id)
+                          previous_dof_block = current_free_ghost_dof ! fields_current_dof(field_id)
                           call fe%generate_own_dofs_vef ( ivef, &
                                field_id, &
-                               fields_current_dof(field_id), &
+                               current_free_ghost_dof, & !fields_current_dof(field_id), 
                                free_dofs_loop=.true. )
-                          if ( previous_dof_block < fields_current_dof(field_id) ) then
+                          if ( previous_dof_block < current_free_ghost_dof) then!fields_current_dof(field_id) ) then
                              owner_cell_gid_x_field_and_vef ( field_id, vef_gid ) = fe%get_gid() 
                              per_field_vef_lid_in_owner_cell ( field_id, vef_gid ) = ivef
                           end if
@@ -2850,7 +2853,7 @@ subroutine serial_fe_space_list_dofs ( this )
    this%num_hanging_dofs       = this%num_hanging_dofs + this%num_hanging_ghost_dofs
    this%num_fixed_dofs         = current_fixed_dof
    this%num_total_free_dofs          = sum(this%num_dofs_x_field)
-   if ( this%num_fields == 1 ) this%num_total_free_ghost_dofs = fields_current_dof(1) - this%num_total_free_dofs
+   if ( this%num_fields == 1 ) this%num_total_free_ghost_dofs = current_free_ghost_dof - this%num_total_free_dofs
   
 
   call this%free_fe_cell_iterator(coarser_fe)
