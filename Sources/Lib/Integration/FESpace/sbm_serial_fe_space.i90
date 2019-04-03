@@ -2796,12 +2796,12 @@ subroutine serial_fe_space_list_dofs ( this )
                     no_dofs_assigned_yet = ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 )
                     if ( vef%is_proper() .or. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
                        if ( no_dofs_assigned_yet ) then
-                          previous_dof_block = current_free_ghost_dof ! fields_current_dof(field_id)
+                          previous_dof_block = current_free_ghost_dof
                           call fe%generate_own_dofs_vef ( ivef, &
                                field_id, &
-                               current_free_ghost_dof, & !fields_current_dof(field_id), 
+                               current_free_ghost_dof, & 
                                free_dofs_loop=.true. )
-                          if ( previous_dof_block < current_free_ghost_dof) then!fields_current_dof(field_id) ) then
+                          if ( previous_dof_block < current_free_ghost_dof) then
                              owner_cell_gid_x_field_and_vef ( field_id, vef_gid ) = fe%get_gid() 
                              per_field_vef_lid_in_owner_cell ( field_id, vef_gid ) = ivef
                           end if
