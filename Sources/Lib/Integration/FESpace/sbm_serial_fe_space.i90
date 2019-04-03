@@ -2852,7 +2852,7 @@ subroutine serial_fe_space_list_dofs ( this )
    this%num_hanging_ghost_dofs = current_fixed_dof - this%num_fixed_dofs - this%num_hanging_dofs
    this%num_hanging_dofs       = this%num_hanging_dofs + this%num_hanging_ghost_dofs
    this%num_fixed_dofs         = current_fixed_dof
-   this%num_total_free_dofs          = sum(this%num_dofs_x_field)
+   this%num_total_free_dofs    = sum(this%num_dofs_x_field)
    if ( this%num_fields == 1 ) this%num_total_free_ghost_dofs = current_free_ghost_dof - this%num_total_free_dofs
   
 
