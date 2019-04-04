@@ -1,0 +1,3 @@
+BootStrap: docker
+From: fempar/fempar-env:gnu_debug_p4est_serial
+
