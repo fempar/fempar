@@ -89,24 +89,35 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 # Find Fempar
 #################################################################
 
-GET_FILENAME_COMPONENT(FEMPAR_DIR ${FEMPAR_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+IF(${FEMPAR_DIR})
+    GET_FILENAME_COMPONENT(FEMPAR_DIR ${FEMPAR_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+ENDIF()
 FIND_PACKAGE(FEMPAR REQUIRED)
 INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
 
 #################################################################
 # Tutorials
 #################################################################
+SET(TUTORIALS_PATH ${CMAKE_SOURCE_DIR})
+
+# Search all files and directories in the top directory
+FILE(GLOB DIRECTORIES * NAME_WE)
+FOREACH( DIR ${DIRECTORIES})
+    GET_FILENAME_COMPONENT(TUTORIAL ${DIR} NAME_WE)
+    IF(NOT  ${TUTORIAL} MATCHES "CMakeLists")
+        SET(TUTORIALS "${TUTORIALS} \n    ${TUTORIAL}")
+    ENDIF()
+ENDFOREACH()
 
 IF(FEMPAR_TUTORIAL)
 
-    SET(TUTORIALS_PATH ${CMAKE_SOURCE_DIR})
     SET(FEMPAR_TUTORIAL ${FEMPAR_TUTORIAL} CACHE STRING "Name of a directory in ${TUTORIALS_PATH} containing the tutorial")
 
     FILE(GLOB TUTORIALS_SRC ${TUTORIALS_PATH}/${FEMPAR_TUTORIAL}/*.f90 ${TUTORIALS_PATH}/${FEMPAR_TUTORIAL}/*.F90)
     SET(TUTORIALS_SRC ${TUTORIALS_SRC})
 
     IF(NOT TUTORIALS_SRC)
-        MESSAGE(FATAL_ERROR "Fempar Tutorial '${FEMPAR_TUTORIAL}' not found!")
+        MESSAGE(FATAL_ERROR "\nFempar Tutorial '${FEMPAR_TUTORIAL}' not found! \nList of available Tutorials: ${TUTORIALS}")
     ENDIF()
 
     FOREACH(TUTORIAL_SRC ${TUTORIALS_SRC})
@@ -121,6 +132,6 @@ IF(FEMPAR_TUTORIAL)
     ENDFOREACH()
 
 ELSE()
-    MESSAGE(FATAL_ERROR "Fempar Tutorial name must be passed to cmake with '-DFEMPAR_TUTORIAL=fempar_tutorial_name'")
+    MESSAGE(FATAL_ERROR "\nFempar Tutorial name must be passed to cmake with '-DFEMPAR_TUTORIAL=fempar_tutorial_name'. \nList of available Tutorials: ${TUTORIALS}")
 ENDIF()
 
