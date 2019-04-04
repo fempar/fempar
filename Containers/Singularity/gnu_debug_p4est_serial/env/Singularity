@@ -1,3 +1,71 @@
 BootStrap: docker
 From: fempar/fempar-env:gnu_debug_p4est_serial
 
+%setup
+#######################
+# ACTIONS FROM HOST
+# use $SINGULARITY_ROOTFS to refer to container root (/)
+#######################
+
+
+%post
+#######################
+# INSTALL SECTION
+#######################
+
+    #------------------
+    # REQUERIMENTS
+    #------------------
+
+    REQUERIMENTS="openmpi-bin \
+                  openmpi-common \
+                  libopenmpi-dev \
+                  dapl2-utils \
+                  libdapl-dev \
+                  libdapl2 \
+                  libibverbs1 \
+                  librdmacm1 \
+                  libcxgb3-1 \
+                  libipathverbs1 \
+                  libmlx4-1 \
+                  libmlx5-1 \
+                  libmthca1 \
+                  libnes1 \
+                  libpmi0 \
+                  libpmi0-dev"
+
+
+    echo "Installing $REQUERIMENTS ..."
+    apt-get update
+    apt -y --allow-unauthenticated install $REQUERIMENTS
+
+    mkdir -p /mnt /scratch /opt/fempar
+
+    #------------------
+    # USER INSTALL
+    #------------------
+
+    # ... Install here your software
+
+
+    #------------------
+    # CLEAN APT files
+    #------------------
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/tmp/*
+
+%runscript
+#######################
+# RUN COMMAND SCRIPT
+# Singularity "run" command launch this script
+#######################
+
+    echo "Arguments received: $*"
+    exec "$@"
+
+%test
+#######################
+# TEST COMMAND SCRIPT
+# Singularity "test" command launch this script
+#######################
