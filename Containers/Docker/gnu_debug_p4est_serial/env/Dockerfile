@@ -139,8 +139,15 @@ RUN apt-get -y update \
     && apt-get -y autoremove 
 
 ################################################
+# Create fempar user and group
+################################################
+RUN groupadd -r fempar \
+    && useradd --no-log-init -r -g fempar fempar
+USER fempar:fempar
+
+################################################
 # Export paths
-################################################    
+################################################
 ENV MKL_THREADING_LAYER=GNU
 ENV HDF5_ROOT /opt/hdf5/1.10.5
 ENV PATH $PATH:/opt/qhull/2015-src-7.2.0
@@ -148,4 +155,6 @@ ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/qhull/2015-src-7.2.0/lib
 ENV PETSC_DIR /opt/petsc/3.9.2
 ENV PETSC_ARCH x86_64
 ENV PATH $PATH:/opt/p4est/2.2
+
+
 
