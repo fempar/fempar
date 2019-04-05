@@ -18,7 +18,7 @@ stages:
 
 
 GNU_DEBUG_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar:latest
+  image: registry.gitlab.com/fempar/fempar-beta:latest
 
   stage: build
   
@@ -49,7 +49,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_DEBUG_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar:latest
+  image: registry.gitlab.com/fempar/fempar-beta:latest
 
   stage: build
   
@@ -80,7 +80,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar:latest
+  image: registry.gitlab.com/fempar/fempar-beta:latest
 
   stage: build
   
@@ -111,7 +111,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar:latest
+  image: registry.gitlab.com/fempar/fempar-beta:latest
 
   stage: build
   
@@ -158,7 +158,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
 INTEL_RELEASE_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar:latest
+  image: registry.gitlab.com/fempar/fempar-beta:latest
 
   stage: build
   
@@ -189,7 +189,7 @@ INTEL_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 INTEL_RELEASE_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar:latest
+  image: registry.gitlab.com/fempar/fempar-beta:latest
 
   stage: build
   
