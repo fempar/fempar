@@ -8,9 +8,6 @@ Finite Element Multiphysics PARallel solvers
 ## Links
 
 - [Web page](http://www.fempar.org/)
-- [Wiki](https://gitlab.com/fempar/fempar/wikis/home)
-- [Source code documentation](http://fempar.org/documentation/)
-- [Issue tracker](https://gitlab.com/fempar/fempar/issues)
 - [Testing dashboard](https://cdash.cimne.upc.edu/user.php)
 
 ## Compilation
