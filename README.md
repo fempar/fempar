@@ -12,8 +12,9 @@
 For those who are interested on the design and rationale behind the software abstractions in FEMPAR, a very through presentation is available at:
 
 Santiago Badia, Alberto F. Martín and Javier Principe. 
-FEMPAR: An object-oriented parallel finite element framework. Archives of Computational Methods in Engineering 25, 2 (2018), 195–271. 
-[ArXiv link](arxiv.org/abs/1708.01773) [DOI](https://link.springer.com/article/10.1007%2Fs11831-017-9244-1)
+FEMPAR: An object-oriented parallel finite element framework. 
+Archives of Computational Methods in Engineering 25, 2 (2018), 195–271. 
+[[ArXiv link]](https://arxiv.org/abs/1708.01773) [[DOI]](https://link.springer.com/article/10.1007%2Fs11831-017-9244-1)
 
 ## Links
 
@@ -26,9 +27,9 @@ FEMPAR: An object-oriented parallel finite element framework. Archives of Comput
 
 The quickest and easiest way to start with FEMPAR is using [Docker](https://www.docker.com). [Docker](https://opensource.com/resources/what-docker) is a tool designed to make it easier to create, deploy, and run applications by using containers.
 
-FEMPAR provides a Docker [container with the required environment](https://hub.docker.com/u/fempar) to compile the project source code and to run tutorials and drivers. 
+FEMPAR provides a Docker [container with the required environment](https://hub.docker.com/u/fempar) to compile the project source code and to run tutorials and tests. 
 
-Please, follow the steps below to compile FEMPAR using the docker container:
+Please, follow the steps below to compile FEMPAR using the Docker container:
 
 ```
 $ docker run -ti fempar/fempar-env:gnu 
