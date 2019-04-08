@@ -144,8 +144,11 @@ RUN apt-get -y update \
 # Create fempar user and group
 ################################################
 RUN groupadd -r fempar \
-    && useradd --no-log-init -r -g fempar fempar
+    && useradd --no-log-init -r -g fempar fempar \
+    && mkdir -p /data \
+    && chmod 0777 /data
 USER fempar:fempar
+WORKDIR /data
 
 ################################################
 # Export paths
