@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!* The `[[test_steady_poisson]]`,
-program test_steady_poisson
-!* uses the `fempar_names` and `test_steady_poisson_driver_names`:
+!* The `[[tutorial_01_steady_poisson]]`,
+program tutorial_01_steady_poisson
+!* uses the `fempar_names` and `poisson_discrete_integration_names`:
   use fempar_names
   use poisson_discrete_integration_names  
   !* First, declare the `test_driver` and the `world_context`.
@@ -38,7 +38,7 @@ program test_steady_poisson
   type(environment_t)                  :: serial_environment
   !* The parameter_handler is an object that provides default values for all the keys that FEMPAR uses to run. They can be:
   !*   1) Default values of the library.
-  !*   2) Values provided by the user through the command line (using the keys in fempar_parameter_handler_t3).
+  !*   2) Values provided by the user through the command line (using the keys in fempar_parameter_handler_t).
   !*   3) the user provides the parameter values in the code.
   !* In this tutorial we will explicitly provide the values in the code (option 3), but they could be provided by the command line argument instead.
   type(fempar_parameter_handler_t)     :: parameter_handler
@@ -187,8 +187,8 @@ program test_steady_poisson
     error = 0
     error = error + direct_solver_params%set(key = dls_type_key,        value = pardiso_mkl)
     !* Set parameters of the direct solver
-    error = error + direct_solver_params%set(key = pardiso_mkl_message_level, value = 1)
-    check(error == 0)
+    error = error + direct_solver_params%set(key = pardiso_mkl_message_level, value = 0)
+    mcheck(error==0,'Failed parameter set')
     call direct_solver%set_type_from_pl(direct_solver_params)
     call direct_solver%set_parameters_from_pl(direct_solver_params)
     !* Next, we set the matrix in our system from the fe_affine operator
@@ -207,7 +207,7 @@ program test_steady_poisson
     error = error + iterative_solver_params%set(key = ils_rtol_key, value = 1.0e-12_rp)         ! Relative tolerance
     error = error + iterative_solver_params%set(key = ils_max_num_iterations_key, value = 5000) ! Max number of iterations
     error = error + iterative_solver_params%set(key = ils_type_key, value = cg_name )           ! Conjugate Gradient iterative solver
-    assert(error == 0)
+    mcheck(error==0,'Failed parameter set')
     !* Now, we create a serial iterative solver with the values in the parameter list.
     call iterative_linear_solver%create(fe_space%get_environment())
     call iterative_linear_solver%set_type_and_parameters_from_pl(iterative_solver_params)
@@ -229,8 +229,8 @@ program test_steady_poisson
   !* Last, we plot the results.
   !* We can set the file system path where the results files are created using
   error = 0
-  error = error + parameter_list%set(key = dir_path_out_key      , Value= 'RESULTS_PROBLEM')
-  assert(error == 0)
+  error = error + parameter_list%set(key = dir_path_out_key      , Value= 'tutorial_01_steady_poisson_results')
+  mcheck(error==0,'Failed parameter set')
   call output_handler%create()
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'solution')
@@ -240,8 +240,8 @@ program test_steady_poisson
   call output_handler%free()
 !*
 !* Free all the created objects
-!*  call fempar_parameter_handler%free()
-!*  call triangulation%free()
+  call parameter_handler%free()
+  call triangulation%free()
   call error_norm%free()
   call solution%free()       
   call direct_solver%free()
@@ -255,22 +255,4 @@ program test_steady_poisson
   call world_context%free(.true.)
 
   call fempar_finalize()
-end program test_steady_poisson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+end program tutorial_01_steady_poisson
