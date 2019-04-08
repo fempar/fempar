@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-c"]
 # Common dependencies \
 ################################################ \
 RUN apt-get -y update \
-    && apt-get -y install --no-install-recommends wget git make cmake gcc g++ gfortran python openmpi-bin openmpi-common libopenmpi-dev flex bison gnupg apt-transport-https ca-certificates \
+    && apt-get -y install --no-install-recommends wget git make cmake vim gcc g++ gfortran python openmpi-bin openmpi-common libopenmpi-dev flex bison gnupg apt-transport-https ca-certificates \
     && INSTALL_ROOT=/opt \
 ################################################ \
 # Install MKL \
@@ -114,8 +114,8 @@ RUN apt-get -y update \
 ################################################ \
     && PACKAGE=hdf5 \
     && MAJOR=1 \
-    && MINOR=10 \
-    && PATCH=5 \
+    && MINOR=8 \
+    && PATCH=21 \
     && VERSION=$MAJOR.$MINOR.$PATCH \
     && HDF5_INSTALL=$INSTALL_ROOT/$PACKAGE/$VERSION \
     && TAR_FILE=$PACKAGE-$VERSION.tar.gz \
@@ -136,16 +136,31 @@ RUN apt-get -y update \
 ################################################ \
     && apt-get -y clean \
     && apt-get -y autoclean \
-    && apt-get -y autoremove 
+    && apt-get -y autoremove \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/tmp/*
+
+################################################
+# Create fempar user and group
+################################################
+RUN groupadd -r fempar \
+    && useradd --no-log-init -r -g fempar fempar \
+    && mkdir -p /data \
+    && chmod 0777 /data
+USER fempar:fempar
+WORKDIR /data
 
 ################################################
 # Export paths
-################################################    
+################################################
 ENV MKL_THREADING_LAYER=GNU
-ENV HDF5_ROOT /opt/hdf5/1.10.5
+ENV HDF5_ROOT /opt/hdf5/1.8.21
+ENV PATH $PATH:/opt/hdf5/1.8.21/bin
 ENV PATH $PATH:/opt/qhull/2015-src-7.2.0
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/qhull/2015-src-7.2.0/lib
 ENV PETSC_DIR /opt/petsc/3.9.2
 ENV PETSC_ARCH x86_64
 ENV PATH $PATH:/opt/p4est/2.2
+
+
 
