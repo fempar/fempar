@@ -32,7 +32,8 @@ FEMPAR provides a Docker [container with the required environment](https://hub.d
 Please, follow the steps below to compile FEMPAR using the Docker container:
 
 ```bash
-$ sudo docker login --username=your_username_at_dockerhub            # You must Sing up at https://hub.docker.com/ to get your_username_at_dockerhub
+# You must Sing up at https://hub.docker.com/ to get your_username_at_dockerhub
+$ sudo docker login --username=your_username_at_dockerhub
 $ sudo docker pull fempar/fempar-env:gnu_debug_p4est_serial          # Get Docker image from Docker Hub
 $ sudo docker run -ti fempar/fempar-env:gnu_debug_p4est_serial
 $ WORKDIR=/data
@@ -75,7 +76,7 @@ so they are only recommended for advanced users.  Test programs are compiled as 
 
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
-Native compilation is only recommended for experienced users. It requires to set up (configure, compile, install, etc) in your own all the mandatory (and optional) software dependencies required to deploy FEMPAR in your Desktop/Laptopp or HPC cluster computing environment. This approach is not fully documented here yet.
+Native compilation is only recommended for experienced users. It requires to set up (configure, compile, install, etc) in your own all the mandatory (and optional) software dependencies required to deploy FEMPAR in your Desktop/Laptop or HPC cluster computing environment. This approach is not fully documented here yet.
 In the meantime, you may take a look at the [Dockerfile recipe](https://gitlab.com/fempar/fempar/tree/experimental/Containers/Docker/gnu_debug_p4est_serial/env/Dockerfile) which is used to create the `fempar/fempar-env:gnu_debug_p4est_serial` Docker image above in order to grasp how you may compile FEMPAR's dependencies on your Desktop/Laptop or HPC infrastructure.
 
 We strongly recommend to use the `configure` script in `$FEMPARDIR/Tools`, where we assume hereafter that `FEMPARDIR` is an environment variable pointing to the path of the root directory of FEMPAR's git repository. Information of the script can be obtained by typing `configure --help`.
