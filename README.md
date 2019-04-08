@@ -1,4 +1,4 @@
-# Fempar
+# FEMPAR
 
 **Finite Element Multiphysics PARallel solvers**
 
@@ -9,11 +9,11 @@
 
 ## Software design
 
-For those who are interested on the design and rationale behind the software abstractions in FEMPAR, a very through presentation is available at:
+For those who are interested on the design and rationale behind the mathematically-supported software abstractions in FEMPAR, a very through presentation is available at the following reference:
 
-Santiago Badia, Alberto F. Martín and Javier Principe. 
-FEMPAR: An object-oriented parallel finite element framework. 
-Archives of Computational Methods in Engineering 25, 2 (2018), 195–271. 
+Santiago Badia, Alberto F. Martín and Javier Principe. \
+FEMPAR: An object-oriented parallel finite element framework. \
+*Archives of Computational Methods in Engineering* 25, 2 (2018), 195–271. \
 [[ArXiv link]](https://arxiv.org/abs/1708.01773) [[DOI]](https://link.springer.com/article/10.1007%2Fs11831-017-9244-1)
 
 ## Links
@@ -31,39 +31,58 @@ FEMPAR provides a Docker [container with the required environment](https://hub.d
 
 Please, follow the steps below to compile FEMPAR using the Docker container:
 
-```
-$ docker run -ti fempar/fempar-env:gnu 
+```bash
+$ sudo docker login --username=your_username_at_dockerhub            # You must Sing up at https://hub.docker.com/ to get your_username_at_dockerhub
+$ sudo docker pull fempar/fempar-env:gnu_debug_p4est_serial          # Get Docker image from Docker Hub
+$ sudo docker run -ti fempar/fempar-env:gnu_debug_p4est_serial
 $ WORKDIR=/data
 $ SOURCES_DIR=$WORKDIR/sources
 $ FEMPAR_DIR=$WORKDIR/FEMPAR
 $ git clone --recursive https://github.com/fempar/fempar $SOURCES_DIR
 $ cd $WORKDIR
-$ cmake $SOURCES_DIR/SuperBuild
-$ make -j 4
+# invokes CMake while setting up appropriate values for CMake variables
+# run $SOURCES_DIR/Tools/configure -h to get an informative message on screen
+$ $SOURCES_DIR/Tools/configure -s $SOURCES_DIR/SuperBuild -c GNU --without-tests 
+$ make
 ```
 
-If you are new to FEMPAR, the very first point to start with are the [tutorial programs](https://gitlab.com/fempar/fempar/tree/experimental/Tutorials) available at the official FEMPAR repository. After completing the previous compilation steps, you can compile and run FEMPAR tutorials with the following steps:
+If you are new to FEMPAR, the very first point to start with are the [tutorial programs](https://gitlab.com/fempar/fempar/tree/experimental/Tutorials) available at the official FEMPAR repository. 
+After completing the previous compilation steps, you can compile and run FEMPAR tutorials with the following steps:
 
-```
+```bash
 ...
 $ FEMPAR_TUTORIALS_DIR=$SOURCES_DIR/Tutorials
 $ mkdir -p $FEMPAR_TUTORIALS_DIR
 $ cd $FEMPAR_TUTORIALS_DIR
 $ cmake -DFEMPAR_DIR=$FEMPAR_DIR -DFEMPAR_TUTORIAL=tutorial_01_steady_poisson $SOURCES_DIR/Tutorials
 $ make -j 4
+$ bin/tutorial_01_steady_poisson --help                              # get informative message on screen
+$ bin/tutorial_01_steady_poisson [optional command line arguments]   # execute the tutorial
 ```
+
+This particular set of commands compiles the tutorial program named `tutorial_01_steady_poisson`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well.
+
+At present, we only offer a reduced set of tutorial programs which show the usage of the most simple FEMPAR features. However, we plan in the near future to extend the current 
+tutorial suite towards demonstration of the various aspects of the library. 
+
+In the meantime, you can also take a look at the 
+[serial](https://gitlab.com/fempar/fempar/tree/experimental/Sources/Tests/Serial) and [MPI-parallel test programs](https://gitlab.com/fempar/fempar/tree/experimental/Sources/Tests/Par) available at the official FEMPAR repository.
+While these programs go far beyond the current tutorial programs in exploiting many of the most advanced FEMPAR features, they are, though, not fully documented,
+so they are only recommended for advanced users.  Test programs are compiled as a final stage of the compilation of FEMPAR. In order to activate the compilation of tests, you have to replace
+`--without-tests` by `--with-tests` in the steps above.
 
 ## Native compilation
 
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
-Native compilation is only recommended for experienced users. It requires to set up (configure, compile, install, etc) in your own all the mandatory (and optional) software dependencies required to deploy FEMPAR in your Desktop/Laptopp or HPC cluster computing environment. This approach is not fully documented yet.
+Native compilation is only recommended for experienced users. It requires to set up (configure, compile, install, etc) in your own all the mandatory (and optional) software dependencies required to deploy FEMPAR in your Desktop/Laptopp or HPC cluster computing environment. This approach is not fully documented here yet.
+In the meantime, you may take a look at the [Dockerfile recipe](https://gitlab.com/fempar/fempar/tree/experimental/Containers/Docker/gnu_debug_p4est_serial/env/Dockerfile) which is used to create the `fempar/fempar-env:gnu_debug_p4est_serial` Docker image above in order to grasp how you may compile FEMPAR's dependencies on your Desktop/Laptop or HPC infrastructure.
 
 We strongly recommend to use the `configure` script in `$FEMPARDIR/Tools`, where we assume hereafter that `FEMPARDIR` is an environment variable pointing to the path of the root directory of FEMPAR's git repository. Information of the script can be obtained by typing `configure --help`.
 
 We also strongly recommend to use the `module` functionality, in order to easily switch between different compilers and compiler versions, and to automatically have a well-defined environment.
-Instructions to set up this functionality can be found [here](https://gitlab.com/fempar/fempar/wikis/how%20to%20setup%20modules%20environment).
-For instance, the compilation of **FEMPAR** using the previous two functionalities using a ++GNU++ compiler would read:
+Instructions to set up this functionality can be found [here](XXX).
+For instance, the compilation of **FEMPAR** using the previous two functionalities using **GNU** compilers would read:
 
 ```
 $ mkdir build
@@ -172,7 +191,7 @@ We neither know whether this also happens for GNU compiler version different fro
 $ sudo apt-get install gfortran-8
 $ sudo apt-get install g++-8
 ```
-If you do not currently use or do not plan to install the modules environment (see https://gitlab.com/fempar/fempar/wikis/how%20to%20setup%20modules%20environment for details), 
+If you do not currently use or do not plan to install the modules environment, 
 then one can use this compiler version when configuring FEMPAR as:
 
 ```
