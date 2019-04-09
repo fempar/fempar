@@ -1,4 +1,4 @@
-FROM fempar/fempar-env:gnu_debug_p4est_serial
+FROM fempar/fempar-env:gnu-debug_p4est-serial
 
 USER root:root
 
@@ -10,9 +10,10 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && VERSION=experimental \
     && URL="https://github.com/$PACKAGE/$PACKAGE.git" \
     && ROOT_DIR=/tmp \
+    && INSTALL_ROOT=/opt \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
-    && BUILD_DIR=/opt/$PACKAGE \
-    && THIRDPARTY_BUILD_DIR=/opt/$PACKAGE-thirdparty \
+    && BUILD_DIR=$INSTALL_ROOT/$PACKAGE \
+    && THIRDPARTY_BUILD_DIR=$INSTALL_ROOT/$PACKAGE-thirdparty \
     && FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none" \
     && git clone --single-branch --branch $VERSION --recursive $URL $SOURCES_DIR \
     && mkdir -p $BUILD_DIR $THIRDPARTY_BUILD_DIR \
@@ -35,3 +36,10 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && rm -rf $SOURCES_DIR 
 
 USER fempar:fempar
+
+################################################
+# Export paths
+################################################
+ENV FEMPAR_DIR /opt/fempar
+
+
