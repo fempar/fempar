@@ -154,12 +154,14 @@ void F90_p4est_connectivity_set_bounding_box_limits ( p4est_connectivity_t ** p4
                                                       const double          * bounding_box_limits )
 {
     int bound;
+    int ivertex;
+    int idim;
     const int num_dims = 3;
     const int bin_base = 2;
     
-    for ( int ivertex = 0; ivertex < (*p4est_conn)->num_vertices; ivertex ++ )
+    for ( ivertex = 0; ivertex < (*p4est_conn)->num_vertices; ivertex ++ )
     {
-        for ( int idim = 0; idim < num_dims; idim ++ )
+        for ( idim = 0; idim < num_dims; idim ++ )
         {
             bound = ( ivertex >> idim ) % bin_base ;
             (*p4est_conn)->vertices [ ivertex * num_dims + idim ] = bounding_box_limits[ bound * num_dims + idim ];
