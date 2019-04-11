@@ -5096,10 +5096,6 @@ subroutine pfs_transfer_and_retrieve_fe_function_nodal_values( this, &
        end if
     end do
 
-    field_id = 1
-    current_new_cell_lid = 1
-    num_dofs = this%get_new_num_dofs(field_id, current_new_cell_lid, old_ptr_dofs_x_fe)
-
     num_rcv     =  this%triangulation%get_migration_num_rcv()
     lst_rcv     => this%triangulation%get_migration_lst_rcv()
     rcv_ptrs    => this%triangulation%get_migration_rcv_ptrs()
