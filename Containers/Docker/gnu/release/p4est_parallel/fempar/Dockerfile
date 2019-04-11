@@ -1,4 +1,4 @@
-FROM fempar/fempar-env:gnu-debug_p4est-serial
+FROM fempar/fempar-env:gnu-debug_p4est-parallel
 
 USER root:root
 
@@ -27,8 +27,8 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 # Build fempar library \
 ################################################ \
     && cd $BUILD_DIR \
-    && cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_BUILD_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $SOURCES_DIR \
-    && ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest \
+    && cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_BUILD_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $SOURCES_DIR \
+    && ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest \
 ################################################ \
 # Clean sources \
 ################################################ \
@@ -40,5 +40,3 @@ USER fempar:fempar
 # Export paths
 ################################################
 ENV FEMPAR_DIR /opt/fempar
-
-

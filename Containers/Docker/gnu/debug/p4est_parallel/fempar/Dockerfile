@@ -28,7 +28,6 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 ################################################ \
     && cd $BUILD_DIR \
     && cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_BUILD_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $SOURCES_DIR \
-    && cmake --build . \
     && ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest \
 ################################################ \
 # Clean sources \
