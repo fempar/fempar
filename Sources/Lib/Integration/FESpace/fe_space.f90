@@ -888,6 +888,11 @@ module fe_space_names
      procedure                           :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
      procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
      
+     !Auxiliar procedures
+     procedure, non_overridable, private :: get_field_fe_dofs                             => serial_fe_space_get_field_fe_dofs
+     procedure, non_overridable, private :: get_new_num_dofs                              => serial_fe_space_get_new_num_dofs
+     procedure, non_overridable, private :: get_old_lst_dofs_spos_epos                    => serial_fe_space_get_old_lst_dofs_spos_epos
+     procedure, non_overridable, private :: get_new_lst_dofs_spos_epos                    => serial_fe_space_get_new_lst_dofs_spos_epos
      
 #ifndef ENABLE_P4EST
     procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error
@@ -1090,13 +1095,15 @@ module fe_space_names
    procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
    procedure,                          private :: par_fe_space_redistribute_single_fe_function
    procedure,                          private :: par_fe_space_redistribute_fe_function_array
-   generic                                     :: redistribute                                            => par_fe_space_redistribute_single_fe_function, &
-                                                                                                             par_fe_space_redistribute_fe_function_array
-   procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
-   procedure,                          private :: project_field_cell_to_ref_fes                           => par_fe_space_project_field_cell_to_ref_fes
-   procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
-   procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
-   procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
+   generic                                     :: redistribute                                              => par_fe_space_redistribute_single_fe_function, &
+                                                                                                               par_fe_space_redistribute_fe_function_array
+   procedure                                   :: update_after_redistribute                                 => par_fe_space_update_after_redistribute
+   procedure,                          private :: project_field_cell_to_ref_fes                             => par_fe_space_project_field_cell_to_ref_fes
+   procedure,                          private :: migrate_field_cell_to_ref_fes                             => par_fe_space_migrate_field_cell_to_ref_fes
+   procedure,                          private :: migrate_fe_integration_arrays                             => par_fe_space_migrate_fe_integration_arrays
+   procedure,                          private :: migrate_facet_integration_arrays                          => par_fe_space_migrate_facet_integration_arrays
+   procedure,         non_overridable, private :: update_fe_function_nodal_values_arrays_after_redistribute => pfs_update_fe_function_nodal_values_arrays_after_redistribute
+   procedure,         non_overridable, private :: transfer_and_retrieve_fe_function_nodal_values            => pfs_transfer_and_retrieve_fe_function_nodal_values
    
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
