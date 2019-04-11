@@ -1,33 +1,8 @@
-FROM debian:buster
+FROM fempar/fempar-env:gnu
 
-LABEL MAINTAINER "vsande@cimne.upc.edu"
-LABEL AUTHOR "vsande@cimne.upc.edu"
-LABEL URL "http://fempar.org"
+USER root:root
 
-SHELL ["/bin/bash", "-c"]
-
-################################################ \
-# Common dependencies \
-################################################ \
-RUN apt-get -y update \
-    && apt-get -y install --no-install-recommends wget git make cmake vim gcc g++ gfortran python metis libmetis-dev openmpi-bin openmpi-common libopenmpi-dev flex bison gnupg apt-transport-https ca-certificates zlib1g zlib1g-dev \
-    && INSTALL_ROOT=/opt \
-################################################ \
-# Install MKL \
-################################################ \
-    && PACKAGE=intel-mkl \
-    && VERSION=64bit-2019.3-062 \
-    && URL=https://apt.repos.intel.com \
-    && KEY=GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB \
-    && ROOT_DIR=/tmp \
-    && wget $URL/intel-gpg-keys/$KEY -O $ROOT_DIR/$KEY \
-    && apt-key add $ROOT_DIR/$KEY \
-    && echo "deb $URL/mkl all main" > /etc/apt/sources.list.d/$PACKAGE.list \
-    && apt-get -y update \
-    && apt-get -y install --no-install-recommends $PACKAGE-$VERSION \
-    && rm -rf $ROOT_DIR/$KEY \
-    && echo "source /opt/intel/mkl/bin/mklvars.sh intel64" >> /etc/bash.bashrc \
-    && source /etc/bash.bashrc \
+RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 ################################################ \
 # Install json-fortran \
 ################################################ \
@@ -43,7 +18,7 @@ RUN apt-get -y update \
     && tar -xzvf $TAR_FILE -C $ROOT_DIR \
     && mkdir -p $BUILD_DIR $JSON_FORTRAN_INSTALL \
     && cd $BUILD_DIR \
-    && cmake -DCMAKE_INSTALL_PREFIX=$JSON_FORTRAN_INSTALL $SOURCES_DIR \
+    && cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$JSON_FORTRAN_INSTALL $SOURCES_DIR \
     && make install -j4 \
     && rm -rf $TAR_FILE $SOURCES_DIR \
 ################################################ \
@@ -64,7 +39,7 @@ RUN apt-get -y update \
     && ./configure --with-mpi=1 --with-cc=mpicc --with-cxx=mpicxx --with-fc=mpif90 \
                    -with-blas-lapack-dir=/opt/intel/mkl/lib/intel64 \
                    --download-hypre=https://github.com/LLNL/hypre/archive/v2.14.0.tar.gz \
-                   --with-x=0 --with-shared=1 --with-64-bit-indices --with-debugging \
+                   --with-x=0 --with-shared=1 --with-64-bit-indices --with-debugging=1 \
                    --prefix=$PETSC_INSTALL \
     && make \
     && make install \
@@ -85,7 +60,7 @@ RUN apt-get -y update \
     && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR/build \
     && cmake -G "Unix Makefiles" .. \
-    && cmake -DCMAKE_INSTALL_PREFIX=/opt/$PACKAGE/$VERSION .. \
+    && cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/opt/$PACKAGE/$VERSION .. \
     && make \
     && ctest \
     && make install \
@@ -108,33 +83,17 @@ RUN apt-get -y update \
     && mkdir -p $SOURCES_DIR \
     && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR \
-    && ./configure CC=mpicc FC=mpif90 CXX=mpicc --enable-parallel --enable-fortran --prefix=$HDF5_INSTALL \
+    && ./configure CC=mpicc FC=mpif90 CXX=mpicc --enable-debug --enable-parallel --enable-fortran --prefix=$HDF5_INSTALL \
     && make \
     && make install \
-    && rm -rf $ROOT_DIR/$TAR_FILE $SOURCES_DIR \
-################################################ \
-# Clean packages \
-################################################ \
-    && apt-get -y clean \
-    && apt-get -y autoclean \
-    && apt-get -y autoremove \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /var/tmp/*
+    && rm -rf $ROOT_DIR/$TAR_FILE $SOURCES_DIR 
 
-################################################
-# Create fempar user and group, and workdir
-################################################
-RUN groupadd -r fempar \
-    && useradd --no-log-init -r -g fempar fempar \
-    && mkdir -p /data \
-    && chmod 0777 /data
+
 USER fempar:fempar
-WORKDIR /data
 
 ################################################
-# Export paths
+# Export environment variables
 ################################################
-ENV MKL_THREADING_LAYER=GNU
 ENV HDF5_ROOT /opt/hdf5/1.8.21
 ENV PATH $PATH:/opt/hdf5/1.8.21/bin
 ENV PATH $PATH:/opt/qhull/2015-src-7.2.0

@@ -2,10 +2,10 @@ FROM fempar/fempar-env:gnu-debug
 
 USER root:root
 
+RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 ################################################ 
 # Install P4EST 
 ################################################ 
-RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && PACKAGE=p4est \
     && VERSION=2.2 \
     && INSTALL_ROOT=/opt \
