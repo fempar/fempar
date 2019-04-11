@@ -1,4 +1,4 @@
-FROM fempar/fempar-env:gnu-debug_p4est-parallel
+FROM fempar/fempar-env:gnu-release_p4est-parallel
 
 USER root:root
 
