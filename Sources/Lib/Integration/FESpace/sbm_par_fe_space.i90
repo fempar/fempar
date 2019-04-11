@@ -5022,16 +5022,15 @@ end subroutine par_fe_space_refine_and_coarsen_fe_function_array
 subroutine pfs_transfer_and_retrieve_fe_function_nodal_values( this, &
                                                      old_ptr_dofs_x_fe, &
                                                      old_lst_dofs_gids, &
-                                                     fe_function, &
-                                                     p_old_fe_function_nodal_values, &
-                                                     p_new_fe_function_nodal_values)
+                                                     fe_function)
   class(par_fe_space_t)          , intent(inout) :: this
   type(std_vector_integer_ip_t)  , intent(in)    :: old_ptr_dofs_x_fe(:)
   type(std_vector_integer_ip_t)  , intent(in)    :: old_lst_dofs_gids    
-  type(fe_function_t)            , intent(inout) :: fe_function  
-  real(rp)                       , intent(inout) :: p_old_fe_function_nodal_values(:)
-  real(rp)                       , intent(inout) :: p_new_fe_function_nodal_values(:)
-  
+  type(fe_function_t)            , intent(inout) :: fe_function
+
+  real(rp)   , pointer :: p_old_fe_function_nodal_values(:)
+  real(rp)   , pointer :: p_new_fe_function_nodal_values(:)
+
   integer(ip)          :: num_rcv
   integer(ip), pointer :: lst_rcv(:)
   integer(ip), pointer :: rcv_ptrs(:)
@@ -5061,7 +5060,9 @@ subroutine pfs_transfer_and_retrieve_fe_function_nodal_values( this, &
   environment   => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
     old_num_local_cells = this%triangulation%get_previous_num_local_cells()
-    old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()
+    old_num_ghost_cells = this%triangulation%get_previous_num_ghost_cells()  
+    p_old_fe_function_nodal_values => this%old_fe_function_nodal_values%get_pointer()            
+    p_new_fe_function_nodal_values => this%new_fe_function_nodal_values%get_pointer()   
     old_cell_lid = 1
     do while ( old_cell_lid .le. old_num_local_cells )
        do field_id = 1,this%get_num_fields()
@@ -5169,8 +5170,6 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
   class(environment_t),          pointer     :: environment
   type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
   type(std_vector_integer_ip_t)              :: old_lst_dofs_gids
-  real(rp),                      pointer     :: p_new_fe_function_nodal_values(:)
-  real(rp),                      pointer     :: p_old_fe_function_nodal_values(:)
   integer(ip)                                :: num_snd
   integer(ip)                                :: field_id
   integer(ip)                                :: error
@@ -5180,18 +5179,14 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
   if ( environment%am_i_l1_task() ) then 
      if ( present(fe_function ) ) then 
         num_snd  =  this%triangulation%get_migration_num_snd()     
-        if ( this%triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
-        
+        if ( this%triangulation%get_num_cells() > 0 .or. num_snd>0 ) then      
+
            call this%update_after_redistribute(old_ptr_dofs_x_fe, old_lst_dofs_gids)
            call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
-           p_old_fe_function_nodal_values => this%old_fe_function_nodal_values%get_pointer()            
-           p_new_fe_function_nodal_values => this%new_fe_function_nodal_values%get_pointer()   
 
            call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
                                                                     old_lst_dofs_gids, &
-                                                                    fe_function, &
-                                                                    p_old_fe_function_nodal_values, &
-                                                                    p_new_fe_function_nodal_values)
+                                                                    fe_function)
 
            ! Free local arrays
            do field_id = 1,this%num_fields
@@ -5224,8 +5219,6 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
   class(environment_t),              pointer :: environment
   type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
   type(std_vector_integer_ip_t)              :: old_lst_dofs_gids
-  real(rp),                          pointer :: p_new_fe_function_nodal_values(:)
-  real(rp),                          pointer :: p_old_fe_function_nodal_values(:)
   integer(ip) :: field_id
   integer(ip) :: num_snd
   integer(ip) :: ifunc
@@ -5239,15 +5232,11 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
 
       call this%update_after_redistribute(old_ptr_dofs_x_fe,old_lst_dofs_gids)
       call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
-      p_old_fe_function_nodal_values => this%old_fe_function_nodal_values%get_pointer() 
-      p_new_fe_function_nodal_values => this%new_fe_function_nodal_values%get_pointer()
-      
+
       do ifunc = 1,size(fe_functions)
            call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
                                                                     old_lst_dofs_gids, &
-                                                                    fe_functions(ifunc)%p, &
-                                                                    p_old_fe_function_nodal_values, &
-                                                                    p_new_fe_function_nodal_values)           
+                                                                    fe_functions(ifunc)%p)           
       end do
 
       do field_id = 1,this%num_fields
