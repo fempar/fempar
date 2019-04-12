@@ -8,7 +8,7 @@ USER root:root
 RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && PACKAGE=fempar \
     && VERSION=experimental \
-    && URL="https://github.com/$PACKAGE/$PACKAGE.git" \
+    && URL="https://gitlab.com/$PACKAGE/$PACKAGE.git" \
     && ROOT_DIR=/tmp \
     && INSTALL_ROOT=/opt \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
@@ -16,6 +16,7 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && THIRDPARTY_BUILD_DIR=$INSTALL_ROOT/$PACKAGE-thirdparty \
     && FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none" \
     && git clone --single-branch --branch $VERSION --recursive $URL $SOURCES_DIR \
+    && ln -sf $SOURCES_DIR/CMake/CTestConfig_CIMNE.cmake $SOURCES_DIR/CTestConfig.cmake \
     && mkdir -p $BUILD_DIR $THIRDPARTY_BUILD_DIR \
 ################################################ \
 # Build fempar thirdparty libraries \
@@ -28,7 +29,7 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 ################################################ \
     && cd $BUILD_DIR \
     && cmake -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_BUILD_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $SOURCES_DIR \
-    && ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest \
+    && ctest --timeout 9999 -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit \
 ################################################ \
 # Clean sources \
 ################################################ \
