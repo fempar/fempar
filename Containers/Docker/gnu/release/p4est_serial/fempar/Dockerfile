@@ -22,7 +22,7 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 # Build fempar thirdparty libraries \
 ################################################ \
     && cd $THIRDPARTY_BUILD_DIR \
-    && cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $SOURCES_DIR/ThirdParty \
+    && cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $SOURCES_DIR/ThirdParty \
     && cmake --build . \
 ################################################ \
 # Build fempar library \
