@@ -20,7 +20,7 @@ SET(DEFAULT_INC_PATHS /include /usr/include /usr/local/include)
 SET(DEFAULT_LIB_PATHS /lib /lib32 /lib64 /usr/lib /usr/lib32 /usr/lib64 /usr/local/lib)
 
 SET(LIB_PREFIX QHULL)
-SET(${LIB_PREFIX}_LIB_NAME qhullstatic)
+SET(${LIB_PREFIX}_LIB_NAME qhullstatic qhullstatic_d)
 SET(${LIB_PREFIX}_INC_FILENAME libqhull.h)
 SET(${LIB_PREFIX}_INC_SUFFIXES "include" "libqhull" "include/libqhull")
 SET(${LIB_PREFIX}_LIB_SUFFIXES "lib" "libqhull" "lib/libqhull" "lib/${CMAKE_LIBRARY_ARCHITECTURE}" "${CMAKE_LIBRARY_ARCHITECTURE}")
