@@ -11,7 +11,6 @@ cache:
 
 .base_gnu:
   before_script: 
-    - source /usr/local/Modules/init/bash
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
@@ -24,7 +23,7 @@ cache:
 
 
 GNU_DEBUG_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
+  image: fempar/fempar-env:gnu-debug_p4est-serial
 
   stage: debug
 
@@ -34,7 +33,6 @@ GNU_DEBUG_P4EST_SERIAL:
   extends: .base_gnu
 
   script:
-    - module load GNU_SERIAL
     - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
@@ -45,7 +43,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_DEBUG_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
+  image: fempar/fempar-env:gnu-debug_p4est-parallel
 
   stage: debug
   
@@ -55,7 +53,6 @@ GNU_DEBUG_P4EST_PARALLEL:
   extends: .base_gnu
  
   script:
-    - module load GNU_PARALLEL
     - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
@@ -66,7 +63,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
+  image: fempar/fempar-env:gnu-release_p4est-serial
 
   stage: release
   
@@ -76,7 +73,6 @@ GNU_RELEASE_P4EST_SERIAL:
   extends: .base_gnu
 
   script:
-    - module load GNU_SERIAL
     - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
@@ -87,7 +83,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
+  image: fempar/fempar-env:gnu-release_p4est-parallel
 
   stage: release
   
@@ -97,7 +93,6 @@ GNU_RELEASE_P4EST_PARALLEL:
   extends: .base_gnu
 
   script:
-    - module load GNU_PARALLEL
     - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
