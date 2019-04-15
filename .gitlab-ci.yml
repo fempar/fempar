@@ -23,9 +23,7 @@ cache:
 
 
 GNU_DEBUG_P4EST_SERIAL:
-  image: 
-    - name: fempar/fempar-env:gnu-debug_p4est-serial
-    - entrypoint: ['bash', '-c', 'exec su root -c bash']
+  image: fempar/fempar-env:gnu-debug_p4est-serial
 
   stage: debug
 
@@ -45,9 +43,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_DEBUG_P4EST_PARALLEL:
-  image: 
-    - name: fempar/fempar-env:gnu-debug_p4est-parallel
-    - entrypoint: ['bash', '-c', 'exec su root -c bash']
+  image: fempar/fempar-env:gnu-debug_p4est-parallel
 
   stage: debug
   
@@ -67,9 +63,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_SERIAL:
-  image: 
-    - name: fempar/fempar-env:gnu-release_p4est-serial
-    - entrypoint: ['bash', '-c', 'exec su root -c bash']
+  image: fempar/fempar-env:gnu-release_p4est-serial
 
   stage: release
   
@@ -89,9 +83,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_PARALLEL:
-  image: 
-    - name: fempar/fempar-env:gnu-release_p4est-parallel
-    - entrypoint: ['bash', '-c', 'exec su root -c bash']
+  image: fempar/fempar-env:gnu-release_p4est-parallel
 
   stage: release
   
@@ -125,9 +117,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
 INTEL_RELEASE_P4EST_SERIAL:
-  image: 
-    - name: registry.gitlab.com/fempar/fempar-beta:latest
-    - entrypoint: ['bash', '-c', 'exec su root -c bash']
+  image: registry.gitlab.com/fempar/fempar-beta:latest
     
   stage: release
   
