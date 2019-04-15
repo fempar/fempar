@@ -13,7 +13,7 @@ cache:
   before_script: 
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
     - ROOT_DIR=$CI_PROJECT_DIR
-    - BUILD_DIR=$ROOT_DIR/BUILD
+    - BUILD_DIR=/data/BUILD
     - FEMPAR_DIR=$BUILD_DIR/FEMPAR
     - mkdir -p $FEMPAR_DIR
     - cd $ROOT_DIR
@@ -38,6 +38,18 @@ GNU_DEBUG_P4EST_SERIAL:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - serial_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
 
   except:
     - experimental@fempar/fempar-beta
