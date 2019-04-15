@@ -7,7 +7,7 @@ cache:
   key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
   untracked: true
   paths:
-    - $CI_PROJECT_DIR/cache
+    - /data/cache
 
 .base_gnu:
   before_script: 
@@ -23,7 +23,9 @@ cache:
 
 
 GNU_DEBUG_P4EST_SERIAL:
-  image: fempar/fempar-env:gnu-debug_p4est-serial
+  image: 
+    - name: fempar/fempar-env:gnu-debug_p4est-serial
+    - entrypoint: ['bash', '-c', 'exec su root -c bash']
 
   stage: debug
 
@@ -33,7 +35,7 @@ GNU_DEBUG_P4EST_SERIAL:
   extends: .base_gnu
 
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=/data/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -43,7 +45,9 @@ GNU_DEBUG_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_DEBUG_P4EST_PARALLEL:
-  image: fempar/fempar-env:gnu-debug_p4est-parallel
+  image: 
+    - name: fempar/fempar-env:gnu-debug_p4est-parallel
+    - entrypoint: ['bash', '-c', 'exec su root -c bash']
 
   stage: debug
   
@@ -53,7 +57,7 @@ GNU_DEBUG_P4EST_PARALLEL:
   extends: .base_gnu
  
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=/data/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -63,7 +67,9 @@ GNU_DEBUG_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_SERIAL:
-  image: fempar/fempar-env:gnu-release_p4est-serial
+  image: 
+    - name: fempar/fempar-env:gnu-release_p4est-serial
+    - entrypoint: ['bash', '-c', 'exec su root -c bash']
 
   stage: release
   
@@ -73,7 +79,7 @@ GNU_RELEASE_P4EST_SERIAL:
   extends: .base_gnu
 
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
+    - THIRDPARTY_DIR=/data/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -83,7 +89,9 @@ GNU_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_PARALLEL:
-  image: fempar/fempar-env:gnu-release_p4est-parallel
+  image: 
+    - name: fempar/fempar-env:gnu-release_p4est-parallel
+    - entrypoint: ['bash', '-c', 'exec su root -c bash']
 
   stage: release
   
@@ -93,7 +101,7 @@ GNU_RELEASE_P4EST_PARALLEL:
   extends: .base_gnu
 
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
+    - THIRDPARTY_DIR=/data/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -117,8 +125,10 @@ GNU_RELEASE_P4EST_PARALLEL:
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
 INTEL_RELEASE_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
-
+  image: 
+    - name: registry.gitlab.com/fempar/fempar-beta:latest
+    - entrypoint: ['bash', '-c', 'exec su root -c bash']
+    
   stage: release
   
   tags:
@@ -128,7 +138,7 @@ INTEL_RELEASE_P4EST_SERIAL:
  
   script:
     - module load INTEL_SERIAL
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
+    - THIRDPARTY_DIR=/data/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -149,7 +159,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
  
   script:
     - module load INTEL_PARALLEL
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
+    - THIRDPARTY_DIR=/data/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
