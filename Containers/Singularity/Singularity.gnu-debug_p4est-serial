@@ -2,22 +2,13 @@ BootStrap: docker
 From: fempar/fempar-env:gnu-debug_p4est-serial
 
 %setup
-#######################
-# ACTIONS FROM HOST
-# use $SINGULARITY_ROOTFS to refer to container root (/)
-#######################
 
 
 %post
-#######################
-# INSTALL SECTION
-#######################
 
     #------------------
     # REQUERIMENTS
     #------------------
-
-
 
     mkdir -p /mnt /scratch /opt/fempar
 
@@ -27,7 +18,6 @@ From: fempar/fempar-env:gnu-debug_p4est-serial
 
     # ... Install here your software
 
-
     #------------------
     # CLEAN APT files
     #------------------
@@ -36,27 +26,16 @@ From: fempar/fempar-env:gnu-debug_p4est-serial
     rm -rf /var/tmp/*
 
 %runscript
-#######################
-# RUN COMMAND SCRIPT
-# Singularity "run" command launch this script
-#######################
 
     echo "Arguments received: $*"
     exec "$@"
 
 %test
-#######################
-# TEST COMMAND SCRIPT
-# Singularity "test" command launch this script
-#######################
+
     cd /opt/fempar
     ctest -j8 -V -E par_test 
 
 %help
-#######################
-# HELP MESSAGE
-# Singularity "help" command launch this script
-#######################
 
     echo "------------------------------------------------"
     echo "| Finite Element Multiphysics PARallel solvers |"
@@ -64,19 +43,16 @@ From: fempar/fempar-env:gnu-debug_p4est-serial
     echo "------------------------------------------------"
 
 %appinstall fempar
-#######################
-# INSTALL SCRIPT FOR fempar APP
-# Singularity "test" command launch this script
-#######################
 
     . /opt/intel/mkl/bin/mklvars.sh intel64 
     PACKAGE=fempar 
     VERSION=experimental 
     URL="https://gitlab.com/$PACKAGE/$PACKAGE.git" 
-    ROOT_DIR=/tmp 
+    ROOT_DIR=$(mktemp -p /tmp -d) 
+    INSTALL_ROOT=/opt 
     SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION 
-    BUILD_DIR=/opt/$PACKAGE 
-    THIRDPARTY_BUILD_DIR=/opt/$PACKAGE-thirdparty 
+    BUILD_DIR=$INSTALL_ROOT/$PACKAGE 
+    THIRDPARTY_BUILD_DIR=$INSTALL_ROOT/$PACKAGE-thirdparty 
     FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none" 
     git clone --single-branch --branch $VERSION --recursive $URL $SOURCES_DIR 
     mkdir -p $BUILD_DIR $THIRDPARTY_BUILD_DIR 
@@ -98,16 +74,11 @@ From: fempar/fempar-env:gnu-debug_p4est-serial
     rm -rf $SOURCES_DIR 
 
 %appenv fempar
-#######################
-# fempar APP ENVIRONMENT VARIABLES
-#######################
+
     FEMPAR_DIR=/opt/fempar
     export FEMPAR_DIR
 
 %apphelp fempar
-#######################
-# fempar APP HELP MESSAGE
-#######################
 
     echo "------------------------------------------------"
     echo "| Finite Element Multiphysics PARallel solvers |"
