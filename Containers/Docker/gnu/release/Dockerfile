@@ -3,6 +3,7 @@ FROM fempar/fempar-env:gnu
 USER root:root
 
 RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
+    && INSTALL_ROOT=/opt \
 ################################################ \
 # Install json-fortran \
 ################################################ \
@@ -60,7 +61,7 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR/build \
     && cmake -G "Unix Makefiles" .. \
-    && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/$PACKAGE/$VERSION .. \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/$PACKAGE/$VERSION .. \
     && make \
     && ctest \
     && make install \
