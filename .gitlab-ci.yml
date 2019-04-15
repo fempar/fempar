@@ -6,10 +6,7 @@ stages:
 cache:
   key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
   paths:
-    - $CI_PROJECT_DIR/gnu/debug
-    - $CI_PROJECT_DIR/gnu/release
-    - $CI_PROJECT_DIR/intel/debug
-    - $CI_PROJECT_DIR/intel/release
+    - $CI_PROJECT_DIR/cache
 
 .base_gnu:
   before_script: 
@@ -36,7 +33,8 @@ GNU_DEBUG_P4EST_SERIAL:
   extends: .base_gnu
 
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/gnu/debug/THIRDPARTY
+    - module load GNU_SERIAL
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -56,7 +54,8 @@ GNU_DEBUG_P4EST_PARALLEL:
   extends: .base_gnu
  
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/gnu/debug/THIRDPARTY
+    - module load GNU_PARALLEL
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -76,7 +75,8 @@ GNU_RELEASE_P4EST_SERIAL:
   extends: .base_gnu
 
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/gnu/release/THIRDPARTY
+    - module load GNU_SERIAL
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -96,7 +96,8 @@ GNU_RELEASE_P4EST_PARALLEL:
   extends: .base_gnu
 
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/gnu/release/THIRDPARTY
+    - module load GNU_PARALLEL
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -130,7 +131,8 @@ INTEL_RELEASE_P4EST_SERIAL:
   extends: .base_intel
  
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/intel/release/THIRDPARTY
+    - module load INTEL_SERIAL
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -150,7 +152,8 @@ INTEL_RELEASE_P4EST_PARALLEL:
   extends: .base_intel
  
   script:
-    - THIRDPARTY_DIR=$CI_PROJECT_DIR/intel/release/THIRDPARTY
+    - module load INTEL_PARALLEL
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
