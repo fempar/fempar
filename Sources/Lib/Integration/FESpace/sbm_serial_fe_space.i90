@@ -544,6 +544,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
   ! Count num_dirichlet_dofs
   this%num_dirichlet_dofs = 0
+  this%num_fixed_dofs = 0
 
   triangulation => this%get_triangulation()
 
