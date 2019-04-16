@@ -40,8 +40,8 @@ RUN apt-get -y update \
 ################################################
 # Create fempar user and group, and workdir
 ################################################
-RUN groupadd -r fempar \
-    && useradd --no-log-init -r -g fempar fempar \
+RUN groupadd -r fempar -g 1000 \
+    && useradd --no-log-init -r -g fempar -u 1000 fempar \
     && mkdir -p /data \
     && chmod 0777 /data
 
