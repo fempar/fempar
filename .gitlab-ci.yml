@@ -7,7 +7,7 @@ cache:
   key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
   untracked: true
   paths:
-    - /data/cache
+    - /cache
 
 .base_gnu:
   before_script: 
@@ -32,7 +32,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/data/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -41,7 +41,35 @@ GNU_DEBUG_P4EST_SERIAL:
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
-    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
+    - ctest -j8 -V -L SERIAL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
+    - serial_test_passed=0
+    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ls -l ./Testing/Temporary/LastTestsFailed*.log
+    - cat ./Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $serial_test_passed
+    - test $serial_test_passed -eq 0
+
+
+GNU_DEBUG_P4EST_SERIAL_FAST:
+  image: fempar/fempar-env:gnu-debug_p4est-serial
+  stage: debug
+  tags:
+    - test-ci
+  except:
+    - experimental@fempar/fempar-beta
+  extends: .base_gnu
+  script:
+    - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
+    - mkdir -p $THIRDPARTY_DIR
+    - cd $THIRDPARTY_DIR
+    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
+    - cmake --build . -- -j8
+    - cd $FEMPAR_DIR
+    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -L SERIAL_FAST -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
     - serial_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
@@ -60,7 +88,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/data/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -76,7 +104,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/data/cache/gnu/release/THIRDPARTY
+    - THIRDPARTY_DIR=/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -92,7 +120,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/data/cache/gnu/release/THIRDPARTY
+    - THIRDPARTY_DIR=/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -123,7 +151,7 @@ INTEL_RELEASE_P4EST_SERIAL:
   extends: .base_intel
   script:
     - module load INTEL_SERIAL
-    - THIRDPARTY_DIR=/data/cache/intel/release/THIRDPARTY
+    - THIRDPARTY_DIR=/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -140,7 +168,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
   extends: .base_intel
   script:
     - module load INTEL_PARALLEL
-    - THIRDPARTY_DIR=/data/cache/intel/release/THIRDPARTY
+    - THIRDPARTY_DIR=/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
