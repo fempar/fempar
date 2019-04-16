@@ -25,14 +25,12 @@ cache:
 
 GNU_DEBUG_P4EST_SERIAL:
   image: fempar/fempar-env:gnu-debug_p4est-serial
-
   stage: debug
-
   tags:
     - test-ci
-
+  except:
+    - experimental@fempar/fempar-beta
   extends: .base_gnu
-
   script:
     - THIRDPARTY_DIR=/data/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
@@ -43,7 +41,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
-    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
     - serial_test_passed=0
     - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
     - ls -l ./Testing/Temporary/LastTestsFailed*.log
@@ -52,19 +50,15 @@ GNU_DEBUG_P4EST_SERIAL:
     - echo $serial_test_passed
     - test $serial_test_passed -eq 0
 
-  except:
-    - experimental@fempar/fempar-beta
 
 GNU_DEBUG_P4EST_PARALLEL:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
-
   stage: debug
-  
   tags:
     - test-ci
-
+  except:
+    - experimental@fempar/fempar-beta
   extends: .base_gnu
- 
   script:
     - THIRDPARTY_DIR=/data/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
@@ -72,19 +66,15 @@ GNU_DEBUG_P4EST_PARALLEL:
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
 
-  except:
-    - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_SERIAL:
   image: fempar/fempar-env:gnu-release_p4est-serial
-
   stage: release
-  
   tags:
     - test-ci
- 
+  except:
+    - experimental@fempar/fempar-beta
   extends: .base_gnu
-
   script:
     - THIRDPARTY_DIR=/data/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
@@ -92,28 +82,21 @@ GNU_RELEASE_P4EST_SERIAL:
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
 
-  except:
-    - experimental@fempar/fempar-beta
 
 GNU_RELEASE_P4EST_PARALLEL:
   image: fempar/fempar-env:gnu-release_p4est-parallel
-
   stage: release
-  
   tags:
     - test-ci
- 
+  except:
+    - experimental@fempar/fempar-beta
   extends: .base_gnu
-
   script:
     - THIRDPARTY_DIR=/data/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
+    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
-
-  except:
-    - experimental@fempar/fempar-beta
 
 
 .base_intel:
@@ -129,16 +112,15 @@ GNU_RELEASE_P4EST_PARALLEL:
     - git submodule update --init --recursive
     - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
+
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
-    
   stage: release
-  
   tags:
     - test-ci
-  
+  except:
+    - experimental@fempar/fempar-beta
   extends: .base_intel
- 
   script:
     - module load INTEL_SERIAL
     - THIRDPARTY_DIR=/data/cache/intel/release/THIRDPARTY
@@ -147,19 +129,15 @@ INTEL_RELEASE_P4EST_SERIAL:
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
 
-  except:
-    - experimental@fempar/fempar-beta
 
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
-
   stage: release
-  
   tags:
     - test-ci
-  
+  except:
+    - experimental@fempar/fempar-beta
   extends: .base_intel
- 
   script:
     - module load INTEL_PARALLEL
     - THIRDPARTY_DIR=/data/cache/intel/release/THIRDPARTY
@@ -167,6 +145,3 @@ INTEL_RELEASE_P4EST_PARALLEL:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
-
-  except:
-    - experimental@fempar/fempar-beta
