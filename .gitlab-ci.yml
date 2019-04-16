@@ -7,7 +7,7 @@ cache:
   key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
   untracked: true
   paths:
-    - /cache
+    - $CI_PROJECT_DIR/cache
 
 .base_gnu:
   before_script: 
@@ -32,7 +32,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - experimental@fempar/fempar
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -60,7 +60,7 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -88,7 +88,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -104,7 +104,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/cache/gnu/release/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -120,7 +120,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     - experimental@fempar/fempar-beta
   extends: .base_gnu
   script:
-    - THIRDPARTY_DIR=/cache/gnu/release/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -151,7 +151,7 @@ INTEL_RELEASE_P4EST_SERIAL:
   extends: .base_intel
   script:
     - module load INTEL_SERIAL
-    - THIRDPARTY_DIR=/cache/intel/release/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
@@ -168,7 +168,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
   extends: .base_intel
   script:
     - module load INTEL_PARALLEL
-    - THIRDPARTY_DIR=/cache/intel/release/THIRDPARTY
+    - THIRDPARTY_DIR=$CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
