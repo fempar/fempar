@@ -28,8 +28,8 @@ GNU_DEBUG_P4EST_SERIAL:
   stage: debug
   tags:
     - test-ci
-  except:
-    - experimental@fempar/fempar-beta
+  only:
+    - experimental@fempar/fempar
   extends: .base_gnu
   script:
     - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
@@ -57,7 +57,7 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
   tags:
     - test-ci
   except:
-    - experimental@fempar/fempar-beta
+    - experimental
   extends: .base_gnu
   script:
     - THIRDPARTY_DIR=/cache/gnu/debug/THIRDPARTY
