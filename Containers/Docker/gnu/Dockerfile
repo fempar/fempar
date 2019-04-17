@@ -10,7 +10,7 @@ SHELL ["/bin/bash", "-c"]
 # Common dependencies \
 ################################################ \
 RUN apt-get -y update \
-    && apt-get -y install --no-install-recommends wget git make cmake vim gcc g++ gfortran python metis libmetis-dev openmpi-bin openmpi-common libopenmpi-dev flex bison gnupg apt-transport-https ca-certificates zlib1g zlib1g-dev \
+    && apt-get -y install --no-install-recommends wget git make cmake vim gcc g++ gfortran python metis libmetis-dev openmpi-bin openmpi-common libopenmpi-dev flex bison gnupg apt-transport-https ca-certificates zlib1g zlib1g-dev valgrind \
     && INSTALL_ROOT=/opt \
 ################################################ \
 # Install MKL \
