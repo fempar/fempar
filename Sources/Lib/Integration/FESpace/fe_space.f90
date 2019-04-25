@@ -662,6 +662,10 @@ module fe_space_names
      type(std_vector_integer_ip_t) , allocatable :: ptr_dofs_x_fe(:)
      type(std_vector_integer_ip_t)               :: lst_dofs_gids
      
+     ! Nodal values
+     type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
+     type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
+     
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
@@ -885,6 +889,8 @@ module fe_space_names
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
      procedure                           :: update_after_refine_coarsen                   => serial_fe_space_update_after_refine_coarsen
+     procedure                           :: project_from_old_to_new_fe_space              => serial_fe_space_project_from_old_to_new_fe_space
+     procedure                           :: update_fe_function_nodal_values               => serial_fe_space_update_fe_function_nodal_values
      procedure                           :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
      procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
      
@@ -997,8 +1003,8 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
    type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
 
-   type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
-   type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
+   !type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
+   !type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
    
    integer(ip), allocatable                    :: lst_parts_around_itfc_dofs(:,:)
    integer(ip), allocatable                    :: dof_gid_to_itfc_dof_gid(:)
