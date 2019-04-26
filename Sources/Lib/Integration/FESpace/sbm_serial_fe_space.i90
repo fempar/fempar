@@ -4218,7 +4218,7 @@ subroutine serial_fe_space_project_from_old_to_new_fe_space( this, old_ptr_dofs_
               new_cell_lid = current_new_cell_lid
               old_cell_lid = old_cell_lid + 1
            end do
-           massert ( new_cell_lid - 1 == this%triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
+           !massert ( new_cell_lid - 1 == this%triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
            call this%free_fe_cell_iterator(new_fe)
            call memfree(old_nodal_values,__FILE__,__LINE__)
         end if

@@ -1110,6 +1110,7 @@ module fe_space_names
    procedure,                          private :: migrate_facet_integration_arrays                          => par_fe_space_migrate_facet_integration_arrays
    procedure,         non_overridable, private :: update_fe_function_nodal_values_arrays_after_redistribute => pfs_update_fe_function_nodal_values_arrays_after_redistribute
    procedure,         non_overridable, private :: transfer_and_retrieve_fe_function_nodal_values            => pfs_transfer_and_retrieve_fe_function_nodal_values
+   procedure,         non_overridable, private :: retrieve_nodal_values_from_ghost_cells                    => pfs_retrieve_nodal_values_from_ghost_cells
    
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
