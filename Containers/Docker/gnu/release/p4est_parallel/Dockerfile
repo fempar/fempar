@@ -15,13 +15,13 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
-    && wget $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
+    && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
     && mkdir -p $SOURCES_DIR \
-    && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
+    && tar xzf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR \
     && ./configure --prefix=$P4EST_INSTALL --without-blas --without-lapack --enable-mpi \
-    && make \
-    && make install \
+    && make --quiet \
+    && make --quiet install \
     && rm -rf $ROOT_DIR/$TAR_FILE $SOURCES_DIR 
 
 USER fempar:fempar
