@@ -158,9 +158,9 @@ contains
     subroutine timer_report ( this, show_header, luout )
       implicit none 
       ! Parameters
-      class(timer_t), intent(inout)  :: this
-      logical, intent(in), optional      :: show_header 
-      integer(ip), intent(in), optional  :: luout
+      class(timer_t)       , intent(in) :: this
+      logical    , optional, intent(in) :: show_header 
+      integer(ip), optional, intent(in) :: luout
       
       ! Locals
       character(len=*), parameter    :: fmt_header = '(a25,1x,3(2x,a15),3(2x,a15))'

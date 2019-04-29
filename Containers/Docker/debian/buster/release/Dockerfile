@@ -15,12 +15,12 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && SOURCES_DIR=/tmp/$PACKAGE-$VERSION \
     && TAR_FILE=$SOURCES_DIR.tar.gz \
     && BUILD_DIR=$SOURCES_DIR/build \
-    && wget -q $URL -O $SOURCES_DIR.tar.gz \
-    && tar xzf $TAR_FILE -C $ROOT_DIR \
+    && wget $URL -O $SOURCES_DIR.tar.gz \
+    && tar -xzvf $TAR_FILE -C $ROOT_DIR \
     && mkdir -p $BUILD_DIR $JSON_FORTRAN_INSTALL \
     && cd $BUILD_DIR \
     && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$JSON_FORTRAN_INSTALL $SOURCES_DIR \
-    && cmake --build . --target install \
+    && make install -j4 \
     && rm -rf $TAR_FILE $SOURCES_DIR \
 ################################################ \
 # Install PETSC \
@@ -33,17 +33,17 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
-    && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
+    && wget $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
     && mkdir -p $SOURCES_DIR \
-    && tar xzf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
+    && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR \
     && ./configure --with-mpi=1 --with-cc=mpicc --with-cxx=mpicxx --with-fc=mpif90 \
                    -with-blas-lapack-dir=/opt/intel/mkl/lib/intel64 \
                    --download-hypre=https://github.com/LLNL/hypre/archive/v2.14.0.tar.gz \
                    --with-x=0 --with-shared=1 --with-64-bit-indices --with-debugging=0 \
                    --prefix=$PETSC_INSTALL \
-    && make --quiet \
-    && make --quiet install \
+    && make \
+    && make install \
     && rm -rf $ROOT_DIR/$TAR_FILE $SOURCES_DIR \
 ################################################ \
 # Install QHULL \
@@ -56,12 +56,15 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
-    && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
+    && wget $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
     && mkdir -p $SOURCES_DIR/build \
-    && tar xzf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
+    && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR/build \
+    && cmake -G "Unix Makefiles" .. \
     && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT/$PACKAGE/$VERSION .. \
-    && cmake --build . --target install \
+    && make \
+    && ctest \
+    && make install \
     && rm -rf $ROOT_DIR/$TAR_FILE $SOURCES_DIR \
 ################################################ \
 # Install HDF5 \
@@ -77,13 +80,13 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
-    && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
+    && wget $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
     && mkdir -p $SOURCES_DIR \
-    && tar xzf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
+    && tar xzvf $ROOT_DIR/$TAR_FILE -C $SOURCES_DIR --strip-components=1 \
     && cd $SOURCES_DIR \
     && ./configure CC=mpicc FC=mpif90 CXX=mpicc --enable-parallel --enable-fortran --prefix=$HDF5_INSTALL \
-    && make --quiet \
-    && make --quiet install \
+    && make \
+    && make install \
     && rm -rf $ROOT_DIR/$TAR_FILE $SOURCES_DIR 
 
 

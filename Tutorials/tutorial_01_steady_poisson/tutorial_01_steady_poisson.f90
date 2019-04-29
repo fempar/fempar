@@ -120,7 +120,7 @@ program tutorial_01_steady_poisson
   !* and 1 interior object  (i.e., the cell interior).
   !* A graphical example for a 2D case is presented next
   !*           6
-  !*      4 - - - - 3
+  !*      3 - - - - 4
   !*      -         -         1,2,3,4,5,6,7,8 are id for the boundary of the domain
   !*    7 -    9    - 8
   !*      -         -         9 is the id for the interior
