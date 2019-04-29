@@ -2316,11 +2316,11 @@ subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates(this)
      deallocate(this%nodal_coordinates_coarse_fe_handlers, stat=istat)
      mcheck(istat==0,'Error deallocating')
   end if
-  
-  if ( associated(this%nodal_coordinates_fe_space) ) then
-    call this%nodal_coordinates_fe_space%free()
-  end if  
-  
+
+  call this%serial_fe_space%free()
+  call this%par_fe_space%free()
+  nullify(this%nodal_coordinates_fe_space)
+
 end subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates
 
 subroutine p4est_bt_fill_cells_set (this, cells_set)
