@@ -29,6 +29,7 @@ subroutine p4est_cell_iterator_create ( this, triangulation )
   implicit none
   class(p4est_cell_iterator_t)  , intent(inout) :: this
   class(triangulation_t), target, intent(in)    :: triangulation
+  class(reference_fe_t), pointer :: reference_fe_geo
   call this%free()
   call cell_iterator_create(this,triangulation)
   select type(triangulation)
@@ -40,8 +41,9 @@ subroutine p4est_cell_iterator_create ( this, triangulation )
   this%num_dims = triangulation%get_num_dims()
   this%num_vefs = this%get_num_vefs()
   this%base_pos_in_lst_vefs_gids = 0
-  this%num_vertices = this%get_num_vertices()
-  this%base_pos_in_vertex_coords = 0
+  reference_fe_geo => this%get_reference_fe()
+  this%num_nodes = reference_fe_geo%get_num_shape_functions()
+  this%base_pos_in_nodal_coords = 0
   this%num_local_cells = this%p4est_triangulation%get_num_local_cells()
 end subroutine p4est_cell_iterator_create
 
@@ -53,8 +55,8 @@ subroutine p4est_cell_iterator_free ( this)
   this%num_dims=0
   this%num_vefs = 0
   this%base_pos_in_lst_vefs_gids = 0
-  this%num_vertices = 0
-  this%base_pos_in_vertex_coords = 0
+  this%num_nodes = 0
+  this%base_pos_in_nodal_coords = 0
   this%num_local_cells = 0
 end subroutine p4est_cell_iterator_free
 
@@ -63,7 +65,7 @@ subroutine p4est_cell_iterator_first ( this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   call cell_iterator_first(this)
   this%base_pos_in_lst_vefs_gids = 0
-  this%base_pos_in_vertex_coords = 0
+  this%base_pos_in_nodal_coords = 0
 end subroutine p4est_cell_iterator_first 
 
 subroutine p4est_cell_iterator_next ( this)
@@ -71,7 +73,7 @@ subroutine p4est_cell_iterator_next ( this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   call cell_iterator_next(this)
   this%base_pos_in_lst_vefs_gids = this%base_pos_in_lst_vefs_gids + this%num_vefs
-  this%base_pos_in_vertex_coords = this%base_pos_in_vertex_coords + this%num_vertices
+  this%base_pos_in_nodal_coords = this%base_pos_in_nodal_coords + this%num_nodes
 end subroutine p4est_cell_iterator_next
 
 subroutine p4est_cell_iterator_set_gid(this, gid)
@@ -80,7 +82,7 @@ subroutine p4est_cell_iterator_set_gid(this, gid)
   integer(ip)           , intent(in)    :: gid
   call cell_iterator_set_gid(this, gid)
   this%base_pos_in_lst_vefs_gids = (gid-1)*this%num_vefs
-  this%base_pos_in_vertex_coords = (gid-1)*this%num_vertices
+  this%base_pos_in_nodal_coords  = (gid-1)*this%num_nodes
 end subroutine p4est_cell_iterator_set_gid
 
 subroutine p4est_cell_iterator_free_final(this)
@@ -106,13 +108,13 @@ end function p4est_cell_iterator_get_reference_fe_id
 subroutine p4est_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(p4est_cell_iterator_t), intent(in)    :: this
-  type(point_t)        ,  intent(inout) :: nodes_coordinates(:)
-  integer(ip) :: spos
-  integer(ip) :: epos
+  type(point_t),                intent(inout) :: nodes_coordinates(:)
+
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  spos = this%base_pos_in_vertex_coords+1
-  epos = this%base_pos_in_vertex_coords+this%num_vertices
-  nodes_coordinates(1:this%num_vertices) = this%p4est_triangulation%per_cell_vertex_coordinates%get_pointer(spos,epos)
+ 
+  ! Get nodal coordinates
+  call this%p4est_triangulation%get_nodes_coordinates_from_fe_function(this%get_gid(),nodes_coordinates)
+ 
 end subroutine p4est_cell_iterator_get_nodes_coordinates
 
 function p4est_cell_iterator_get_mypart (this)

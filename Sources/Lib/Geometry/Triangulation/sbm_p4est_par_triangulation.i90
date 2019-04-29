@@ -43,11 +43,21 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
   character(len=:), allocatable :: subparts_coupling_criteria 
   character(1) :: dummy_string
   integer(ip) :: p4est_log_level
+  integer(ip) :: geometric_interpolation_order
   
 #ifdef ENABLE_P4EST
   call this%free()
-  
-  call this%set_single_octree_mesh(.true.)
+
+    call this%set_single_octree_mesh(.true.)
+
+  if( parameters%isPresent(triang_geometric_interpolation_order_key) ) then
+     assert(parameters%isAssignable(triang_geometric_interpolation_order_key, geometric_interpolation_order))
+     istat = parameters%get(key = triang_geometric_interpolation_order_key , value = geometric_interpolation_order)
+     assert(istat==0)
+     this%geometric_interpolation_order = geometric_interpolation_order
+  else
+     this%geometric_interpolation_order = 1
+  end if
 
   call this%set_environment(environment)
   p_environment => this%get_environment()
@@ -141,7 +151,7 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         call this%update_cell_myparts()
         call this%extend_p4est_topology_arrays_to_ghost_cells()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        call this%fill_x_cell_vertex_coordinates()
+        !call this%fill_x_cell_nodal_coordinates()
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_weights()
@@ -161,7 +171,7 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         call this%extend_p4est_topology_arrays_to_ghost_cells()
         call this%find_missing_corner_neighbours()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        call this%fill_x_cell_vertex_coordinates()
+        !call this%fill_x_cell_nodal_coordinates()
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_weights()
@@ -174,6 +184,16 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%set_up_lst_itfc_vefs()
      end if
+     
+     !allocate ( par_fe_space_t :: this%nodal_coordinates_fe_space )
+     this%nodal_coordinates_fe_space => this%par_fe_space
+     
+     ! Initialize nodal coordinates workspace
+     call this%setup_workspace_to_compute_nodal_coordinates()
+
+     ! Fill nodal coordinates function
+     call this%fill_nodal_coordinates_fe_function()
+     
   end if 
 #else
   call this%not_enabled_error()
@@ -210,7 +230,7 @@ subroutine p4est_par_triangulation_free ( this)
         this%QHE                = c_null_ptr
         this%p4est_ghost        = c_null_ptr
         
-        call this%per_cell_vertex_coordinates%free()
+        call this%per_cell_nodal_coordinates%free()
         call this%lst_vefs_gids%free()
         call this%cell_ggids%free()
         call this%cell_myparts%free()
@@ -314,6 +334,10 @@ subroutine p4est_par_triangulation_free ( this)
         this%clear_refinement_and_coarsening_flags_pending = .false.
      end if
   end if
+  
+  ! Free nodal coordinates workspace
+  call this%free_workspace_to_compute_nodal_coordinates()
+
   call triangulation_free(this)
 #else
   call this%not_enabled_error()
@@ -375,7 +399,8 @@ subroutine p4est_par_triangulation_redistribute ( this )
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%fill_x_cell_vertex_coordinates()
+    !call this%fill_x_cell_nodal_coordinates()
+    call this%redistribute_coordinates_fe_function()
     call this%update_migration_control_data(p4est_old)
     call this%set_up_lst_itfc_vefs()
 

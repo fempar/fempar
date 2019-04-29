@@ -783,6 +783,24 @@ subroutine bst_find_local_ghost_vefs (this)
   call vef%free()
 end subroutine bst_find_local_ghost_vefs
 
+subroutine bst_set_nodal_coordinates_from_mapping(this, mapping_function) 
+  implicit none 
+  class(base_static_triangulation_t),   intent(inout) :: this
+  class(vector_function_t),   target,   intent(in)    :: mapping_function
+  integer(ip)  :: inode 
+  type(vector_field_t) :: updated_coordinates
+  if (this%environment%am_i_l1_task()) then  
+    do inode=1,this%num_nodes
+      call mapping_function%get_value_space(this%coordinates(inode), updated_coordinates)  
+      this%coordinates(inode) = updated_coordinates
+    end do
+    ! NOTE: In case of use a mapping different from the scaling of the unit cube, the cells conforming that mesh
+    ! can not be considered as the scaling and/or translation of a reference cell. Then, the optimizations 
+    ! developed by @amartinhuertas can not be used in this context.
+    call this%set_single_octree_mesh(.false.)
+  end if
+end subroutine bst_set_nodal_coordinates_from_mapping
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Traversals

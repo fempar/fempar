@@ -143,7 +143,7 @@ module field_names
   public :: evaluate_gradient_fe_function_scalar
   public :: compute_3D_plain_array_lin_comb_with_point_1D_array
   public :: apply_2D_plain_array_to_vector_field
-  public :: gather_facet_vertex_coordinates_from_cell_vertex_coordinates
+  public :: gather_facet_nodal_coordinates_from_cell_nodal_coordinates
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -803,18 +803,18 @@ contains
 
   end subroutine apply_2D_plain_array_to_vector_field
   
-  subroutine gather_facet_vertex_coordinates_from_cell_vertex_coordinates ( facet_vertex_ids, &
-                                                                            cell_vertex_coordinates, &
-                                                                            facet_vertex_coordinates )
+  subroutine gather_facet_nodal_coordinates_from_cell_nodal_coordinates ( facet_nodal_ids, &
+                                                                          cell_nodal_coordinates, &
+                                                                          facet_nodal_coordinates )
     implicit none
-    integer(ip)  , intent(in)    :: facet_vertex_ids(:)
-    type(point_t), intent(in)    :: cell_vertex_coordinates(:)
-    type(point_t), intent(inout) :: facet_vertex_coordinates(:)
+    integer(ip)  , intent(in)    :: facet_nodal_ids(:)
+    type(point_t), intent(in)    :: cell_nodal_coordinates(:)
+    type(point_t), intent(inout) :: facet_nodal_coordinates(:)
     integer(ip) :: i
-    assert ( size(facet_vertex_ids) == size(facet_vertex_coordinates) )
-    do i=1, size(facet_vertex_ids)
-      facet_vertex_coordinates(i)%value = cell_vertex_coordinates(facet_vertex_ids(i))%value
+    assert ( size(facet_nodal_ids) == size(facet_nodal_coordinates) )
+    do i=1, size(facet_nodal_ids)
+      facet_nodal_coordinates(i)%value = cell_nodal_coordinates(facet_nodal_ids(i))%value
     end do 
-  end subroutine gather_facet_vertex_coordinates_from_cell_vertex_coordinates
+  end subroutine gather_facet_nodal_coordinates_from_cell_nodal_coordinates
   
 end module field_names
