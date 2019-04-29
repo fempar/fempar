@@ -2346,6 +2346,7 @@ subroutine serial_fe_space_free_facet_integration ( this )
   
   call this%free_facet_permutation_indices()
   
+  this%facet_integration_is_set_up = .false.
 end subroutine serial_fe_space_free_facet_integration
 
 ! Provided the identifiers of the reference_fes_geo corresponding 
