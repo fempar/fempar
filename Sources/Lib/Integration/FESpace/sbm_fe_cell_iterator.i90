@@ -36,12 +36,13 @@ subroutine fe_cell_iterator_create ( this, fe_space, fe_cell_predicate)
   call aux_create(this, fe_space, fe_cell_predicate)
   call this%set_integration_updated(.false.)
   this%cell_integration_is_set_up = fe_space%cell_integration_was_set_up()
-  if ( this%cell_integration_is_set_up .and. this%fe_space%cell_quadratures%size() == 1 ) then
+  if (   this%cell_integration_is_set_up .and. &
+       & this%fe_space%cell_quadratures%size() == 1 .and. &
+       & this%fe_space%cell_integrators%size() == this%fe_space%get_num_fields() ) then
     this%single_quad_cell_map_cell_integs = .true.
     this%quadrature => this%fe_space%cell_quadratures%get_pointer(1)
     assert ( this%fe_space%cell_maps%size() == 1 ) 
     this%cell_map => this%fe_space%cell_maps%get_pointer(1)
-    assert ( this%fe_space%cell_integrators%size() == this%fe_space%get_num_fields() )
     do field_id = 1, this%fe_space%get_num_fields()
       this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(field_id)
     end do
