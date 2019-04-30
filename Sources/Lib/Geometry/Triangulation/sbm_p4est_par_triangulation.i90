@@ -183,18 +183,17 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
         ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%set_up_lst_itfc_vefs()
-     end if
-     
-     !allocate ( par_fe_space_t :: this%nodal_coordinates_fe_space )
-     this%nodal_coordinates_fe_space => this%par_fe_space
-     
-     ! Initialize nodal coordinates workspace
-     call this%setup_workspace_to_compute_nodal_coordinates()
-
-     ! Fill nodal coordinates function
-     call this%fill_nodal_coordinates_fe_function()
-     
+     end if    
   end if 
+     
+  !allocate ( par_fe_space_t :: this%nodal_coordinates_fe_space )
+  this%nodal_coordinates_fe_space => this%par_fe_space
+     
+  ! Initialize nodal coordinates workspace
+  call this%setup_workspace_to_compute_nodal_coordinates()
+
+  ! Fill nodal coordinates function
+  call this%fill_nodal_coordinates_fe_function()  
 #else
   call this%not_enabled_error()
 #endif
@@ -400,7 +399,7 @@ subroutine p4est_par_triangulation_redistribute ( this )
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     !call this%fill_x_cell_nodal_coordinates()
-    call this%redistribute_coordinates_fe_function()
+    !call this%redistribute_coordinates_fe_function()
     call this%update_migration_control_data(p4est_old)
     call this%set_up_lst_itfc_vefs()
 
@@ -418,6 +417,9 @@ subroutine p4est_par_triangulation_redistribute ( this )
       call F90_p8est_destroy(p4est_old)
     end if
   end if
+  
+   ! Refine and coarsen nodal coordinates fe function
+   call this%redistribute_coordinates_fe_function()
   
   ! Re-set up coarse_triangulation()
   if ( this%coarse_triangulation_is_set_up() ) then

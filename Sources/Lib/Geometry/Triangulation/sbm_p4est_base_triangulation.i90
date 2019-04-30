@@ -143,7 +143,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     !call this%fill_x_cell_nodal_coordinates()
-    call this%refine_and_coarsen_coordinates_fe_function()
+    !call this%refine_and_coarsen_coordinates_fe_function()
     call this%set_up_lst_itfc_vefs() 
 
     ! Update procedures 
@@ -159,6 +159,10 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%fill_ghost_cells_from_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
     call cell_wise_vef_set_ids%free()
    end if 
+   
+   ! Refine and coarsen nodal coordinates fe function
+   call this%refine_and_coarsen_coordinates_fe_function()
+   
    ! Re-set up coarse_triangulation()
    if ( this%coarse_triangulation_is_set_up() ) then
      call this%setup_coarse_triangulation()
@@ -1813,7 +1817,8 @@ subroutine p4est_bt_fill_nodal_coordinates_fe_function(this)
   call this%nodal_coordinates_fe_space%create_fe_cell_iterator(fe)
 
   ! Allocate array of nodal coordinates
-  num_dofs = fe%get_num_dofs() ! Only one field
+  !fe%get_num_dofs()
+  num_dofs = this%nodal_coordinates_reference_fe%get_num_nodes()*this%get_num_dims()  ! vectorial field
   call memalloc ( num_dofs, nodal_coordinates_array, __FILE__,__LINE__)
 
   do while ( .not. fe%has_finished() )
@@ -1900,14 +1905,15 @@ subroutine p4est_bt_get_nodes_coordinates_from_fe_function (this, gid, nodes_coo
   integer(ip) :: num_dofs, idof, inode, icomp
 
   assert ( gid >= 1 )
-  call this%nodal_coordinates_fe_space%create_fe_cell_iterator(fe)
-  call fe%set_gid(gid)
 
   ! Allocate local array of nodal coordinates
-  num_dofs = fe%get_num_dofs()
+  !num_dofs = fe%get_num_dofs()
+  num_dofs = this%nodal_coordinates_reference_fe%get_num_nodes()*this%get_num_dims()  ! vectorial field
   call memalloc ( num_dofs, nodes_coordinates_array, __FILE__,__LINE__)
   
   ! Get nodal coordinates
+  call this%nodal_coordinates_fe_space%create_fe_cell_iterator(fe)
+  call fe%set_gid(gid)  
   call this%nodal_coordinates_fe_function%gather_nodal_values(fe,1,nodes_coordinates_array)
   
   ! Fill nodal coordinates
@@ -2197,7 +2203,7 @@ subroutine p4est_bt_redistribute_coordinates_fe_function(this)
   select type(fe_space)
     class is(par_fe_space_t)
       ! redistribute nodal coordinates fe function
-      !call this%nodal_coordinates_fe_space%redistribute(this%nodal_coordinates_fe_function)
+      call this%par_fe_space%redistribute(this%nodal_coordinates_fe_function)
   end select
 
   ! Update per_cell_vertex_coordinates
