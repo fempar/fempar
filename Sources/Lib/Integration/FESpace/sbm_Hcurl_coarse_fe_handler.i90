@@ -511,7 +511,7 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, field_id, par_fe_s
              lagrangian_interpolation )
 
         elvec = 0.0_rp 
-        do qpoint = 1, edge_quadrature%num_quadrature_points
+        do qpoint = 1, edge_quadrature%get_num_quadrature_points()
            factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
            call nodes_in_vef_iterator%begin()
            do while ( .not. nodes_in_vef_iterator%is_upper_bound() )

@@ -32,6 +32,7 @@ program test_quadratures
   type(quadrature_t) :: quad
   real(rp)           :: posgl(20),weigl(20), errx, errw
   integer(ip) :: i,nlocs
+  real(rp), pointer :: coordinates(:,:)
 
   call fempar_init()
 
@@ -503,9 +504,10 @@ program test_quadratures
 
      errx = 0.0_rp
      errw = 0.0_rp
+     coordinates => quad%get_pointer_coordinates()
      do i=1,nlocs
-        errx=max(min(posgl(i)-quad%coordinates(1,i),posgl(nlocs+1-i)-quad%coordinates(1,i)),errx)
-        errw=max(weigl(i)-quad%weight(i),errw)
+        errx=max(min(posgl(i)-coordinates(1,i),posgl(nlocs+1-i)-coordinates(1,i)),errx)
+        errw=max(weigl(i)-quad%get_weight(i),errw)
      end do
 
      write(*,*) nlocs, errx, errw

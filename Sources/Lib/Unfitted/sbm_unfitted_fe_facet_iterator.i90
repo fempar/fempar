@@ -180,7 +180,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
 
   ! Recover info about the quadrature of the current facet
   quadrature => this%get_quadrature()
-  quadrature_points_coordinates => quadrature%get_coordinates()
+  quadrature_points_coordinates => quadrature%get_pointer_coordinates()
   quadrature_weights     => quadrature%get_pointer_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
   num_dim_facet          =  quadrature%get_num_dims()
