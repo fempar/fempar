@@ -386,9 +386,9 @@ subroutine uim_init_cut_boundary_integration( this )
     call this%cut_boundary_quadratures_cell_dim(ipos)%create(num_dim,     num_gp*num_subfacets)
 
     ! Fill the quadratures with the values of the reference subfacet
-    sub_quad_coords => this%quadrature_subfacet%get_coordinates()
+    sub_quad_coords => this%quadrature_subfacet%get_pointer_coordinates()
     sub_quad_weight => this%quadrature_subfacet%get_pointer_weights()
-    quad_coords     => this%cut_boundary_quadratures_cell_dim(ipos)%get_coordinates()
+    quad_coords     => this%cut_boundary_quadratures_cell_dim(ipos)%get_pointer_coordinates()
     quad_weight     => this%cut_boundary_quadratures_cell_dim(ipos)%get_pointer_weights()
     do subfacet = 1, num_subfacets
       pend = subfacet*num_gp
