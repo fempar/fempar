@@ -1,4 +1,4 @@
-FROM gcc:6.2.0
+FROM gcc:8.3.0
 
 LABEL MAINTAINER "vsande@cimne.upc.edu"
 LABEL AUTHOR "vsande@cimne.upc.edu"
@@ -10,8 +10,7 @@ SHELL ["/bin/bash", "-c"]
 # Common dependencies \
 ################################################ \
 # This repo fail in gcc:6.2.0 \
-RUN sed -i '/jessie-updates/d' /etc/apt/sources.list \ 
-    && apt-get -qq -y update \
+RUN apt-get -qq -y update \
     && apt-get -qq -y install --no-install-recommends wget git make cmake vim metis libmetis-dev flex bison gnupg apt-transport-https ca-certificates zlib1g zlib1g-dev valgrind \
     && apt-get -qq -y install --no-install-recommends dkms infiniband-diags libibverbs* ibacm librdmacm* libmlx4* libmlx5* mstflint libibcm.* libibmad.* libibumad* opensm srptools libmlx4-dev librdmacm-dev rdmacm-utils ibverbs-utils perftest vlan ibutils \
     && INSTALL_ROOT=/opt \
