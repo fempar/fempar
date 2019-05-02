@@ -2188,9 +2188,17 @@ end subroutine p4est_bt_setup_workspace_to_compute_nodal_coordinates
 subroutine p4est_bt_refine_and_coarsen_coordinates_fe_function(this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this
- 
+  class(serial_fe_space_t), pointer  :: fe_space
+
   ! Refine and coarsen nodal coordinates fe function
   call this%nodal_coordinates_fe_space%refine_and_coarsen(this%nodal_coordinates_fe_function)
+  
+  fe_space => this%nodal_coordinates_fe_space
+  select type(fe_space)
+    class is(par_fe_space_t)
+     ! Update ghost dof values
+      call this%par_fe_space%update_ghost_dof_values(this%nodal_coordinates_fe_function)
+  end select
 
 end subroutine p4est_bt_refine_and_coarsen_coordinates_fe_function
 
@@ -2202,8 +2210,15 @@ subroutine p4est_bt_redistribute_coordinates_fe_function(this)
   fe_space => this%nodal_coordinates_fe_space
   select type(fe_space)
     class is(par_fe_space_t)
+
       ! redistribute nodal coordinates fe function
       call this%par_fe_space%redistribute(this%nodal_coordinates_fe_function)
+
+      ! Update hanging dof values
+      call this%par_fe_space%update_hanging_dof_values(this%nodal_coordinates_fe_function)
+
+      ! Update ghost dof values
+      call this%par_fe_space%update_ghost_dof_values(this%nodal_coordinates_fe_function)      
   end select
 
   ! Update per_cell_vertex_coordinates
