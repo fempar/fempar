@@ -67,7 +67,6 @@ GNU_DEBUG_P4EST_SERIAL:
     - test-ci
   only:
     - experimental
-    - merge_requests
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
@@ -98,7 +97,6 @@ GNU_DEBUG_P4EST_PARALLEL:
     - test-ci
   only:
     - experimental
-    - merge_requests
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
@@ -129,7 +127,6 @@ GNU_RELEASE_P4EST_SERIAL:
     - test-ci
   only:
     - experimental
-    - merge_requests
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
@@ -160,7 +157,6 @@ GNU_RELEASE_P4EST_PARALLEL:
     - test-ci
   only:
     - experimental
-    - merge_requests
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
@@ -191,7 +187,6 @@ INTEL_RELEASE_P4EST_SERIAL:
     - test-ci
   only:
     - experimental
-    - merge_requests
   extends: .base_intel
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
@@ -224,7 +219,6 @@ INTEL_RELEASE_P4EST_PARALLEL:
     - test-ci
   only:
     - experimental
-    - merge_requests
   extends: .base_intel
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
