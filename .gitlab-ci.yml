@@ -65,8 +65,6 @@ GNU_DEBUG_P4EST_SERIAL:
   stage: debug
   tags:
     - test-ci
-  only:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
@@ -80,8 +78,6 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
   stage: debug
   tags:
     - test-ci
-  except:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
@@ -95,8 +91,6 @@ GNU_DEBUG_P4EST_PARALLEL:
   stage: debug
   tags:
     - test-ci
-  only:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
@@ -110,8 +104,6 @@ GNU_DEBUG_P4EST_PARALLEL_FAST:
   stage: debug
   tags:
     - test-ci
-  except:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
@@ -125,8 +117,6 @@ GNU_RELEASE_P4EST_SERIAL:
   stage: release
   tags:
     - test-ci
-  only:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
@@ -140,8 +130,6 @@ GNU_RELEASE_P4EST_SERIAL_FAST:
   stage: release
   tags:
     - test-ci
-  except:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
@@ -155,8 +143,6 @@ GNU_RELEASE_P4EST_PARALLEL:
   stage: release
   tags:
     - test-ci
-  only:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
@@ -170,8 +156,6 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
   stage: release
   tags:
     - test-ci
-  except:
-    - experimental
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
@@ -185,8 +169,6 @@ INTEL_RELEASE_P4EST_SERIAL:
   stage: release
   tags:
     - test-ci
-  only:
-    - experimental
   extends: .base_intel
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
@@ -201,8 +183,6 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
   stage: release
   tags:
     - test-ci
-  except:
-    - experimental
   extends: .base_intel
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
@@ -217,8 +197,6 @@ INTEL_RELEASE_P4EST_PARALLEL:
   stage: release
   tags:
     - test-ci
-  only:
-    - experimental
   extends: .base_intel
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
@@ -233,8 +211,6 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
   stage: release
   tags:
     - test-ci
-  except:
-    - experimental
   extends: .base_intel
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
