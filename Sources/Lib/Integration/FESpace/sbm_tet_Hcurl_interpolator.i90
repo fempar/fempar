@@ -226,7 +226,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
              quadrature             = this%facet_quadratures(reference_fe_id) ) 
 
-        num_quad_points = this%facet_quadratures(reference_fe_id)%num_quadrature_points
+        num_quad_points = this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
         quad_points_coordinates => this%facet_maps(reference_fe_id)%get_quadrature_points_coordinates()
         call this%reallocate_if_needed( num_quad_points, this%facet_function_values)
         call this%get_function_values( vector_function, quad_points_coordinates, this%facet_function_values, time)
@@ -262,7 +262,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      call this%cell_maps(reference_fe_id)%update(fe_get_lev,this%cell_quadratures(reference_fe_id),no_ressemblance)
 
      ! Extract quadrature points coordinates 
-     num_quad_points = this%cell_quadratures(reference_fe_id)%num_quadrature_points
+     num_quad_points = this%cell_quadratures(reference_fe_id)%get_num_quadrature_points()
      quad_points_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
      call this%reallocate_if_needed( num_quad_points, this%cell_function_values)
      call this%get_function_values( vector_function, quad_points_coordinates, this%cell_function_values, time)
@@ -271,7 +271,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      ! Integration of interior moments 
      ! 2D CASE:  int_K (g·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
      ! 3D CASE:  int_K (g·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
-     do qpoint = 1, this%cell_quadratures(reference_fe_id)%num_quadrature_points
+     do qpoint = 1, this%cell_quadratures(reference_fe_id)%get_num_quadrature_points()
         factor = this%cell_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%cell_quadratures(reference_fe_id)%get_weight(qpoint)
         do ishape=1, this%fes_lagrangian(reference_fe_id)%get_num_shape_functions()
            call this%fes_lagrangian(reference_fe_id)%get_value(this%cell_interpolations(reference_fe_id), ishape, qpoint, v_shape_test) 
@@ -411,7 +411,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
 
            facet_measure = this%facet_maps(reference_fe_id)%get_measure()  
            ! Integrate face boundary moments 1/|Face| * int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
-           do qpoint = 1, this%facet_quadratures(reference_fe_id)%num_quadrature_points
+           do qpoint = 1, this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
               factor = this%facet_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%facet_quadratures(reference_fe_id)%get_weight(qpoint)
 
               own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(facet_id)
@@ -565,7 +565,7 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
 
               facet_measure = this%facet_maps(reference_fe_id)%get_measure()  
               ! Integrate face boundary moments 1/|Face| * int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
-              do qpoint = 1, this%facet_quadratures(reference_fe_id)%num_quadrature_points
+              do qpoint = 1, this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
                  factor = this%facet_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%facet_quadratures(reference_fe_id)%get_weight(qpoint)
 
                  own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(facet_id)

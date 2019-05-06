@@ -119,7 +119,7 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
   type(interpolation_duties_t) :: scalar_interpolation_duties
   integer(ip) :: iquad,idime,ishape
 
-  coord_ip => quadrature%get_coordinates()
+  coord_ip => quadrature%get_pointer_coordinates()
 
   mcheck(.not.interpolation%my_duties%compute_second_derivatives_is_assigned(),'Hessian not defined for vector Lagrangian')
 

@@ -166,13 +166,13 @@ contains
     real(rp)                  , intent(in)    :: elvec(:)
     
     integer(ip)                           :: ielvec, ife_space, iblock, inode, idof
-    type(serial_scalar_array_t), pointer  :: block
+    type(serial_scalar_array_t), pointer  :: block_array
 
     ielvec = 0
     do ife_space = 1, num_fields
        iblock = field_blocks(ife_space)
-       block => array%get_block(iblock)
-       call block%add( num_dofs(ife_space), &
+       block_array => array%get_block(iblock)
+       call block_array%add( num_dofs(ife_space), &
                        fe_dofs(ife_space)%p,  &
                        ielvec,                 &
                        elvec )

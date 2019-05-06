@@ -170,7 +170,7 @@ subroutine marching_cubes_update_sub_triangulation( this )
      this%reference_fe_geo => this%current_cell%get_reference_fe()
      assert ( num_subnodes <= size( this%subnodes_ref_coords ) )
      nodal_quadrature      => this%reference_fe_geo%get_nodal_quadrature()
-     call nodal_quadrature%get_coordinates_as_points(this%subnodes_ref_coords(1: this%num_current_cell_nodes))
+     call nodal_quadrature%get_coordinates(this%subnodes_ref_coords(1: this%num_current_cell_nodes))
      i1                 =  this%mc_ptr_to_intersections( this%current_cell_gid )
      i2                 =  this%mc_ptr_to_intersections( this%current_cell_gid + 1 ) - 1
      this%subnodes_ref_coords(this%num_current_cell_nodes+1:num_subnodes) = this%mc_intersection_points( i1 : i2 )
@@ -242,7 +242,7 @@ subroutine marching_cubes_update_sub_triangulation( this )
      ! Update the quadrature
      assert( num_dim      == this%sub_nodes_nodal_quadratures(mc_case)%get_num_dims())
      assert( num_subnodes == this%sub_nodes_nodal_quadratures(mc_case)%get_num_quadrature_points())
-     points_in_quadrature => this%sub_nodes_nodal_quadratures(mc_case)%get_coordinates()
+     points_in_quadrature => this%sub_nodes_nodal_quadratures(mc_case)%get_pointer_coordinates()
      do ipo = 1, num_subnodes
         do idi = 1, num_dim
            points_in_quadrature( idi, ipo ) = this%subnodes_ref_coords( ipo )%get( idi )
@@ -1446,7 +1446,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
-  call nodal_quadrature%get_coordinates_as_points( Xe_ref )
+  call nodal_quadrature%get_coordinates( Xe_ref )
   call this%free_cell_iterator(cell)
 
   ! Check that the length of the edge is ok
@@ -1623,7 +1623,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
-  call nodal_quadrature%get_coordinates_as_points( Xe_ref )
+  call nodal_quadrature%get_coordinates( Xe_ref )
   call this%free_cell_iterator(cell)
 
   ! Allocate and fill marching cube cases
