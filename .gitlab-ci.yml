@@ -1,7 +1,7 @@
 stages:
     - debug
     - release
-#    - documentation
+    - documentation
 
 
 cache:
@@ -248,3 +248,14 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     TEST_LABEL: PARALLEL_FAST
     LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
+
+
+DOCUMENTATION:
+  image: appropriate/curl:latest
+  stage: documentation
+  tags:
+    - test-ci
+  script: 
+    - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
+  only:
+    - experimental
