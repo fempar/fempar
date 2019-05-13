@@ -489,8 +489,8 @@ module fe_space_names
      procedure                           :: free                              => fe_vef_iterator_free
      final                               :: fe_vef_iterator_final
      
-     procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
-     procedure, non_overridable          :: all_coarser_cells_are_void        => fe_vef_iterator_all_coarser_cells_are_void
+     procedure, non_overridable          :: is_proper                                            => fe_vef_iterator_is_proper
+     procedure, non_overridable          :: all_coarser_cells_are_void                           => fe_vef_iterator_all_coarser_cells_are_void
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
