@@ -46,6 +46,9 @@ cache:
     - cd $THIRDPARTY_DIR
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
+    - ls -lia $THIRDPARTY_DIR/FPL/
+    - cat $THIRDPARTY_DIR/FPL/FPLTarget.cmake
+    - cat $THIRDPARTY_DIR/FPL/FPLConfig.cmake
     - cd $FEMPAR_DIR
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
