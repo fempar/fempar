@@ -1,11 +1,11 @@
-This tutorial aims to introduce the user on **`FEMPAR`** style drivers. 
+This tutorial aims to introduce the user on **`FEMPAR`** style driver programs. 
 Following the steps of [The Commented Code](#the-commented-code) would help the user to understand 
-the steps solve a a simple Finite Element code, as the basis for the understanding of more complex **`FEMPAR`**  structures.
+the steps to solve a simple Finite Element problem, as the basis for understanding more complex **`FEMPAR`**  data structures.
 
 ### Compilation and execution
 In order to compile this tutorial, first compile **`FEMPAR`**, see the [README](../../README.html#compilation).
 
-Then, place in to the  **`FEMPAR`** build directory, and compile the tutorial.
+Then, move to the  **`FEMPAR`** build directory, create the tutorials build subfolder, and compile the tutorial.
 ```
 cd build
 mkdir TUTORIALS
@@ -14,7 +14,7 @@ cmake ../../fempar/Tutorials -DFEMPAR_DIR=../FEMPAR -DFEMPAR_TUTORIAL=tutorial_0
 make
 ```
 
-Once the tutorial is compiled, you can run it and check it:
+Once the tutorial is compiled, you can run it and play around with it:
 ```
 bin/tutorial_01_steady_poisson
 ```
@@ -30,7 +30,7 @@ where the source term, ![Source term](https://latex.codecogs.com/svg.latex?%5Cin
 and the Dirichlet boundary conditions, ![Dirichlet conditions](https://latex.codecogs.com/svg.latex?%5Cinline%20%28u_D%20%3D%20x%20+%20y%29), 
 are chosen such that the the solution is ![Solution](https://latex.codecogs.com/svg.latex?%5Cinline%20%28u%3D%20x%20+%20y%29).
 
-The Poisson equation is solved within the default `FEMPAR` settings and the following FE setup, which can be found within the code description.
+The Poisson equation is solved within the default `FEMPAR` settings and the following FE setup, which can be found within the source code description.
 
 + **Domain  ![Omega](https://latex.codecogs.com/svg.latex?%5Cinline%20%28%5COmega%29)**: a hexahedron structured mesh of `10x10` in 2D. 
 + **Reference FE**: Lagrangian FE of 1st order
