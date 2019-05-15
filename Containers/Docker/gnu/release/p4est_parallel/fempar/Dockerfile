@@ -29,7 +29,7 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
 ################################################ \
     && cd $BUILD_DIR \
     && cmake -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_BUILD_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $SOURCES_DIR \
-    && ctest --timeout 99999 -j8 -L PARALLEL_FAST -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit \
+    && ctest -j8 -L PARALLEL_FAST -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalSubmit \
     && cmake --build . --target clean-tests \
 ################################################ \
 # Clean sources \
