@@ -111,6 +111,7 @@ contains
       implicit none 
       ! Parameters
       class(timer_t), intent(inout) :: this
+      assert( allocated( this%context ) )
       this%t_start  = 0.0_rp
       this%t_stop   = 0.0_rp
       if ( this%mode == TIMER_MODE_MIN ) then
@@ -124,6 +125,7 @@ contains
       implicit none 
       ! Parameters
       class(timer_t), intent(inout)          :: this
+      assert( allocated( this%context ) )
       call this%context%barrier()
       this%t_start  = this%context%time()
     end subroutine timer_start
@@ -133,7 +135,7 @@ contains
       ! Parameters
       class(timer_t), intent(inout)          :: this
       real(rp) :: cur_time
-
+      assert( allocated( this%context ) )
       this%t_stop = this%context%time()
       if ( this%t_stop - this%t_start >= 0.0_rp) then
         cur_time = this%t_stop - this%t_start
@@ -156,16 +158,18 @@ contains
     subroutine timer_report ( this, show_header, luout )
       implicit none 
       ! Parameters
-      class(timer_t), intent(inout)  :: this
-      logical, intent(in), optional      :: show_header 
-      integer(ip), intent(in), optional  :: luout
+      class(timer_t)       , intent(in) :: this
+      logical    , optional, intent(in) :: show_header 
+      integer(ip), optional, intent(in) :: luout
       
       ! Locals
       character(len=*), parameter    :: fmt_header = '(a25,1x,3(2x,a15),3(2x,a15))'
       character(len=*), parameter    :: fmt_data   = '(a25,1x,3(2x,es15.9),3(2x,es15.9))'
       real(rp)                       :: accum_max, accum_min, accum_sum
       logical                        :: show_header_
-
+      
+      assert( allocated( this%context ) )
+      
       accum_max = this%t_accum
       accum_min = this%t_accum
       accum_sum = this%t_accum
@@ -196,6 +200,7 @@ contains
       implicit none 
       class(timer_t), intent(in)  :: this
       real(rp) :: timer_get_time
+      assert( allocated( this%context ) )
       timer_get_time = this%t_accum
     end function timer_get_time
 

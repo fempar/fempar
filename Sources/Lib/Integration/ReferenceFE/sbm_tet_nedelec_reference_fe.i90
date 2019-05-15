@@ -299,7 +299,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   end do
 
   call tet_polynomial_prebase_1%create(interpolation%num_dims,monomial_1D_basis)
-  call tet_polynomial_prebase_1%fill( quadrature%get_coordinates() )
+  call tet_polynomial_prebase_1%fill( quadrature%get_pointer_coordinates() )
 
   num_polynomials_prebase_1 = tet_polynomial_prebase_1%get_num_polynomials()
   
@@ -346,7 +346,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   end do
 
   call tet_polynomial_prebase_2%create(interpolation%num_dims,monomial_1D_basis)
-  call tet_polynomial_prebase_2%fill( quadrature%get_coordinates() )
+  call tet_polynomial_prebase_2%fill( quadrature%get_pointer_coordinates() )
 
   ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
   N_k = tet_polynomial_prebase_2%get_num_polynomials()

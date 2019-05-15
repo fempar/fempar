@@ -489,8 +489,8 @@ module fe_space_names
      procedure                           :: free                              => fe_vef_iterator_free
      final                               :: fe_vef_iterator_final
      
-     procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
-     procedure, non_overridable          :: all_coarser_cells_are_void        => fe_vef_iterator_all_coarser_cells_are_void
+     procedure, non_overridable          :: is_proper                                            => fe_vef_iterator_is_proper
+     procedure, non_overridable          :: all_coarser_cells_are_void                           => fe_vef_iterator_all_coarser_cells_are_void
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -661,6 +661,10 @@ module fe_space_names
      ! DoF identifiers associated to each FE and field within FE
      type(std_vector_integer_ip_t) , allocatable :: ptr_dofs_x_fe(:)
      type(std_vector_integer_ip_t)               :: lst_dofs_gids
+     
+     ! Nodal values
+     type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
+     type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
@@ -885,9 +889,17 @@ module fe_space_names
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
      procedure                           :: update_after_refine_coarsen                   => serial_fe_space_update_after_refine_coarsen
+     procedure,                  private :: compute_new_fe_function_values                => serial_fe_space_compute_new_fe_function_values
+     procedure,                  private :: insert_new_fe_function_nodal_values           => serial_fe_space_insert_new_fe_function_nodal_values
+     procedure,                  private :: comm_new_fe_function_nodal_values             => serial_fe_space_comm_new_fe_function_nodal_values
      procedure                           :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
      procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
      
+     !Auxiliar procedures
+     procedure, non_overridable, private :: get_field_fe_dofs                             => serial_fe_space_get_field_fe_dofs
+     procedure, non_overridable, private :: get_new_num_dofs                              => serial_fe_space_get_new_num_dofs
+     procedure, non_overridable, private :: get_old_lst_dofs_spos_epos                    => serial_fe_space_get_old_lst_dofs_spos_epos
+     procedure, non_overridable, private :: get_new_lst_dofs_spos_epos                    => serial_fe_space_get_new_lst_dofs_spos_epos
      
 #ifndef ENABLE_P4EST
     procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error
@@ -992,9 +1004,6 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
    type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
 
-   type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
-   type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
-   
    integer(ip), allocatable                    :: lst_parts_around_itfc_dofs(:,:)
    integer(ip), allocatable                    :: dof_gid_to_itfc_dof_gid(:)
    integer(ip), allocatable                    :: itfc_dof_gid_to_dof_gid(:)
@@ -1088,15 +1097,18 @@ module fe_space_names
    ! Transfer and redistribution of FE functions
    procedure,                          private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
    procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
+   procedure,                          private :: comm_new_fe_function_nodal_values                       => pfs_comm_new_fe_function_nodal_values
    procedure,                          private :: par_fe_space_redistribute_single_fe_function
    procedure,                          private :: par_fe_space_redistribute_fe_function_array
-   generic                                     :: redistribute                                            => par_fe_space_redistribute_single_fe_function, &
-                                                                                                             par_fe_space_redistribute_fe_function_array
-   procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
-   procedure,                          private :: project_field_cell_to_ref_fes                           => par_fe_space_project_field_cell_to_ref_fes
-   procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
-   procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
-   procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
+   generic                                     :: redistribute                                              => par_fe_space_redistribute_single_fe_function, &
+                                                                                                               par_fe_space_redistribute_fe_function_array
+   procedure                                   :: update_after_redistribute                                 => par_fe_space_update_after_redistribute
+   procedure,                          private :: project_field_cell_to_ref_fes                             => par_fe_space_project_field_cell_to_ref_fes
+   procedure,                          private :: migrate_field_cell_to_ref_fes                             => par_fe_space_migrate_field_cell_to_ref_fes
+   procedure,                          private :: migrate_fe_integration_arrays                             => par_fe_space_migrate_fe_integration_arrays
+   procedure,                          private :: migrate_facet_integration_arrays                          => par_fe_space_migrate_facet_integration_arrays
+   procedure,         non_overridable, private :: update_fe_function_nodal_values_arrays_after_redistribute => pfs_update_fe_function_nodal_values_arrays_after_redistribute
+   procedure,         non_overridable, private :: transfer_and_retrieve_fe_function_nodal_values            => pfs_transfer_and_retrieve_fe_function_nodal_values
    
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator

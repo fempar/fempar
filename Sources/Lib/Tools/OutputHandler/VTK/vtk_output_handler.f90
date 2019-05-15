@@ -57,7 +57,6 @@ module vtk_output_handler_names
 USE types_names
 USE memor_names
 USE lib_vtk_io
-USE FPL
 USE environment_names
 USE vtk_utils_names
 USE base_output_handler_names
@@ -65,6 +64,7 @@ USE output_handler_fe_field_names
 USE output_handler_parameters_names
 USE output_handler_field_generator_names
 USE vtk_parameters_names
+USE FPL,                        only: ParameterList_t
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
 USE IR_Precision,               only: I1P, str

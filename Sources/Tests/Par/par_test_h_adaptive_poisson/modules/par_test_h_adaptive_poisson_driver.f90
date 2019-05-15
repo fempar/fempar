@@ -200,7 +200,7 @@ end subroutine free_timers
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
     istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
     istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
-    istat = this%parameter_list%set(key=p4est_triang_2_1_k_balance_key, value=1); check(istat==0)
+    istat = this%parameter_list%set(key=p4est_triang_2_1_k_balance_key, value=0); check(istat==0)
     istat = this%parameter_list%set(key=p4est_triang_log_level_key, value=SC_LP_SILENT); check(istat==0)
     call this%triangulation%create(this%par_environment,this%parameter_list)
     

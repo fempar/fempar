@@ -91,6 +91,7 @@ module environment_names
      procedure :: get_next_level                 => environment_get_next_level
      procedure :: get_w_context                  => environment_get_w_context
      procedure :: get_l1_context                 => environment_get_l1_context
+     procedure :: get_lgt1_context               => environment_get_lgt1_context
      procedure :: get_l1_rank                    => environment_get_l1_rank
      procedure :: get_l1_size                    => environment_get_l1_size
      procedure :: get_l1_to_l2_rank              => environment_get_l1_to_l2_rank
@@ -567,6 +568,15 @@ contains
     class(execution_context_t), pointer            :: l1_context
     l1_context => this%l1_context
   end function environment_get_l1_context
+  
+  !=============================================================================
+  function environment_get_lgt1_context ( this ) result(lgt1_context)
+    implicit none 
+    ! Parameters
+    class(environment_t),       target, intent(in) :: this
+    class(execution_context_t), pointer            :: lgt1_context
+    lgt1_context => this%lgt1_context
+  end function environment_get_lgt1_context
 
   !=============================================================================
   function environment_get_l1_rank ( this )

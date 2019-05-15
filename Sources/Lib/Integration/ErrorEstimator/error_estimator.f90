@@ -180,7 +180,10 @@ contains
    implicit none
    class(error_estimator_t), intent(inout) :: this
    class(environment_t), pointer :: environment
-   this%global_effectivity = this%global_estimate / this%global_true_error
+   environment => this%get_environment()
+   if ( environment%am_i_l1_task() ) then
+     this%global_effectivity = this%global_estimate / this%global_true_error
+   end if
  end subroutine ee_compute_global_effectivity
  
  function ee_get_fe_space ( this )

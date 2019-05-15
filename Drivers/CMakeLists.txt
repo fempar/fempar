@@ -89,13 +89,24 @@ message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
 # Find Fempar
 #################################################################
 
-GET_FILENAME_COMPONENT(FEMPAR_DIR ${FEMPAR_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+IF(${FEMPAR_DIR})
+    GET_FILENAME_COMPONENT(FEMPAR_DIR ${FEMPAR_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+ENDIF()
 FIND_PACKAGE(FEMPAR REQUIRED)
 INCLUDE_DIRECTORIES(${FEMPAR_INCLUDES})
 
 #################################################################
 # Drivers
 #################################################################
+
+# Search all files and directories in the top directory
+FILE(GLOB DIRECTORIES * NAME_WE)
+FOREACH( DIR ${DIRECTORIES})
+    GET_FILENAME_COMPONENT(DRIVER ${DIR} NAME_WE)
+    IF(NOT  ${DRIVER} MATCHES "CMakeLists")
+        SET(DRIVERS "${DRIVERS} \n    ${DRIVER}")
+    ENDIF()
+ENDFOREACH()
 
 IF(FEMPAR_DRIVER)
 
@@ -106,7 +117,7 @@ IF(FEMPAR_DRIVER)
     SET(DRIVERS_SRC ${DRIVERS_SRC})
 
     IF(NOT DRIVERS_SRC)
-        MESSAGE(FATAL_ERROR "Fempar Driver '${FEMPAR_DRIVER}' not found!")
+        MESSAGE(FATAL_ERROR "\nFempar Driver '${FEMPAR_DRIVER}' not found! \nList of available Drivers: ${DRIVERS}")
     ENDIF()
 
     FOREACH(DRIVER_SRC ${DRIVERS_SRC})
@@ -121,7 +132,7 @@ IF(FEMPAR_DRIVER)
     ENDFOREACH()
 
 ELSE()
-    MESSAGE(FATAL_ERROR "Fempar Driver name must be passed to cmake with '-DFEMPAR_DRIVER=fempar_driver_name'")
+    MESSAGE(FATAL_ERROR "\nFempar Driver name must be passed to cmake with '-DFEMPAR_DRIVER=fempar_driver_name'. \nList of available Drivers: ${DRIVERS}")
 ENDIF()
 
 

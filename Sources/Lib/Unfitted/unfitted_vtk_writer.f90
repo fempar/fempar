@@ -929,7 +929,7 @@ contains
            call fe%get_ref_coords_of_subcell(subcell,subcell_coords)
            call cell_map_subcell_ref%update(fe_get_lev,nodal_quadrature_subcell,no_ressemblance)
            mapped_subcell_subelem_coords_ref => cell_map_subcell_ref%get_quadrature_points_coordinates()
-           subcell_quad_coords => subcell_nodal_quad%get_coordinates()
+           subcell_quad_coords => subcell_nodal_quad%get_pointer_coordinates()
            do ino = 1, num_subcell_eval_points
              do idime = 1, num_dime
                subcell_quad_coords(idime,ino) = mapped_subcell_subelem_coords_ref(ino)%get(idime)

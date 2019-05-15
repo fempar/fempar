@@ -1501,7 +1501,7 @@ subroutine sufs_setup_only_cell_aggregation_constraints ( this )
     
       ! Compute the rhs of the affine cell_map
       qpoint = 1
-      ref_quad_coords  => fe_quad%get_coordinates()
+      ref_quad_coords  => fe_quad%get_pointer_coordinates()
       phys_quad_coords => cell_map%get_quadrature_points_coordinates()
       call eta%init(0.0)
       call x%init(0.0)
@@ -1513,7 +1513,7 @@ subroutine sufs_setup_only_cell_aggregation_constraints ( this )
       b = x - Aeta
     
       ! Compute the inverse affine fe map
-      ref_quad_coords  => ref_coords_as_quadrature%get_coordinates()
+      ref_quad_coords  => ref_coords_as_quadrature%get_pointer_coordinates()
       do qpoint = 1,size(phys_coords_as_point) 
         call x%init(0.0)
         do idime = 1, fe_quad%get_num_dims()
