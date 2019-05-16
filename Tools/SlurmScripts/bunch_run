@@ -28,7 +28,6 @@ then
   exit
 fi 
 
-id_k=1
 for k in $lst_k; do
    NPARTX=$((4*$k))
    NPARTY=$((4*$k))
