@@ -86,7 +86,7 @@ program tutorial_02_steady_stokes
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
-  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_fempar_parameters)
+  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_user_parameters)
   parameter_list => parameter_handler%get_values()
   ! call parameter_list%print()
 
@@ -149,7 +149,7 @@ program tutorial_02_steady_stokes
   ! Now, we define the source term with the function we have created in our module.
   ! Besides, we get the value of the desired value of the viscosity, possibly the one provided via
   ! the command line argument --VISCOSITY. Otherwise, defaults to 1.0. 
-  ! (see tutorial_02_steady_stokes_define_fempar_parameters subroutine below)
+  ! (see tutorial_02_steady_stokes_define_user_parameters subroutine below)
   call source_term%create(zero_function)
   call stokes_integration%set_source_term(source_term)
   error = parameter_list%get(key = 'viscosity', value = viscosity)
@@ -233,20 +233,11 @@ program tutorial_02_steady_stokes
 
   call fempar_finalize()
   contains
-    subroutine tutorial_02_steady_stokes_define_fempar_parameters(this)
+    subroutine tutorial_02_steady_stokes_define_user_parameters(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
-    type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
-    integer(ip) :: error
 
-    values      => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
+        call this%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
 
-    error = 0
-    error = error + helpers%set(key = 'viscosity'     , Value= 'Value of the viscosity')
-    error = error + switches%set(key = 'viscosity'    , Value= '--VISCOSITY')
-    error = error + values%set(key = 'viscosity'      , Value= 1.0)
-    end subroutine  tutorial_02_steady_stokes_define_fempar_parameters
+    end subroutine  tutorial_02_steady_stokes_define_user_parameters
 end program tutorial_02_steady_stokes
