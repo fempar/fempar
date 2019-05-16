@@ -3,19 +3,19 @@
 #SBATCH --qos=class_a
 #SBATCH --time=HH:MM:00
 #SBATCH --nodes=NNO
-#SBATCH --tasks-per-node=TPN
+#SBATCH --tasks-per-node=48
 #SBATCH --job-name=NAME
 #SBATCH --error=%j_job-stderr.txt 
 #SBATCH --output=%j_job-stdout.txt
 #SBATCH -x
 #
 # Template script controlling execution environment. The following variables must be replaced
-# (etiher manually or by a wraping script):
+# (either manually or by a wrapper script):
 #
 # ODD: an extra node with only one task is reserved.
 # NNO: number of nodes 
-# TPN: Tasks per node 
-# TNT: Total number of tasks
+# TPN: tasks per node 
+# TNT: total number of tasks
 # CPT: cores per task (= 48/TPN in MN4 if all the cores are to be used)
 # NRP: number of repetitions of the execution
 #

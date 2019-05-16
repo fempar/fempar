@@ -1,3 +1,4 @@
+echo "Starting run at `date`"
 #
 cd LAUNCH_DIR
 #
@@ -18,7 +19,7 @@ while [ $i -le $nodes ]
 do
     host=`echo $hosts | sed s/" "" "*/#/g | cut -f $i -d#`
     first=0
-    last=$(expr CPT - 1 )
+    last=$(expr CPT - 1)
     map="$first-$last"
     #map=$first
     if [ CPT -lt 25  ]
@@ -42,12 +43,10 @@ do
     let i=i+1
 done
 # Coarse task on an extra node when ODD is defined
-LT=-1
 if [ $odd ] 
 then
     host=`echo $hosts | sed s/" "" "*/#/g | cut -f $i -d#`
     echo "$host:1 binding=map=0-47;domain=48" >> machinefile
-    let LT=LT+TNT
 fi
 ###########################
 
@@ -59,3 +58,4 @@ do
     eval $command_to_run > "stdout$ID_REP" 2> "stderr$ID_REP"
     let ID_REP=ID_REP+1
 done
+echo "Ending run at `date`"

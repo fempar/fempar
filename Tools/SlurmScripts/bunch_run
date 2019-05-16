@@ -1,44 +1,52 @@
 #!/bin/bash
+
+# This is just an example of the root script that triggers a bunch of SLURM jobs.
+# You have to adapt/customize this script for your particular experiment. In 
+# particular, you have to program as many nested loops below as parameters you
+# want to evaluate. In this case, we are evaluating: 
+#   (OUTER LOOP) the number of subdomains per space dimension, i.e., the subdomain grid
+#   (INNER LOOP) # of hexahedra per space dimension, per subdomain 
+
 script_dir=$(dirname ${BASH_SOURCE[0]})
-threads_per_task=1  #change subdomains per node below if more than one thread is used per rank
-coarse_tasks=1      # only 0 or 1 possible, goes in a separate node
+threads_per_task=1        # 48 must be divisible by this number. Alters MPI tasks per node if more than one thread is used per MPI task
+coarse_tasks=1            # only 0 or 1 possible. If 1, then an additional MPI task is spawn and mapped to a separate node
 threads_last_task=48
-max_wall_time=20
+max_wall_time=20          # max wall clock time in minutes
 name=poisson
 
-num_one_h_local=2
-lst_one_h_local="30#40"
+lst_k="1 2"              # OUTER LOOP VALUES TO BE TESTED 
+lst_one_h_local="10 20"  # INNER LOOP VALUES TO BE TESTED
 
-num_k=5
-lst_k="1#2#3#4#5"
+if [ $((48%$threads_per_task)) != 0 ]
+then
+  echo "48 must be divisible by the value of ENV variable threads_per_task ($threads_per_task)"
+  exit
+fi 
+if [ $threads_per_task -lt 1 -o $threads_per_task -gt 48 ]
+then
+  echo "threads_per_task ($threads_per_task) must be within the range [1,48]"
+  exit
+fi 
 
 id_k=1
-while [ $id_k -le $num_k ]
-do
-   k=$(echo $lst_k | cut -f$id_k -d#)
-   NPARTX=$(( 4 * $k))
-   NPARTY=$(( 4 * $k))
-   NPARTZ=$(( 3 * $k))
+for k in $lst_k; do
+   NPARTX=$((4*$k))
+   NPARTY=$((4*$k))
+   NPARTZ=$((3*$k))
 
-   tasks=$(( 48 * $k + $coarse_tasks ))
-   nodes=$(( $k + $coarse_tasks ))
-   
-   id_one_h=1
-   while [ $id_one_h -le $num_one_h_local ] 
-   do
-     one_h_loc=$(echo $lst_one_h_local|cut -f$id_one_h -d#)
-     NX=$(( $one_h_loc * $k))
-     NY=$(( $NX * 4))
-     NZ=$(( $NX * 3))
-     NX=$(( $NX * 4))
+   tasks=$((48*$k+$coarse_tasks))
+   nodes=$(($k*$threads_per_task+$coarse_tasks))
+  
+   for one_h_loc in $lst_one_h_local; do 
+     NX=$(($one_h_loc*$k))
+     NY=$(($NX*4))
+     NZ=$(($NX*3))
+     NX=$(($NX*4))
      identifier="$name"_"$NX"_"$NY"_"$NZ"_"$NPARTX"_"$NPARTY"_"$NPARTZ"
 
-     cat $script_dir/parametrized_command_template | sed "s:NX:$NX:g" | sed "s:NY:$NY:g" | sed "s:NZ:$NZ:g" > $script_dir/command_template
-     echo $script_dir/run -i $name -n $nodes -t $tasks --num_threads_per_task $threads_per_task  --num_threads_last_task $threads_last_task -w $max_wall_time 
-     $script_dir/run -i $name -n $nodes -t $tasks --num_threads_per_task $threads_per_task  --num_threads_last_task $threads_last_task -w $max_wall_time 
-
-     let id_one_h=id_one_h+1
+     cat $script_dir/parametrized_command_template | sed "s:NX:$NX:g" | sed "s:NY:$NY:g" | sed "s:NZ:$NZ:g" | sed "s:NPARTX:$NPARTX:g" | sed "s:NPARTY:$NPARTY:g" | sed "s:NPARTZ:$NPARTZ:g"  > $script_dir/command_template
+     command="$script_dir/run -i $identifier -n $nodes -t $tasks --num_threads_per_task $threads_per_task  --num_threads_last_task $threads_last_task -w $max_wall_time"
+     echo $command
+     eval $command
    done
-   let id_k=id_k+1 
 done
-

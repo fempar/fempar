@@ -1,2 +1,0 @@
-DRIVER=/home/principe/Javier/Work/Prog3/fempar-beta/build-ifc-dbg/DRIVERS/par_workflow_poisson_unfitted/bin/par_workflow_poisson_unfitted
-COMMAND="$DRIVER --method explicit_multilevel_monte_carlo_sampling --analysis multilevel_average --num_samples NS --STRUCT_HEX_TRIANG_NUM_CELLS_DIM 800 800 600"

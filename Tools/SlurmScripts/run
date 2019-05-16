@@ -20,13 +20,13 @@ OPTIONS:
    -n --num_nodes 
         Number of nodes to use (defaults to 1)
       --num_threads_per_task
-        Number of threads per tasks (defaults to 1)
+        Number of threads per task (defaults to 1)
       --num_threads_last_task
         If positive the last task is allocated on a separate node (defaults to 0)
    -r --num_repeats
         Number of repetitions of the execution (defaults to 1)
    -w --max_wall_time
-        Maximum wall clock time to set in the batch script in minutes (defaults to 10)
+        Maximum wall clock time to be set in the batch script in minutes (defaults to 10)
 EOF
 }
 # NOTE: This requires GNU getopt.
@@ -67,17 +67,20 @@ then
     odd=true
     if [ $nno -lt 2  ]
     then
-	echo "We need at least two nodes"
-	exit
+        echo "We need at least two nodes"
+        exit
     else
-	tpn=$(( ($tnt-1) / ($nno-1) )) # Tasks per node
+        tpn=$(( ($tnt-1) / ($nno-1) )) # Tasks per node
         rmd=$(( $tnt - 1 - ($nno-1)*$tpn ))
-	cpt=$(( 48 / $tpn ))
+        cpt=$(( 48 / $tpn ))
+        last_task_rank=$(( $tnt - 1 ))
     fi
 else
+    unset odd
     tpn=$(expr $tnt / $nno) # Tasks per node
     rmd=$(( $tnt - $nno*$tpn ))
     cpt=$(expr 48 / $tpn)
+    last_task_rank=-1
 fi
 #
 if [ $rmd != 0 ]
@@ -98,12 +101,11 @@ echo minutes=$wcm
 identifier=$idt"_with_""$tnt""_tasks_in_""$nno""_nodes_with_""$tht""_threads_and_"$thl"_last_threads"
 echo $identifier
 mkdir -p $identifier
-
 # Build script to run
-cat $script_dir/slurm_template_head.sh | sed "s:HH:$wch:g" | sed "s:MM:$wcm:g" | sed "s:NNO:$nno:g" | sed "s:TPN:$tpn:g" | sed "s:NAME:$idt:g" > "$identifier"".sh"
+cat $script_dir/slurm_template_head.sh | sed "s:HH:$wch:g" | sed "s:MM:$wcm:g" | sed "s:ODD:$odd:g" | sed "s:NNO:$nno:g" | sed "s:TPN:$tpn:g" | sed "s:TNT:$tnt:g" | sed "s:NAME:$idt:g" | sed "s:CPT:$cpt:g" | sed "s:TPN:$tpn:g" | sed "s:NRP:$nrp:g"  > "$identifier"".sh"
 cat $script_dir/command_template >>  "$identifier"".sh"
-echo command_to_run=\"mpirun -np $tnt -machinefile machinefile -print-rank-map launch.sh $tht $thl \$LT \$COMMAND\" >>  "$identifier"".sh"
+echo command_to_run=\"mpirun -np $tnt -machinefile machinefile -print-rank-map -envlist I_MPI_PIN,I_MPI_DEBUG ../launch.sh $tht $thl $last_task_rank \\\"\$COMMAND\\\"\" >>  "$identifier"".sh"
 cat $script_dir/slurm_template_body.sh | sed "s:LAUNCH_DIR:$PWD/$identifier:g" | sed "s:ODD:$odd:g" | sed "s:TNT:$tnt:g" | sed "s:NNO:$nno:g" | sed "s:CPT:$cpt:g" | sed "s:TPN:$tpn:g" | sed "s:NRP:$nrp:g" >> "$identifier"".sh"
 
 # Run it
-#sbatch "$identifier"".sh"
+sbatch "$identifier"".sh"
