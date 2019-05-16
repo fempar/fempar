@@ -5,7 +5,7 @@ module custom_parameter_generator_names
 implicit none
 #include "debug.i90"
 
-    type, extends(parameter_handler_t) :: cla_parameter_groups_t
+    type, extends(fempar_parameter_handler_t) :: cla_parameter_groups_t
     contains
         procedure, public :: define_parameters  => cla_parameter_groups_define_parameters
         procedure, public :: add_to_group       => cla_parameter_groups_add_to_group
