@@ -1,7 +1,7 @@
 stages:
     - debug
     - release
-#    - documentation
+    - documentation
 
 
 cache:
@@ -49,15 +49,14 @@ cache:
     - cd $FEMPAR_DIR
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
-    - cmake --build . -- -j8
-    - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
-    - serial_test_passed=0
-    - test -f $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+    - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
+    - tests_passed=0
+    - test -f $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log && tests_passed=1
     - ls -l $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log
     - cat $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log  
     - set -e
-    - echo $serial_test_passed
-    - test $serial_test_passed -eq 0
+    - echo $tests_passed
+    - test $tests_passed -eq 0
 
 
 GNU_DEBUG_P4EST_SERIAL:
@@ -73,6 +72,7 @@ GNU_DEBUG_P4EST_SERIAL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
+    EXTRA_DASHBOARDS: "-D ExperimentalMemCheck"
   script: *script_template
 
 
@@ -88,6 +88,7 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL_FAST
+    EXTRA_DASHBOARDS: "-D ExperimentalMemCheck"
   script: *script_template
 
 
@@ -248,3 +249,14 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     TEST_LABEL: PARALLEL_FAST
     LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
+
+
+DOCUMENTATION:
+  image: appropriate/curl:latest
+  stage: documentation
+  tags:
+    - test-ci
+  script: 
+    - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
+  only:
+    - experimental
