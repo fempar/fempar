@@ -72,7 +72,6 @@ GNU_DEBUG_P4EST_SERIAL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
-    EXTRA_DASHBOARDS: "-D ExperimentalMemCheck"
   script: *script_template
 
 
@@ -88,7 +87,6 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL_FAST
-    EXTRA_DASHBOARDS: "-D ExperimentalMemCheck"
   script: *script_template
 
 
