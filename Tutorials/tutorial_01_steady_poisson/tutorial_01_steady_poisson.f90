@@ -191,8 +191,6 @@ program tutorial_01_steady_poisson
   if (lin_solver_type=='pardiso') then
     !* Set Direct solver parameter to PARDISO
     call parameter_handler%update(key = dls_type_key,        value = pardiso_mkl)
-    !* Set matrix type parameter of the direct solver to Symmetric positive definite 
-    call parameter_handler%update(key = pardiso_mkl_matrix_type, value = pardiso_mkl_spd)
     !* Set verbosity parameter of the direct solver to default value
     call parameter_handler%update(key = pardiso_mkl_message_level, value = pardiso_mkl_default_message_level)
     !* Direct solver setup
