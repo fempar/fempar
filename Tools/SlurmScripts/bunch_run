@@ -9,10 +9,9 @@
 
 script_dir=$(dirname ${BASH_SOURCE[0]})
 threads_per_task=1        # 48 must be divisible by this number. Alters MPI tasks per node if more than one thread is used per MPI task
-coarse_tasks=1            # only 0 or 1 possible. If 1, then an additional MPI task is spawn and mapped to a separate node
-threads_last_task=48
+threads_last_task=48      # use a value >0 if you want an additional MPI task to be spawn and mapped to a separate node
 max_wall_time=20          # max wall clock time in minutes
-name=poisson
+name=p_laplacian
 
 lst_k="1 2"              # OUTER LOOP VALUES TO BE TESTED 
 lst_one_h_local="10 20"  # INNER LOOP VALUES TO BE TESTED
@@ -28,13 +27,14 @@ then
   exit
 fi 
 
+[[ $threads_last_task > 0 ]] && coarse_task="1" || coarse_task="0"
 for k in $lst_k; do
    NPARTX=$((4*$k))
    NPARTY=$((4*$k))
    NPARTZ=$((3*$k))
 
-   tasks=$((48*$k+$coarse_tasks))
-   nodes=$(($k*$threads_per_task+$coarse_tasks))
+   tasks=$((48*$k+$coarse_task))
+   nodes=$(($k*$threads_per_task+$coarse_task))
   
    for one_h_loc in $lst_one_h_local; do 
      NX=$(($one_h_loc*$k))
@@ -43,7 +43,7 @@ for k in $lst_k; do
      NX=$(($NX*4))
      identifier="$name"_"$NX"_"$NY"_"$NZ"_"$NPARTX"_"$NPARTY"_"$NPARTZ"
 
-     cat $script_dir/parametrized_command_template | sed "s:NX:$NX:g" | sed "s:NY:$NY:g" | sed "s:NZ:$NZ:g" | sed "s:NPARTX:$NPARTX:g" | sed "s:NPARTY:$NPARTY:g" | sed "s:NPARTZ:$NPARTZ:g"  > $script_dir/command_template
+     cat $script_dir/parametrized_command_template | sed "s:%%NX%%:$NX:g" | sed "s:%%NY%%:$NY:g" | sed "s:%%NZ%%:$NZ:g" | sed "s:%%NPARTX%%:$NPARTX:g" | sed "s:%%NPARTY%%:$NPARTY:g" | sed "s:%%NPARTZ%%:$NPARTZ:g"  > $script_dir/command_template
      command="$script_dir/run -i $identifier -n $nodes -t $tasks --num_threads_per_task $threads_per_task  --num_threads_last_task $threads_last_task -w $max_wall_time"
      echo $command
      eval $command
