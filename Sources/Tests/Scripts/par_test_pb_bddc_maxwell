@@ -90,8 +90,8 @@ then
 
 
             #test 5 - Analytical solution w/ unit constant coeffs and tetrahedral, unstructured mesh with pathological edge cases (see art031, sect 4) --------------
-            echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag cube_tetrahedra $num_levels_distribution_flag 2 $num_parts_x_level_flag 8 1 0 0 0"
-            $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag cube_tetrahedra $num_levels_distribution_flag 2 $num_parts_x_level_flag 8 1 0 0 0 
+            echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag cube_tetrahedra $num_parts_flag 2 $num_parts_x_level_flag 8 1 0 0 0"
+            $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag cube_tetrahedra $num_parts_flag 2 $num_parts_x_level_flag 8 1 0 0 0 
 
             for order in 1 2; do
                 echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_levels_flag 2 $coarse_space_use_faces_flag .false. -edge_cont tangential_average_and_first_order_moment -order $order $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' -wsolution .false. | tee $TMP_OUTPUT"
