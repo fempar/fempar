@@ -13,8 +13,8 @@ threads_last_task=48      # use a value >0 if you want an additional MPI task to
 max_wall_time=20          # max wall clock time in minutes
 name=p_laplacian
 
-lst_k="1 2"              # OUTER LOOP VALUES TO BE TESTED 
-lst_one_h_local="10 20"  # INNER LOOP VALUES TO BE TESTED
+lst_k="2"             # OUTER LOOP VALUES TO BE TESTED 
+lst_one_h_local="10"  # INNER LOOP VALUES TO BE TESTED
 
 if [ $((48%$threads_per_task)) != 0 ]
 then
@@ -33,8 +33,8 @@ for k in $lst_k; do
    NPARTY=$((4*$k))
    NPARTZ=$((3*$k))
 
-   tasks=$((48*$k+$coarse_task))
-   nodes=$(($k*$threads_per_task+$coarse_task))
+   tasks=$((48*$k*$k*$k+$coarse_task))
+   nodes=$(($k*$k*$k*$threads_per_task+$coarse_task))
   
    for one_h_loc in $lst_one_h_local; do 
      NX=$(($one_h_loc*$k))
