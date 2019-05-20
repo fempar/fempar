@@ -78,9 +78,6 @@ contains
     call this%add(bddc_edge_continuity_algorithm_key, '--BDDC_edge_continuity_algorithm', tangential_average_and_first_order_moment, &
                   'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges', &
                   switch_ab='-edge_cont')
-    call this%add(bddc_scaling_function_case_key, '--BDDC_scaling_function_case', cardinality, &
-                  'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges', &
-                  switch_ab='-bddc_weights')
     call this%add(mass_coeff_white_key, '--mass_coeff_white', 1.0_rp, 'mass_coeff_white value', switch_ab='-mass_coeff_white')
     call this%add(curl_curl_coeff_white_key, '--curl_curl_coeff_white', 1.0_rp, 'curl_curl_coeff_white  value', switch_ab='-curl_curl_coeff_white')
     call this%add(mass_coeff_black_key, '--mass_coeff_black', 1.0_rp, 'mass_coeff_black value', switch_ab='-mass_coeff_black')
