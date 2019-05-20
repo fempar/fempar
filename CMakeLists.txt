@@ -77,6 +77,10 @@ IF(NOT ${PROJECT_NAME}_ENABLE_TESTS)         # If FEMPAR_ENABLE_TESTS was not de
     OPTION(${PROJECT_NAME}_ENABLE_TESTS "Enable/disable tests" OFF)
 ENDIF(NOT ${PROJECT_NAME}_ENABLE_TESTS)
 
+IF(NOT ${PROJECT_NAME}_BUILD_LABEL)         # If FEMPAR_ENABLE_TESTS was not defined, set OFF as default
+    OPTION(${PROJECT_NAME}_BUILD_LABEL "Build name label" "UNKNOWN")
+ENDIF(NOT ${PROJECT_NAME}_BUILD_LABEL)
+
 #################################################################
 # List of external libraries
 #################################################################
@@ -226,7 +230,7 @@ ENDIF()
 #################################################################
 
 # Append the commit ID to the BUILDNAME if Git is found
-SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_MKL=${${PROJECT_NAME}_ENABLE_MKL} CACHE STRING "" )
+SET(BUILDNAME ${CMAKE_Fortran_COMPILER_ID}_${CMAKE_BUILD_TYPE}_P4EST_${${PROJECT_NAME}_BUILD_LABEL} CACHE STRING "" )
 
 #################################################################
 # ENABLE TESTING
