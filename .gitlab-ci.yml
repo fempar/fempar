@@ -47,8 +47,9 @@ cache:
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
     - cmake --build . -- -j8
     - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
+    - cmake --build . -- -j8
     - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
     - tests_passed=0
     - test -f $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log && tests_passed=1
@@ -72,7 +73,7 @@ GNU_DEBUG_P4EST_SERIAL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
-    EXTRA_DASHBOARDS: "-D ExperimentalMemCheck"
+    EXTRA_DASHBOARDS: $(if [ "$CI_COMMIT_REF_SLUG" = "experimental" ]; then echo "-D ExperimentalCoverage -D ExperimentalMemCheck";fi)
   script: *script_template
 
 
@@ -88,7 +89,6 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL_FAST
-    EXTRA_DASHBOARDS: "-D ExperimentalMemCheck"
   script: *script_template
 
 
@@ -105,6 +105,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
+    EXTRA_DASHBOARDS: $(if [ "$CI_COMMIT_REF_SLUG" = "experimental" ]; then echo "-D ExperimentalCoverage -D ExperimentalMemCheck";fi)
   script: *script_template
 
 

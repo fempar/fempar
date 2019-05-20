@@ -487,8 +487,6 @@ contains
        ! call this%world_context%free(finalize=(this%state == created_from_scratch))
        deallocate ( this%world_context, stat = istat ); assert ( istat == 0 )
        this%state = not_created
-    end if
-    if(this%num_levels > 0) then
        this%num_levels = 0
        call memfree(this%parts_mapping , __FILE__, __LINE__ )
        call memfree(this%num_parts_x_level, __FILE__, __LINE__ )
