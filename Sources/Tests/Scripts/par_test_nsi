@@ -29,8 +29,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0 "
-            $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0
+            echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0 "
+            $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0
             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag 'square_quads' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0"
             $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag 'square_quads' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0
             if [ $? -ne 0 ] 
@@ -60,8 +60,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-	         echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
-	         $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0
+	         echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
+	         $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0
              echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0"
              $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0
              if [ $? -ne 0 ]
@@ -90,8 +90,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-	         echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
-	         $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0
+	         echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
+	         $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0
              echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag 'cube_hexas' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0"
              $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag 'cube_hexas' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0
              if [ $? -ne 0 ] 
@@ -120,8 +120,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-             echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
-             $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $num_parts_flag 2 $num_parts_x_level_flag 4 1 0 0 0
+             echo "$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
+             $DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0
              echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0"
              $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' $struct_hex_triang_num_levels_flag 2 -order $v_order $p_order $triang_generate_flag 0
              if [ $? -ne 0 ] 
