@@ -66,14 +66,28 @@ GNU_DEBUG_P4EST_SERIAL:
   tags:
     - test-ci
   only:
-    - experimental
     - merge_requests
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
-    EXTRA_DASHBOARDS: $(if [ "$CI_COMMIT_REF_SLUG" = "experimental" ]; then echo "-D ExperimentalCoverage -D ExperimentalMemCheck";fi)
+  script: *script_template
+  
+  
+GNU_DEBUG_P4EST_SERIAL_MEM_COV:
+  image: fempar/fempar-env:gnu-debug_p4est-serial
+  stage: debug
+  tags:
+    - test-ci
+  only:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: SERIAL
+    EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
   script: *script_template
 
 
@@ -98,14 +112,28 @@ GNU_DEBUG_P4EST_PARALLEL:
   tags:
     - test-ci
   only:
-    - experimental
     - merge_requests
   extends: .base_gnu
   variables:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
-    EXTRA_DASHBOARDS: $(if [ "$CI_COMMIT_REF_SLUG" = "experimental" ]; then echo "-D ExperimentalCoverage -D ExperimentalMemCheck";fi)
+  script: *script_template
+  
+
+GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
+  image: fempar/fempar-env:gnu-debug_p4est-parallel
+  stage: debug
+  tags:
+    - test-ci
+  only:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: PARALLEL
+    EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
   script: *script_template
 
 
