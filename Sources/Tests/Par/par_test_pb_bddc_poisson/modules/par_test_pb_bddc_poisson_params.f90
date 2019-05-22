@@ -56,7 +56,7 @@ contains
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Overwritten value
-    call parameter_handler%add(triang_generate_key, '--TRIANG_GENERATE', triangulation_generate_from_mesh, 'Way to generate the triangulation')
+    call parameter_handler%update(triang_generate_key, triangulation_generate_from_mesh)
 
     ! Specific
     call parameter_handler%add(write_matrices_key, '--write-matrices', .false., 'Write local-to-subdomain sparse matrices  in matrix market format', switch_ab='-wmatrices') 
