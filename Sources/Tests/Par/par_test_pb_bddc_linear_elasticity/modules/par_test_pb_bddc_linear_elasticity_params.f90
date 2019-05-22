@@ -73,11 +73,10 @@ contains
     call parameter_handler%add(discrete_integration_type_key, '--discrete_integration', heterogeneous, &
                   'Which type of discrete integration to use? homogeneous or heterogeneous', &
                   switch_ab='-integration')
-    call parameter_handler%add(struct_hex_triang_domain_limits_key, '--hex_mesh_domain_limits', [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp], &
-                  'Limits of the domain', &
-                  switch_ab='-domain_limits')
     call parameter_handler%add(is_a_beam_key, '--is_a_beam', .true., 'Is the studied object a beam', switch_ab='-is_a_beam')
-    call parameter_handler%add(size_sub_object_key, '--size_sub_object', 1, 'Size of subobject in number of mesh size (must be an integer)', switch_ab='-sso')
+
+    ! Overwritten
+    call parameter_handler%update(struct_hex_triang_domain_limits_key, [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp])
 
   end subroutine par_test_pb_bddc_linear_elasticity_params_define_parameters
 

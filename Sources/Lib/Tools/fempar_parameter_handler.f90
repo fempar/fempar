@@ -442,7 +442,7 @@ contains
             if(present(required))  requires    => this%get_required()
             if(present(choices))   choice      => this%get_choices()
         endif
-        massert( .not. switches%isPresent(key = key), 'Parameter with key "'//key//'" already defined in parameter handler' )
+        massert( .not. switches%isPresent(key = key), 'Duplicated Parameter: key "'//key//'" already defined in parameter handler' )
         error = switches%Set(key=key, value=switch); assert(error==0)
         error = helpers%Set(key=key,  value=help);   assert(error==0)
         error = values%Set(key=key,   value=value);  assert(error==0)
