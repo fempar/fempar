@@ -29,7 +29,6 @@
 program partitioner
   use fempar_names
   implicit none
-  type(fempar_parameter_handler_t)       :: input
   type(ParameterList_t)    , pointer     :: parameters
   type(mesh_t)                           :: gmesh
   type(mesh_distribution_t), allocatable :: distr(:)
@@ -38,8 +37,8 @@ program partitioner
   integer(ip) :: ipart, ienv
 
   call fempar_init()
-  call input%process_parameters()
-  parameters => input%get_values()
+  call parameter_handler%process_parameters()
+  parameters => parameter_handler%get_values()
 
   ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)
@@ -71,8 +70,6 @@ program partitioner
   deallocate (env)
   
   call gmesh%free()
-
-  call input%free()
   call fempar_finalize()
 
 end program partitioner

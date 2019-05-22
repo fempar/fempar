@@ -112,7 +112,6 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure        , private :: setup_refinement_strategy 
      procedure                  :: run_simulation
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure                  :: set_cells_for_uniform_refinement 
      procedure                  :: set_geom_based_cells_for_refinement 
@@ -129,8 +128,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(par_test_h_adaptive_maxwell_params_define_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -948,13 +947,6 @@ end subroutine check_solution
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-  !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
   
   !========================================================================================
   subroutine set_cells_for_uniform_refinement(this)

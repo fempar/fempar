@@ -43,8 +43,7 @@ program tutorial_01_steady_poisson
   !*   2) Values provided by the user through the command line (using the keys in fempar_parameter_handler_t).
   !*   3) the user provides the parameter values in the code.
   !* In this tutorial we will explicitly provide the values in the code (option 3), but they could be provided by the command line argument instead.
-  type(fempar_parameter_handler_t)     :: parameter_handler
-  !* This is the object in parameter_handler_t that provides the list of parameters.
+  !* This is the object in parameter_handler that provides the list of parameters.
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
@@ -249,7 +248,6 @@ program tutorial_01_steady_poisson
 !*  ### Free all the created objects
 !*
 !* Free all the created objects
-  call parameter_handler%free()
   call triangulation%free()
   call error_norm%free()
   call solution%free()       
@@ -260,7 +258,6 @@ program tutorial_01_steady_poisson
   call poisson_conditions%free()
   call triangulation%free()
   call serial_environment%free()
-  call parameter_handler%free()
   call world_context%free(.true.)
 
   call fempar_finalize()

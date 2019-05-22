@@ -64,7 +64,6 @@ module fempar_parameter_handler_names
         type(ParameterList_t)         :: required
         type(ParameterList_t)         :: choices
     contains
-        procedure(define_parameters_interface),       deferred                 :: define_parameters 
         procedure                                  :: create                   => parameter_handler_create
         procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
         procedure, non_overridable, private        :: add0D                    => parameter_handler_add0D
@@ -90,11 +89,10 @@ module fempar_parameter_handler_names
  
     type, extends(parameter_handler_t) :: fempar_parameter_handler_t 
     private 
-        procedure(define_user_parameters), pointer :: define_user_parameters => NULL()
+        procedure(define_user_parameters), nopass, pointer :: define_user_parameters => NULL()
     contains
         procedure                           :: process_parameters       => fph_process_parameters
         procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
-        procedure                           :: define_parameters        => fph_define_parameters
         procedure                           :: free                     => fph_free
         procedure                           :: get_dir_path             => fph_get_dir_path
         procedure                           :: get_dir_path_out         => fph_get_dir_path_out
@@ -102,28 +100,13 @@ module fempar_parameter_handler_names
     end type fempar_parameter_handler_t
   
     interface
-        subroutine define_user_parameters(this)
-            import :: fempar_parameter_handler_t 
-            class(fempar_parameter_handler_t ), intent(inout) :: this
+        subroutine define_user_parameters()
         end subroutine define_user_parameters
     end interface
 
-    abstract interface
-        subroutine define_parameters_interface(this)
-        !------------------------------------------------------------------
-        !< Deferred binding that all subclasses are forced to implement.
-        !< Subclasses have to (consistently) set-up the type(ParameterList_t)
-        !< member variables above s.t. they can be transferred to the cli
-        !< instance by means of the parse binding (see the code of 
-        !< parameter_generator_assert_lists_consistency)
-        !------------------------------------------------------------------
-          import :: parameter_handler_t
-          implicit none
-          class(parameter_handler_t), intent(inout) :: this
-        end subroutine define_parameters_interface
-    end interface
+    type(fempar_parameter_handler_t) :: parameter_handler
 
-    public :: fempar_parameter_handler_t
+    public :: parameter_handler, define_user_parameters
 
 contains
 
@@ -166,7 +149,6 @@ contains
         end if
 
         call this%initialize_lists()
-        call this%define_parameters()
 
 #ifdef DEBUG
         call this%assert_lists_consistency()
@@ -795,7 +777,6 @@ contains
         if ( parse_cla_ ) call this%init_cli()
         call this%initialize_lists()
         call this%define_fempar_parameters()
-        call this%define_parameters()
         if (present(define_user_parameters_procedure)) then
             this%define_user_parameters => define_user_parameters_procedure
             call this%define_user_parameters()
@@ -811,20 +792,6 @@ contains
             call this%parse()
         end if
     end subroutine fph_process_parameters
-
-
-    subroutine fph_define_parameters(this)
-    !------------------------------------------------------------------
-    !< Define parameters procedure
-    !------------------------------------------------------------------
-        implicit none
-        class(fempar_parameter_handler_t), intent(inout) :: this
-    !------------------------------------------------------------------
-        !call this%define_fempar_parameters()
-        !if (associated(this%define_user_parameters)) then
-        !    call this%define_user_parameters()
-        !end if
-    end subroutine fph_define_parameters
 
 
     subroutine fph_free(this)

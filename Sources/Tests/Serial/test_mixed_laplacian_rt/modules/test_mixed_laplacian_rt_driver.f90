@@ -72,7 +72,6 @@ module test_mixed_laplacian_rt_driver_names
    contains
      procedure                  :: run_simulation
      procedure                  :: parse_command_line_parameters
-     procedure                  :: free_command_line_parameters
      procedure                  :: setup_environment
      procedure                  :: free_environment
      procedure        , private :: setup_triangulation
@@ -95,16 +94,9 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(mixed_laplacian_rt_define_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
-
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
-    call this%test_params%free()
-    nullify(this%parameter_list)
-  end subroutine free_command_line_parameters
   
   subroutine setup_environment(this, world_context)
     implicit none

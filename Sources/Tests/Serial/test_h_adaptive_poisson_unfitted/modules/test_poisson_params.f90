@@ -53,9 +53,11 @@ module test_poisson_params_names
   character(len=*), parameter :: refinement_pattern_key        = 'refinement_pattern'
   character(len=*), parameter :: is_in_fe_space_key            = 'is_in_fe_space'
 
-  type, extends(fempar_parameter_handler_t) :: test_poisson_params_t  
+  type :: test_poisson_params_t  
    contains
-     procedure                              :: define_parameters   => test_poisson_define_parameters
+     procedure, non_overridable             :: get_dir_path
+     procedure, non_overridable             :: get_prefix
+     procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
@@ -80,46 +82,65 @@ module test_poisson_params_names
   end type test_poisson_params_t  
 
   ! Types
-  public :: test_poisson_params_t
+  public :: test_poisson_params_t, test_poisson_define_user_parameters
 
 contains
   
   !==================================================================================================
-  subroutine test_poisson_define_parameters(this)
+  subroutine test_poisson_define_user_parameters()
     implicit none
-    class(test_poisson_params_t) , intent(inout) :: this
-
-    ! Locals
-    integer(ip) :: error
-
     ! IO parameters
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
-    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
-    call this%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
-    call this%add(write_error_norms_key, '--write-error-norms', .false., 'Write error norms in csv format', switch_ab='-werrornorms') 
-    call this%add(write_aggr_info_key, '--write-aggr-info', .false., 'Write info about the aggregates in csv format', switch_ab='-waggrinfo') 
-    call this%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
-    call this%add(max_level_key, '--max_level', 3, 'Maximum h-refinement level allowed', switch_ab='-maxl') 
-    call this%add(check_solution_key, '--check_solution', .true., 'Check or not the solution', switch_ab='-check') 
-    call this%add(is_dirichlet_key, '--is_dirichlet', .true., 'True if the unfitted boundary is dirichlet', switch_ab='-is_diri') 
-    call this%add(is_beta_constant_key, '--is_beta_constant', .false., 'True if the Nitsches beta is constant', switch_ab='-is_bconst') 
-    call this%add(use_constraints_key, '--use_constraints', .true., 'Use or not the constraints provided by the cut cell aggregation', switch_ab='-uconstraints') 
-    call this%add(levelset_type_key, '--levelset-type', 'sphere', 'Name of the levelset function', switch_ab='-lstype') 
-    call this%add(levelset_tol_key, '--levelset-tol', 1.0e-6_rp,'Tolerance for the levelset function', switch_ab='-lstol') 
-    call this%add(domain_limits_key, '--domain-limits', [ 0.0_rp, 1.0_rp], 'Info about the domain limits', switch_ab='-dom') 
-    call this%add(only_setup_key, '--only-setup', .false., &
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
+    call parameter_handler%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
+    call parameter_handler%add(write_error_norms_key, '--write-error-norms', .false., 'Write error norms in csv format', switch_ab='-werrornorms') 
+    call parameter_handler%add(write_aggr_info_key, '--write-aggr-info', .false., 'Write info about the aggregates in csv format', switch_ab='-waggrinfo') 
+    call parameter_handler%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
+    call parameter_handler%add(max_level_key, '--max_level', 3, 'Maximum h-refinement level allowed', switch_ab='-maxl') 
+    call parameter_handler%add(check_solution_key, '--check_solution', .true., 'Check or not the solution', switch_ab='-check') 
+    call parameter_handler%add(is_dirichlet_key, '--is_dirichlet', .true., 'True if the unfitted boundary is dirichlet', switch_ab='-is_diri') 
+    call parameter_handler%add(is_beta_constant_key, '--is_beta_constant', .false., 'True if the Nitsches beta is constant', switch_ab='-is_bconst') 
+    call parameter_handler%add(use_constraints_key, '--use_constraints', .true., 'Use or not the constraints provided by the cut cell aggregation', switch_ab='-uconstraints') 
+    call parameter_handler%add(levelset_type_key, '--levelset-type', 'sphere', 'Name of the levelset function', switch_ab='-lstype') 
+    call parameter_handler%add(levelset_tol_key, '--levelset-tol', 1.0e-6_rp,'Tolerance for the levelset function', switch_ab='-lstol') 
+    call parameter_handler%add(domain_limits_key, '--domain-limits', [ 0.0_rp, 1.0_rp], 'Info about the domain limits', switch_ab='-dom') 
+    call parameter_handler%add(only_setup_key, '--only-setup', .false., &
                 'True if compute only the setup of the problem, i.e., skip discrete integration and linear solver', &
                 switch_ab='-osetup') 
-    call this%add(strong_dirichlet_key, '--strong_dirichlet', .true., &
+    call parameter_handler%add(strong_dirichlet_key, '--strong_dirichlet', .true., &
                 'True if strong dirichlet conditions are imposed on the body-fitted boundary', &
                 switch_ab='-sdiri') 
-    call this%add(refinement_pattern_key, '--refinement_pattern', 'uniform', 'name of the refinement pattern to use', switch_ab='-rpattern') 
-    call this%add(is_in_fe_space_key, '--solution_in_fe_space', .true., 'Is the solution in fe space', switch_ab='-in_space') 
+    call parameter_handler%add(refinement_pattern_key, '--refinement_pattern', 'uniform', 'name of the refinement pattern to use', switch_ab='-rpattern') 
+    call parameter_handler%add(is_in_fe_space_key, '--solution_in_fe_space', .true., 'Is the solution in fe space', switch_ab='-in_space') 
 
-  end subroutine test_poisson_define_parameters
+  end subroutine test_poisson_define_user_parameters
   
   ! GETTERS *****************************************************************************************
+
+  !==================================================================================================
+  function get_dir_path(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_dir_path
+    get_dir_path = parameter_handler%get_dir_path()
+  end function get_dir_path
+
+  !==================================================================================================
+  function get_prefix(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_prefix
+    get_prefix = parameter_handler%get_prefix()
+  end function get_prefix
+
+  !==================================================================================================
+  function get_dir_path_out(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_dir_path_out
+    get_dir_path_out = parameter_handler%get_dir_path_out()
+  end function get_dir_path_out
 
   !==================================================================================================
   function is_in_fe_space(this)
@@ -128,7 +149,7 @@ contains
     logical                                   :: is_in_fe_space
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(is_in_fe_space_key, is_in_fe_space))
     error = list%Get(key = is_in_fe_space_key, Value = is_in_fe_space)
     assert(error==0)
@@ -141,7 +162,7 @@ contains
     integer(ip)                               :: get_reference_fe_geo_order
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -154,7 +175,7 @@ contains
     integer(ip)                               :: get_reference_fe_order
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)
@@ -167,7 +188,7 @@ contains
     logical                                   :: get_write_solution
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -180,7 +201,7 @@ contains
     logical                                   :: get_write_matrix
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_matrix_key, get_write_matrix))
     error = list%Get(key = write_matrix_key, Value = get_write_matrix)
     assert(error==0)
@@ -193,7 +214,7 @@ contains
     logical                                   :: get_write_error_norms
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_error_norms_key, get_write_error_norms))
     error = list%Get(key = write_error_norms_key, Value = get_write_error_norms)
     assert(error==0)
@@ -206,7 +227,7 @@ contains
     logical                                   :: get_write_aggr_info
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_aggr_info_key, get_write_aggr_info))
     error = list%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
     assert(error==0)
@@ -219,7 +240,7 @@ contains
     character(len=:), allocatable             :: get_laplacian_type
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(laplacian_type_key, get_laplacian_type))
     error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
     assert(error==0)
@@ -232,7 +253,7 @@ contains
     integer(ip)                               :: get_triangulation_type
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(triang_generate_key, get_triangulation_type))
     error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -245,7 +266,7 @@ contains
     integer(ip)                               :: get_num_dims
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(struct_hex_triang_num_dims_key, get_num_dims))
     error = list%Get(key = struct_hex_triang_num_dims_key, Value = get_num_dims)
     assert(error==0)
@@ -258,7 +279,7 @@ contains
     integer(ip)                               :: get_max_level
    type(ParameterList_t), pointer             :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(max_level_key, get_max_level))
     error = list%Get(key = max_level_key, Value = get_max_level)
     assert(error==0)
@@ -271,7 +292,7 @@ contains
     logical                                   :: are_checks_active
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(check_solution_key, are_checks_active))
     error = list%Get(key = check_solution_key, Value = are_checks_active)
     assert(error==0)
@@ -284,7 +305,7 @@ contains
     logical                                   :: get_unfitted_boundary_is_dirichlet
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(is_dirichlet_key, get_unfitted_boundary_is_dirichlet))
     error = list%Get(key = is_dirichlet_key, Value = get_unfitted_boundary_is_dirichlet)
     assert(error==0)
@@ -297,7 +318,7 @@ contains
     logical                                   :: get_is_constant_nitches_beta
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(is_beta_constant_key, get_is_constant_nitches_beta))
     error = list%Get(key = is_beta_constant_key, Value = get_is_constant_nitches_beta)
     assert(error==0)
@@ -310,7 +331,7 @@ contains
     logical                                   :: get_use_constraints
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(use_constraints_key, get_use_constraints))
     error = list%Get(key = use_constraints_key, Value = get_use_constraints)
     assert(error==0)
@@ -323,7 +344,7 @@ contains
     character(len=:), allocatable             :: get_levelset_function_type
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(levelset_type_key, get_levelset_function_type))
     error = list%GetAsString(key = levelset_type_key, string = get_levelset_function_type)
     assert(error==0)
@@ -336,7 +357,7 @@ contains
     real(rp)                                  :: get_levelset_tolerance
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(levelset_tol_key, get_levelset_tolerance))
     error = list%Get(key = levelset_tol_key, Value = get_levelset_tolerance)
     assert(error==0)
@@ -349,7 +370,7 @@ contains
     real(rp)                                  :: get_domain_limits(2)
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(domain_limits_key, get_domain_limits))
     error = list%Get(key = domain_limits_key, Value = get_domain_limits)
     assert(error==0)
@@ -362,7 +383,7 @@ contains
     logical                                   :: get_only_setup
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(only_setup_key, get_only_setup))
     error = list%Get(key = only_setup_key, Value = get_only_setup)
     assert(error==0)
@@ -375,7 +396,7 @@ contains
     logical                                   :: is_strong_dirichlet_on_fitted_boundary
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(strong_dirichlet_key, is_strong_dirichlet_on_fitted_boundary))
     error = list%Get(key = strong_dirichlet_key, Value = is_strong_dirichlet_on_fitted_boundary)
     assert(error==0)
@@ -388,7 +409,7 @@ contains
     character(len=:), allocatable             :: get_refinement_pattern
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(refinement_pattern_key, get_refinement_pattern))
     error = list%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
     assert(error==0)

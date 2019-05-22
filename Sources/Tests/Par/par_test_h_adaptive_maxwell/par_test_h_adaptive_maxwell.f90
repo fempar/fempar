@@ -16,7 +16,6 @@ program par_test_h_adaptive_maxwell
     call test_driver%report_timers()
     call test_driver%free_timers()
   end do
-  call test_driver%free_command_line_parameters()
   call test_driver%free_environment()
   call fempar_finalize()
   call world_context%free(finalize=.true.)

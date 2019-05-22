@@ -40,8 +40,7 @@ program tutorial_02_steady_stokes
   !* 1) default values of the library, 2) the ones provided by the user through the command line (using the keys in 
   !* fempar_parameter_handler_t, 3) or overwritten by the user. Option 3) overwrites 2) which overwrites 1). In this tutorial
   !* we will explicitly provide the values in the code (option 3) but they could be provided by the command line argument instead.
-  type(fempar_parameter_handler_t)     :: parameter_handler
-  !* This is the object in parameter_handler_t that provides the list of parameters
+  !* This is the object in parameter_handler that provides the list of parameters
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
@@ -219,7 +218,6 @@ program tutorial_02_steady_stokes
 
 !*
 !* Free all the created objects
-  call parameter_handler%free()
   !call error_norm%free()
   call solution%free()
   call iterative_linear_solver%free()
@@ -228,16 +226,14 @@ program tutorial_02_steady_stokes
   call stokes_conditions%free()
   call triangulation%free()
   call serial_environment%free()
-  call parameter_handler%free()
   call world_context%free(.true.)
 
   call fempar_finalize()
   contains
-    subroutine tutorial_02_steady_stokes_define_user_parameters(this)
+    subroutine tutorial_02_steady_stokes_define_user_parameters()
     implicit none
-    class(fempar_parameter_handler_t), intent(inout) :: this
 
-        call this%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
+        call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
 
     end subroutine  tutorial_02_steady_stokes_define_user_parameters
 end program tutorial_02_steady_stokes
