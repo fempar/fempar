@@ -4,6 +4,10 @@ stages:
     - documentation
 
 
+variables:
+  DOCKER_DRIVER: overlay
+
+
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   untracked: true
@@ -234,6 +238,7 @@ INTEL_RELEASE_P4EST_SERIAL:
 INTEL_RELEASE_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
+  when: always
   tags:
     - test-ci
   except:
@@ -250,6 +255,7 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
+  when: always
   tags:
     - test-ci
   only:
@@ -267,6 +273,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
 INTEL_RELEASE_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
+  when: always
   tags:
     - test-ci
   except:
