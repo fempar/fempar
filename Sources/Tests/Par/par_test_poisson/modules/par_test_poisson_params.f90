@@ -42,7 +42,7 @@ contains
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Overwritten value
-    call parameter_handler%add(triang_generate_key, '--TRIANG_GENERATE', triangulation_generate_from_mesh, 'Way to generate the triangulation')
+    call parameter_handler%update(triang_generate_key, triangulation_generate_from_mesh)
 
     ! Specific
     call parameter_handler%add(use_void_fes_key, '--use-void-fes', .false., 'Use a hybrid FE space formed by full and void FEs', '-use-voids')
