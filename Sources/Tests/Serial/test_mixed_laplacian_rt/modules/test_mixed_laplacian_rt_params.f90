@@ -35,32 +35,53 @@ module mixed_laplacian_rt_params_names
   character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order' 
 
-  type, extends(fempar_parameter_handler_t) :: mixed_laplacian_rt_params_t      
+  type :: mixed_laplacian_rt_params_t      
    contains
-     procedure                              :: define_parameters   => mixed_laplacian_rt_define_parameters
+     procedure, non_overridable             :: get_dir_path
+     procedure, non_overridable             :: get_prefix
+     procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
   end type mixed_laplacian_rt_params_t
 
   ! Types
-  public :: mixed_laplacian_rt_params_t
+  public :: mixed_laplacian_rt_params_t, mixed_laplacian_rt_define_parameters
 
 contains
   
   !==================================================================================================
-  subroutine mixed_laplacian_rt_define_parameters(this)
+  subroutine mixed_laplacian_rt_define_parameters()
     implicit none
-    class(mixed_laplacian_rt_params_t) , intent(inout) :: this
-
-    ! Locals
-    integer(ip) :: error
 
     ! IO parameters
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')     
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')     
   end subroutine mixed_laplacian_rt_define_parameters
   
   ! GETTERS *****************************************************************************************
+  !==================================================================================================
+  function get_dir_path(this)
+    implicit none
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
+    character(len=:), allocatable                   :: get_dir_path
+    get_dir_path = parameter_handler%get_dir_path()
+  end function get_dir_path
+
+  !==================================================================================================
+  function get_prefix(this)
+    implicit none
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
+    character(len=:), allocatable                   :: get_prefix
+    get_prefix = parameter_handler%get_prefix()
+  end function get_prefix
+
+  !==================================================================================================
+  function get_dir_path_out(this)
+    implicit none
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
+    character(len=:), allocatable                   :: get_dir_path_out
+    get_dir_path_out = parameter_handler%get_dir_path_out()
+  end function get_dir_path_out
 
   !==================================================================================================
   function get_reference_fe_geo_order(this)
@@ -69,7 +90,7 @@ contains
     integer(ip)                                     :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                  :: list
     integer(ip)                                     :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -82,7 +103,7 @@ contains
     integer(ip)                                     :: get_reference_fe_order
     type(ParameterList_t), pointer                  :: list
     integer(ip)                                     :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)

@@ -33,8 +33,6 @@ program test_function_parser
   use test_coded_function_names
   implicit none
 # include "debug.i90"
-
-  type(fempar_parameter_handler_t)            :: parameter_handler
   type(ParameterList_t), pointer              :: parameter_list
 
   type(scalar_coded_function_add_1_2_ops_t)   :: scalar_coded_function_add_1_2_ops
@@ -429,19 +427,17 @@ program test_function_parser
   if(allocated(tensor_parser_result)) deallocate(tensor_parser_result)
   if(allocated(tensor_result))        deallocate(tensor_result)
 
-  call parameter_handler%free()
   call fempar_finalize()
 
 contains
 
-  subroutine define_test_function_parameters(this)
-    class(fempar_parameter_handler_t), intent(inout) :: this
+  subroutine define_test_function_parameters()
 
-    call this%add('num_ops', '--TEST_NUM_OPERATORS', 2, 'Dimension of the function to evaluate (2/3)')
-    call this%add('function_type', '--TEST_FUNCTION_TYPE', 'scalar', 'Type of the function to evaluate (scalar)')
-    call this%add('num_points', '--TEST_NUM_POINTS', 9999, 'Number of points to evaluate')
-    call this%add('operator', '--TEST_OPERATOR', '+', 'Operator of the function to evaluate')
-    call this%add('test_name', '--TEST_FUNCTION_NAME', 'none', 'Type of the function to evaluate (none/pointers)')
+    call parameter_handler%add('num_ops', '--TEST_NUM_OPERATORS', 2, 'Dimension of the function to evaluate (2/3)')
+    call parameter_handler%add('function_type', '--TEST_FUNCTION_TYPE', 'scalar', 'Type of the function to evaluate (scalar)')
+    call parameter_handler%add('num_points', '--TEST_NUM_POINTS', 9999, 'Number of points to evaluate')
+    call parameter_handler%add('operator', '--TEST_OPERATOR', '+', 'Operator of the function to evaluate')
+    call parameter_handler%add('test_name', '--TEST_FUNCTION_NAME', 'none', 'Type of the function to evaluate (none/pointers)')
   end subroutine  define_test_function_parameters
 
   subroutine create_random_points(num, points)

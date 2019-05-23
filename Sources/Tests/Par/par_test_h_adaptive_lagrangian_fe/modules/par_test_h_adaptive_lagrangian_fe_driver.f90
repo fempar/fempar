@@ -103,7 +103,6 @@ module par_test_h_adaptive_lagrangian_fe_driver_names
      procedure                  :: run_simulation
      procedure        , private :: print_info 
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_lagrangian_fe_driver_popcorn_fun
      procedure                  :: set_cells_for_uniform_refinement
@@ -121,8 +120,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(inout) :: this
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(par_test_h_adaptive_lagrangian_fe_params_define_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -811,12 +810,6 @@ end subroutine free_timers
   end subroutine free_environment
 
   !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
-
   function par_test_h_adaptive_lagrangian_fe_driver_popcorn_fun(point,num_dim) result (val)
     implicit none
     type(point_t), intent(in) :: point

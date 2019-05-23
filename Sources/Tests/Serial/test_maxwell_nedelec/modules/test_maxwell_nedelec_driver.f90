@@ -83,7 +83,6 @@ module test_maxwell_nedelec_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
-     procedure                  :: free_command_line_parameters
      procedure        , private :: free
   end type test_maxwell_nedelec_driver_t
 
@@ -95,8 +94,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(maxwell_nedelec_params_define_user_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -369,13 +368,6 @@ contains
     !call this%show_H()
     call this%free()
   end subroutine run_simulation
-
-    subroutine free_command_line_parameters(this)
-    implicit none
-    class(test_maxwell_nedelec_driver_t), intent(inout) :: this
-    call this%test_params%free()
-    nullify(this%parameter_list)
-  end subroutine free_command_line_parameters
   
   subroutine free(this)
     implicit none

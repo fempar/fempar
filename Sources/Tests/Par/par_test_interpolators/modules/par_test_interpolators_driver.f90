@@ -90,7 +90,6 @@ module test_interpolators_driver_names
      procedure        , private :: interpolate_analytical_functions 
      procedure        , private :: check_solution
      procedure        , private :: check_time_solution
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment 
      procedure        , private :: free
   end type par_test_interpolators_driver_t
@@ -103,8 +102,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this 
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(par_test_interpolators_params_define_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
  
   !========================================================================================
@@ -547,12 +546,6 @@ contains
     call this%free()
 
   end subroutine run_simulation_for_tensor_functions
-
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_interpolators_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
   subroutine free_environment(this)
     implicit none

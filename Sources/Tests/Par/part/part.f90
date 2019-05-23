@@ -25,53 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module partitioner_input_names
-  use fempar_names
-# include "debug.i90"
-  implicit none
-  private
-
-  type, extends(parameter_handler_t) ::  partitioner_input_t 
-     private 
-   contains
-     procedure :: define_parameters    => partitioner_input_define_parameters
-  end type partitioner_input_t
-
-  public :: partitioner_input_t
-
-contains
-
-  subroutine partitioner_input_define_parameters(this)
-    implicit none
-    class(partitioner_input_t), intent(inout) :: this
-    integer(ip)                               :: error
-
-    call this%add(dir_path_key, '--dir-path', '.', 'Directory of the source files', switch_ab='-d')
-    call this%add(prefix_key, '--prefix', 'square', 'Name of the GiD files', switch_ab='-p')
-    call this%add(dir_path_out_key, '--dir-path-out', '.', 'Output Directory', switch_ab='-o')
-    call this%add(num_parts_key, '--num_parts', 16, 'Number of parts of the mesh', switch_ab='-n')
-    call this%add(num_levels_distribution_key, '--num_levels', 1, 'Number of levels', switch_ab='-l')
-    call this%add(num_parts_x_level_key, '--num_parts_x_level', [16,4,1,0,0], 'Number of parts per level (array of fixed size 5)', switch_ab='-npl')
-
-    call this%add(strategy_key, '--strategy', part_kway, 'Partitioning strategy')
-    call this%add(debug_key, '--debug',  0, 'Debug mode')
-    call this%add(metis_option_debug_key, '--metis_debug',  2, 'Metis debug option')
-    call this%add(metis_option_ufactor_key, '--metis_ufactor', 30, 'Metis ufactor option')
-    call this%add(metis_option_minconn_key, '--metis_minconn', 0, 'Metis minconn option')
-    call this%add(metis_option_contig_key, '--metis_contig', 1, 'Metis contig option')
-    call this%add(metis_option_ctype_key, '--metis_ctype', METIS_CTYPE_SHEM, 'Metis ctype option')
-    call this%add(metis_option_iptype_key, '--metis_iptype', METIS_IPTYPE_EDGE, 'Metis iptype option')
-  end subroutine partitioner_input_define_parameters
-
-end module partitioner_input_names
-!==================================================================================================
-!==================================================================================================
 
 program partitioner
   use fempar_names
-  use partitioner_input_names
   implicit none
-  type(partitioner_input_t)              :: input
   type(ParameterList_t)    , pointer     :: parameters
   type(mesh_t)                           :: gmesh
   type(mesh_distribution_t), allocatable :: distr(:)
@@ -80,8 +37,8 @@ program partitioner
   integer(ip) :: ipart, ienv
 
   call fempar_init()
-  call input%create()
-  parameters => input%get_values()
+  call parameter_handler%process_parameters()
+  parameters => parameter_handler%get_values()
 
   ! Read and partition gmesh into lmesh
   call gmesh%read(parameters)
@@ -113,8 +70,6 @@ program partitioner
   deallocate (env)
   
   call gmesh%free()
-
-  call input%free()
   call fempar_finalize()
 
 end program partitioner

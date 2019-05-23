@@ -120,7 +120,6 @@ module par_test_poisson_unfitted_driver_names
      procedure                  :: run_simulation
      procedure        , private :: free
      procedure                  :: free_environment
-     procedure                  :: free_command_line_parameters
   end type par_test_poisson_unfitted_fe_driver_t
 
   ! Types
@@ -132,9 +131,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    call this%test_params%process_parameters()
-    !call this%test_params%parse(this%parameter_list)
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(par_test_poisson_unfitted_params_define_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -858,12 +856,5 @@ end subroutine free_timers
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-!========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
   
 end module par_test_poisson_unfitted_driver_names

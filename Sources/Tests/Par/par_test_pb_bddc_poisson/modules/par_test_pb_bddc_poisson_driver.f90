@@ -91,7 +91,6 @@ module par_test_pb_bddc_poisson_driver_names
      procedure        , private :: print_info
      procedure        , private :: free
      procedure                  :: free_environment
-     procedure                  :: free_command_line_parameters
   end type par_test_pb_bddc_poisson_fe_driver_t
 
   ! Types
@@ -102,8 +101,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(par_test_pb_bddc_poisson_params_define_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
@@ -1081,7 +1080,6 @@ contains
     end if
     
     call this%triangulation%free()
-    !call this%test_params%free()
   end subroutine free
 
 
@@ -1096,12 +1094,6 @@ contains
   !     get_icontxt = w_context%get_icontxt()
   !  end select
   !end function get_icontxt
-  
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
   subroutine setup_environment(this,world_context)
     implicit none

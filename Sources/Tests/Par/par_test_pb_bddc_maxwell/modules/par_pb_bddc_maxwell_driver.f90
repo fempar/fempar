@@ -113,7 +113,6 @@ module par_pb_bddc_maxwell_driver_names
      procedure        , private :: print_info 
      procedure                  :: run_simulation
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
   end type par_pb_bddc_maxwell_fe_driver_t
 
@@ -125,8 +124,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(par_test_maxwell_params_define_user_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
 
   !========================================================================================
@@ -939,12 +938,5 @@ contains
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-  !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
 end module par_pb_bddc_maxwell_driver_names

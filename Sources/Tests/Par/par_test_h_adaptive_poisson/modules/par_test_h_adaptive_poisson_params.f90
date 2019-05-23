@@ -26,10 +26,9 @@ module par_test_h_adaptive_poisson_params_names
   character(len=*), parameter :: min_num_refinements_key       = 'min_num_refinements'
   
 
-  type, extends(fempar_parameter_handler_t) :: par_test_h_adaptive_poisson_params_t
+  type :: par_test_h_adaptive_poisson_params_t
      private
      contains
-       procedure :: define_parameters  => par_test_h_adaptive_poisson_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -52,36 +51,35 @@ module par_test_h_adaptive_poisson_params_names
   public :: even_cells, inner_region, uniform   
   
   ! Types
-  public :: par_test_h_adaptive_poisson_params_t
+  public :: par_test_h_adaptive_poisson_params_t, par_test_h_adaptive_poisson_params_define_parameters
 
 contains
 
   !==================================================================================================
-  subroutine par_test_h_adaptive_poisson_params_define_parameters(this)
+  subroutine par_test_h_adaptive_poisson_params_define_parameters()
     implicit none
-    class(par_test_h_adaptive_poisson_params_t), intent(inout) :: this
 
     ! Common
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
-    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Specific
-    call this%add(use_void_fes_key, '--use-void-fes', .false., 'Use a hybrid FE space formed by full and void FEs', switch_ab='-use-voids')
-    call this%add(use_void_fes_case_key, '--use-void-fes-case', 'popcorn', &
+    call parameter_handler%add(use_void_fes_key, '--use-void-fes', .false., 'Use a hybrid FE space formed by full and void FEs', switch_ab='-use-voids')
+    call parameter_handler%add(use_void_fes_case_key, '--use-void-fes-case', 'popcorn', &
                  'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter`', &
                  switch_ab='-use-voids-case')
-    call this%add(preconditioner_type_key, '--preconditioner-type', 'mlbddc', &
+    call parameter_handler%add(preconditioner_type_key, '--preconditioner-type', 'mlbddc', &
                 'Select preconditioner type. Possible values: `identity`, `jacobi`, `mlbddc`.', &
                 switch_ab='-prec-type')
-    call this%add(refinement_pattern_case_key, '--refinement_pattern_case', inner_region, &
+    call parameter_handler%add(refinement_pattern_case_key, '--refinement_pattern_case', inner_region, &
                 'Select refinement pattern. Possible values: even_cells, centered_refinement', &
                 switch_ab='-refinement-pattern-case' )
-    call this%add(domain_limits_key, '--domain_limits', [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain limits of the mesh', switch_ab='-dl')
-    call this%add(inner_region_size_key, '--inner_region_size', [0.1,0.1,0.1], 'Concentric with the domain refined area length)', switch_ab='-ir_size')
-    call this%add(num_refinements_key, '--num_refinements', 3, 'Number of adaptive mesh refinements from a plain cell', switch_ab='-num_refs')
-    call this%add(min_num_refinements_key, '--min_num_refinements', 1, 'Minimum number of adaptive mesh refinements for any cell', switch_ab='-min_num_refs')
-    call this%add(coupling_criteria_key, '--subparts_coupling_criteria', loose_coupling, &
+    call parameter_handler%add(domain_limits_key, '--domain_limits', [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain limits of the mesh', switch_ab='-dl')
+    call parameter_handler%add(inner_region_size_key, '--inner_region_size', [0.1,0.1,0.1], 'Concentric with the domain refined area length)', switch_ab='-ir_size')
+    call parameter_handler%add(num_refinements_key, '--num_refinements', 3, 'Number of adaptive mesh refinements from a plain cell', switch_ab='-num_refs')
+    call parameter_handler%add(min_num_refinements_key, '--min_num_refinements', 1, 'Minimum number of adaptive mesh refinements for any cell', switch_ab='-min_num_refs')
+    call parameter_handler%add(coupling_criteria_key, '--subparts_coupling_criteria', loose_coupling, &
                   'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly', &
                   switch_ab='-subparts_coupling')    
 
@@ -94,7 +92,7 @@ contains
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
@@ -107,7 +105,7 @@ contains
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
@@ -120,7 +118,7 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -133,7 +131,7 @@ contains
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)
@@ -149,7 +147,7 @@ contains
     logical                                       :: is_present
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -162,7 +160,7 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(triang_generate_key, get_triangulation_type))
     error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -175,7 +173,7 @@ contains
     logical                                       :: get_use_void_fes
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
     error = list%Get(key = use_void_fes_key, Value = get_use_void_fes)
     assert(error==0)
@@ -188,7 +186,7 @@ contains
     character(len=:), allocatable                 :: get_use_void_fes_case
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(use_void_fes_case_key, 'string'))
     error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
     assert(error==0)
@@ -202,7 +200,7 @@ contains
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
     character(1) :: dummy_string
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(refinement_pattern_case_key, dummy_string))
     error = list%GetAsString(key = refinement_pattern_case_key, string = get_refinement_pattern_case)
     assert(error==0)
@@ -215,7 +213,7 @@ contains
     real(rp)                                  :: get_domain_limits(6)
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(domain_limits_key, get_domain_limits))
     error = list%Get(key = domain_limits_key, Value = get_domain_limits)
     assert(error==0)
@@ -228,7 +226,7 @@ contains
     real(rp)                                  :: get_inner_region_size(0:SPACE_DIM-1)
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(inner_region_size_key , get_inner_region_size ))
     error = list%Get(key = inner_region_size_key , Value = get_inner_region_size )
     assert(error==0)
@@ -241,7 +239,7 @@ contains
     integer(ip)                                   :: get_num_refinements
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(num_refinements_key, get_num_refinements))
     error = list%Get(key = num_refinements_key, Value = get_num_refinements)
     assert(error==0)
@@ -254,7 +252,7 @@ contains
     integer(ip)                                   :: get_min_num_refinements
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(min_num_refinements_key, get_min_num_refinements))
     error = list%Get(key = min_num_refinements_key, Value = get_min_num_refinements)
     assert(error==0)
@@ -268,7 +266,7 @@ contains
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
     character(1) :: dummy_string
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(coupling_criteria_key, dummy_string))
     error = list%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
     assert(error==0)
@@ -281,7 +279,7 @@ contains
     character(len=:), allocatable                            :: get_preconditioner_type
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(preconditioner_type_key, 'string'))
     error = list%GetAsString(key = preconditioner_type_key, string = get_preconditioner_type)
     assert(error==0)

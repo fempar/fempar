@@ -47,11 +47,10 @@ module test_transient_poisson_params_names
   character(len=*), parameter :: time_integration_scheme_key   = 'time_integration_scheme'
   character(len=*), parameter :: is_test_key                   = 'is_test'
 
-  type, extends(fempar_parameter_handler_t) :: test_transient_poisson_params_t  
+  type:: test_transient_poisson_params_t  
    private
      logical :: print_nonlinear_iteration = .false.
    contains
-     procedure                              :: define_parameters   => test_transient_poisson_define_parameters
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
@@ -73,34 +72,32 @@ module test_transient_poisson_params_names
   end type test_transient_poisson_params_t  
 
   ! Types
-  public :: test_transient_poisson_params_t
+  public :: test_transient_poisson_params_t, test_transient_poisson_define_user_parameters
 
 contains
 
   !==================================================================================================
-  subroutine test_transient_poisson_define_parameters(this)
+  subroutine test_transient_poisson_define_user_parameters()
     implicit none
-    class(test_transient_poisson_params_t) , intent(inout) :: this
-
     ! IO parameters
-    call this%add(fe_formulation_key, '--fe-formulation', 'cG', 'cG or dG FE formulation for Poisson problem', switch_ab='-f')
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1,'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order') 
-    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
-    call this%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE (scalar,vector)?', switch_ab='-lt') 
+    call parameter_handler%add(fe_formulation_key, '--fe-formulation', 'cG', 'cG or dG FE formulation for Poisson problem', switch_ab='-f')
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1,'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order') 
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
+    call parameter_handler%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE (scalar,vector)?', switch_ab='-lt') 
 
-    call this%add(use_void_fes_key, '--use-void-fes', .false., 'Use a hybrid FE space formed by full and void FEs', switch_ab='-use-voids') 
-    call this%add(use_void_fes_case_key, '--use-void-fes-case', 'popcorn', 'Select where to put void fes using one of the predefined patterns.', switch_ab='-use-voids-case (popcorn,half,quarter)') 
+    call parameter_handler%add(use_void_fes_key, '--use-void-fes', .false., 'Use a hybrid FE space formed by full and void FEs', switch_ab='-use-voids') 
+    call parameter_handler%add(use_void_fes_case_key, '--use-void-fes-case', 'popcorn', 'Select where to put void fes using one of the predefined patterns.', switch_ab='-use-voids-case (popcorn,half,quarter)') 
 
-    call this%add(initial_time_key, '--initial-time', 0.0_rp, 'Initial time: t0', switch_ab='-t0') 
-    call this%add(final_time_key, '--final-time', 1.0_rp, 'Final time: tf', switch_ab='-tf') 
-    call this%add(time_step_key, '--time-step', 1.0_rp, 'Time step size: dt', switch_ab='-dt') 
-    call this%add(num_time_steps_key, '--num-time-steps', 1, 'Maximum number of time steps: nt', switch_ab='-nt') 
-    call this%add(time_integration_scheme_key, '--time-integration-scheme', 'backward_euler', 'Time disctetization scheme of the DIRK solver.', switch_ab='-rk-scheme') 
+    call parameter_handler%add(initial_time_key, '--initial-time', 0.0_rp, 'Initial time: t0', switch_ab='-t0') 
+    call parameter_handler%add(final_time_key, '--final-time', 1.0_rp, 'Final time: tf', switch_ab='-tf') 
+    call parameter_handler%add(time_step_key, '--time-step', 1.0_rp, 'Time step size: dt', switch_ab='-dt') 
+    call parameter_handler%add(num_time_steps_key, '--num-time-steps', 1, 'Maximum number of time steps: nt', switch_ab='-nt') 
+    call parameter_handler%add(time_integration_scheme_key, '--time-integration-scheme', 'backward_euler', 'Time disctetization scheme of the DIRK solver.', switch_ab='-rk-scheme') 
 
-    call this%add(is_test_key, '--is-test', .false., 'Test convergence order of the runge kutta scheme', switch_ab='-test') 
-    call this%add(print_nonlinear_iteration_key, '--print-nonlinear-iteration', .false., 'Print nonlinear iteration output', switch_ab='-nl-it') 
-  end subroutine test_transient_poisson_define_parameters
+    call parameter_handler%add(is_test_key, '--is-test', .false., 'Test convergence order of the runge kutta scheme', switch_ab='-test') 
+    call parameter_handler%add(print_nonlinear_iteration_key, '--print-nonlinear-iteration', .false., 'Print nonlinear iteration output', switch_ab='-nl-it') 
+  end subroutine test_transient_poisson_define_user_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
@@ -109,7 +106,7 @@ contains
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
@@ -121,7 +118,7 @@ contains
     character(len=:),      allocatable            :: get_dir_path_out
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(dir_path_out_key, 'string'))
     error = list%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
     assert(error==0)
@@ -134,7 +131,7 @@ contains
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
@@ -147,7 +144,7 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -160,7 +157,7 @@ contains
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)
@@ -176,7 +173,7 @@ contains
     logical                                       :: is_present
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -189,7 +186,7 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(triang_generate_key, get_triangulation_type))
     error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -202,7 +199,7 @@ contains
     logical                                       :: get_use_void_fes
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
     error = list%Get(key = use_void_fes_key, Value = get_use_void_fes)
     assert(error==0)
@@ -215,7 +212,7 @@ contains
     character(len=:), allocatable                 :: get_use_void_fes_case
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(use_void_fes_case_key, 'string'))
     error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
     assert(error==0)
@@ -228,7 +225,7 @@ contains
     real(rp)                                      :: get_initial_time
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(initial_time_key, get_initial_time))
     error = list%Get(key = initial_time_key, Value = get_initial_time)
     assert(error==0)
@@ -241,7 +238,7 @@ contains
     real(rp)                                      :: get_final_time
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(final_time_key, get_final_time))
     error = list%Get(key = final_time_key, Value = get_final_time)
     assert(error==0)
@@ -254,7 +251,7 @@ contains
     real(rp)                                      :: get_time_step
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(time_step_key, get_time_step))
     error = list%Get(key = time_step_key, Value = get_time_step)
     assert(error==0)
@@ -267,7 +264,7 @@ contains
     character(len=:), allocatable                 :: get_time_integration_scheme
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(time_integration_scheme_key, 'string'))
     error = list%GetAsString(key = time_integration_scheme_key, string = get_time_integration_scheme)
     assert(error==0)
@@ -280,7 +277,7 @@ contains
     logical                                       :: get_is_test
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(is_test_key, get_is_test))
     error = list%Get(key = is_test_key, Value = get_is_test)
     assert(error==0)
@@ -293,7 +290,7 @@ contains
     character(len=:), allocatable                       :: get_fe_formulation
     type(ParameterList_t), pointer                      :: list
     integer(ip)                                         :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(fe_formulation_key, 'string'))
     error = list%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
     assert(error==0)
@@ -307,7 +304,7 @@ contains
     character(len=:), allocatable                 :: get_laplacian_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(laplacian_type_key, 'string'))
     error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
     assert(error==0)
@@ -320,7 +317,7 @@ contains
     integer(ip) :: get_num_dims
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(struct_hex_triang_num_dims_key, get_num_dims))
     error = list%Get(key = struct_hex_triang_num_dims_key, value = get_num_dims)
     assert(error==0)

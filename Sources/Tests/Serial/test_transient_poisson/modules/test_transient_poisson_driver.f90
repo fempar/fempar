@@ -122,15 +122,15 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_transient_poisson_driver_t ), intent(inout) :: this
-!    call this%test_params%create(progname    = 'test_transient_poisson',    &
+!    call parameter_handler%create(progname    = 'test_transient_poisson',    &
 !                                 version     = '',                          &
 !                                 authors     = '',                          &
 !                                 license     = '',                          &
 !                                 description = 'FEMPAR test to solve the 2D Poisson PDE with known analytical solution.' // &
 !                                               'Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
 !                                 examples    = ['test_transient_poisson -h  ', 'test_transient_poisson -h  ' ])
-    call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_values()
+    call parameter_handler%process_parameters(test_transient_poisson_define_user_parameters)
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
   !************************************************************************************************
   !* ### Environment setup
@@ -628,7 +628,6 @@ contains
     call this%finalize_output()
     !* Finally *frees* again all the used data
     call this%free()
-    call this%test_params%free()
   end subroutine run_simulation
   !*
   !* ### Free procedure

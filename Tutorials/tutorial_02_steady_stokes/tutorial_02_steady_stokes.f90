@@ -40,8 +40,7 @@ program tutorial_02_steady_stokes
   !* 1) default values of the library, 2) the ones provided by the user through the command line (using the keys in 
   !* fempar_parameter_handler_t, 3) or overwritten by the user. Option 3) overwrites 2) which overwrites 1). In this tutorial
   !* we will explicitly provide the values in the code (option 3) but they could be provided by the command line argument instead.
-  type(fempar_parameter_handler_t)     :: parameter_handler
-  !* This is the object in parameter_handler_t that provides the list of parameters
+  !* This is the object in parameter_handler that provides the list of parameters
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
@@ -86,7 +85,7 @@ program tutorial_02_steady_stokes
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
-  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_fempar_parameters)
+  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_user_parameters)
   parameter_list => parameter_handler%get_values()
   ! call parameter_list%print()
 
@@ -149,7 +148,7 @@ program tutorial_02_steady_stokes
   ! Now, we define the source term with the function we have created in our module.
   ! Besides, we get the value of the desired value of the viscosity, possibly the one provided via
   ! the command line argument --VISCOSITY. Otherwise, defaults to 1.0. 
-  ! (see tutorial_02_steady_stokes_define_fempar_parameters subroutine below)
+  ! (see tutorial_02_steady_stokes_define_user_parameters subroutine below)
   call source_term%create(zero_function)
   call stokes_integration%set_source_term(source_term)
   error = parameter_list%get(key = 'viscosity', value = viscosity)
@@ -219,7 +218,6 @@ program tutorial_02_steady_stokes
 
 !*
 !* Free all the created objects
-  call parameter_handler%free()
   !call error_norm%free()
   call solution%free()
   call iterative_linear_solver%free()
@@ -228,25 +226,14 @@ program tutorial_02_steady_stokes
   call stokes_conditions%free()
   call triangulation%free()
   call serial_environment%free()
-  call parameter_handler%free()
   call world_context%free(.true.)
 
   call fempar_finalize()
   contains
-    subroutine tutorial_02_steady_stokes_define_fempar_parameters(this)
+    subroutine tutorial_02_steady_stokes_define_user_parameters()
     implicit none
-    class(fempar_parameter_handler_t), intent(inout) :: this
-    type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
-    integer(ip) :: error
 
-    values      => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
+        call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
 
-    error = 0
-    error = error + helpers%set(key = 'viscosity'     , Value= 'Value of the viscosity')
-    error = error + switches%set(key = 'viscosity'    , Value= '--VISCOSITY')
-    error = error + values%set(key = 'viscosity'      , Value= 1.0)
-    end subroutine  tutorial_02_steady_stokes_define_fempar_parameters
+    end subroutine  tutorial_02_steady_stokes_define_user_parameters
 end program tutorial_02_steady_stokes

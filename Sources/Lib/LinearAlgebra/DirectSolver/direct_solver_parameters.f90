@@ -42,6 +42,7 @@ implicit none
     !-----------------------------------------------------------------
 
     ! PARDISO MKL matrix types
+    integer,          parameter :: pardiso_mkl_type_guess_from_matrix_properties = 0       ! Fempar defined matrix type to define type from matrix properties
     integer,          parameter :: pardiso_mkl_spd =  2                                    ! Real Symmetric positive definite 
     integer,          parameter :: pardiso_mkl_sin = -2                                    ! Real Symmetric indefinite
     integer,          parameter :: pardiso_mkl_uss = 1                                     ! Real Unsymmetric, structurally symmetric
@@ -50,7 +51,7 @@ implicit none
     ! PARDISO MKL default values
     integer,          parameter :: pardiso_mkl_default_message_level = 0                   ! Default pardiso_mkl message level
     integer,          parameter :: pardiso_mkl_default_iparm         = 0                   ! Default pardiso_mkl_iparam(64) = 0
-    integer,          parameter :: pardiso_mkl_default_matrix_type   = pardiso_mkl_uns     ! Default pardiso_mkl matrix type
+    integer,          parameter :: pardiso_mkl_default_matrix_type   = pardiso_mkl_type_guess_from_matrix_properties ! Default pardiso_mkl matrix type
 
     ! Parameter strings to be used in the Parameter List
     character(len=*), parameter :: pardiso_mkl_iparm         = 'pardiso_mkl_iparm'         ! PARDISO MKL control parameters array

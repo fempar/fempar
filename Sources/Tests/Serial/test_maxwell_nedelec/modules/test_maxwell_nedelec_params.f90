@@ -37,10 +37,12 @@ module maxwell_nedelec_params_names
   character(len=*), parameter :: write_solution_key            = 'write_solution'
   character(len=*), parameter :: analytical_function_case_key  = 'analytical_function_case'
      
-  type, extends(fempar_parameter_handler_t) :: maxwell_nedelec_params_t 
+  type :: maxwell_nedelec_params_t 
      private 
      contains
-       procedure                              :: define_parameters  => maxwell_nedelec_params_define_parameters
+       procedure, non_overridable             :: get_dir_path
+       procedure, non_overridable             :: get_prefix
+       procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_triangulation_type 
        procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
@@ -49,24 +51,46 @@ module maxwell_nedelec_params_names
   end type maxwell_nedelec_params_t
 
   ! Types
-  public :: maxwell_nedelec_params_t
+  public :: maxwell_nedelec_params_t, maxwell_nedelec_params_define_user_parameters
 
 contains
 
  !==================================================================================================
-  subroutine maxwell_nedelec_params_define_parameters(this)
+  subroutine maxwell_nedelec_params_define_user_parameters()
     implicit none
-    class(maxwell_nedelec_params_t), intent(inout) :: this
-
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
-    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
-    call this%add(analytical_function_case_key, '--analytical_function_case', 'in_fe_space', &
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
+    call parameter_handler%add(analytical_function_case_key, '--analytical_function_case', 'in_fe_space', &
             'Select analytical solution case. Possible values: in_fe_space, fichera_2D, fichera_3D', &
             switch_ab='-function-case')
-  end subroutine maxwell_nedelec_params_define_parameters
+  end subroutine maxwell_nedelec_params_define_user_parameters
 
   ! GETTERS *****************************************************************************************
+
+  !==================================================================================================
+  function get_dir_path(this)
+    implicit none
+    class(maxwell_nedelec_params_t) , intent(in) :: this
+    character(len=:), allocatable                :: get_dir_path
+    get_dir_path = parameter_handler%get_dir_path()
+  end function get_dir_path
+
+  !==================================================================================================
+  function get_prefix(this)
+    implicit none
+    class(maxwell_nedelec_params_t) , intent(in) :: this
+    character(len=:), allocatable                :: get_prefix
+    get_prefix = parameter_handler%get_prefix()
+  end function get_prefix
+
+  !==================================================================================================
+  function get_dir_path_out(this)
+    implicit none
+    class(maxwell_nedelec_params_t) , intent(in) :: this
+    character(len=:), allocatable                :: get_dir_path_out
+    get_dir_path_out = parameter_handler%get_dir_path_out()
+  end function get_dir_path_out
 
    !==================================================================================================
   function get_triangulation_type(this)
@@ -75,7 +99,7 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(triang_generate_key, get_triangulation_type))
     error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -88,7 +112,7 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -101,7 +125,7 @@ contains
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)
@@ -117,7 +141,7 @@ contains
     logical                                       :: is_present
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -131,7 +155,7 @@ contains
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
     character(1) :: dummy_string
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(analytical_function_case_key, dummy_string))
     error = list%GetAsString(key = analytical_function_case_key, string = get_analytical_function_case)
     assert(error==0)

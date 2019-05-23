@@ -24,10 +24,9 @@ module par_test_poisson_unfitted_params_names
   character(len=*), public, parameter :: standard_coarse_fe_handler_value = 'standard'    
   character(len=*), public, parameter :: stiffness_coarse_fe_handler_value = 'stiffness'
 
-  type, extends(fempar_parameter_handler_t) :: par_test_poisson_unfitted_params_t
+  type :: par_test_poisson_unfitted_params_t
      private
      contains
-       procedure :: define_parameters  => par_test_poisson_unfitted_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -52,38 +51,32 @@ module par_test_poisson_unfitted_params_names
   end type par_test_poisson_unfitted_params_t
 
   ! Types
-  public :: par_test_poisson_unfitted_params_t
+  public :: par_test_poisson_unfitted_params_t, par_test_poisson_unfitted_params_define_parameters
 
 contains
 
   !==================================================================================================
-  subroutine par_test_poisson_unfitted_params_define_parameters(this)
+  subroutine par_test_poisson_unfitted_params_define_parameters()
     implicit none
-    class(par_test_poisson_unfitted_params_t), intent(inout) :: this
-    character(len=:), allocatable                            :: msg
-
     ! common
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
-    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! specific
-    call this%add(coarse_fe_handler_type_key, '--coarse-fe-handler', unfitted_coarse_fe_handler_value, 'Type of coarse fe handler. `'//&
+    call parameter_handler%add(coarse_fe_handler_type_key, '--coarse-fe-handler', unfitted_coarse_fe_handler_value, 'Type of coarse fe handler. `'//&
       standard_coarse_fe_handler_value//'`, `'//&
       unfitted_coarse_fe_handler_value//'` or `'//&
       stiffness_coarse_fe_handler_value//'` ?', switch_ab='-chandler')
-    call this%add(level_set_function_type_key, '--level-set-function', level_set_sphere_str, 'Type of levelset to be used.'//&
+    call parameter_handler%add(level_set_function_type_key, '--level-set-function', level_set_sphere_str, 'Type of levelset to be used.'//&
       ' The possible values are the public character constants defined in the `level_set_functions_gallery_names` module', switch_ab='-levelset')
-    call this%add(use_preconditioner_key, '--use-preconditioner', .true., 'Use (T) or not (F) a preconditioner', switch_ab='-precond')
-    call this%add(unfitted_boundary_type_key, '--unfitted-boundary', 'dirichlet', 'Use (dirichlet) or not (neumann) boundary conditions on the unfitted boundary', switch_ab='-uboundary')
-    call this%add(nitsche_beta_factor_key, '--nitsche-beta', 2.0_rp, 'Set the value of the factor to compute nitches beta', switch_ab='-beta')
-    call this%add(levelset_tolerance_key, '--level-set-tol',  1.0e-2_rp, 'Set the tolerance of the levelset', switch_ab='-levelsettol')
-    call this%add(num_runs_key, '--number-runs', 1, 'Number of times the simulation is repeated (useful when measuring times)', switch_ab='-nruns')
-    call this%add(is_in_fe_space_key, '--solution_in_fe_space', .true., 'Is the solution in fe space', switch_ab='-in_space')
-    call this%add(are_checks_active_key, '--check_solution', .true., 'Check or not the solution', '-check')
-
-
-    
+    call parameter_handler%add(use_preconditioner_key, '--use-preconditioner', .true., 'Use (T) or not (F) a preconditioner', switch_ab='-precond')
+    call parameter_handler%add(unfitted_boundary_type_key, '--unfitted-boundary', 'dirichlet', 'Use (dirichlet) or not (neumann) boundary conditions on the unfitted boundary', switch_ab='-uboundary')
+    call parameter_handler%add(nitsche_beta_factor_key, '--nitsche-beta', 2.0_rp, 'Set the value of the factor to compute nitches beta', switch_ab='-beta')
+    call parameter_handler%add(levelset_tolerance_key, '--level-set-tol',  1.0e-2_rp, 'Set the tolerance of the levelset', switch_ab='-levelsettol')
+    call parameter_handler%add(num_runs_key, '--number-runs', 1, 'Number of times the simulation is repeated (useful when measuring times)', switch_ab='-nruns')
+    call parameter_handler%add(is_in_fe_space_key, '--solution_in_fe_space', .true., 'Is the solution in fe space', switch_ab='-in_space')
+    call parameter_handler%add(are_checks_active_key, '--check_solution', .true., 'Check or not the solution', '-check')
   end subroutine par_test_poisson_unfitted_params_define_parameters
 
   ! GETTERS *****************************************************************************************
@@ -93,7 +86,7 @@ contains
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
@@ -106,7 +99,7 @@ contains
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
@@ -119,7 +112,7 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -132,7 +125,7 @@ contains
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
     error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
     assert(error==0)
@@ -148,7 +141,7 @@ contains
     logical                                       :: is_present
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -161,7 +154,7 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(triang_generate_key, get_triangulation_type))
     error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -174,7 +167,7 @@ contains
     character(len=:),      allocatable            :: get_coarse_fe_handler_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(coarse_fe_handler_type_key, 'string'))
     error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
     assert(error==0)
@@ -187,7 +180,7 @@ contains
     character(len=:),      allocatable            :: get_level_set_function_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(level_set_function_type_key, 'string'))
     error = list%GetAsString(key = level_set_function_type_key, string = get_level_set_function_type)
     assert(error==0)
@@ -200,7 +193,7 @@ contains
     logical                                       :: get_use_preconditioner
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(use_preconditioner_key, get_use_preconditioner))
     error = list%Get(key = use_preconditioner_key, Value = get_use_preconditioner)
     assert(error==0)
@@ -213,7 +206,7 @@ contains
     character(len=:),      allocatable            :: get_unfitted_boundary_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(level_set_function_type_key, 'string'))
     error = list%GetAsString(key = unfitted_boundary_type_key, string = get_unfitted_boundary_type)
     assert(error==0)
@@ -226,7 +219,7 @@ contains
     real(rp)                                      :: get_nitsche_beta_factor
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(nitsche_beta_factor_key, get_nitsche_beta_factor))
     error = list%Get(key = nitsche_beta_factor_key, Value = get_nitsche_beta_factor)
     assert(error==0)
@@ -239,7 +232,7 @@ contains
     real(rp)                                      :: get_levelset_tolerance
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(levelset_tolerance_key, get_levelset_tolerance))
     error = list%Get(key = levelset_tolerance_key, Value = get_levelset_tolerance)
     assert(error==0)
@@ -252,7 +245,7 @@ contains
     integer(ip)                                   :: get_num_runs
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(num_runs_key, get_num_runs))
     error = list%Get(key = num_runs_key, Value = get_num_runs)
     assert(error==0)
@@ -286,9 +279,9 @@ contains
     character(len=:), allocatable  :: switch, switch_ab
     character(len=:), allocatable  :: val
     character(len=30) :: charaux, charaux_ab
-    values   => this%get_values()
-    switches => this%get_switches()
-    switches_ab => this%get_switches_ab()
+    values   => parameter_handler%get_values()
+    switches => parameter_handler%get_switches()
+    switches_ab => parameter_handler%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
     assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
@@ -310,9 +303,9 @@ contains
     character(len=:), allocatable  :: switch, switch_ab
     integer(ip)  :: val
     character(len=30) :: charaux, charaux_ab
-    values   => this%get_values()
-    switches => this%get_switches()
-    switches_ab => this%get_switches_ab()
+    values   => parameter_handler%get_values()
+    switches => parameter_handler%get_switches()
+    switches_ab => parameter_handler%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
     assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
@@ -334,9 +327,9 @@ contains
     character(len=:), allocatable  :: switch, switch_ab
     real(rp)  :: val
     character(len=30) :: charaux, charaux_ab
-    values   => this%get_values()
-    switches => this%get_switches()
-    switches_ab => this%get_switches_ab()
+    values   => parameter_handler%get_values()
+    switches => parameter_handler%get_switches()
+    switches_ab => parameter_handler%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
     assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
@@ -358,9 +351,9 @@ contains
     character(len=:), allocatable  :: switch, switch_ab
     logical  :: val
     character(len=30) :: charaux, charaux_ab
-    values   => this%get_values()
-    switches => this%get_switches()
-    switches_ab => this%get_switches_ab()
+    values   => parameter_handler%get_values()
+    switches => parameter_handler%get_switches()
+    switches_ab => parameter_handler%get_switches_ab()
     assert(switches%isAssignable(key = switch_key, value  = 'string'))
     error= switches%GetAsString (key = switch_key, string = switch  )
     assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
@@ -379,7 +372,7 @@ contains
     logical :: is_in_fe_space
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(is_in_fe_space_key, is_in_fe_space))
     error = list%Get(key = is_in_fe_space_key, Value = is_in_fe_space)
     assert(error==0)
@@ -392,7 +385,7 @@ contains
     logical :: are_checks_active
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(are_checks_active_key, are_checks_active))
     error = list%Get(key = are_checks_active_key, Value = are_checks_active)
     assert(error==0)

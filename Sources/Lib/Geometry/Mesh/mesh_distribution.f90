@@ -36,7 +36,7 @@ module mesh_distribution_names
   private
 
   character(len=*), parameter :: num_parts_key  = 'num_parts'
-  character(len=*), parameter :: num_levels_distribution_key = 'num_levels'
+  character(len=*), parameter :: num_levels_distribution_key = 'num_levels_distribution'
   character(len=*), parameter :: num_parts_x_level_key = 'num_parts_x_level'
   character(len=*), parameter :: debug_key     = 'debug'
   character(len=*), parameter :: strategy_key  = 'strategy'

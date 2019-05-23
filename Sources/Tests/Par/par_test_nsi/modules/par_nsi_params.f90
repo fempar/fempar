@@ -12,10 +12,9 @@ module par_nsi_params_names
   character(len=*), parameter :: discrete_integration_type_key = 'discrete_integration_type' 
   character(len=*), parameter :: viscosity_key                 = 'viscosity'  
 
-  type, extends(fempar_parameter_handler_t) :: par_nsi_params_t
+  type :: par_nsi_params_t
      private
      contains
-       procedure :: define_parameters  => par_nsi_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -28,27 +27,24 @@ module par_nsi_params_names
   end type par_nsi_params_t
 
   ! Types
-  public :: par_nsi_params_t
+  public :: par_nsi_params_t, par_nsi_params_define_parameters
 
 contains
 
   !==================================================================================================
-  subroutine par_nsi_params_define_parameters(this)
+  subroutine par_nsi_params_define_parameters()
     implicit none
-    class(par_nsi_params_t), intent(inout) :: this
     integer(ip)                            :: default_reference_fe_orders(2)
-    
     default_reference_fe_orders = [2, 1]
-
     ! Common
-    call this%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
-    call this%add(reference_fe_order_key, '--reference-fe-order', default_reference_fe_orders, 'Order of the fe space reference fe', switch_ab='-order')
-    call this%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', default_reference_fe_orders, 'Order of the fe space reference fe', switch_ab='-order')
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Specific
-    call this%add(discrete_integration_type_key, '--discrete-integration-type', discrete_integration_type_galerkin, &
+    call parameter_handler%add(discrete_integration_type_key, '--discrete-integration-type', discrete_integration_type_galerkin, &
                   'Discrete formulation (only Galerkin)', switch_ab='-di' )
-    call this%add(viscosity_key, '--viscosity', 1.0_rp, 'Viscosity', switch_ab='-visco' )
+    call parameter_handler%add(viscosity_key, '--viscosity', 1.0_rp, 'Viscosity', switch_ab='-visco' )
   end subroutine par_nsi_params_define_parameters
 
   ! GETTERS *****************************************************************************************
@@ -58,7 +54,7 @@ contains
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(dir_path_key, 'string'))
     error = list%GetAsString(key = dir_path_key, string = get_dir_path)
     assert(error==0)
@@ -71,7 +67,7 @@ contains
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(prefix_key, 'string'))
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
@@ -84,7 +80,7 @@ contains
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
     error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
     assert(error==0)
@@ -98,7 +94,7 @@ contains
     integer(ip)                                   :: reference_fe_orders(2), get_reference_fe_orders
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(reference_fe_order_key, reference_fe_orders))
     error = list%Get(key = reference_fe_order_key, Value = reference_fe_orders)
     get_reference_fe_orders = reference_fe_orders(ifield)
@@ -115,7 +111,7 @@ contains
     logical                                       :: is_present
     logical                                       :: same_data_type
     integer(ip), allocatable                      :: shape(:)
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(write_solution_key, get_write_solution))
     error = list%Get(key = write_solution_key, Value = get_write_solution)
     assert(error==0)
@@ -128,7 +124,7 @@ contains
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(triang_generate_key, get_triangulation_type))
     error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
     assert(error==0)
@@ -141,7 +137,7 @@ contains
     character(len=:),      allocatable            :: get_discrete_integration_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(discrete_integration_type_key, 'string'))
     error = list%GetAsString(key = discrete_integration_type_key, string = get_discrete_integration_type)
     assert(error==0)
@@ -154,7 +150,7 @@ contains
     real(rp)                             :: get_viscosity
     type(ParameterList_t), pointer       :: list
     integer(ip)                          :: error
-    list  => this%get_values()
+    list  => parameter_handler%get_values()
     assert(list%isAssignable(viscosity_key, get_viscosity))
     error = list%Get(key = viscosity_key, value = get_viscosity)
     assert(error==0)

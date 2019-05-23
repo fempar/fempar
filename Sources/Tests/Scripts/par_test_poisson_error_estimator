@@ -8,10 +8,7 @@ TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
-echo "$DIR"
 
-if [ -d "$DIR" ]
-then
 if [ -f "$TEST_BINARY_PATH" ]
 then
       ###############################################################################################################################
@@ -63,9 +60,6 @@ else
   echo "$0: BINARY not found! Value PROVIDED: $1."
   final_exit_code=1
 fi
-else
-  echo "$0: PART not found! Value PROVIDED: $DIR/part."
-  final_exit_code=1
-fi
+
 rm -Rf $TEST_COMBINATIONS_FILE_NAME
 exit $final_exit_code 
