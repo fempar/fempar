@@ -4,6 +4,10 @@ stages:
     - documentation
 
 
+variables:
+  DOCKER_DRIVER: overlay2
+
+
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   untracked: true
@@ -44,8 +48,13 @@ cache:
     - $LOAD_ENV_COMMAND
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
+    - for library in FPL F3PHT FLAP VTKIO SISL XH5For FortranParser;
+      do
+        mkdir -p $THIRDPARTY_DIR/$library;
+        cd $THIRDPARTY_DIR/$library;
+        cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty/$library;
+        cmake --build . -- -j8;
+      done
     - cd $FEMPAR_DIR
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
@@ -63,8 +72,6 @@ cache:
 GNU_DEBUG_P4EST_SERIAL:
   image: fempar/fempar-env:gnu-debug_p4est-serial
   stage: debug
-  tags:
-    - test-ci
   only:
     - merge_requests
   extends: .base_gnu
@@ -78,8 +85,6 @@ GNU_DEBUG_P4EST_SERIAL:
 GNU_DEBUG_P4EST_SERIAL_MEM_COV:
   image: fempar/fempar-env:gnu-debug_p4est-serial
   stage: debug
-  tags:
-    - test-ci
   only:
     - experimental
   extends: .base_gnu
@@ -94,8 +99,6 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
 GNU_DEBUG_P4EST_SERIAL_FAST:
   image: fempar/fempar-env:gnu-debug_p4est-serial
   stage: debug
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -109,8 +112,6 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
 GNU_DEBUG_P4EST_PARALLEL:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
   stage: debug
-  tags:
-    - test-ci
   only:
     - merge_requests
   extends: .base_gnu
@@ -124,8 +125,6 @@ GNU_DEBUG_P4EST_PARALLEL:
 GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
   stage: debug
-  tags:
-    - test-ci
   only:
     - experimental
   extends: .base_gnu
@@ -140,8 +139,6 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
 GNU_DEBUG_P4EST_PARALLEL_FAST:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
   stage: debug
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -155,8 +152,6 @@ GNU_DEBUG_P4EST_PARALLEL_FAST:
 GNU_RELEASE_P4EST_SERIAL:
   image: fempar/fempar-env:gnu-release_p4est-serial
   stage: release
-  tags:
-    - test-ci
   only:
     - experimental
     - merge_requests
@@ -171,8 +166,6 @@ GNU_RELEASE_P4EST_SERIAL:
 GNU_RELEASE_P4EST_SERIAL_FAST:
   image: fempar/fempar-env:gnu-release_p4est-serial
   stage: release
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -186,8 +179,6 @@ GNU_RELEASE_P4EST_SERIAL_FAST:
 GNU_RELEASE_P4EST_PARALLEL:
   image: fempar/fempar-env:gnu-release_p4est-parallel
   stage: release
-  tags:
-    - test-ci
   only:
     - experimental
     - merge_requests
@@ -202,8 +193,6 @@ GNU_RELEASE_P4EST_PARALLEL:
 GNU_RELEASE_P4EST_PARALLEL_FAST:
   image: fempar/fempar-env:gnu-release_p4est-parallel
   stage: release
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -217,8 +206,7 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  tags:
-    - test-ci
+  when: always
   only:
     - experimental
     - merge_requests
@@ -234,8 +222,7 @@ INTEL_RELEASE_P4EST_SERIAL:
 INTEL_RELEASE_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  tags:
-    - test-ci
+  when: always
   except:
     - experimental
   extends: .base_intel
@@ -250,8 +237,7 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  tags:
-    - test-ci
+  when: always
   only:
     - experimental
     - merge_requests
@@ -267,8 +253,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
 INTEL_RELEASE_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  tags:
-    - test-ci
+  when: always
   except:
     - experimental
   extends: .base_intel
@@ -283,8 +268,6 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
 DOCUMENTATION:
   image: appropriate/curl:latest
   stage: documentation
-  tags:
-    - test-ci
   script: 
     - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
   only:
