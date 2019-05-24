@@ -226,6 +226,7 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
+  when: always
   tags:
     - test-ci
   only:
