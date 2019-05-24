@@ -22,6 +22,7 @@ FEMPAR: An object-oriented parallel finite element framework. \
 - [Official repository](https://www.gitlab.com/fempar/fempar)
 - [Mirror repository](https://www.github.com/fempar/fempar)
 - [Testing dashboard](https://cdash.cimne.upc.edu/user.php)
+- [Documentation](http://fempar.gitlab.io/documentation/)
 
 ## Quick Start
 
@@ -34,8 +35,8 @@ Please, follow the steps below to compile FEMPAR using the Docker container:
 ```bash
 # You must Sing up at https://hub.docker.com/ to get your_username_at_dockerhub
 $ sudo docker login --username=your_username_at_dockerhub
-$ sudo docker pull fempar/fempar-env:gnu_debug_p4est_serial          # Get Docker image from Docker Hub
-$ sudo docker run -ti fempar/fempar-env:gnu_debug_p4est_serial
+$ sudo docker pull fempar/fempar-env:gnu_debug_p4est-serial          # Get Docker image from Docker Hub
+$ sudo docker run -ti fempar/fempar-env:gnu_debug_p4est-serial
 $ WORKDIR=/data
 $ SOURCES_DIR=$WORKDIR/sources
 $ FEMPAR_DIR=$WORKDIR/FEMPAR
