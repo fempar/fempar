@@ -48,8 +48,13 @@ cache:
     - $LOAD_ENV_COMMAND
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
+    - for library in FPL F3PHT FLAP VTKIO SISL XH5For FortranParser
+    - do
+    -   mkdir -p $THIRDPARTY_DIR/$library
+    -   cd $THIRDPARTY_DIR/$library
+    -   cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty/$library
+    -   cmake --build . -- -j8
+    - done
     - cd $FEMPAR_DIR
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
     - set +e
