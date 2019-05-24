@@ -5,7 +5,7 @@ stages:
 
 
 variables:
-  DOCKER_DRIVER: overlay
+  DOCKER_DRIVER: overlay2
 
 
 cache:
@@ -72,8 +72,6 @@ cache:
 GNU_DEBUG_P4EST_SERIAL:
   image: fempar/fempar-env:gnu-debug_p4est-serial
   stage: debug
-  tags:
-    - test-ci
   only:
     - merge_requests
   extends: .base_gnu
@@ -87,8 +85,6 @@ GNU_DEBUG_P4EST_SERIAL:
 GNU_DEBUG_P4EST_SERIAL_MEM_COV:
   image: fempar/fempar-env:gnu-debug_p4est-serial
   stage: debug
-  tags:
-    - test-ci
   only:
     - experimental
   extends: .base_gnu
@@ -103,8 +99,6 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
 GNU_DEBUG_P4EST_SERIAL_FAST:
   image: fempar/fempar-env:gnu-debug_p4est-serial
   stage: debug
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -118,8 +112,6 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
 GNU_DEBUG_P4EST_PARALLEL:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
   stage: debug
-  tags:
-    - test-ci
   only:
     - merge_requests
   extends: .base_gnu
@@ -133,8 +125,6 @@ GNU_DEBUG_P4EST_PARALLEL:
 GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
   stage: debug
-  tags:
-    - test-ci
   only:
     - experimental
   extends: .base_gnu
@@ -149,8 +139,6 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
 GNU_DEBUG_P4EST_PARALLEL_FAST:
   image: fempar/fempar-env:gnu-debug_p4est-parallel
   stage: debug
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -164,8 +152,6 @@ GNU_DEBUG_P4EST_PARALLEL_FAST:
 GNU_RELEASE_P4EST_SERIAL:
   image: fempar/fempar-env:gnu-release_p4est-serial
   stage: release
-  tags:
-    - test-ci
   only:
     - experimental
     - merge_requests
@@ -180,8 +166,6 @@ GNU_RELEASE_P4EST_SERIAL:
 GNU_RELEASE_P4EST_SERIAL_FAST:
   image: fempar/fempar-env:gnu-release_p4est-serial
   stage: release
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -195,8 +179,6 @@ GNU_RELEASE_P4EST_SERIAL_FAST:
 GNU_RELEASE_P4EST_PARALLEL:
   image: fempar/fempar-env:gnu-release_p4est-parallel
   stage: release
-  tags:
-    - test-ci
   only:
     - experimental
     - merge_requests
@@ -211,8 +193,6 @@ GNU_RELEASE_P4EST_PARALLEL:
 GNU_RELEASE_P4EST_PARALLEL_FAST:
   image: fempar/fempar-env:gnu-release_p4est-parallel
   stage: release
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_gnu
@@ -227,8 +207,6 @@ INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
   when: always
-  tags:
-    - test-ci
   only:
     - experimental
     - merge_requests
@@ -245,8 +223,6 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
   when: always
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_intel
@@ -262,8 +238,6 @@ INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
   when: always
-  tags:
-    - test-ci
   only:
     - experimental
     - merge_requests
@@ -280,8 +254,6 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
   when: always
-  tags:
-    - test-ci
   except:
     - experimental
   extends: .base_intel
@@ -296,8 +268,6 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
 DOCUMENTATION:
   image: appropriate/curl:latest
   stage: documentation
-  tags:
-    - test-ci
   script: 
     - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
   only:
