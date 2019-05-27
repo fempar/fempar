@@ -31,7 +31,6 @@ contains
 
     subroutine cla_parameter_groups_process_parameters(this)
         class(cla_parameter_groups_t), intent(inout) :: this
-        call parameter_handler%create(examples=['test_cla_parameter_groups -cs 7 group1 -s1 8 group2 -s2 9'])
         call parameter_handler%process_parameters(define_parameters)
     end subroutine
 
@@ -39,25 +38,8 @@ contains
     subroutine cla_parameter_groups_print(this)
         class(cla_parameter_groups_t), intent(inout) :: this
         type(ParameterList_t), pointer               :: values
-        type(ParameterList_t), pointer               :: switches
-        type(ParameterList_t), pointer               :: switches_ab
-        type(ParameterList_t), pointer               :: helpers
-        type(ParameterList_t), pointer               :: required
-        type(ParameterList_t), pointer               :: choices
-
-        switches    => parameter_handler%get_switches()
-        switches_ab => parameter_handler%get_switches_ab()
-        helpers     => parameter_handler%get_helpers()
-        required    => parameter_handler%get_required()
-        values      => parameter_handler%get_values()
-        choices     => parameter_handler%get_choices()
-
-        call switches%print(prefix='| Switches | ')
-        call switches_ab%print(prefix='| Abreviated Switches | ')
-        call helpers%print(prefix='| Helpers | ')
-        call required%print(prefix='| Required | ')
+        values => parameter_handler%get_values()
         call values%print(prefix='| Values | ')
-        call choices%print(prefix='| Choices | ')
     end subroutine
 
 end module custom_parameter_generator_names
