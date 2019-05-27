@@ -64,8 +64,6 @@ module fempar_parameter_handler_names
         type(ParameterList_t)         :: required
         type(ParameterList_t)         :: choices
     contains
-        procedure                                  :: create                   => parameter_handler_create
-        procedure, non_overridable                 :: assert_lists_consistency => parameter_handler_assert_lists_consistency
         procedure, non_overridable, private        :: add0D                    => parameter_handler_add0D
         procedure, non_overridable, private        :: add1D                    => parameter_handler_add1D
         procedure, non_overridable, private        :: update0D                 => parameter_handler_update0D
@@ -77,11 +75,11 @@ module fempar_parameter_handler_names
         procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
         procedure                                  :: free                     => parameter_handler_free
         procedure, non_overridable                 :: get_values               => parameter_handler_get_values 
-        procedure, non_overridable                 :: get_switches             => parameter_handler_get_switches   
-        procedure, non_overridable                 :: get_switches_ab          => parameter_handler_get_switches_ab
-        procedure, non_overridable                 :: get_helpers              => parameter_handler_get_helpers    
-        procedure, non_overridable                 :: get_required             => parameter_handler_get_required 
-        procedure, non_overridable                 :: get_choices              => parameter_handler_get_choices 
+        procedure, non_overridable, private        :: get_switches             => parameter_handler_get_switches   
+        procedure, non_overridable, private        :: get_switches_ab          => parameter_handler_get_switches_ab
+        procedure, non_overridable, private        :: get_helpers              => parameter_handler_get_helpers    
+        procedure, non_overridable, private        :: get_required             => parameter_handler_get_required 
+        procedure, non_overridable, private        :: get_choices              => parameter_handler_get_choices 
         procedure, non_overridable                 :: initialize_lists         => parameter_handler_initialize_lists  
         generic,   public                          :: add                      => add0D, add1D
         generic,   public                          :: update                   => update0D, update1D 
@@ -114,51 +112,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! PARAMETER_HANDLER_T PROCEDURES
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    subroutine parameter_handler_create(this, parse_cla,            &
-                    progname, version, help, description,           &
-                    license, authors, examples, epilog, disable_hv, &
-                    usage_lun, error_lun, version_lun)
-    !------------------------------------------------------------------
-    !< Create a parameter_handler_t
-    !------------------------------------------------------------------
-        implicit none
-        class(parameter_handler_t),   intent(inout) :: this
-        logical,            optional, intent(in)    :: parse_cla         !< Parse command line arguments
-        character(*),       optional, intent(in)    :: progname          !< Program name.
-        character(*),       optional, intent(in)    :: version           !< Program version.
-        character(*),       optional, intent(in)    :: help              !< Help message introducing the CLI usage.
-        character(*),       optional, intent(in)    :: description       !< Detailed description message introducing the program.
-        character(*),       optional, intent(in)    :: license           !< License description.
-        character(*),       optional, intent(in)    :: authors           !< Authors list.
-        character(*),       optional, intent(in)    :: examples(1:)      !< Examples of correct usage.
-        character(*),       optional, intent(in)    :: epilog            !< Epilog message.
-        logical,            optional, intent(in)    :: disable_hv        !< Disable automatic insert of 'help' and 'version' CLAs.
-        integer(ip),        optional, intent(in)    :: usage_lun         !< Unit number to print usage/help
-        integer(ip),        optional, intent(in)    :: version_lun       !< Unit number to print version/license info
-        integer(ip),        optional, intent(in)    :: error_lun         !< Unit number to print error info
-        logical                                     :: parse_cla_        !< Default parse option
-    !------------------------------------------------------------------
-        call this%free()
-        parse_cla_ = .true.; if ( present(parse_cla) ) parse_cla_ = parse_cla
-
-        if ( parse_cla_ ) then
-            call this%cli%init(progname, version, help, description, &
-                             license, authors, examples, epilog, disable_hv, &
-                             usage_lun, error_lun, version_lun)
-        end if
-
-        call this%initialize_lists()
-
-#ifdef DEBUG
-        call this%assert_lists_consistency()
-#endif
-        if ( parse_cla_ ) then 
-        call this%add_to_cli()
-        call this%parse()
-        end if
-    end subroutine parameter_handler_create
-
 
     function parameter_handler_get_values(this) result(values)
     !------------------------------------------------------------------
@@ -248,60 +201,6 @@ contains
         call this%choices%free()
         call this%cli%free()
     end subroutine parameter_handler_free
-
-
-    subroutine parameter_handler_assert_lists_consistency(this)
-    !------------------------------------------------------------------
-    !< Assert parameter_handler_t lists consistency
-    !------------------------------------------------------------------
-        implicit none
-        class(parameter_handler_t), intent(in) :: this
-        logical :: has_groups
-        character(len=:), allocatable  :: key
-        type(ParameterListIterator_t)  :: Iterator
-        type(ParameterListIterator_t)  :: Sublist_Iterator
-        type(ParameterList_t), pointer :: switches_sublist
-        type(ParameterList_t), pointer :: switches_ab_sublist
-        type(ParameterList_t), pointer :: helpers_sublist
-        type(ParameterList_t), pointer :: required_sublist
-        type(ParameterList_t), pointer :: values_sublist
-    !------------------------------------------------------------------
-        assert(this%switches%length() == this%values%length())
-        assert(this%switches%length() == this%helpers%length())
-
-        Iterator = this%switches%GetIterator()
-        do while (.not. Iterator%HasFinished())
-            key = Iterator%GetKey()
-            assert(this%helpers%isPresent(key))
-            assert(this%values%isPresent(key))
-            if (Iterator%isSubList()) then
-                assert(Iterator%GetSublist(switches_sublist)==0)
-                assert(this%switches_ab%GetSubList(key,switches_ab_sublist)==0)
-                assert(this%helpers%GetSubList(key,helpers_sublist)==0)
-                assert(this%required%GetSubList(key,required_sublist)==0)
-                assert(this%values%GetSubList(key,values_sublist)==0)
-                assert(switches_sublist%length() == switches_ab_sublist%length())
-                assert(switches_sublist%length() == helpers_sublist%length())
-                assert(switches_sublist%length() == required_sublist%length())
-                assert(switches_sublist%length() == values_sublist%length())
-                sublist_iterator = switches_sublist%GetIterator()
-                do while (.not. sublist_iterator%HasFinished())
-                    key = sublist_iterator%GetKey()       
-                    assert(switches_ab_sublist%isPresent(key))
-                    assert(helpers_sublist%isPresent(key))
-                    assert(required_sublist%isPresent(key))
-                    assert(values_sublist%isPresent(key))
-                    assert(.not. sublist_iterator%isSubList())
-                    assert(.not. switches_ab_sublist%isSubList(key))
-                    assert(.not. helpers_sublist%isSubList(key))
-                    assert(.not. required_sublist%isSubList(key))
-                    assert(.not. values_sublist%isSubList(key))
-                    call sublist_iterator%Next()  
-                end do    
-            end if
-            call Iterator%Next()
-        end do
-    end subroutine parameter_handler_assert_lists_consistency
 
 
     subroutine parameter_handler_add0D(this, key, switch, value, help, switch_ab, required, choices, group)
@@ -675,14 +574,31 @@ contains
     end subroutine parameter_handler_parse  
   
 
-    subroutine parameter_handler_init_cli(this)
+    subroutine parameter_handler_init_cli(this,                     &
+                    progname, version, help, description,           &
+                    license, authors, examples, epilog, disable_hv, &
+                    usage_lun, error_lun, version_lun)
     !------------------------------------------------------------------
     !< Initialize command line interface
     !------------------------------------------------------------------
         implicit none
-        class(parameter_handler_t), intent(inout) :: this
-    !------------------------------------------------------------------
-        call this%cli%init()
+        class(parameter_handler_t),   intent(inout) :: this
+        character(*),       optional, intent(in)    :: progname          !< Program name.
+        character(*),       optional, intent(in)    :: version           !< Program version.
+        character(*),       optional, intent(in)    :: help              !< Help message introducing the CLI usage.
+        character(*),       optional, intent(in)    :: description       !< Detailed description message introducing the program.
+        character(*),       optional, intent(in)    :: license           !< License description.
+        character(*),       optional, intent(in)    :: authors           !< Authors list.
+        character(*),       optional, intent(in)    :: examples(1:)      !< Examples of correct usage.
+        character(*),       optional, intent(in)    :: epilog            !< Epilog message.
+        logical,            optional, intent(in)    :: disable_hv        !< Disable automatic insert of 'help' and 'version' CLAs.
+        integer(ip),        optional, intent(in)    :: usage_lun         !< Unit number to print usage/help
+        integer(ip),        optional, intent(in)    :: version_lun       !< Unit number to print version/license info
+        integer(ip),        optional, intent(in)    :: error_lun         !< Unit number to print error info
+
+        call this%cli%init(progname, version, help, description, &
+                         license, authors, examples, epilog, disable_hv, &
+                         usage_lun, error_lun, version_lun)
     end subroutine parameter_handler_init_cli  
 
   
@@ -762,7 +678,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-    subroutine fph_process_parameters(this,define_user_parameters_procedure,parse_cla)
+    subroutine fph_process_parameters(this,define_user_parameters_procedure,parse_cla, &
+                                      progname, version, help, description,            &
+                                      license, authors, examples, epilog, disable_hv,  &
+                                      usage_lun, error_lun, version_lun)
     !------------------------------------------------------------------
     !< Initialize lists, publish parameters and fill values from CLI
     !------------------------------------------------------------------
@@ -770,6 +689,18 @@ contains
         class(fempar_parameter_handler_t),           intent(inout) :: this
         procedure(define_user_parameters), optional                :: define_user_parameters_procedure
         logical,                           optional, intent(in)    :: parse_cla
+        character(*),                      optional, intent(in)    :: progname          !< Program name.
+        character(*),                      optional, intent(in)    :: version           !< Program version.
+        character(*),                      optional, intent(in)    :: help              !< Help message introducing the CLI usage.
+        character(*),                      optional, intent(in)    :: description       !< Detailed description message introducing the program.
+        character(*),                      optional, intent(in)    :: license           !< License description.
+        character(*),                      optional, intent(in)    :: authors           !< Authors list.
+        character(*),                      optional, intent(in)    :: examples(1:)      !< Examples of correct usage.
+        character(*),                      optional, intent(in)    :: epilog            !< Epilog message.
+        logical,                           optional, intent(in)    :: disable_hv        !< Disable automatic insert of 'help' and 'version' CLAs.
+        integer(ip),                       optional, intent(in)    :: usage_lun         !< Unit number to print usage/help
+        integer(ip),                       optional, intent(in)    :: version_lun       !< Unit number to print version/license info
+        integer(ip),                       optional, intent(in)    :: error_lun         !< Unit number to print error info
         logical :: parse_cla_
     !------------------------------------------------------------------
         call this%free()
@@ -784,9 +715,6 @@ contains
             nullify(this%define_user_parameters)
         end if
 
-#ifdef DEBUG
-        call this%assert_lists_consistency()
-#endif
         if ( parse_cla_ ) then 
             call this%add_to_cli()
             call this%parse()
