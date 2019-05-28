@@ -678,7 +678,7 @@ contains
                 if (qrnorm <= epsr) istop = 1
             end if
 
-             if (track_convergence_history) then 
+             if (environment%am_i_l1_root() .and. track_convergence_history) then 
                 error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
              end if
             call this%print_convergence_history_new_line(luout)
