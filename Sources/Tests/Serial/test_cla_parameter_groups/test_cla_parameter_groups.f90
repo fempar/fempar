@@ -22,7 +22,7 @@ contains
 
 
     subroutine define_parameters()
-        call parameter_handler%add('commonswitch', '--commonswitch', 1, 'common switch help', switch_ab='-cs', required=.true., choices=[1,2,3])
+        call parameter_handler%add('commonswitch', '--commonswitch', 1, 'common switch help', switch_ab='-cs', required=.true., choices='1,2,3')
         call add_to_group('group1')
         call add_to_group('group2')
         call add_to_group('group3')

@@ -115,7 +115,6 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_reference_fe_geo_order
-    list  => parameter_handler%get_values()
     call parameter_handler%Get(key = reference_fe_geo_order_key, value = get_reference_fe_geo_order)
   end function get_reference_fe_geo_order
   
