@@ -274,22 +274,13 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches, switches_ab
+    type(ParameterList_t), pointer :: values
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch, switch_ab
     character(len=:), allocatable  :: val
     character(len=30) :: charaux, charaux_ab
     values   => parameter_handler%get_values()
-    switches => parameter_handler%get_switches()
-    switches_ab => parameter_handler%get_switches_ab()
-    assert(switches%isAssignable(key = switch_key, value  = 'string'))
-    error= switches%GetAsString (key = switch_key, string = switch  )
-    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
-    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = 'string'))
     error= values%GetAsString   (key = switch_key, string = val     )
-    write (charaux, '(a30)') switch
-    write (charaux_ab, '(a30)') switch_ab
     write(*,'(2a30,a20)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_character_switch
 
@@ -298,22 +289,13 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches, switches_ab
+    type(ParameterList_t), pointer :: values
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch, switch_ab
     integer(ip)  :: val
     character(len=30) :: charaux, charaux_ab
     values   => parameter_handler%get_values()
-    switches => parameter_handler%get_switches()
-    switches_ab => parameter_handler%get_switches_ab()
-    assert(switches%isAssignable(key = switch_key, value  = 'string'))
-    error= switches%GetAsString (key = switch_key, string = switch  )
-    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
-    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = val     ))
     error= values%Get           (key = switch_key, value  = val     )
-    write (charaux, '(a30)') switch
-    write (charaux_ab, '(a30)') switch_ab
     write(*,'(2a30,i20)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_integer_switch
 
@@ -322,22 +304,13 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches, switches_ab
+    type(ParameterList_t), pointer :: values
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch, switch_ab
     real(rp)  :: val
     character(len=30) :: charaux, charaux_ab
     values   => parameter_handler%get_values()
-    switches => parameter_handler%get_switches()
-    switches_ab => parameter_handler%get_switches_ab()
-    assert(switches%isAssignable(key = switch_key, value  = 'string'))
-    error= switches%GetAsString (key = switch_key, string = switch  )
-    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
-    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = val     ))
     error= values%Get           (key = switch_key, value  = val     )
-    write (charaux, '(a30)') switch
-    write (charaux_ab, '(a30)') switch_ab
     write(*,'(2a30,e20.5)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_real_switch
 
@@ -346,22 +319,13 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values, switches, switches_ab
+    type(ParameterList_t), pointer :: values
     integer(ip)                    :: error
-    character(len=:), allocatable  :: switch, switch_ab
     logical  :: val
     character(len=30) :: charaux, charaux_ab
     values   => parameter_handler%get_values()
-    switches => parameter_handler%get_switches()
-    switches_ab => parameter_handler%get_switches_ab()
-    assert(switches%isAssignable(key = switch_key, value  = 'string'))
-    error= switches%GetAsString (key = switch_key, string = switch  )
-    assert(switches_ab%isAssignable(key = switch_key, value  = 'string'))
-    error= switches_ab%GetAsString (key = switch_key, string = switch_ab)
     assert(values%isAssignable  (key = switch_key, value  = val     ))
     error= values%Get           (key = switch_key, value  = val     )
-    write (charaux, '(a30)') switch
-    write (charaux_ab, '(a30)') switch_ab
     write(*,'(2a30,l20)') adjustl(charaux),adjustl(charaux_ab), val
   end subroutine print_logical_switch
 
