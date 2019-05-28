@@ -321,8 +321,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_cells_dir, get_num_cells_x_dir))
-    error = list%Get(key = struct_hex_triang_num_cells_dir, Value = get_num_cells_x_dir)
+    assert(list%isAssignable(struct_hex_triang_num_cells_dir_key, get_num_cells_x_dir))
+    error = list%Get(key = struct_hex_triang_num_cells_dir_key, Value = get_num_cells_x_dir)
     assert(error==0)
   end function get_num_cells_x_dir
   !==================================================================================================

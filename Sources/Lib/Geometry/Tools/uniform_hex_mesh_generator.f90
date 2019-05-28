@@ -30,24 +30,11 @@ module uniform_hex_mesh_generator_names
   use types_names
   use memor_names
   use reference_fe_names
+  use uniform_hex_mesh_generator_parameters_names
   use FPL
   implicit none
 # include "debug.i90"
-  private
-  
-  character(len=*), parameter :: struct_hex_triang_num_dims_key    = 'num_dims'
-  character(len=*), parameter :: struct_hex_triang_num_levels_key        = 'num_levels'
-  character(len=*), parameter :: struct_hex_triang_num_cells_dir = 'num_cells_x_dir'
-  character(len=*), parameter :: struct_hex_triang_num_parts_x_dir_key = 'num_parts_x_dir'
-  character(len=*), parameter :: struct_hex_triang_is_dir_periodic_key         = 'is_dir_periodic'
-  character(len=*), parameter :: struct_hex_triang_domain_limits_key  = 'hex_mesh_domain_limits'
-
-  public :: struct_hex_triang_num_dims_key
-  public :: struct_hex_triang_num_levels_key
-  public :: struct_hex_triang_num_cells_dir 
-  public :: struct_hex_triang_num_parts_x_dir_key 
-  public :: struct_hex_triang_is_dir_periodic_key   
-  public :: struct_hex_triang_domain_limits_key
+  private 
 
   integer(ip) , parameter :: not_described = 0
   integer(ip) , parameter :: described = 1
@@ -112,11 +99,11 @@ contains
     end if
 
     ! Mandatory (array)
-    is_present =  parameter_list%isPresent(key = struct_hex_triang_num_cells_dir ); assert(is_present)
-    istat = parameter_list%GetShape(key = struct_hex_triang_num_cells_dir, shape = array_size); check(istat==0)
+    is_present =  parameter_list%isPresent(key = struct_hex_triang_num_cells_dir_key ); assert(is_present)
+    istat = parameter_list%GetShape(key = struct_hex_triang_num_cells_dir_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= SPACE_DIM)
     call memalloc(array_size(1), this%num_cells_x_dir,__FILE__,__LINE__, lb1=0)
-    istat = parameter_list%get(key = struct_hex_triang_num_cells_dir, value = this%num_cells_x_dir); check(istat==0)
+    istat = parameter_list%get(key = struct_hex_triang_num_cells_dir_key, value = this%num_cells_x_dir); check(istat==0)
 
     ! Mandatory (array)
     is_present =  parameter_list%isPresent(key = struct_hex_triang_is_dir_periodic_key )                             ; assert(is_present)

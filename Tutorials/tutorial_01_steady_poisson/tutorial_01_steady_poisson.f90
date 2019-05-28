@@ -105,7 +105,7 @@ program tutorial_01_steady_poisson
 
   !* Overwrite fempar default parameters for the integration
   call parameter_handler%update(struct_hex_triang_num_dims_key, value = 2 )              ! Number of space dimensions
-  call parameter_handler%update(struct_hex_triang_num_cells_dir, value = [10,10,10] )    ! Number of cells per each dimension
+  call parameter_handler%update(struct_hex_triang_num_cells_dir_key, value = [10,10,10] )    ! Number of cells per each dimension
   call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                   ! Reference finite element orders
   call parameter_handler%update(fes_ref_fe_types_key, value = 'Lagrangian' )             ! Reference finite element types
 

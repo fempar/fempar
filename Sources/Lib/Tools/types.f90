@@ -76,9 +76,13 @@ module types_names
   integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,[0_ieep]))
   integer(ip)  , parameter :: size_of_rp = size(transfer(1.0_rp, [0_ieep]))
 
-  character(len=*), parameter :: dir_path_key           = 'dir_path'
-  character(len=*), parameter :: prefix_key             = 'prefix'
-  character(len=*), parameter :: dir_path_out_key       = 'dir_path_out'
+  character(len=*), parameter :: dir_path_key           = 'DIR_PATH'
+  character(len=*), parameter :: prefix_key             = 'PREFIX'
+  character(len=*), parameter :: dir_path_out_key       = 'DIR_PATH_OUT'
+  character(len=*), parameter :: dir_path_cla_name      = '--'//dir_path_key
+  character(len=*), parameter :: prefix_cla_name        = '--'//prefix_key
+  character(len=*), parameter :: dir_path_out_cla_name  = '--'//dir_path_out_key
+
   integer(ip)  ,    parameter :: str_cla_len                = 512 ! String Command line argument lenght
 
   interface

@@ -32,12 +32,14 @@ module environment_names
   use FPL
   use par_io_names
   use uniform_hex_mesh_generator_names
+  use uniform_hex_mesh_generator_parameters_names
   use timer_names
   ! Parallel modules
   use execution_context_names
   use mpi_context_names
   use mpi_omp_context_names
   use serial_context_names
+  use environment_parameters_names
   implicit none
 
 # include "debug.i90"
@@ -46,15 +48,6 @@ module environment_names
   integer(ip) , parameter :: not_created = 0            ! when contexts are not created
   integer(ip) , parameter :: created     = 1            ! when contexts have been created from lower levels
   integer(ip) , parameter :: created_from_scratch = 2   ! when contexts have been created from scratch
-
-  integer(ip)     , parameter :: structured   = 0
-  integer(ip)     , parameter :: unstructured = 1
-  integer(ip)     , parameter :: p4est        = 2 
-  character(len=*), parameter :: environment_type_key = 'environment_type'
-  public :: structured
-  public :: unstructured
-  public :: p4est
-  public :: environment_type_key
 
   ! This type manages the assigment of tasks to different levels as well as
   ! the dutties assigned to each of them. The array parts_mapping gives the

@@ -9,7 +9,6 @@ module par_pb_bddc_maxwell_params_names
   character(len=*), parameter :: reference_fe_order_key               = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key                   = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key               = 'triangulation_type'    
-  character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
   character(len=*), parameter :: mass_coeff_white_key                 = 'mass_coeff_white'
   character(len=*), parameter :: curl_curl_coeff_white_key            = 'curl_curl_coeff_white '
   character(len=*), parameter :: mass_coeff_black_key                 = 'mass_coeff_black'
@@ -74,7 +73,7 @@ contains
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Specific
-    call parameter_handler%add(bddc_edge_continuity_algorithm_key, '--BDDC_edge_continuity_algorithm', tangential_average_and_first_order_moment, &
+    call parameter_handler%add(bddc_edge_continuity_algorithm_key, bddc_edge_continuity_algorithm_cla_name, tangential_average_and_first_order_moment, &
                   'Specify BDDC space continuity: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges', &
                   switch_ab='-edge_cont')
     call parameter_handler%add(mass_coeff_white_key, '--mass_coeff_white', 1.0_rp, 'mass_coeff_white value', switch_ab='-mass_coeff_white')

@@ -33,7 +33,8 @@ implicit none
     ! Parameters used in DIRECT SOLVERS
     !-----------------------------------------------------------------
     ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: dls_type_key = 'direct_solver_type'
+    character(len=*), parameter :: dls_type_key       = 'DLS_TYPE'
+    character(len=*), parameter :: dls_type_cla_name  = '--'//dls_type_key
     character(len=*), parameter :: pardiso_mkl        = 'pardiso_mkl'                      ! Name of the PARDISO MKL direct solver type
     character(len=*), parameter :: umfpack            = 'umfpack'                          ! Name of the UMFPACK direct solver type
 
@@ -54,16 +55,20 @@ implicit none
     integer,          parameter :: pardiso_mkl_default_matrix_type   = pardiso_mkl_type_guess_from_matrix_properties ! Default pardiso_mkl matrix type
 
     ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: pardiso_mkl_iparm         = 'pardiso_mkl_iparm'         ! PARDISO MKL control parameters array
-    character(len=*), parameter :: pardiso_mkl_matrix_type   = 'pardiso_mkl_matrix_type'   ! PARDISO MKL matrix type
-    character(len=*), parameter :: pardiso_mkl_message_level = 'pardiso_mkl_message_level' ! PARDISO MKL verbosity level
+    character(len=*), parameter :: pardiso_mkl_iparm         = 'PARDISO_PARAMS'           ! PARDISO MKL control parameters array
+    character(len=*), parameter :: pardiso_mkl_matrix_type   = 'PARDISO_MAT_TYPE'         ! PARDISO MKL matrix type
+    character(len=*), parameter :: pardiso_mkl_message_level = 'PARDISO_MSG_LEVEL'        ! PARDISO MKL verbosity level
 
+    character(len=*), parameter :: pardiso_mkl_iparm_cla_name         = '--'//pardiso_mkl_iparm
+    character(len=*), parameter :: pardiso_mkl_matrix_type_cla_name   = '--'//pardiso_mkl_matrix_type
+    character(len=*), parameter :: pardiso_mkl_message_level_cla_name = '--'//pardiso_mkl_message_level
 
     !-----------------------------------------------------------------
     ! Parameters used in UMFPACK direct solver
     !-----------------------------------------------------------------
 
     ! Parameter strings to be used in the Parameter List
-    character(len=*), parameter :: umfpack_control_params   = 'umfpack_control_params'      ! UMFPACK real array of 20 UMFPACK parameters
+    character(len=*), parameter :: umfpack_control_params            = 'UMFPACK_CONTROL_PARAMS' ! UMFPACK real array of 20 UMFPACK parameters
+    character(len=*), parameter :: umfpack_control_params_cla_name   = '--'//umfpack_control_params
 
 end module direct_solver_parameters_names

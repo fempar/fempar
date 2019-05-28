@@ -30,22 +30,11 @@ module mesh_distribution_names
   use memor_names
   use stdio_names
   use metis_interface_names
+  use mesh_distribution_parameters_names
   use FPL
   implicit none
 # include "debug.i90"
   private
-
-  character(len=*), parameter :: num_parts_key  = 'num_parts'
-  character(len=*), parameter :: num_levels_distribution_key = 'num_levels_distribution'
-  character(len=*), parameter :: num_parts_x_level_key = 'num_parts_x_level'
-  character(len=*), parameter :: debug_key     = 'debug'
-  character(len=*), parameter :: strategy_key  = 'strategy'
-  character(len=*), parameter :: metis_option_debug_key   = 'metis_option_debug'
-  character(len=*), parameter :: metis_option_ufactor_key = 'metis_option_ufactor'
-  character(len=*), parameter :: metis_option_minconn_key = 'metis_option_minconn'
-  character(len=*), parameter :: metis_option_contig_key  = 'metis_option_contig'
-  character(len=*), parameter :: metis_option_ctype_key   = 'metis_option_ctype'
-  character(len=*), parameter :: metis_option_iptype_key  = 'metis_option_iptype'
 
   ! Data required to describe on each MPI task the distribution of the mesh
   type mesh_distribution_t
@@ -100,11 +89,6 @@ module mesh_distribution_names
   end type mesh_distribution_t
 
 
-  integer(ip), parameter :: part_kway      = 0
-  integer(ip), parameter :: part_recursive = 1
-  integer(ip), parameter :: part_strip     = 2
-  integer(ip), parameter :: part_rcm_strip = 3
-
   type mesh_distribution_params_t
      integer(ip) :: nparts         = 2    ! nparts
      integer(ip) :: num_levels     = 1    ! nlevels
@@ -137,20 +121,6 @@ module mesh_distribution_names
 
   ! Types
   public :: mesh_distribution_t, mesh_distribution_params_t
-
-  ! Constants
-  public :: num_parts_key
-  public :: num_levels_distribution_key
-  public :: num_parts_x_level_key
-  public :: debug_key
-  public :: strategy_key
-  public :: metis_option_debug_key
-  public :: metis_option_ufactor_key
-  public :: metis_option_minconn_key
-  public :: metis_option_contig_key
-  public :: metis_option_ctype_key
-  public :: metis_option_iptype_key
-  public :: part_kway,part_recursive,part_strip,part_rcm_strip
 
   ! Functions
   public :: mesh_distribution_write_files

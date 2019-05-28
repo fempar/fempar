@@ -35,6 +35,7 @@ module fempar_names
   use hash_table_names
   use postpro_names
   use environment_names 
+  use environment_parameters_names 
   use execution_context_names
   use mpi_context_names
   use mpi_omp_context_names
@@ -57,13 +58,17 @@ module fempar_names
   ! Geometry
   use metis_interface_names
   use mesh_distribution_names
+  use mesh_distribution_parameters_names
   use triangulation_names
+  use triangulation_parameters_names
   use p4est_triangulation_names
+  use p4est_triangulation_parameters_names
 
   use cell_import_names
   use mesh_names
   use geometry_names
   use uniform_hex_mesh_generator_names
+  use uniform_hex_mesh_generator_parameters_names
 
   ! Linear Algebra
   use iterative_linear_solver_names
@@ -101,6 +106,7 @@ module fempar_names
   use field_names
   use polynomial_names
   use fe_space_names
+  use fe_space_parameters_names
   use fe_cell_function_names
   use fe_cell_predicate_library_names
   use fe_facet_function_names

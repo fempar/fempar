@@ -50,14 +50,24 @@ module iterative_linear_solver_parameters_names
   !-------------------------------------------------------------------
   ! String parameters with the names of the parameters for iterative linear solvers
   !-------------------------------------------------------------------
-  character(len=*), parameter :: ils_type_key                      = 'iterative_linear_solver_type'
-  character(len=*), parameter :: ils_rtol_key                      = 'iterative_linear_solver_rtol'
-  character(len=*), parameter :: ils_atol_key                      = 'iterative_linear_solver_atol'
-  character(len=*), parameter :: ils_stopping_criterium_key         = 'iterative_linear_solver_stopping_criteria'
-  character(len=*), parameter :: ils_output_frequency_key          = 'iterative_linear_solver_output_frequency'
-  character(len=*), parameter :: ils_max_num_iterations_key        = 'iterative_linear_solver_max_num_iterations'
-  character(len=*), parameter :: ils_track_convergence_history_key = 'iterative_linear_solver_track_convergence_history'
-  character(len=*), parameter :: ils_luout_key                      = 'iterative_linear_solver_luout'
+  character(len=*), parameter :: ils_type_key                      = 'ILS_TYPE'
+  character(len=*), parameter :: ils_rtol_key                      = 'ILS_RTOL'
+  character(len=*), parameter :: ils_atol_key                      = 'ILS_ATOL'
+  character(len=*), parameter :: ils_stopping_criterium_key        = 'ILS_STOPPING_CRITERIUM'
+  character(len=*), parameter :: ils_output_frequency_key          = 'ILS_OUTPUT_FREQUENCY'
+  character(len=*), parameter :: ils_max_num_iterations_key        = 'ILS_MAX_NUM_ITERATIONS'
+  character(len=*), parameter :: ils_track_convergence_history_key = 'ILS_TRACK_CONVERGENCE_HISTORY'
+  character(len=*), parameter :: ils_luout_key                     = 'ILS_LUOUT'
+
+  character(len=*), parameter :: ils_type_cla_name                      = '--'//ils_type_key
+  character(len=*), parameter :: ils_rtol_cla_name                      = '--'//ils_rtol_key
+  character(len=*), parameter :: ils_atol_cla_name                      = '--'//ils_atol_key
+  character(len=*), parameter :: ils_stopping_criterium_cla_name        = '--'//ils_stopping_criterium_key
+  character(len=*), parameter :: ils_output_frequency_cla_name          = '--'//ils_output_frequency_key
+  character(len=*), parameter :: ils_max_num_iterations_cla_name        = '--'//ils_max_num_iterations_key
+  character(len=*), parameter :: ils_track_convergence_history_cla_name = '--'//ils_track_convergence_history_key
+  character(len=*), parameter :: ils_luout_cla_name                     = '--'//ils_luout_key
+
 
   !-----------------------------------------------------------------
   ! Iterative linear solver names
@@ -75,18 +85,24 @@ module iterative_linear_solver_parameters_names
   !-----------------------------------------------------------------
   ! Some common parameters to FGMRES, LFOM, LGMRES and RGMRES iterative linear solvers
   !-----------------------------------------------------------------
-  character(len=*), parameter :: ils_max_dim_krylov_basis_key             = 'iterative_linear_solver_dkrymax'
-  character(len=*), parameter :: ils_orthonorm_strategy_key     = 'iterative_linear_solver_orthonorm_strat'
+  character(len=*), parameter :: ils_max_dim_krylov_basis_key = 'ILS_MAX_DIM_KRYLOV_BASIS'
+  character(len=*), parameter :: ils_orthonorm_strategy_key   = 'ILS_ORTHONORM_STRATEGY'
+
+  character(len=*), parameter :: ils_max_dim_krylov_basis_cla_name = '--'//ils_max_dim_krylov_basis_key
+  character(len=*), parameter :: ils_orthonorm_strategy_cla_name   = '--'//ils_orthonorm_strategy_key
+
   character(len=*), parameter :: orthonorm_strat_icgsro  = 'ICGSRO' 
   character(len=*), parameter :: orthonorm_strat_mgsro   = 'MGSRO'
   
   integer (ip), parameter :: mgsro  = 1 ! mgs : Modified Gram-Schmidt (appropriate for serial GMRES)
   integer (ip), parameter :: icgsro = 2 ! icgs: Iterative Classical Gram-Schmidt (appropriate for distributed GMRES)
 
+
   !-----------------------------------------------------------------
   ! Parameters used in RICHARDSON iterative linear solvers
   !-----------------------------------------------------------------
-  character(len=*), parameter :: ils_relaxation_key = 'iterative_linear_solver_relaxation'
+  character(len=*), parameter :: ils_relaxation_key = 'ILS_RELAXATION'
+  character(len=*), parameter :: ils_relaxation_cla_name = '--'//ils_relaxation_key
   
   
   !------------------------------------------------------------------------------------

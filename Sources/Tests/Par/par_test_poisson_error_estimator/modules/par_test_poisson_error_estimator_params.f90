@@ -276,7 +276,7 @@ contains
     else if(trim(this%triangulation_type)=='structured') then
        istat = parameter_list%set(key = triang_generate_key         , value = triangulation_generate_structured)
        istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = this%num_cells_x_dir)
+       istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir_key, value = this%num_cells_x_dir)
        istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key        , value = this%is_dir_periodic)
     end if
     check(istat==0)

@@ -48,11 +48,15 @@ module triangulation_names
   use stdio_names
   use FPL
   use uniform_hex_mesh_generator_names
+  use uniform_hex_mesh_generator_parameters_names
   
   ! Geometry modules
   use sisl_names
   use geometry_names
   use gid_geometry_reader_names
+
+  ! Triangulation Parameters
+  use triangulation_parameters_names
 
   implicit none
 # include "debug.i90"
@@ -966,51 +970,6 @@ module triangulation_names
      end function get_migration_old2new_interface     
 
   end interface
-  
-  ! Parameters to define vef_type. Observe that
-  ! mod(vef_type,10)     = dimension
-  ! mod(vef_type/10,10)  = interior (0) or boundary (1)
-  ! vef_type/100         = local (0), interface(1) or ghost(2)
-  integer(ip), parameter :: local_interior_dim0 =  0
-  integer(ip), parameter :: local_interior_dim1 =  1
-  integer(ip), parameter :: local_interior_dim2 =  2
-  integer(ip), parameter :: local_boundary_dim0 = 10
-  integer(ip), parameter :: local_boundary_dim1 = 11
-  integer(ip), parameter :: local_boundary_dim2 = 12
-
-  integer(ip), parameter :: interface_interior_dim0 = 100
-  integer(ip), parameter :: interface_interior_dim1 = 101
-  integer(ip), parameter :: interface_interior_dim2 = 102
-  integer(ip), parameter :: interface_boundary_dim0 = 110
-  integer(ip), parameter :: interface_boundary_dim1 = 111
-  integer(ip), parameter :: interface_boundary_dim2 = 112
-
-  integer(ip), parameter :: ghost_dim0 = 200
-  integer(ip), parameter :: ghost_dim1 = 201
-  integer(ip), parameter :: ghost_dim2 = 202
-  
-  integer(ip), parameter :: triangulation_generate_from_mesh  = 0
-  integer(ip), parameter :: triangulation_generate_structured = 1
-  public :: triangulation_generate_from_mesh
-  public :: triangulation_generate_structured
-  
-  character(len=*), parameter :: triang_geometric_interpolation_order_key    = 'geometric_interpolation_order'
-  character(len=*), parameter :: triang_generate_key          = 'triangulation_generate'
-  public :: triang_geometric_interpolation_order_key
-  public :: triang_generate_key
-  
-  character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
-  character(len=*), parameter :: all_coupled                    = 'all_coupled'
-  character(len=*), parameter :: loose_coupling                 = 'loose_coupling' 
-  character(len=*), parameter :: strong_coupling                = 'strong_coupling' 
-  public :: subparts_coupling_criteria_key 
-  public :: loose_coupling
-  public :: strong_coupling 
-  
-  integer(ip), parameter :: refinement = 1 
-  integer(ip), parameter :: coarsening = -1 
-  integer(ip), parameter :: do_nothing = 0   
-  public :: refinement, coarsening, do_nothing  
   
   type, extends(cell_iterator_t) :: bst_cell_iterator_t
     private

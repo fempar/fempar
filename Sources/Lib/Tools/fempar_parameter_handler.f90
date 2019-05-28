@@ -29,14 +29,14 @@ module fempar_parameter_handler_names
     use types_names
     use iterative_linear_solver_parameters_names
     use direct_solver_parameters_names
-    use nonlinear_solver_names
-    use environment_names
-    use mesh_distribution_names
+    use nonlinear_solver_parameters_names
+    use environment_parameters_names
+    use mesh_distribution_parameters_names
     use metis_interface_names
-    use triangulation_names
-    use uniform_hex_mesh_generator_names
-    use p4est_triangulation_names
-    use fe_space_names
+    use triangulation_parameters_names
+    use uniform_hex_mesh_generator_parameters_names
+    use p4est_triangulation_parameters_names
+    use fe_space_parameters_names
     use reference_fe_names
     use FPL
     use flap, only : Command_Line_Interface
@@ -754,46 +754,46 @@ contains
                   "To read from GiD mesh" // BRK_LINE // &
                   "To read from GiD mesh" 
                   
-        call this%add(dir_path_key, '--DIR_PATH', '.', help_string)
-        call this%add(prefix_key, '--PREFIX', 'A', 'Name of the GiD files')
-        call this%add(dir_path_out_key, '--DIR_PATH_OUT', '.', 'Output Directory')
+        call this%add(dir_path_key, dir_path_cla_name, '.', help_string)
+        call this%add(prefix_key, prefix_cla_name, 'A', 'Name of the GiD files')
+        call this%add(dir_path_out_key, dir_path_out_cla_name, '.', 'Output Directory')
 
         ! Iterative linear solver keys
-        call this%add(ils_type_key, '--ILS_TYPE', rgmres_name,  'Iterative linear solver type')
-        call this%add(ils_rtol_key, '--ILS_RTOL', default_rtol, 'Relative tolerance for the stopping criteria')
-        call this%add(ils_atol_key, '--ILS_ATOL', default_atol, 'Absolute tolerance for the stopping criteria')
+        call this%add(ils_type_key, ils_type_cla_name, rgmres_name,  'Iterative linear solver type')
+        call this%add(ils_rtol_key, ils_rtol_cla_name, default_rtol, 'Relative tolerance for the stopping criteria')
+        call this%add(ils_atol_key, ils_atol_cla_name, default_atol, 'Absolute tolerance for the stopping criteria')
 
-        call this%add(ils_stopping_criterium_key, '--ILS_STOPPING_CRITERIUM', default_rgmres_stopping_criteria, help='Stopping criterium type')
-        call this%add(ils_output_frequency_key, '--ILS_OUTPUT_FREQUENCY', default_output_frequency, 'Frequency for output printing') 
-        call this%add(ils_max_num_iterations_key, '--ILS_MAX_NUM_ITERATIONS', default_max_num_iterations, 'Maximum number of iterations')
-        call this%add(ils_track_convergence_history_key,'--ILS_TRACK_CONVERGENCE_HISTORY', default_track_convergence_history,'Track convergence history')
-        call this%add(ils_max_dim_krylov_basis_key, '--ILS_MAX_DIM_KRYLOV_BASIS', default_dkrymax, 'Maximum dimension of Krylov basis') 
-        call this%add(ils_orthonorm_strategy_key, '--ILS_ORTHONORM_STRATEGY', default_orthonorm_strat, 'Orthonormalization strategy (for GMRES)')
+        call this%add(ils_stopping_criterium_key, ils_stopping_criterium_cla_name, default_rgmres_stopping_criteria, help='Stopping criterium type')
+        call this%add(ils_output_frequency_key, ils_output_frequency_cla_name, default_output_frequency, 'Frequency for output printing') 
+        call this%add(ils_max_num_iterations_key, ils_max_num_iterations_cla_name, default_max_num_iterations, 'Maximum number of iterations')
+        call this%add(ils_track_convergence_history_key,ils_track_convergence_history_cla_name, default_track_convergence_history,'Track convergence history')
+        call this%add(ils_max_dim_krylov_basis_key, ils_max_dim_krylov_basis_cla_name, default_dkrymax, 'Maximum dimension of Krylov basis') 
+        call this%add(ils_orthonorm_strategy_key, ils_orthonorm_strategy_cla_name, default_orthonorm_strat, 'Orthonormalization strategy (for GMRES)')
 
-        call this%add(ils_relaxation_key, '--ILS_RELAXATION', default_richardson_relaxation, 'Relaxation value (for Richardson)')
+        call this%add(ils_relaxation_key, ils_relaxation_cla_name, default_richardson_relaxation, 'Relaxation value (for Richardson)')
 
-        !call this%add(ils_luout_key, '--sol_out', default_luout, 'Write unit for solver report')
+        !call this%add(ils_luout_key, ils_luout_cla_name, default_luout, 'Write unit for solver report')
 
         ! Sparse direct solver keys
-        call this%add(dls_type_key, '--DLS_TYPE', pardiso_mkl, 'Direct solver type')
+        call this%add(dls_type_key, dls_type_cla_name, pardiso_mkl, 'Direct solver type')
 
         ! PARDISO MKL default values
-        call this%add(pardiso_mkl_message_level, '--PARDISO_messg_lev', pardiso_mkl_default_message_level, 'PARDISO message level')
-        call this%add(pardiso_mkl_iparm, '--PARDISO_params', [ (pardiso_mkl_default_iparm, i=1,64) ], 'PARDISO parameters')     
-        call this%add(pardiso_mkl_matrix_type, '--PARDISO_mat_type', pardiso_mkl_default_matrix_type, 'PARDISO matrix type')
+        call this%add(pardiso_mkl_message_level, pardiso_mkl_message_level_cla_name, pardiso_mkl_default_message_level, 'PARDISO message level')
+        call this%add(pardiso_mkl_iparm, pardiso_mkl_iparm_cla_name, [ (pardiso_mkl_default_iparm, i=1,64) ], 'PARDISO parameters')     
+        call this%add(pardiso_mkl_matrix_type, pardiso_mkl_matrix_type_cla_name, pardiso_mkl_default_matrix_type, 'PARDISO matrix type')
 
         ! UMFPACK keys
 #ifdef UMFPACK
         call umfpack_di_defaults(umfpack_control)
-        call this%add(umfpack_control_params, '--UMFPACK_cont_params', umfpack_control, 'UMFPACK control parameters')
+        call this%add(umfpack_control_params, umfpack_control_params_cla_name, umfpack_control, 'UMFPACK control parameters')
 #endif 
 
-        call this%add(nls_rtol_key, '--NLS_RTOL', default_nls_rtol, 'Relative tolerance for the nonlinear solvers stopping criteria')
-        call this%add(nls_atol_key, '--NLS_ATOL', default_nls_atol, 'Absolute tolerance for the nonlinear solvers stopping criteria')
+        call this%add(nls_rtol_key, nls_rtol_cla_name, default_nls_rtol, 'Relative tolerance for the nonlinear solvers stopping criteria')
+        call this%add(nls_atol_key, nls_atol_cla_name, default_nls_atol, 'Absolute tolerance for the nonlinear solvers stopping criteria')
 
-        call this%add(nls_stopping_criterium_key, '--NLS_STOPPING_CRITERIUM', default_nls_stopping_criterium, 'Nonlinear solvers stopping criterium type')
-        call this%add(nls_max_num_iterations_key, '--NLS_MAX_NUM_ITERATIONS', default_nls_max_iter, 'Nonlinear solvers maximum number of iterations')
-        call this%add(nls_print_iteration_output_key, '--NLS_PRINT_ITERATION_OUTPUT', default_nls_print_iteration_output, 'Print output per nonlinear solver iteration')
+        call this%add(nls_stopping_criterium_key, nls_stopping_criterium_cla_name, default_nls_stopping_criterium, 'Nonlinear solvers stopping criterium type')
+        call this%add(nls_max_num_iterations_key, nls_max_num_iterations_cla_name, default_nls_max_iter, 'Nonlinear solvers maximum number of iterations')
+        call this%add(nls_print_iteration_output_key, nls_print_iteration_output_cla_name, default_nls_print_iteration_output, 'Print output per nonlinear solver iteration')
 
         ! Finite element space 
 
@@ -801,71 +801,71 @@ contains
         ! Reference FE types ( lagrangian, edge, face, B-spline...)
 
         ! Number of fields in the FE space
-        call this%add(fes_num_fields_key, '--FES_NUM_FIELDS', 1, 'Finite element space number of fields')
+        call this%add(fes_num_fields_key, fes_num_fields_cla_name, 1, 'Finite element space number of fields')
 
         ! Number of reference FEs
-        call this%add(fes_num_ref_fes_key,  '--FES_NUM_REF_FES', 1, 'Finite element space number of fields')
+        call this%add(fes_num_ref_fes_key,  fes_num_ref_fes_cla_name, 1, 'Finite element space number of fields')
 
         ! set_ids_to_reference_fes: Given a field ID and cell set ID, returns the desired reference FE ID
-        call this%add(fes_set_ids_ref_fes_key, '--FES_SET_IDS_REF_FES', [ 1 ], 'Set IDs to reference FEs for every field')
+        call this%add(fes_set_ids_ref_fes_key, fes_set_ids_ref_fes_cla_name, [ 1 ], 'Set IDs to reference FEs for every field')
 
         ! Reference FE IDs    
-        call this%add(fes_ref_fe_types_key, '--FES_REF_FE_TYPES', fe_type_lagrangian, 'Reference finite element types')
+        call this%add(fes_ref_fe_types_key, fes_ref_fe_types_cla_name, fe_type_lagrangian, 'Reference finite element types')
 
         ! Reference FE order (0,1,2,...) fe_space_orders_key
-        call this%add(fes_ref_fe_orders_key, '--FES_REF_FE_ORDERS', [ 1 ], 'Reference finite element orders')
+        call this%add(fes_ref_fe_orders_key, fes_ref_fe_orders_cla_name, [ 1 ], 'Reference finite element orders')
 
         ! FE space conformities ( true = no face integration needed, false = face integration required )
-        call this%add(fes_ref_fe_conformities_key, '--FES_REF_FE_CONFORMITIES', [ .true. ], 'Finite element space conformities')
+        call this%add(fes_ref_fe_conformities_key, fes_ref_fe_conformities_cla_name, [ .true. ], 'Finite element space conformities')
 
         ! FE space continuities ( true = continuous FE space, false = otherwise )
-        call this%add(fes_ref_fe_continuities_key, '--FES_REF_FE_CONTINUITIES', [ .true. ], 'Finite element space continuities')
+        call this%add(fes_ref_fe_continuities_key, fes_ref_fe_continuities_cla_name, [ .true. ], 'Finite element space continuities')
 
         ! FE field types (scalar, vector, tensor)
-        call this%add(fes_field_types_key, '--FES_FIELD_TYPES', field_type_scalar, 'Finite element space field types')
+        call this%add(fes_field_types_key, fes_field_types_cla_name, field_type_scalar, 'Finite element space field types')
 
         ! FE field blocks (scalar, vector, tensor)
-        call this%add(fes_field_blocks_key, '--FES_FIELD_BLOCKS', [ 1 ], 'Finite element space field blocks')
+        call this%add(fes_field_blocks_key, fes_field_blocks_cla_name, [ 1 ], 'Finite element space field blocks')
 
         ! FE space construction type homogeneous/heterogeneous ( .true. = all cells same reference fe, .false. = otherwise ) 
-        call this%add(fes_same_ref_fes_all_cells_key, '--FES_SAME_REFS_ALL_CELLS', .true., 'Finite element space fixed reference fe logical')
-        call this%add(coarse_space_use_vertices_key, '--FES_COARSE_SPACE_USE_VERTICES', .true., 'Shape functions on vertices')
-        call this%add(coarse_space_use_edges_key, '--FES_COARSE_SPACE_USE_EDGES', .true., 'Shape functions on edges')
-        call this%add(coarse_space_use_faces_key, '--FES_COARSE_SPACE_USE_FACES', .true., 'Shape functions on faces')
+        call this%add(fes_same_ref_fes_all_cells_key, fes_same_ref_fes_all_cells_cla_name, .true., 'Finite element space fixed reference fe logical')
+        call this%add(coarse_space_use_vertices_key, coarse_space_use_vertices_cla_name, .true., 'Shape functions on vertices')
+        call this%add(coarse_space_use_edges_key, coarse_space_use_edges_cla_name, .true., 'Shape functions on edges')
+        call this%add(coarse_space_use_faces_key, coarse_space_use_faces_cla_name, .true., 'Shape functions on faces')
 
         ! Environment
-        call this%add(environment_type_key, '--ENV_TYPE', structured, 'Type of environment')
+        call this%add(environment_type_key, environment_type_cla_name, structured, 'Type of environment')
 
         ! Partitioner
-        call this%add(num_parts_key, '--PART_NUM_PARTS', 1, 'Number of parts to split mesh with a graph partitioner') 
-        call this%add(num_levels_distribution_key, '--PART_NUM_LEVELS_DISTRIBUTION', 1, 'Number of levels of the parallel distribution') 
-        call this%add(num_parts_x_level_key, '--PART_NUM_PARTS_X_LEVEL', [1], 'Number of parts per level') 
-        call this%add(debug_key, '--PART_DEBUG', 0, 'Debug key for partitioner') 
-        call this%add(strategy_key, '--PART_STRATEGY', part_kway, 'Strategy key for partitioner') 
+        call this%add(num_parts_key, num_parts_cla_name, 1, 'Number of parts to split mesh with a graph partitioner') 
+        call this%add(num_levels_distribution_key, num_levels_distribution_cla_name, 1, 'Number of levels of the parallel distribution') 
+        call this%add(num_parts_x_level_key, num_parts_x_level_cla_name, [1], 'Number of parts per level') 
+        call this%add(debug_key, debug_cla_name, 0, 'Debug key for partitioner') 
+        call this%add(strategy_key, strategy_cla_name, part_kway, 'Strategy key for partitioner') 
 
         ! METIS keys
-        call this%add(metis_option_debug_key, '--METIS_DEBUG', 2, 'METIS debug key') 
-        call this%add(metis_option_ufactor_key, '--METIS_OPTION_UFACTOR', 30, 'METIS option ufactor') 
-        call this%add(metis_option_minconn_key, '--METIS_OPTION_MINCONN', 0, 'METIS option minconn') 
-        call this%add(metis_option_contig_key, '--METIS_OPTION_CONFIG', 1, 'METIS option config') 
-        call this%add(metis_option_ctype_key, '--METIS_OPTION_CTYPE', METIS_CTYPE_SHEM, 'METIS option ctype')
-        call this%add(metis_option_iptype_key, '--METIS_OPTION_IPTYPE', METIS_IPTYPE_EDGE, 'METIS option iptype')
+        call this%add(metis_option_debug_key, metis_option_debug_cla_name, 2, 'METIS debug key') 
+        call this%add(metis_option_ufactor_key, metis_option_ufactor_cla_name, 30, 'METIS option ufactor') 
+        call this%add(metis_option_minconn_key, metis_option_minconn_cla_name, 0, 'METIS option minconn') 
+        call this%add(metis_option_contig_key, metis_option_contig_cla_name, 1, 'METIS option config') 
+        call this%add(metis_option_ctype_key, metis_option_ctype_cla_name, METIS_CTYPE_SHEM, 'METIS option ctype')
+        call this%add(metis_option_iptype_key, metis_option_iptype_cla_name, METIS_IPTYPE_EDGE, 'METIS option iptype')
 
         ! Triangulation keys
-        call this%add(triang_generate_key, '--TRIANG_GENERATE', triangulation_generate_structured, 'Way to generate the triangulation')
-        call this%add(triang_geometric_interpolation_order_key, '--TRIANG_GEOMETRIC_INTERPOLATION_ORDER', 1, 'Interpolation order for geometrical mapping' )
+        call this%add(triang_generate_key, triang_generate_cla_name, triangulation_generate_structured, 'Way to generate the triangulation')
+        call this%add(triang_geometric_interpolation_order_key, triang_geometric_interpolation_order_cla_name, 1, 'Interpolation order for geometrical mapping' )
 
         ! Uniform hexahedral mesh keys
-        call this%add(struct_hex_triang_num_dims_key, '--STRUCT_HEX_TRIANG_NUM_DIMS', 2, 'Number of space dimensions')                   
-        call this%add(struct_hex_triang_num_cells_dir, '--STRUCT_HEX_TRIANG_NUM_CELLS_DIM', [10,10,10], 'Number of cells per each dimension')  
-        call this%add(struct_hex_triang_is_dir_periodic_key, '--STRUCT_HEX_TRIANG_IS_DIR_PERIODIC', [0,0,0], 'Is the mesh periodic for every dimension')           
-        call this%add(struct_hex_triang_num_levels_key, '--STRUCT_HEX_TRIANG_NUM_LEVELS', 1, 'Number of levels')
-        call this%add(struct_hex_triang_num_parts_x_dir_key, '--STRUCT_HEX_TRIANG_NUM_PARTS_X_DIR', [1,1,1], 'Number of parts per each dimension')
-        call this%add(struct_hex_triang_domain_limits_key, '--STRUCT_HEX_TRIANG_DOMAIN_LIMITS', [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain interval per direction')
+        call this%add(struct_hex_triang_num_dims_key, struct_hex_triang_num_dims_cla_name, 2, 'Number of space dimensions')                   
+        call this%add(struct_hex_triang_num_cells_dir_key, struct_hex_triang_num_cells_dir_cla_name, [10,10,10], 'Number of cells per each dimension')  
+        call this%add(struct_hex_triang_is_dir_periodic_key, struct_hex_triang_is_dir_periodic_cla_name, [0,0,0], 'Is the mesh periodic for every dimension')           
+        call this%add(struct_hex_triang_num_levels_key, struct_hex_triang_num_levels_cla_name, 1, 'Number of levels')
+        call this%add(struct_hex_triang_num_parts_x_dir_key, struct_hex_triang_num_parts_x_dir_cla_name, [1,1,1], 'Number of parts per each dimension')
+        call this%add(struct_hex_triang_domain_limits_key, struct_hex_triang_domain_limits_cla_name, [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain interval per direction')
 
-        call this%add(p4est_triang_log_level_key, '--P4EST_TRIANG_LOG_LEVEL', FEMPAR_SC_LP_DEFAULT, 'p4est library level of logging output')
-        call this%add(p4est_triang_2_1_k_balance_key,'--P4EST_TRIANG_2_1_K_BALANCE', default_p4est_triang_2_1_k_balance,  'value of k for 2:1 k-balanced forest-of-octrees (use with care, at present, only k={0,1} supported/tested)')
-        call this%add(p4est_triang_k_ghost_cells_key, '--P4EST_TRIANG_K_GHOST_CELLS', default_p4est_triang_k_ghost_cells, 'value of k for the k-ghost cells set of each processor (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
+        call this%add(p4est_triang_log_level_key, p4est_triang_log_level_cla_name, FEMPAR_SC_LP_DEFAULT, 'p4est library level of logging output')
+        call this%add(p4est_triang_2_1_k_balance_key, p4est_triang_2_1_k_balance_cla_name, default_p4est_triang_2_1_k_balance,  'value of k for 2:1 k-balanced forest-of-octrees (use with care, at present, only k={0,1} supported/tested)')
+        call this%add(p4est_triang_k_ghost_cells_key, p4est_triang_k_ghost_cells_cla_name, default_p4est_triang_k_ghost_cells, 'value of k for the k-ghost cells set of each processor (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
 
         ! BDDC
         call this%add(bddc_scaling_function_case_key, '--BDDC_SCALING_FUNCTION_CASE', cardinality, 'Scaling type for the BDDC weighting operator')

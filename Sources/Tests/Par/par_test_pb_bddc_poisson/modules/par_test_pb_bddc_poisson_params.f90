@@ -289,11 +289,11 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    error = list%GetShape(key = struct_hex_triang_num_cells_dir   , shape = array_size); 
+    error = list%GetShape(key = struct_hex_triang_num_cells_dir_key  , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= SPACE_DIM)
     call memalloc(array_size(1), num_cells_x_dir)
-    error = list%get(key = struct_hex_triang_num_cells_dir , value = num_cells_x_dir) 
+    error = list%get(key = struct_hex_triang_num_cells_dir_key , value = num_cells_x_dir) 
     check(error==0)
     get_num_cells_x_dir=num_cells_x_dir
     if (allocated(array_size)) deallocate(array_size) 

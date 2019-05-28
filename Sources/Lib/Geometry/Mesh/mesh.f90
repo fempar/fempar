@@ -34,6 +34,7 @@ module mesh_names
   use stdio_names
   use reference_fe_names
   use mesh_distribution_names
+  use mesh_distribution_parameters_names
   use metis_interface_names
   use rcm_renumbering_names
   use postpro_names
