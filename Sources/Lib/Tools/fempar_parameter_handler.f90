@@ -106,7 +106,7 @@ module fempar_parameter_handler_names
         end subroutine define_user_parameters
     end interface
 
-    type(fempar_parameter_handler_t) :: parameter_handler
+    type(fempar_parameter_handler_t), save :: parameter_handler
 
     public :: parameter_handler, define_user_parameters
 
@@ -219,7 +219,7 @@ contains
         character(len=*),           intent(in)    :: help
         character(len=*), optional, intent(in)    :: switch_ab
         logical,          optional, intent(in)    :: required
-        class(*),         optional, intent(in)    :: choices(:)
+        character(len=*), optional, intent(in)    :: choices
         character(len=*), optional, intent(in)    :: group
         type(ParameterList_t),      pointer       :: switches
         type(ParameterList_t),      pointer       :: values
@@ -296,7 +296,7 @@ contains
         character(len=*),           intent(in)    :: help
         character(len=*), optional, intent(in)    :: switch_ab
         logical,          optional, intent(in)    :: required
-        class(*),         optional, intent(in)    :: choices(:) 
+        character(len=*), optional, intent(in)    :: choices
         character(len=*), optional, intent(in)    :: group
         type(ParameterList_t),      pointer       :: switches
         type(ParameterList_t),      pointer       :: values
@@ -709,7 +709,9 @@ contains
     !------------------------------------------------------------------
         call this%free()
         parse_cla_ = .true.; if ( present(parse_cla) ) parse_cla_ = parse_cla
-        if ( parse_cla_ ) call this%init_cli()
+        if ( parse_cla_ ) call this%init_cli(progname, version, help, description,     &
+                                      license, authors, examples, epilog, disable_hv,  &
+                                      usage_lun, error_lun, version_lun)
         call this%initialize_lists()
         call this%define_fempar_parameters()
         if (present(define_user_parameters_procedure)) then
