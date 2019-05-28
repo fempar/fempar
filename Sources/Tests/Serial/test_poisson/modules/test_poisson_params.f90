@@ -107,12 +107,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_fe_formulation
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(fe_formulation_key, 'string'))
-    error = list%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
   end function get_fe_formulation
   
   !==================================================================================================
@@ -120,12 +115,8 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_geo_order_key, value = get_reference_fe_geo_order)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
@@ -133,12 +124,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_reference_fe_order
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -146,12 +132,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_write_solution
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
   
   !==================================================================================================
@@ -159,12 +140,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_laplacian_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(laplacian_type_key, 'string'))
-    error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
   end function get_laplacian_type 
 
   !==================================================================================================
@@ -172,12 +148,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_triangulation_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
+    call parameter_handler%Get(key = triang_generate_key, Value = get_triangulation_type)
   end function get_triangulation_type
 
   !==================================================================================================
@@ -185,12 +156,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_num_dims
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_dims_key, get_num_dims))
-    error = list%Get(key = struct_hex_triang_num_dims_key, value = get_num_dims)
-    assert(error==0)
+    call parameter_handler%Get(key = struct_hex_triang_num_dims_key, value = get_num_dims)
   end function get_num_dims
 
   !==================================================================================================
@@ -198,12 +164,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_use_void_fes
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
-    error = list%Get(key = use_void_fes_key, value = get_use_void_fes)
-    assert(error==0)
+    call parameter_handler%Get(key = use_void_fes_key, value = get_use_void_fes)
   end function get_use_void_fes
 
   !==================================================================================================
@@ -211,11 +172,6 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_use_void_fes_case
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_case_key, get_use_void_fes_case))
-    error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
   end function get_use_void_fes_case
 end module test_poisson_params_names

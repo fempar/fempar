@@ -89,12 +89,16 @@ module fempar_parameter_handler_names
     private 
         procedure(define_user_parameters), nopass, pointer :: define_user_parameters => NULL()
     contains
-        procedure                           :: process_parameters       => fph_process_parameters
+        procedure, private, non_overridable :: fph_Get_0D
+        procedure, private, non_overridable :: fph_Get_1D
+        procedure, public                   :: getasstring              => fph_GetAsString
         procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
+        procedure                           :: process_parameters       => fph_process_parameters
         procedure                           :: free                     => fph_free
         procedure                           :: get_dir_path             => fph_get_dir_path
         procedure                           :: get_dir_path_out         => fph_get_dir_path_out
         procedure                           :: get_prefix               => fph_get_prefix
+        generic,   public                   :: get                      => fph_Get_0D, fph_Get_1D
     end type fempar_parameter_handler_t
   
     interface
@@ -891,6 +895,54 @@ contains
     end subroutine fph_define_fempar_parameters
 
 
+    subroutine fph_Get_0D(this, key, value)
+    !------------------------------------------------------------------
+    !< Get 0D value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        class(*),                           intent(inout) :: value
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        assert(this%values%isAssignable(key, value))
+        error = this%values%Get(key=key, value=value)
+        assert(error==0)
+    end subroutine fph_Get_0D
+
+
+    subroutine fph_Get_1D(this, key, value)
+    !------------------------------------------------------------------
+    !< Get 1D value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        class(*),                           intent(inout) :: value(:)
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        assert(this%values%isAssignable(key, value))
+        error = this%values%Get(key=key, value=value)
+        assert(error==0)
+    end subroutine fph_Get_1D
+
+
+    subroutine fph_GetAsString(this, key, string)
+    !------------------------------------------------------------------
+    !< Get 0D value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        character(len=:),      allocatable, intent(inout) :: string
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        assert(this%values%isAssignable(key, 'string'))
+        error = this%values%GetAsString(key=key, string=string)
+        assert(error==0)
+    end subroutine fph_GetAsString
+
+
     function fph_get_dir_path(this)
     !------------------------------------------------------------------
     !< Get dir_path
@@ -898,13 +950,8 @@ contains
         implicit none
         class(fempar_parameter_handler_t) , intent(in) :: this
         character(len=:),      allocatable             :: fph_get_dir_path
-        type(ParameterList_t), pointer                 :: list
-        integer(ip)                                    :: error
     !------------------------------------------------------------------
-        list  => this%get_values()
-        assert(list%isAssignable(dir_path_key, 'string'))
-        error = list%GetAsString(key=dir_path_key, string = fph_get_dir_path)
-        assert(error==0)
+        call this%GetAsString(key=dir_path_key, String = fph_get_dir_path)
     end function fph_get_dir_path 
 
 
@@ -915,13 +962,8 @@ contains
         implicit none
         class(fempar_parameter_handler_t) , intent(in) :: this
         character(len=:),      allocatable             :: fph_get_dir_path_out
-        type(ParameterList_t), pointer                 :: list
-        integer(ip)                                    :: error
     !------------------------------------------------------------------
-        list  => this%get_values()
-        assert(list%isAssignable(dir_path_out_key, 'string'))
-        error = list%GetAsString(key=dir_path_out_key, string = fph_get_dir_path_out)
-        assert(error==0)
+        call this%GetAsString(key=dir_path_out_key, String = fph_get_dir_path_out)
     end function fph_get_dir_path_out
 
 
@@ -932,13 +974,8 @@ contains
         implicit none
         class(fempar_parameter_handler_t) , intent(in) :: this
         character(len=:),      allocatable             :: fph_get_prefix
-        type(ParameterList_t), pointer                 :: list
-        integer(ip)                                    :: error
     !------------------------------------------------------------------
-        list  => this%get_values()
-        assert(list%isAssignable(prefix_key, 'string'))
-        error = list%GetAsString(key=prefix_key, string = fph_get_prefix)
-        assert(error==0)
+        call this%GetAsString(key=prefix_key, String = fph_get_prefix)
     end function fph_get_prefix
 
 end module fempar_parameter_handler_names 
