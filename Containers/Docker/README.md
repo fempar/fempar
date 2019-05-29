@@ -67,6 +67,16 @@ $ docker pull fempar/fempar-env:gnu-debug_p4est-serial
 
 There are several [available images](#available-images) provided by FEMPAR.
 
+To check if your local image is up-to-date with the one hosted on Docker Hub, you can run the `pull` command. If your image is up-to-date you will get the following message, if not the image will be pulled again:
+
+```bash
+gnu-debug_p4est-serial: Pulling from fempar/fempar-env
+Digest: sha256:xxxxxxxxxxxxxxxxxxxxxxxx
+Status: Image is up to date for fempar/fempar-env:gnu-debug_p4est-serial
+```
+
+Note that FEMPAR [Release Cycle](#release-cycle) is per commit on [experimental branch](https://gitlab.com/fempar/fempar/tree/experimental/) based.
+
 ### Run FEMPAR containers
 
 To run FEMPAR Docker container, you should use [Docker run command](#run-command).
@@ -124,7 +134,7 @@ so they are only recommended for advanced users.  Test programs are compiled as 
 
 ### Available images
 
-FEMPAR Docker images are hosted in Docher Hub. [Docker Hub](https://hub.docker.com/) is a service provided by Docker for finding and sharing container images. Through Docker Hub, FEMPAR host, and allow users to get, official pre-built and up-to-date FEMPAR Docker images.
+FEMPAR Docker images are hosted in Docker Hub. [Docker Hub](https://hub.docker.com/) is a service provided by Docker for finding and sharing container images. Through Docker Hub, FEMPAR host, and allow users to get, official pre-built and up-to-date FEMPAR Docker images.
 
 FEMPAR Docker Hub organization is currently hosting two available repositories:
 
@@ -157,6 +167,11 @@ FEMPAR compilation environment is delivered under several environments:
 
 You can get more [details](#details) about these environments in [Image naming](#image-naming), [Tags](#tags) and [Components and environment](#components-and-environment) subsections.
 
+### Release cycle
+
+FEMPAR follows agile practices to provide new features and bugfixes as soon as possible. This concept is well known as *continuous delivery*. Continuous delivery practices try to reduce as much as possible software delivery cycles.
+
+Continuous Delivery in FEMPAR project occurs with every new aproved change in the code. This means that every commit published in [experimental branch](https://gitlab.com/fempar/fempar/tree/experimental/) of FEMPAR repository automatically creates new Docker containers ready-to-use.
 
 ### Components and environment
 
@@ -179,7 +194,7 @@ FEMPAR Docker image names follow the standard naming convention (`hostname/organ
 
   - Hostname: `registry-1.docker.io`, can be skipped a it's thee default one.
   - Organization: [fempar](https://hub.docker.com/r/fempar)
-  - Repositories: [fempar]((https://hub.docker.com/r/fempar/fempar) and [fempar-env](https://hub.docker.com/r/fempar/fempar-env)
+  - Repositories: [fempar](https://hub.docker.com/r/fempar/fempar) and [fempar-env](https://hub.docker.com/r/fempar/fempar-env)
   - Tags: `gnu-debug_p4est-serial`, `gnu-debug_p4est-parallel`, `gnu-release_p4est-serial` and `gnu-release_p4est-parallel`
 
 Valid FEMPAR Docker image names are built using these components, e.g. `fempar/fempar-env:gnu-release_p4est-parallel`.
@@ -196,8 +211,8 @@ FEMPAR tags describe the environment and software installed within the Docker im
   - `gnu-release_p4est-parallel`    
 
 There are several key words to understand the meaning of this tags:
- - **debug**: Tags containing `debug` specifies that all the included FEMPAR dependencies are compiled in `DEBUG` mode. 
- - **release**: Tags containing `release` specifies that all the included FEMPAR dependencies are compiled in `RELEASE` mode. 
- - **p4est_serial**: Tags containing `p4est_serial` specifies that `P4EST` library was compiled without MPI support. 
- - **p4est_parallel**: Tags containing `p4est_parallel` specifies that `P4EST` library was compiled withMPI support. 
+ - **debug**: Tags containing `debug` specify that all the included FEMPAR dependencies are compiled in `DEBUG` mode. 
+ - **release**: Tags containing `release` specify that all the included FEMPAR dependencies are compiled in `RELEASE` mode. 
+ - **p4est_serial**: Tags containing `p4est_serial` specify that `P4EST` library was compiled without MPI support. 
+ - **p4est_parallel**: Tags containing `p4est_parallel` specify that `P4EST` library was compiled withMPI support. 
 
