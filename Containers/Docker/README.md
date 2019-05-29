@@ -69,7 +69,7 @@ There are several [available images](#available-images) provided by FEMPAR.
 
 ### Run FEMPAR containers
 
-To obtain FEMPAR Docker images, you should use [Docker pull command](#pull-command).
+To run FEMPAR Docker container, you should use [Docker run command](#run-command).
 
 ```bash
 $ docker run -ti fempar/fempar-env:gnu_debug_p4est-serial
@@ -124,7 +124,7 @@ so they are only recommended for advanced users.  Test programs are compiled as 
 
 ### Available images
 
-FEMPAR Docker images are are hosted in Docher Hub. [Docker Hub](https://hub.docker.com/) is a service provided by Docker for finding and sharing container images. Through Docker Hub, FEMPAR host, and allow users to get, official pre-built and up-to-date FEMPAR Docker images.
+FEMPAR Docker images are hosted in Docher Hub. [Docker Hub](https://hub.docker.com/) is a service provided by Docker for finding and sharing container images. Through Docker Hub, FEMPAR host, and allow users to get, official pre-built and up-to-date FEMPAR Docker images.
 
 FEMPAR Docker Hub organization is currently hosting two available repositories:
 
@@ -155,7 +155,7 @@ FEMPAR compilation environment is delivered under several environments:
   - `fempar/fempar-env:gnu-release_p4est-serial`
   - `fempar/fempar-env:gnu-release_p4est-parallel`    
 
-You can get more [details](#details) about this environments in [Image naming](#image-naming), [Tags](#tags) and [Components and environment](#components-and-environment) subsections.
+You can get more [details](#details) about these environments in [Image naming](#image-naming), [Tags](#tags) and [Components and environment](#components-and-environment) subsections.
 
 
 ### Components and environment
