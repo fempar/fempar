@@ -171,7 +171,7 @@ You can get more [details](#details) about these environments in [Image naming](
 
 FEMPAR follows agile practices to provide new features and bugfixes as soon as possible. This concept is well known as *continuous delivery*. Continuous delivery practices try to reduce as much as possible software delivery cycles.
 
-Continuous Delivery in FEMPAR project occurs with every new aproved change in the code. This means that every commit published in [experimental branch](https://gitlab.com/fempar/fempar/tree/experimental/) of FEMPAR repository automatically creates new Docker containers ready-to-use.
+Continuous Delivery in FEMPAR project occurs with every new approved change in the code. This means that every commit published in [experimental branch](https://gitlab.com/fempar/fempar/tree/experimental/) of FEMPAR repository automatically creates new Docker containers ready-to-use.
 
 ### Components and environment
 
