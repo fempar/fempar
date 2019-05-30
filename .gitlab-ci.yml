@@ -45,6 +45,7 @@ cache:
 
 .script_template:
   script: &script_template
+    - $CLEAN_ENV_COMMAND
     - $LOAD_ENV_COMMAND
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
@@ -215,6 +216,7 @@ INTEL_RELEASE_P4EST_SERIAL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_SERIAL
   script: *script_template
 
@@ -230,6 +232,7 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_SERIAL
   script: *script_template
 
@@ -246,6 +249,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
 
@@ -261,6 +265,7 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
 
