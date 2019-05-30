@@ -1,0 +1,64 @@
+BootStrap: docker
+From: fempar/fempar:gnu-release_p4est-serial
+
+%setup
+
+
+%post
+
+    #------------------
+    # REQUERIMENTS
+    #------------------
+
+    mkdir -p /mnt /scratch /opt/fempar
+
+    #------------------
+    # USER INSTALL
+    #------------------
+
+    # ... Install here your software
+
+    #------------------
+    # CLEAN APT files
+    #------------------
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/tmp/*
+
+%runscript
+
+    exec "$@"
+
+%test
+
+    cd /opt/fempar
+    ctest -j8 -V -E par_test 
+
+%help
+
+    echo "------------------------------------------------"
+    echo "| Finite Element Multiphysics PARallel solvers |"
+    echo "|             http://fempar.org/               |"
+    echo "------------------------------------------------"
+
+%appinstall fempar
+
+    # Installation performed in Docker Hub
+
+%appenv fempar
+
+    FEMPAR_DIR=/opt/fempar
+    export FEMPAR_DIR
+
+%apphelp fempar
+
+    echo "------------------------------------------------"
+    echo "| Finite Element Multiphysics PARallel solvers |"
+    echo "|             http://fempar.org/               |"
+    echo "|          ------------------------            |"
+    echo "| FEMPAR_DIR   = /opt/fempar                   |"
+    echo "| ENABLED_LIBS = MKL, BLAS, LAPACK, QHULL,     |"
+    echo "|                HDF5, P4EST (serial)          |"
+    echo "------------------------------------------------"
+
+
