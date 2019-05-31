@@ -261,8 +261,11 @@ contains
       call this%fe_space%interpolate_dirichlet_values(this%solution)
       call this%fe_affine_operator%reallocate_after_remesh()
       call this%assemble_system()
-      call this%direct_solver%replace_matrix( matrix = this%fe_affine_operator%get_matrix(), & 
-                                              same_nonzero_pattern = .false. )
+#ifdef ENABLE_MKL
+      call this%direct_solver%reallocate_after_remesh()
+#else
+      call this%iterative_linear_solver%reallocate_after_remesh()
+#endif
       call this%solve_system()
       !call this%check_solution()
       call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
