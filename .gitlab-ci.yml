@@ -1,7 +1,7 @@
 stages:
     - debug
     - release
-    - documentation
+    - deploy
 
 
 variables:
@@ -272,8 +272,22 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
 
 DOCUMENTATION:
   image: appropriate/curl:latest
-  stage: documentation
+  stage: deploy
   script: 
     - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
   only:
-    - experimental
+    - experimental@fempar/fempar
+
+SINGULARITY:
+  image: fempar/fempar-env:golang_stretch-singularity
+  stage: deploy
+  script: 
+    - echo $SYLABS_TOKEN > $CI_PROJECT_DIR/sylabs-token
+    - singularity remote login SylabsCloud --tokenfile $CI_PROJECT_DIR/sylabs-token
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-release_p4est-paralle $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
+    - rm $CI_PROJECT_DIR/sylabs-token
+  only:
+    - experimental@fempar/fempar
