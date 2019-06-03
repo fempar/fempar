@@ -26,7 +26,12 @@ This should download a Singularity image to current directory and show a colored
 
 Note that Singularity pull images to files in your local host. It does not manages a registry like Docker does. Then, naming convention only applies to Singularity registries.
 
-A remote Singularity image name is made up of slash-separated name components, prefixed by a protocol plus a registry hostname, and finally a tag separated by a colon. Usual naming structure forms an `URI` contains the following components: `protocol://hostname/organization/repository:tag`
+A remote Singularity image name is made up of slash-separated name components, prefixed by a protocol plus a registry hostname, and finally a tag separated by a colon. Usual naming structure forms a well formed`URI`.
+
+Currently, there are 2 official endpoints for hosting Singularity images, [Singularity-Hub](http://singularity-hub.org/) and [Singularity library](https://cloud.sylabs.io/library). Naming conventions on these platforms have some minor differences:
+
+  - **Singularity-Hub**: `protocol://hostname/organization/repository:tag`
+  - **Singularity library**: `protocol://user/project/name:[tag|@sha]`
 
 ### Pull command
 
@@ -62,11 +67,23 @@ $ singularity exec [exec options...] <container> <command>
 
 You can find more info in the official [Executing commands](https://www.sylabs.io/guides/3.2/user-guide/quick_start.html#executing-commands) section of the Singularity documentation.
 
+### Hybrid MPI approach
+
+For running *MPI parallel multinode jobs*, Singularity uses what is called *Hybrid MPI approach**. This means that an MPI distribution must be installed in both, inside the container and in the host. 
+
+MPI must be installed inside the container because it's needed to build the parallel MPI application. MPI must be installed outside the container because it should be close to the native system to be able to spawn process natively.
+
+```bash
+$ mpirun [option] singularity exec [exec options...] <container> <command>
+```
+
+With this approach, some level of compatibility between both MPI installations is needed, in particular with MPI/PMI[x] components. Exact matching between both versions (container and host) is the most general rule to ensure that this approach works properly. 
+
 ## FEMPAR 
 
 The quickest and port FEMPAR to an HPC is Singularity. [Singularity](https://www.sylabs.io/singularity/) is a tool designed to make it easier to create, deploy, and run applications by using containers. Singularity is HPC oriented and focused in extreme mobility and reproducible science. For more information, visit [Singularity info](https://www.sylabs.io/singularity/).
 
-FEMPAR provides several [Singularity containers](http://singularity-hub.org/collections/2740) ready-to-run in your host or preferred HPC center. 
+FEMPAR provides several [Singularity containers](https://cloud.sylabs.io/library/fempar) ready-to-run in your host or preferred HPC center. 
 
 
 ### Pull FEMPAR images
@@ -74,7 +91,7 @@ FEMPAR provides several [Singularity containers](http://singularity-hub.org/coll
 To obtain FEMPAR Singularity images, you should use [Singularity pull command](#pull-command).
 
 ```bash
-$ singularity pull shub://fempar/fempar:gnu-release_p4est-serial
+$ singularity pull library://fempar/default/fempar:gnu-release_p4est-serial
 ```
 There are several [available images](#available-images) provided by FEMPAR.
 
@@ -85,7 +102,7 @@ Note that FEMPAR [Release Cycle](#release-cycle) is per commit on [experimental 
 To run a FEMPAR container, you should use [Singularity run command](#run-command).
 
 ```bash
-$ singularity run fempar-fempar-experimental-gnu-release_p4est-serial.simg bash
+$ singularity run fempar_gnu-release_p4est-serial.sif bash
 ```
 
 There are several [available images](#available-images) provided by FEMPAR.
@@ -97,7 +114,7 @@ Note that, by default, Singularity containers are not writable. If you need to p
 Fempar containers includes executable tests and tutorials. To execute a contained FEMPAR application, you should use [Singularity exec command](#exec-command).
 
 ```bash
-$ singularity exec fempar-fempar-experimental-gnu-release_p4est-serial.simg /opt/fempar/bin/tutorial_01_steady_poisson
+$ singularity exec fempar_gnu-release_p4est-serial.sif /opt/fempar/bin/tutorial_01_steady_poisson
 ```
 
 There are several [available images](#available-images) provided by FEMPAR.
@@ -108,20 +125,18 @@ Note that, by default, Singularity containers are not writable. If you need to p
 
 ### Available images
 
-[![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/2740)
+FEMPAR Singularity images are hosted in *Singularity library*. [Singularity library](https://cloud.sylabs.io/library/) is a service for finding and sharing container images. Through Singularity library, FEMPAR host, and allow users to get, official pre-built and up-to-date FEMPAR Singularity images.
 
-FEMPAR Singularity images are hosted in Singularity Hub. [Singularity Hub](https://http://singularity-hub.org/) is a service for finding and sharing container images. Through Singularity Hub, FEMPAR host, and allow users to get, official pre-built and up-to-date FEMPAR Singularity images.
+FEMPAR Singularity library organization is currently hosting a single project:
 
-FEMPAR Singularity Hub organization is currently hosting a single repositories:
-
-  - **fempar** repository: contains FEMPAR library, binary tutorial andtests and all their dependencies.
+  - **fempar** project: contains FEMPAR library, binary tutorial andtests and all their dependencies.
 
 FEMPAR library is delivered under several environments:
 
-  - `fempar/fempar:gnu-debug_p4est-serial`
-  - `fempar/fempar:gnu-debug_p4est-parallel`
-  - `fempar/fempar:gnu-release_p4est-serial`
-  - `fempar/fempar:gnu-release_p4est-parallel`
+  - `fempar:gnu-debug_p4est-serial`
+  - `fempar:gnu-debug_p4est-parallel`
+  - `fempar:gnu-release_p4est-serial`
+  - `fempar:gnu-release_p4est-parallel`
 
 You can get more [details](#details) about these environments in [Image naming](#image-naming), [Tags](#tags) and [Components and environment](#components-and-environment) subsections.
 
@@ -148,12 +163,12 @@ All images are built on top of the official [GCC containers](https://hub.docker.
 
 ### Image naming
 
-FEMPAR Singularity image names follow the standard naming convention (`protocol://hostname/organization/repository:tag`), see [Singularity images naming](#naming-convention), with the following components:
+FEMPAR Singularity image names follow the standard naming convention (`protocol://user/project/name:tag`), see [Singularity images naming](#naming-convention), with the following components:
 
-  - Protocol: `shub`
-  - Hostname: `singularity-hub.org`, can be skipped a it's thee default one.
-  - Organization: fempar
-  - Repositories: [fempar](https://www.singularity-hub.org/collections/2740)
+  - Protocol: `library`
+  - User: `fempar`
+  - Project: `default`
+  - Name: [fempar](https://cloud.sylabs.io/library/fempar)
   - Tags: `gnu-debug_p4est-serial`, `gnu-debug_p4est-parallel`, `gnu-release_p4est-serial` and `gnu-release_p4est-parallel`
 
 Valid FEMPAR Singularity image names are built using these components, e.g. `shub://fempar/fempar-env:gnu-release_p4est-parallel`.
