@@ -22,7 +22,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
       final_exit_code=1
      fi
@@ -32,7 +32,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -prec-type jacobi"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -prec-type jacobi
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
       final_exit_code=1
      fi
@@ -42,7 +42,7 @@ then
     then     
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -prec-type identity"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -prec-type identity
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
       final_exit_code=1
      fi
@@ -52,7 +52,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
       final_exit_code=1
      fi
@@ -62,7 +62,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
       final_exit_code=1
      fi
@@ -72,7 +72,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -use-voids T -use-voids-case half"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -use-voids T -use-voids-case half
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
        final_exit_code=1
      fi
@@ -82,7 +82,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -use-voids T -use-voids-case quarter"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -use-voids T -use-voids-case quarter
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
         final_exit_code=1
      fi
@@ -92,7 +92,7 @@ then
     then
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12 -use-voids T -use-voids-case popcorn"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $struct_hex_triang_num_dims_flag 3 $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 3 1 1 1 $struct_hex_triang_num_cells_dir_flag 12 12 12 -use-voids T -use-voids-case popcorn
-     if [ $? $struct_hex_triang_num_cells_dir_flage 0 ] 
+     if [ $? -ne 0 ]
      then
        final_exit_code=1
      fi
