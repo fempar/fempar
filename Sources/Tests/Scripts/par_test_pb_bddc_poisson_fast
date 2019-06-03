@@ -14,7 +14,7 @@ echo "$DIR"
 TMP_OUTPUT="tmp_output_""$SCRIPT_NAME"
 
 # Load FEMPAR CLAs
-. $TEST_SCRIPTS_PATH/fempar_parameters
+. $TEST_SCRIPTS_PATH/fempar_cla_names
 
 # Allowed variation (%) in the number of iterations  w.r.t. the reference solution to return a PASSED test
 allowed_variation=0.05 

@@ -5,7 +5,7 @@ TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
 
 # Load FEMPAR CLAs
-. $TEST_SCRIPTS_PATH/fempar_parameters
+. $TEST_SCRIPTS_PATH/fempar_cla_names
 
 lst_integration_schemes="forward_euler#backward_euler#trapezoidal_rule#mid_point_implicit#mid_point_explicit#imex_rk_2_2_1_implicit#imex_rk_2_2_1_explicit#imex_rk_2_2_2_implicit#imex_rk_2_2_2_explicit#imex_rk_2_3_implicit#imex_rk_2_3_explicit#runge_kutta_3#runge_kutta_4#runge_kutta_4_3_8#imex_rk_4_3_implicit#imex_rk_4_3_explicit"
 

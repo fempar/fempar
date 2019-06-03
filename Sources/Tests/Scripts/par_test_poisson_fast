@@ -11,7 +11,7 @@ final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 
 # Load FEMPAR CLAs
-. $TEST_SCRIPTS_PATH/fempar_parameters
+. $TEST_SCRIPTS_PATH/fempar_cla_names
 
 if [ -f "$TEST_BINARY_PATH" ]
 then
