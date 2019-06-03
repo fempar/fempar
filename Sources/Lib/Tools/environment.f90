@@ -50,7 +50,7 @@ module environment_names
   integer(ip) , parameter :: created_from_scratch = 2   ! when contexts have been created from scratch
 
   ! This type manages the assigment of tasks to different levels as well as
-  ! the dutties assigned to each of them. The array parts_mapping gives the
+  ! the duties assigned to each of them. The array parts_mapping gives the
   ! part assigned to this task and the parts of coarser levels it belongs to. 
   ! Different levels in the hierarchy are managed recursively.
   type ::  environment_t

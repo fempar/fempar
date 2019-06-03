@@ -51,17 +51,7 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
 
   call this%set_environment(environment)
   p_environment => this%get_environment()
-  ! if(present(environment)) then
-  !    call this%set_environment(environment)
-  !    p_environment => this%get_environment()
-  ! else
-  !    istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-  !    istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
-  !    call this%allocate_environment()
-  !    p_environment => this%get_environment()
-  !    call p_environment%create(parameters)
-  ! end if
-
+  
   if( parameters%isPresent(subparts_coupling_criteria_key) ) then
      massert(parameters%isAssignable(subparts_coupling_criteria_key, dummy_string), 'Subparts coupling criteria not found or un-usable')
      istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria); assert(istat==0) 
@@ -72,15 +62,15 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
      
   if ( p_environment%am_i_l1_task() ) then  
      ! Get num_dims from FPL
-     massert(parameters%isAssignable(struct_hex_triang_num_dims_key, num_dims), 'num_dims not found or un-usable')
-     istat = parameters%get(key = struct_hex_triang_num_dims_key, value = num_dims); assert(istat==0)
+     massert(parameters%isAssignable(p4est_triang_num_dims_key, num_dims), 'num_dims not found or un-usable')
+     istat = parameters%get(key = p4est_triang_num_dims_key, value = num_dims); assert(istat==0)
      call this%set_num_dims(num_dims)
-     if( parameters%isPresent(key = struct_hex_triang_domain_limits_key) ) then
-       istat = parameters%GetShape(key = struct_hex_triang_domain_limits_key, shape = array_size); check(istat==0)
+     if( parameters%isPresent(key = p4est_triang_domain_limits_cla_name) ) then
+       istat = parameters%GetShape(key = p4est_triang_domain_limits_cla_name, shape = array_size); check(istat==0)
        assert(array_size(1) >= 2*this%get_num_dims())
        call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)
        assert(parameters%isAssignable(struct_hex_triang_domain_limits_key, bounding_box_limits))
-       istat = parameters%get(key = struct_hex_triang_domain_limits_key , value = bounding_box_limits); check(istat==0)
+       istat = parameters%get(key = p4est_triang_domain_limits_cla_name , value = bounding_box_limits); check(istat==0)
        do idime = 1,this%get_num_dims()
          this%bounding_box_limits(idime,1) = bounding_box_limits(2*idime-1)
          this%bounding_box_limits(idime,2) = bounding_box_limits(2*idime)
@@ -96,7 +86,7 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
        assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
        istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
      else
-       p4est_log_level = FEMPAR_SC_LP_DEFAULT
+       p4est_log_level = p4est_triang_log_level_cla_name
      end if
      
      if( parameters%isPresent(key = p4est_triang_2_1_k_balance_key ) ) then

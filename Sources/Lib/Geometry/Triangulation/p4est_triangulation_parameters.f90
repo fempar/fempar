@@ -29,18 +29,6 @@ module p4est_triangulation_parameters_names
   use types_names
   implicit none
  
-  ! Parameter handling
-  character(len=*), parameter :: p4est_triang_log_level_key     = 'P4EST_TRIANG_LOG_LEVEL'
-  character(len=*), parameter :: p4est_triang_2_1_k_balance_key = 'P4EST_TRIANG_2_1_K_BALANCE'
-  character(len=*), parameter :: p4est_triang_k_ghost_cells_key = 'P4EST_TRIANG_K_GHOST_CELLS'
-
-  character(len=*), parameter :: p4est_triang_log_level_cla_name     = '--'//p4est_triang_log_level_key
-  character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_name = '--'//p4est_triang_2_1_k_balance_key
-  character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_name = '--'//p4est_triang_k_ghost_cells_key
-  
-  integer(ip), parameter :: default_p4est_triang_2_1_k_balance = 0
-  integer(ip), parameter :: default_p4est_triang_k_ghost_cells = 0
-  
   ! Numbers designating the level of logging output.
   !
   ! Priorities TRACE to VERBOSE are appropriate when all parallel processes
@@ -60,8 +48,28 @@ module p4est_triangulation_parameters_names
   integer(ip), parameter :: SC_LP_ESSENTIAL      = 7  !**< this logs a few lines max per program */
   integer(ip), parameter :: SC_LP_ERROR          = 8  !**< this logs errors only */
   integer(ip), parameter :: SC_LP_SILENT         = 9  !**< this never logs anything */
-  integer(ip), parameter :: FEMPAR_SC_LP_DEFAULT = SC_LP_SILENT    
+  integer(ip), parameter :: FEMPAR_SC_LP_DEFAULT = SC_LP_SILENT
   
+  ! Parameter handling
+  character(len=*), parameter :: p4est_triang_num_dims_key      = 'P4EST_TRIANG_NUM_DIMS'
+  character(len=*), parameter :: p4est_triang_domain_limits_key = 'P4EST_TRIANG_DOMAIN_LIMITS'
+  character(len=*), parameter :: p4est_triang_log_level_key     = 'P4EST_TRIANG_LOG_LEVEL'
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_key = 'P4EST_TRIANG_2_1_K_BALANCE'
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_key = 'P4EST_TRIANG_K_GHOST_CELLS'
+
+  character(len=*), parameter :: p4est_triang_num_dims_cla_name      = '--'//p4est_triang_num_dims_key
+  character(len=*), parameter :: p4est_triang_domain_limits_cla_name = '--'//p4est_triang_domain_limits_key
+  character(len=*), parameter :: p4est_triang_log_level_cla_name     = '--'//p4est_triang_log_level_key
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_name = '--'//p4est_triang_2_1_k_balance_key
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_name = '--'//p4est_triang_k_ghost_cells_key
+  
+  ! Unit square/cube by default; all points on and in the domain have space coordinates >= 0.0_rp
+  real(rp)   , parameter :: default_p4est_triang_domain_limits (*) = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]  
+  integer(ip), parameter :: default_p4est_triang_log_level         = FEMPAR_SC_LP_DEFAULT
+  integer(ip), parameter :: default_p4est_triang_num_dims          = 2 
+  integer(ip), parameter :: default_p4est_triang_2_1_k_balance     = 0
+  integer(ip), parameter :: default_p4est_triang_k_ghost_cells     = 0
+    
   ! For 2D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_2D = 2
   integer(ip), parameter :: NUM_CORNERS_2D                = 4

@@ -6,9 +6,12 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
 
 if [ -f "$TEST_BINARY_PATH" ]
 then
@@ -23,8 +26,8 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform"
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform
+            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
+            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2
             if [ $? -ne 0 ] 
             then
              final_exit_code=1

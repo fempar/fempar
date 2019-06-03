@@ -96,7 +96,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_poisson_error_estimator_driver_t ), intent(inout) :: this
-    call parameter_handler%process_parameters(test_poisson_define_user_parameters)
+    call this%test_params%process_parameters()
     this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
 
@@ -120,18 +120,16 @@ contains
     class(vef_iterator_t), allocatable :: vef
     integer(ip)                        :: i
     call this%triangulation%create(this%serial_environment, this%parameter_list)
-    if ( .not. this%test_params%get_use_void_fes() ) then
-      call this%triangulation%create_vef_iterator(vef)
-      do while ( .not. vef%has_finished() )
-        if(vef%is_at_boundary()) then
-          call vef%set_set_id(1)
-        else
-          call vef%set_set_id(0)
-        end if
-        call vef%next()
-      end do
-      call this%triangulation%free_vef_iterator(vef)
-    end if
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+      if(vef%is_at_boundary()) then
+        call vef%set_set_id(1)
+      else
+        call vef%set_set_id(0)
+      end if
+      call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
     call this%set_cells_for_uniform_refinement()
     call this%triangulation%refine_and_coarsen()
   end subroutine setup_triangulation

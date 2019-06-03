@@ -869,9 +869,33 @@ contains
         call this%add(struct_hex_triang_num_parts_x_dir_key, struct_hex_triang_num_parts_x_dir_cla_name, [1,1,1], 'Number of parts per each dimension')
         call this%add(struct_hex_triang_domain_limits_key, struct_hex_triang_domain_limits_cla_name, [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain interval per direction')
 
-        call this%add(p4est_triang_log_level_key, p4est_triang_log_level_cla_name, FEMPAR_SC_LP_DEFAULT, 'p4est library level of logging output')
-        call this%add(p4est_triang_2_1_k_balance_key, p4est_triang_2_1_k_balance_cla_name, default_p4est_triang_2_1_k_balance,  'value of k for 2:1 k-balanced forest-of-octrees (use with care, at present, only k={0,1} supported/tested)')
-        call this%add(p4est_triang_k_ghost_cells_key, p4est_triang_k_ghost_cells_cla_name, default_p4est_triang_k_ghost_cells, 'value of k for the k-ghost cells set of each processor (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
+        ! P4EST triangulation parameters
+        call this%add(p4est_triang_num_dims_key, &
+                      p4est_triang_num_dims_cla_name, &
+                      default_p4est_triang_num_dims, &
+                      'p4est triangulation number of space dimensions')
+        
+        call this%add(p4est_triang_domain_limits_key, &
+                      p4est_triang_domain_limits_cla_name, &
+                      default_p4est_triang_domain_limits, &
+                      'p4est triangulation domain interval per dimension')
+        
+        call this%add(p4est_triang_log_level_key, &
+                      p4est_triang_log_level_cla_name, &
+                      default_p4est_triang_log_level, &
+                      'p4est library level of logging output')
+        
+        call this%add(p4est_triang_2_1_k_balance_key, &
+                      p4est_triang_2_1_k_balance_cla_name, &
+                      default_p4est_triang_2_1_k_balance,  &
+                      'value of k for 2:1 k-balanced forest-of-octrees &
+                      (use with care, at present, only k={0,1} supported/tested)')
+        
+        call this%add(p4est_triang_k_ghost_cells_key, &
+                      p4est_triang_k_ghost_cells_cla_name, &
+                      default_p4est_triang_k_ghost_cells, &
+                      'value of k for the k-ghost cells set of each processor &
+                      (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
 
         ! BDDC
         call this%add(bddc_scaling_function_case_key, '--BDDC_SCALING_FUNCTION_CASE', cardinality, 'Scaling type for the BDDC weighting operator')

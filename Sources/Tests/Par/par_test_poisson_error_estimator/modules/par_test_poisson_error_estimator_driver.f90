@@ -46,7 +46,7 @@ module par_test_poisson_error_estimator_driver_names
      type(environment_t)                               :: par_environment
      
      type(par_test_poisson_error_estimator_params_t)   :: par_test_params
-     type(ParameterList_t)                             :: parameter_list
+     type(ParameterList_t), pointer                    :: parameter_list
      
      type(p4est_par_triangulation_t)                   :: triangulation
      
@@ -102,16 +102,14 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
-    call this%par_test_params%create()
-    call this%par_test_params%parse(this%parameter_list)
+    call this%par_test_params%process_parameters()
+    this%parameter_list => parameter_handler%get_values()
   end subroutine parse_command_line_parameters
   
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
-    call this%par_test_params%free()
-    call this%parameter_list%free()
   end subroutine free_command_line_parameters
   
   !========================================================================================
@@ -138,7 +136,7 @@ contains
     class(vef_iterator_t), allocatable :: vef
     integer(ip)                        :: i, istat
     call this%triangulation%create(this%par_environment,this%parameter_list)
-    if ( .not. this%par_test_params%get_use_void_fes() .and. this%par_environment%am_i_l1_task() ) then
+    if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_vef_iterator(vef)
       do while ( .not. vef%has_finished() )
         if(vef%is_at_boundary()) then

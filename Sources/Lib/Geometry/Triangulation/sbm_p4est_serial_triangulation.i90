@@ -52,8 +52,8 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   ! call environment%create(parameters)
   
   ! Get num_dims from FPL
-  massert(parameters%isAssignable(struct_hex_triang_num_dims_key, num_dims ),'num_dims not found or un-usable.')
-  istat = parameters%get(key = struct_hex_triang_num_dims_key, value = num_dims); assert(istat==0)
+  massert(parameters%isAssignable(p4est_triang_num_dims_key, num_dims ),'num_dims not found or un-usable.')
+  istat = parameters%get(key = p4est_triang_num_dims_key, value = num_dims); assert(istat==0)
   call this%set_num_dims(num_dims)
   
   if( parameters%isPresent(key = struct_hex_triang_domain_limits_key) ) then
@@ -77,7 +77,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
     istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
   else
-    p4est_log_level = FEMPAR_SC_LP_DEFAULT
+    p4est_log_level = default_p4est_triang_log_level
   end if
   
   if( parameters%isPresent(key = p4est_triang_2_1_k_balance_key ) ) then
