@@ -538,7 +538,7 @@ contains
       ! Locals
       integer(ip) :: luout
       assert ( this%state == workspace_allocated )
-      if (this%track_convergence_history) then
+      if (this%environment%am_i_l1_root() .and. this%track_convergence_history) then
         luout = io_open ( file_path, 'write')
         call this%print_convergence_history_header(luout)
         call this%print_convergence_history_body(luout)
@@ -554,25 +554,29 @@ contains
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
-      character(len=*), parameter   :: fmt1='(a,1x,i4,3(2x,es16.9))'
-      character(len=*), parameter   :: fmt2='(a,1x,i4,3(2x,es16.9),3(2x,es16.9))'
+      character(len=*), parameter   :: fmt1='(a,1x,i9,3(2x,es16.9))'
+      character(len=*), parameter   :: fmt2='(a,1x,i9,3(2x,es16.9),3(2x,es16.9))'
       character(len=:), allocatable :: outname
       integer(ip)                   :: i
-
-      outname = this%name // ':' // '  '
-      select case(this%stopping_criteria)
-      case ( delta_rhs, delta_delta, res_res, res_rhs, & 
+      assert ( this%state == workspace_allocated )
+      assert ( this%track_convergence_history )
+      assert ( this%environment%am_i_l1_root() )
+      if (this%environment%am_i_l1_root()) then
+        outname = this%name // ':' // '  '
+        select case(this%stopping_criteria)
+        case ( delta_rhs, delta_delta, res_res, res_rhs, & 
            & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven )
-         do i=1,this%num_iterations
-            write(luout,fmt1) outname, i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test
-         end do
-      case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, & 
-           & delta_delta_and_res_res, delta_delta_and_res_rhs )
-         do i=1,this%num_iterations
+           do i=1,this%num_iterations
+             write(luout,fmt1) outname, i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test
+           end do
+        case ( delta_rhs_and_res_res  , delta_rhs_and_res_rhs, & 
+             & delta_delta_and_res_res, delta_delta_and_res_rhs )
+           do i=1,this%num_iterations
             write(luout,fmt2) outname, i, this%error_estimate_history_convergence_test(i), this%rhs_convergence_test, &
                  &                        this%error_estimate_history_extra_convergence_test(i), this%rhs_extra_convergence_test 
-         end do
-      end select
+           end do
+        end select
+      end if 
     end subroutine print_convergence_history_body
 
     subroutine print_convergence_history_new_line ( this, luout )
@@ -644,7 +648,6 @@ contains
       character(len=*), parameter  :: fmt22='(a,3(2x,es16.9),3(2x,es16.9))'
       
       if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
-
         select case( this%stopping_criteria )
            case ( delta_rhs,delta_delta,res_res,res_rhs,&
                 & res_nrmgiven_rhs_nrmgiven, res_nrmgiven_res_nrmgiven)
@@ -677,7 +680,7 @@ contains
     subroutine allocate_convergence_history (this)
       implicit none
       class(base_iterative_linear_solver_t), intent(inout) :: this
-      if (this%track_convergence_history) then
+      if (this%environment%am_i_l1_root() .and. this%track_convergence_history) then
          if ( allocated(this%error_estimate_history_convergence_test) ) then
            if ( this%max_num_iterations /= size(this%error_estimate_history_convergence_test) ) then
              call memrealloc(this%max_num_iterations, this%error_estimate_history_convergence_test, __FILE__, __LINE__)

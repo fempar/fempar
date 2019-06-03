@@ -190,12 +190,15 @@ contains
         res_norm = this%r%nrm2()
 
         error_estimate_convergence_test = res_norm
-        if (track_convergence_history) then 
+        if (environment%am_i_l1_root() .and. track_convergence_history) then 
           error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
         end if
         call this%print_convergence_history_new_line(luout)
 
         did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
+        
+        ! Send converged to coarse-grid tasks
+        call environment%l1_lgt1_bcast(did_converge)
     end do loop_prichard
 
     call this%print_convergence_history_footer(luout)

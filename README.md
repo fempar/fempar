@@ -35,8 +35,8 @@ Please, follow the steps below to compile FEMPAR using the Docker container:
 ```bash
 # You must Sing up at https://hub.docker.com/ to get your_username_at_dockerhub
 $ sudo docker login --username=your_username_at_dockerhub
-$ sudo docker pull fempar/fempar-env:gnu_debug_p4est-serial          # Get Docker image from Docker Hub
-$ sudo docker run -ti fempar/fempar-env:gnu_debug_p4est-serial
+$ sudo docker pull fempar/fempar-env:gnu-debug_p4est-serial          # Get Docker image from Docker Hub
+$ sudo docker run -ti fempar/fempar-env:gnu-debug_p4est-serial
 $ WORKDIR=/data
 $ SOURCES_DIR=$WORKDIR/sources
 $ FEMPAR_DIR=$WORKDIR/FEMPAR

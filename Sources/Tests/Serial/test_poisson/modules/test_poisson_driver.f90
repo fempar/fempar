@@ -505,11 +505,12 @@ contains
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
-    call this%nl_solver%create(convergence_criteria = abs_res_norm, & 
-         &                     abs_tol = 1.0e-12_rp,  &
-         &                     rel_tol = 1.0e-12_rp, &
-         &                     max_iters = 10   ,  &
-         &                     linear_solver = this%iterative_linear_solver, &
+    FPLError = this%parameter_list%set(key = nls_rtol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_atol_key, value = 1.0e-12_rp); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_max_num_iterations_key, value = 10); assert(FPLError == 0)
+    FPLError = this%parameter_list%set(key = nls_stopping_criterium_key, value = abs_res_norm); assert(FPLError == 0)
+    call this%nl_solver%create(this%parameter_list, & 
+                               linear_solver = this%iterative_linear_solver, &
                                fe_operator = this%fe_affine_operator)
 #endif
     call parameter_list%free()

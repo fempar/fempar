@@ -4278,9 +4278,9 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
         end do
         deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
         call old_lst_dofs_gids%free()  
+     else
+        call this%update_after_refine_coarsen()
      end if
-  else
-     call this%update_after_refine_coarsen()
   end if
 #else  
   call this%not_enabled_error()

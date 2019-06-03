@@ -30,11 +30,6 @@ From: fempar/fempar-env:gnu-release_p4est-parallel
     echo "Arguments received: $*"
     exec "$@"
 
-%test
-
-    cd /opt/fempar
-    ctest -j8 -V -E par_test 
-
 %help
 
     echo "------------------------------------------------"

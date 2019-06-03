@@ -1,7 +1,7 @@
 stages:
     - debug
     - release
-    - documentation
+    - deploy
 
 
 variables:
@@ -45,6 +45,7 @@ cache:
 
 .script_template:
   script: &script_template
+    - $CLEAN_ENV_COMMAND
     - $LOAD_ENV_COMMAND
     - mkdir -p $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
@@ -56,7 +57,7 @@ cache:
         cmake --build . -- -j8;
       done
     - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
@@ -215,6 +216,7 @@ INTEL_RELEASE_P4EST_SERIAL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_SERIAL
   script: *script_template
 
@@ -230,6 +232,7 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_SERIAL
   script: *script_template
 
@@ -246,6 +249,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
 
@@ -261,14 +265,29 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
+    CLEAN_ENV_COMMAND: module purge
     LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
 
 
 DOCUMENTATION:
   image: appropriate/curl:latest
-  stage: documentation
+  stage: deploy
   script: 
     - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
   only:
-    - experimental
+    - experimental@fempar/fempar
+
+SINGULARITY:
+  image: fempar/fempar-env:golang_stretch-singularity
+  stage: deploy
+  script: 
+    - echo $SYLABS_TOKEN > $CI_PROJECT_DIR/sylabs-token
+    - singularity remote login SylabsCloud --tokenfile $CI_PROJECT_DIR/sylabs-token
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
+    - singularity build -d -F -r fempar/experimental/fempar:gnu-release_p4est-paralle $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
+    - rm $CI_PROJECT_DIR/sylabs-token
+  only:
+    - experimental@fempar/fempar
