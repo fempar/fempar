@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!* The `[[test_stokes_parameter_list]]`,
-program test_stokes_parameter_list
-!* uses the `fempar_names` and `test_stokes_parameter_list_driver_names`:
+!* The `[[tutorial_02_steady_stokes]]`,
+program tutorial_02_steady_stokes
+!* uses the `fempar_names` and `tutorial_02_steady_stokes_driver_names`:
   use fempar_names
   use stokes_discrete_integration_names  
   !* First, declare the `test_driver` and the `world_context`  
@@ -45,15 +45,6 @@ program test_stokes_parameter_list
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
-  !* This is a pointer to the finite element used to map the reference cell to the physical space. Usually, it is first order.
-  !* The FE space used for this purpose will be extracted from the triangulation.
-  class(reference_fe_t), pointer       :: reference_fe_geo
-  !* This is a pointer to the reference finite element used to approximate the stokes problem.
-  type(p_reference_fe_t)               :: reference_fe
-  type(p_reference_fe_t), allocatable  :: reference_fes(:) 
-  !* The triangulation can provide a reference_fe... too complicated
-  !* SB: Provide the topology in a different way!!!!
-  class(cell_iterator_t), allocatable  :: cell
   !* The fe_space_t is the global finite element space to be used.
   type(serial_fe_space_t)              :: fe_space
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
@@ -80,8 +71,9 @@ program test_stokes_parameter_list
   type(output_handler_t) :: output_handler
 
   !* Local variables
+  real(rp) :: viscosity
   integer(ip) :: fe_order, istat, error, i, boundary_ids
-  class(vector_t), pointer       :: dof_values
+  class(vector_t), pointer :: dof_values
   class(vector_t), allocatable :: rhs
   real(rp) :: l2
   
@@ -94,8 +86,9 @@ program test_stokes_parameter_list
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
-  call parameter_handler%process_parameters(test_stokes_parameter_list_define_fempar_parameters)
+  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_fempar_parameters)
   parameter_list => parameter_handler%get_values()
+  ! call parameter_list%print()
 
   !* Determine a serial execution mode (default case)
   call serial_environment%create(world_context,parameter_list)
@@ -146,8 +139,6 @@ program test_stokes_parameter_list
   error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
   mcheck(error==0,'Failed parameter set')
   
-  call parameter_list%print()
-  
   !
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = stokes_conditions, &
@@ -156,9 +147,14 @@ program test_stokes_parameter_list
   call fe_space%set_up_cell_integration()
 
   ! Now, we define the source term with the function we have created in our module.
+  ! Besides, we get the value of the desired value of the viscosity, possibly the one provided via
+  ! the command line argument --VISCOSITY. Otherwise, defaults to 1.0. 
+  ! (see tutorial_02_steady_stokes_define_fempar_parameters subroutine below)
   call source_term%create(zero_function)
   call stokes_integration%set_source_term(source_term)
-  call stokes_integration%set_viscosity(1.0_rp)
+  error = parameter_list%get(key = 'viscosity', value = viscosity)
+  mcheck(error==0,'Failed parameter set')
+  call stokes_integration%set_viscosity(viscosity)
 
   !* Now, we create the affine operator, i.e., b - Ax, providing the info for the matrix (storage, symmetric, etc.), and the form to
   !* be used to fill it, e.g., the bilinear form related that represents the weak form of the stokes problem and the right hand
@@ -184,8 +180,9 @@ program test_stokes_parameter_list
   error = 0
   error = error + parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
   error = error + parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
-  error = error + parameter_list%set(key = ils_type_key, value = fgmres_name )
-  assert(error == 0)
+  error = error + parameter_list%set(key = ils_output_frequency_key, value = 50)
+  error = error + parameter_list%set(key = ils_type_key, value = rgmres_name )
+  mcheck(error==0,'Failed parameter set')
   
   !* Now, we create a serial iterative solver with the values in the parameter list.
   call iterative_linear_solver%create(fe_space%get_environment())
@@ -198,9 +195,10 @@ program test_stokes_parameter_list
   !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
   !* putting the result in dof_values.
   call iterative_linear_solver%apply(-fe_affine_operator%get_translation(), &
-                                          dof_values)   
+                                     dof_values)   
   
-  error = error + parameter_list%set(key = dir_path_out_key      , Value= 'RESULTS_STOKES_DRIVER')
+  error = parameter_list%set(key = dir_path_out_key      , Value= 'tutorial_02_steady_stokes_results')
+  mcheck(error==0,'Failed parameter set')
   call output_handler%create()
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'velocity')
@@ -218,12 +216,10 @@ program test_stokes_parameter_list
 
   !* We finally write the result and check we have solved the problem "exactly", since the exact solution belongs to the FE space.
   !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
+
 !*
 !* Free all the created objects
-!*  call fempar_parameter_handler%free()
-!*  call triangulation%free()
-!*
-!*   In the following code, we will use
+  call parameter_handler%free()
   !call error_norm%free()
   call solution%free()
   call iterative_linear_solver%free()
@@ -237,7 +233,7 @@ program test_stokes_parameter_list
 
   call fempar_finalize()
   contains
-    subroutine test_stokes_parameter_list_define_fempar_parameters(this)
+    subroutine tutorial_02_steady_stokes_define_fempar_parameters(this)
     implicit none
     class(fempar_parameter_handler_t), intent(inout) :: this
     type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
@@ -251,6 +247,6 @@ program test_stokes_parameter_list
     error = 0
     error = error + helpers%set(key = 'viscosity'     , Value= 'Value of the viscosity')
     error = error + switches%set(key = 'viscosity'    , Value= '--VISCOSITY')
-    error = error + values%set(key = 'viscosity'      , Value= '1.0')
-    end subroutine  test_stokes_parameter_list_define_fempar_parameters
-end program test_stokes_parameter_list
+    error = error + values%set(key = 'viscosity'      , Value= 1.0)
+    end subroutine  tutorial_02_steady_stokes_define_fempar_parameters
+end program tutorial_02_steady_stokes
