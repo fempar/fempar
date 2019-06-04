@@ -138,7 +138,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 3  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag $SCRIPT_NAME2"
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 3  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag $SCRIPT_NAME"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 

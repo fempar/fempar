@@ -13,7 +13,7 @@ then
     do
       for ops in 2 3
       do
-        COMMAND="$TEST_BINARY_PATH --TEST_FUNCTION_NAME test_scalar --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops --TEST_OPERATOR $op"
+        COMMAND="$TEST_BINARY_PATH --TEST_FUNCTION_NAME test_scalar --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops --TEST_OPERATOR ${op}"
         echo $COMMAND
         eval $COMMAND
         if [ $? -ne 0 ] 

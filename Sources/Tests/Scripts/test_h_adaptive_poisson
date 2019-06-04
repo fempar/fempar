@@ -24,8 +24,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -45,8 +46,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2  -order $order -f dG"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -f dG
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -f dG"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -66,8 +68,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -87,8 +90,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
