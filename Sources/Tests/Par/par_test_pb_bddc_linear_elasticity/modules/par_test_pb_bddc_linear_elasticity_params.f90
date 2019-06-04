@@ -26,6 +26,8 @@ module par_test_pb_bddc_linear_elasticity_params_names
   type :: par_test_pb_bddc_linear_elasticity_params_t
      private
      contains
+       procedure, non_overridable             :: process_parameters
+       procedure, non_overridable             :: get_parameter_list
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
@@ -49,7 +51,7 @@ module par_test_pb_bddc_linear_elasticity_params_names
   end type par_test_pb_bddc_linear_elasticity_params_t
 
   ! Types
-  public :: par_test_pb_bddc_linear_elasticity_params_t, par_test_pb_bddc_linear_elasticity_params_define_parameters, standard_bddc, pb_bddc
+  public :: par_test_pb_bddc_linear_elasticity_params_t, standard_bddc, pb_bddc
 
 contains
 
@@ -79,6 +81,23 @@ contains
     call parameter_handler%update(struct_hex_triang_domain_limits_key, [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp])
 
   end subroutine par_test_pb_bddc_linear_elasticity_params_define_parameters
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(par_test_pb_bddc_linear_elasticity_params_define_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer                      :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)

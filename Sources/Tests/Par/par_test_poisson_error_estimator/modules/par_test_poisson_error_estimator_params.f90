@@ -41,6 +41,7 @@ module par_test_poisson_error_estimator_params_names
      private 
    contains
      procedure, non_overridable             :: process_parameters
+     procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_reference_fe_order
@@ -53,13 +54,6 @@ module par_test_poisson_error_estimator_params_names
   public :: par_test_poisson_error_estimator_params_t
 
 contains
-
-  subroutine process_parameters(this)
-    implicit none
-    class(par_test_poisson_error_estimator_params_t) , intent(in) :: this
-    call parameter_handler%process_parameters(par_test_poisson_error_estimator_define_user_parameters)
-  end subroutine process_parameters
-
 
   subroutine par_test_poisson_error_estimator_define_user_parameters()
     implicit none       
@@ -84,6 +78,23 @@ contains
                                'polynomial or shock analytical functions?', &
                                switch_ab='-af')
   end subroutine par_test_poisson_error_estimator_define_user_parameters
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(par_test_poisson_error_estimator_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(par_test_poisson_error_estimator_define_user_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(par_test_poisson_error_estimator_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer                      :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
 
   ! GETTERS *****************************************************************************************
   !==================================================================================================

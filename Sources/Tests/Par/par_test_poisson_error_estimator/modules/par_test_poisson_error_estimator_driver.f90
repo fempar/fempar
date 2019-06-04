@@ -103,7 +103,7 @@ contains
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
     call this%par_test_params%process_parameters()
-    this%parameter_list => parameter_handler%get_values()
+    this%parameter_list => this%par_test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   !========================================================================================

@@ -31,6 +31,8 @@ module par_test_h_adaptive_maxwell_params_names
   type :: par_test_h_adaptive_maxwell_params_t
      private
      contains
+       procedure, non_overridable             :: process_parameters
+       procedure, non_overridable             :: get_parameter_list
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -53,7 +55,7 @@ module par_test_h_adaptive_maxwell_params_names
   public :: even_cells, inner_region, inner_sphere, uniform, error_based
   
   ! Types
-  public :: par_test_h_adaptive_maxwell_params_t, par_test_h_adaptive_maxwell_params_define_parameters
+  public :: par_test_h_adaptive_maxwell_params_t
 
 contains
 
@@ -87,6 +89,23 @@ contains
                   switch_ab='-function-case')
 
   end subroutine par_test_h_adaptive_maxwell_params_define_parameters
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(par_test_h_adaptive_maxwell_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(par_test_h_adaptive_maxwell_params_define_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer                           :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)

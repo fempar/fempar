@@ -124,8 +124,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-    call parameter_handler%process_parameters(par_test_maxwell_params_define_user_parameters)
-    this%parameter_list => parameter_handler%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
   !========================================================================================
