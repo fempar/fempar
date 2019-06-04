@@ -40,6 +40,8 @@ module maxwell_nedelec_params_names
   type :: maxwell_nedelec_params_t 
      private 
      contains
+       procedure, non_overridable             :: process_parameters
+       procedure, non_overridable             :: get_parameter_list
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_dir_path_out
@@ -51,7 +53,7 @@ module maxwell_nedelec_params_names
   end type maxwell_nedelec_params_t
 
   ! Types
-  public :: maxwell_nedelec_params_t, maxwell_nedelec_params_define_user_parameters
+  public :: maxwell_nedelec_params_t
 
 contains
 
@@ -65,6 +67,23 @@ contains
             'Select analytical solution case. Possible values: in_fe_space, fichera_2D, fichera_3D', &
             switch_ab='-function-case')
   end subroutine maxwell_nedelec_params_define_user_parameters
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(maxwell_nedelec_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(maxwell_nedelec_params_define_user_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(maxwell_nedelec_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer                      :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
 
   ! GETTERS *****************************************************************************************
 

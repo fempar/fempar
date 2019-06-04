@@ -37,6 +37,8 @@ module mixed_laplacian_rt_params_names
 
   type :: mixed_laplacian_rt_params_t      
    contains
+     procedure, non_overridable             :: process_parameters
+     procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
@@ -45,7 +47,7 @@ module mixed_laplacian_rt_params_names
   end type mixed_laplacian_rt_params_t
 
   ! Types
-  public :: mixed_laplacian_rt_params_t, mixed_laplacian_rt_define_parameters
+  public :: mixed_laplacian_rt_params_t
 
 contains
   
@@ -57,6 +59,23 @@ contains
     call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')     
   end subroutine mixed_laplacian_rt_define_parameters
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(mixed_laplacian_rt_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(mixed_laplacian_rt_define_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(mixed_laplacian_rt_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer                  :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
   
   ! GETTERS *****************************************************************************************
   !==================================================================================================

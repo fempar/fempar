@@ -42,6 +42,8 @@ module test_poisson_params_names
 
   type :: test_poisson_params_t  
    contains
+     procedure, non_overridable             :: process_parameters
+     procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
@@ -57,7 +59,7 @@ module test_poisson_params_names
   end type test_poisson_params_t  
 
   ! Types
-  public :: test_poisson_params_t, test_poisson_define_user_parameters
+  public :: test_poisson_params_t
 
 contains
   
@@ -78,6 +80,23 @@ contains
                 switch_ab='-use-voids-case')  
   end subroutine test_poisson_define_user_parameters
  
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(test_poisson_define_user_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer            :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
+
   ! GETTERS *****************************************************************************************
 
   !==================================================================================================

@@ -59,6 +59,8 @@ module stokes_params_names
 
   type :: stokes_params_t  
    contains
+     procedure, non_overridable             :: process_parameters
+     procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
@@ -89,7 +91,7 @@ module stokes_params_names
   end type stokes_params_t  
 
   ! Types
-  public :: stokes_params_t, stokes_define_user_parameters
+  public :: stokes_params_t
 
 contains
   
@@ -127,6 +129,23 @@ contains
   end subroutine stokes_define_user_parameters
 
   ! GETTERS *****************************************************************************************
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
+    implicit none
+    class(stokes_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(stokes_define_user_parameters)
+  end subroutine process_parameters
+
+  !==================================================================================================
+
+  function get_parameter_list(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer      :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
 
   !==================================================================================================
   function get_dir_path(this)
