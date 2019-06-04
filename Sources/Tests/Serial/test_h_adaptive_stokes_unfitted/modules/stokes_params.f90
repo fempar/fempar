@@ -32,9 +32,6 @@ module stokes_params_names
   implicit none
   private
 
-  character(len=*), parameter :: fe_formulation_key            = 'fe_formulation'
-  character(len=*), parameter :: laplacian_type_key            = 'laplacian_type'
-  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key            = 'write_solution'
   character(len=*), parameter :: write_matrix_key              = 'write_matrix'
@@ -61,18 +58,13 @@ module stokes_params_names
    contains
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
-     procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_write_matrix
      procedure, non_overridable             :: get_write_error_norms
      procedure, non_overridable             :: get_write_aggr_info
-     procedure, non_overridable             :: get_laplacian_type
-     procedure, non_overridable             :: get_triangulation_type
-     procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_max_level
      procedure, non_overridable             :: get_case_id
      procedure, non_overridable             :: get_bc_case_id
@@ -100,13 +92,11 @@ contains
     implicit none
 
     ! IO parameters
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
     call parameter_handler%add(write_error_norms_key, '--write-error-norms', .false., 'Write error norms in csv format', switch_ab='-werrornorms') 
     call parameter_handler%add(write_aggr_info_key, '--write-aggr-info', .false., 'Write info about the aggregates in csv format', switch_ab='-waggrinfo') 
-    call parameter_handler%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
     call parameter_handler%add(max_level_key, '--max_level', 3, 'Maximum h-refinement level allowed', switch_ab='-maxl') 
     call parameter_handler%add(case_id_key, '--case_id', 1, 'Id of the functions used in the run', switch_ab='-cid') 
     call parameter_handler%add(bc_case_id_key, '--bc_case_id', 1, 'Id of the boundary setup used in the run', switch_ab='-bcid') 
@@ -129,9 +119,7 @@ contains
   end subroutine stokes_define_user_parameters
 
   ! GETTERS *****************************************************************************************
-
   !==================================================================================================
-
   subroutine process_parameters(this)
     implicit none
     class(stokes_params_t) , intent(in)  :: this
@@ -139,21 +127,12 @@ contains
   end subroutine process_parameters
 
   !==================================================================================================
-
   function get_parameter_list(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
     type(ParameterList_t), pointer      :: get_parameter_list
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
-
-  !==================================================================================================
-  function get_dir_path(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable       :: get_dir_path
-    get_dir_path = parameter_handler%get_dir_path()
-  end function get_dir_path
 
   !==================================================================================================
   function get_prefix(this)
@@ -170,19 +149,6 @@ contains
     character(len=:), allocatable       :: get_dir_path_out
     get_dir_path_out = parameter_handler%get_dir_path_out()
   end function get_dir_path_out
-
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    integer(ip)                         :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
@@ -248,46 +214,7 @@ contains
     error = list%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
     assert(error==0)
   end function get_write_aggr_info
-  
-  !==================================================================================================
-  function get_laplacian_type(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    character(len=:), allocatable       :: get_laplacian_type
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(laplacian_type_key, get_laplacian_type))
-    error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
-    assert(error==0)
-  end function get_laplacian_type 
-  
-  !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    integer(ip)                         :: get_triangulation_type
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
-  end function get_triangulation_type 
-  
-  !==================================================================================================
-  function get_num_dims(this)
-    implicit none
-    class(stokes_params_t) , intent(in) :: this
-    integer(ip)                         :: get_num_dims
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_dims_key, get_num_dims))
-    error = list%Get(key = struct_hex_triang_num_dims_key, Value = get_num_dims)
-    assert(error==0)
-  end function get_num_dims
-
+      
   !==================================================================================================
   function get_max_level(this)
     implicit none

@@ -22,7 +22,7 @@ then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
      #test 1
-     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_cells_dir_flag 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc $coarse_space_use_vertices_flag .false. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .true. -is_a_beam .false. -integration heterogeneous | tee tmp_output"
+     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $prefix_flag 'square' $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_cells_dir_flag 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc $coarse_space_use_vertices_flag .false. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .true. -is_a_beam .false. -integration heterogeneous | tee tmp_output"
      echo $COMMAND
      eval $COMMAND
 

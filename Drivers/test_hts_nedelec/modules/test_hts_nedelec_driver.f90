@@ -134,7 +134,7 @@ contains
     ! Create a structured mesh with a custom domain 
     domain_length     = this%test_params%get_domain_length() 
     domain = [ 0.0_rp, domain_length(0), 0.0_rp, domain_length(1), 0.0_rp, domain_length(2) ]  
-    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_mesh_generator_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list)
 
     do i = 1, this%test_params%get_num_refinements() 
@@ -142,7 +142,7 @@ contains
       call this%triangulation%refine_and_coarsen()
     end do
     
- if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+ if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
      hts_domain_length = this%test_params%get_hts_domain_length() 
      hts_lx = hts_domain_length(0) 
      hts_ly = hts_domain_length(1)
@@ -275,7 +275,7 @@ contains
                                                  field_type = field_type_vector,                                   &
                                                  conformity = .true. ) 
    
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if ( vef%is_at_boundary() ) then 

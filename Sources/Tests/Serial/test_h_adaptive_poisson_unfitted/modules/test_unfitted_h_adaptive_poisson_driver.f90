@@ -155,9 +155,9 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = struct_hex_triang_num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent   (key = struct_hex_mesh_generator_num_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = struct_hex_mesh_generator_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_mesh_generator_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
@@ -207,18 +207,16 @@ contains
     call this%triangulation%create(this%parameter_list,this%level_set_function, this%serial_environment)
 
     ! Impose Dirichlet in the boundary of the background mesh
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(diri_set_id)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+     if(vef%is_at_boundary()) then
+        call vef%set_set_id(diri_set_id)
+     else
+        call vef%set_set_id(0)
+     end if
+     call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )

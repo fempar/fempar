@@ -858,16 +858,44 @@ contains
         call this%add(metis_option_iptype_key, metis_option_iptype_cla_name, METIS_IPTYPE_EDGE, 'METIS option iptype')
 
         ! Triangulation keys
-        call this%add(triang_generate_key, triang_generate_cla_name, triangulation_generate_structured, 'Way to generate the triangulation')
-        call this%add(triang_geometric_interpolation_order_key, triang_geometric_interpolation_order_cla_name, 1, 'Interpolation order for geometrical mapping' )
+        call this%add(static_triang_generate_from_key, &
+                      static_triang_generate_cla_name, &
+                      static_triang_generate_from_struct_hex_mesh_generator, &
+                      'Way to generate the triangulation')
+        
+        call this%add(static_triang_geometric_interpolation_order_key, &
+                      static_triang_geometric_interpolation_order_cla_name, &
+                      1, 'Interpolation order for geometrical mapping' )
 
         ! Uniform hexahedral mesh keys
-        call this%add(struct_hex_triang_num_dims_key, struct_hex_triang_num_dims_cla_name, 2, 'Number of space dimensions')                   
-        call this%add(struct_hex_triang_num_cells_dir_key, struct_hex_triang_num_cells_dir_cla_name, [10,10,10], 'Number of cells per each dimension')  
-        call this%add(struct_hex_triang_is_dir_periodic_key, struct_hex_triang_is_dir_periodic_cla_name, [0,0,0], 'Is the mesh periodic for every dimension')           
-        call this%add(struct_hex_triang_num_levels_key, struct_hex_triang_num_levels_cla_name, 1, 'Number of levels')
-        call this%add(struct_hex_triang_num_parts_x_dir_key, struct_hex_triang_num_parts_x_dir_cla_name, [1,1,1], 'Number of parts per each dimension')
-        call this%add(struct_hex_triang_domain_limits_key, struct_hex_triang_domain_limits_cla_name, [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain interval per direction')
+        call this%add(struct_hex_mesh_generator_num_dims_key, &
+                      struct_hex_mesh_generator_num_dims_cla_name, &
+                      2, &
+                      'Number of space dimensions')
+        
+        call this%add(struct_hex_mesh_generator_num_cells_x_dim_key, &
+                      struct_hex_mesh_generator_num_cells_x_dim_cla_name, &
+                      [10,10,10], &
+                      'Number of cells per each dimension')  
+        
+        call this%add(struct_hex_mesh_generator_is_dir_periodic_key, &
+                      struct_hex_mesh_generator_is_dir_periodic_cla_name, &
+                      [0,0,0], &
+                      'Is the mesh periodic for every dimension')    
+        call this%add(struct_hex_mesh_generator_num_levels_key, &
+                      struct_hex_mesh_generator_num_levels_cla_name, &
+                      1, &
+                      'Number of levels')
+        
+        call this%add(struct_hex_mesh_generator_num_parts_x_dim_key, &
+                      struct_hex_mesh_generator_num_parts_x_dim_cla_name, &
+                      [1,1,1], &
+                      'Number of parts per each dimension')
+        
+        call this%add(struct_hex_mesh_generator_domain_limits_key, &
+                      struct_hex_mesh_generator_domain_limits_cla_name, &
+                      [0.0,1.0,0.0,1.0,0.0,1.0], &
+                      'Domain interval per direction')
 
         ! P4EST triangulation parameters
         call this%add(p4est_triang_num_dims_key, &

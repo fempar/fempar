@@ -174,7 +174,7 @@ contains
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
     integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
@@ -234,7 +234,7 @@ contains
     
     if ( .not. this%par_environment%am_i_l1_task() ) return 
 
-    if( this%test_params%get_triangulation_type()==triangulation_generate_from_mesh) then
+    if( this%test_params%get_triangulation_type()==static_triang_generate_from_mesh_data_files) then
        massert( (this%test_params%get_materials_distribution_case()==homogeneous .or. this%test_params%get_materials_distribution_case()==heterogeneous), "par_test_pb_bddc_maxwell :: Materials distribution case not valid for unstructured tetrahedral meshes") 
     else   
 

@@ -17,7 +17,7 @@ if [ -f "$TEST_BINARY_PATH" ]
 then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
-     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0"
+     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0"
      echo $COMMAND
      eval $COMMAND
      if [ $? -ne 0 ] 

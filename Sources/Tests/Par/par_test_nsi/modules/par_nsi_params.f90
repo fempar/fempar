@@ -140,13 +140,8 @@ contains
   function get_triangulation_type(this)
     implicit none
     class(par_nsi_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
+    character(len=:), allocatable :: get_triangulation_type
+    call parameter_handler%GetAsString(key = static_triang_generate_from_key, string = get_triangulation_type)
   end function get_triangulation_type 
 
   !==================================================================================================

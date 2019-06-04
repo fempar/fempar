@@ -111,19 +111,16 @@ contains
     class(vef_iterator_t), allocatable :: vef
     
     call this%triangulation%create(this%environment,this%parameter_list)
-
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+      if(vef%is_at_boundary()) then
+         call vef%set_set_id(1)
+      else
+         call vef%set_set_id(0)
+      end if
+      call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
       call this%setup_cell_set_ids() 
@@ -1100,12 +1097,7 @@ contains
     class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
     integer(ip) :: istat
-
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
+    istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     call this%environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
 

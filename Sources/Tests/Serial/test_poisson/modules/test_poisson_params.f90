@@ -165,8 +165,8 @@ contains
   function get_triangulation_type(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_triangulation_type
-    call parameter_handler%Get(key = triang_generate_key, Value = get_triangulation_type)
+    character(len=:), allocatable :: get_triangulation_type
+    call parameter_handler%GetAsString(key = static_triang_generate_from_key, string = get_triangulation_type)
   end function get_triangulation_type
 
   !==================================================================================================
@@ -174,7 +174,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_num_dims
-    call parameter_handler%Get(key = struct_hex_triang_num_dims_key, value = get_num_dims)
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
   end function get_num_dims
 
   !==================================================================================================

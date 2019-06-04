@@ -97,10 +97,10 @@ contains
     class(cell_iterator_t), allocatable                            :: cell
     call parameter_list%init()
     istat = 0
-    istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key, value = 2)
-    istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir_key, value = [200,200,0])
-    istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key, value = [0,0,0])
-    istat = istat + parameter_list%set(key = triang_generate_key, value = triangulation_generate_structured)
+    istat = istat + parameter_list%set(key = struct_hex_mesh_generator_num_dims_key, value = 2)
+    istat = istat + parameter_list%set(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = [200,200,0])
+    istat = istat + parameter_list%set(key = struct_hex_mesh_generator_is_dir_periodic_key, value = [0,0,0])
+    istat = istat + parameter_list%set(key = static_triang_generate_from_key, value = static_triang_generate_from_struct_hex_mesh_generator)
     check(istat==0)
     call this%triangulation%create(this%serial_environment, parameter_list)
     call parameter_list%free()

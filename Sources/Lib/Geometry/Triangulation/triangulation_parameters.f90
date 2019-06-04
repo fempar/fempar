@@ -51,15 +51,14 @@ module triangulation_parameters_names
   integer(ip), parameter :: ghost_dim1 = 201
   integer(ip), parameter :: ghost_dim2 = 202
   
-  integer(ip), parameter :: triangulation_generate_from_mesh  = 0
-  integer(ip), parameter :: triangulation_generate_structured = 1
+  character(len=*), parameter :: static_triang_generate_from_mesh_data_files           = "mesh_data_files"
+  character(len=*), parameter :: static_triang_generate_from_struct_hex_mesh_generator = "struct_hex_mesh_generator"
   
-  character(len=*), parameter :: triang_geometric_interpolation_order_key = 'TRIANG_GEOMETRIC_INTERPOLATION_ORDER'
-  character(len=*), parameter :: triang_generate_key                      = 'TRIANG_GENERATE'
-
-  character(len=*), parameter :: triang_geometric_interpolation_order_cla_name = '--'//triang_geometric_interpolation_order_key
-  character(len=*), parameter :: triang_generate_cla_name                      = '--'//triang_generate_key
-
+  character(len=*), parameter :: static_triang_generate_from_key                      = 'STATIC_TRIANG_GENERATE_FROM'
+  character(len=*), parameter :: static_triang_geometric_interpolation_order_key      = 'STATIC_TRIANG_GEOMETRIC_INTERPOLATION_ORDER'
+  character(len=*), parameter :: static_triang_geometric_interpolation_order_cla_name = '--'//static_triang_geometric_interpolation_order_key
+  character(len=*), parameter :: static_triang_generate_cla_name                      = '--'//static_triang_generate_from_key
+    
   character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
   character(len=*), parameter :: all_coupled                    = 'all_coupled'
   character(len=*), parameter :: loose_coupling                 = 'loose_coupling' 

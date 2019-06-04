@@ -85,37 +85,37 @@ contains
     real(rp), allocatable :: domain_limits(:)
     
     ! Mandatory
-    assert(parameter_list%isAssignable(struct_hex_triang_num_dims_key, this%num_dims))
-    istat = parameter_list%get(key = struct_hex_triang_num_dims_key, value = this%num_dims)
+    assert(parameter_list%isAssignable(struct_hex_mesh_generator_num_dims_key, this%num_dims))
+    istat = parameter_list%get(key = struct_hex_mesh_generator_num_dims_key, value = this%num_dims)
     assert(istat==0)
 
     ! Optional
-    if( parameter_list%isPresent(struct_hex_triang_num_levels_key) ) then
-       assert(parameter_list%isAssignable(struct_hex_triang_num_levels_key, this%num_levels))
-       istat = parameter_list%get(key = struct_hex_triang_num_levels_key , value = this%num_levels)
+    if( parameter_list%isPresent(struct_hex_mesh_generator_num_levels_key) ) then
+       assert(parameter_list%isAssignable(struct_hex_mesh_generator_num_levels_key, this%num_levels))
+       istat = parameter_list%get(key = struct_hex_mesh_generator_num_levels_key , value = this%num_levels)
        assert(istat==0)
     else
        this%num_levels = 1
     end if
 
     ! Mandatory (array)
-    is_present =  parameter_list%isPresent(key = struct_hex_triang_num_cells_dir_key ); assert(is_present)
-    istat = parameter_list%GetShape(key = struct_hex_triang_num_cells_dir_key, shape = array_size); check(istat==0)
+    is_present =  parameter_list%isPresent(key = struct_hex_mesh_generator_num_cells_x_dim_key ); assert(is_present)
+    istat = parameter_list%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= SPACE_DIM)
     call memalloc(array_size(1), this%num_cells_x_dir,__FILE__,__LINE__, lb1=0)
-    istat = parameter_list%get(key = struct_hex_triang_num_cells_dir_key, value = this%num_cells_x_dir); check(istat==0)
+    istat = parameter_list%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = this%num_cells_x_dir); check(istat==0)
 
     ! Mandatory (array)
-    is_present =  parameter_list%isPresent(key = struct_hex_triang_is_dir_periodic_key )                             ; assert(is_present)
-    istat = parameter_list%GetShape(key = struct_hex_triang_is_dir_periodic_key, shape = array_size); check(istat==0); assert(array_size(1) == SPACE_DIM)
-    istat = parameter_list%get(key = struct_hex_triang_is_dir_periodic_key     , value = this%is_dir_periodic)       ; check(istat==0)
+    is_present =  parameter_list%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key )                             ; assert(is_present)
+    istat = parameter_list%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0); assert(array_size(1) == SPACE_DIM)
+    istat = parameter_list%get(key = struct_hex_mesh_generator_is_dir_periodic_key     , value = this%is_dir_periodic)       ; check(istat==0)
 
     ! Optional (array)
-    if( parameter_list%isPresent(key = struct_hex_triang_num_parts_x_dir_key) ) then
-       istat = parameter_list%GetShape(key = struct_hex_triang_num_parts_x_dir_key   , shape = array_size); check(istat==0)
+    if( parameter_list%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_key) ) then
+       istat = parameter_list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); check(istat==0)
        assert(array_size(1) >= this%num_levels*SPACE_DIM)
        call memalloc(array_size(1), this%num_parts_x_dir,__FILE__,__LINE__, lb1=0)
-       istat = parameter_list%get(key = struct_hex_triang_num_parts_x_dir_key , value = this%num_parts_x_dir); check(istat==0)
+       istat = parameter_list%get(key = struct_hex_mesh_generator_num_parts_x_dim_key , value = this%num_parts_x_dir); check(istat==0)
     else
        assert(this%num_levels==1) ! It is mandatory for num_levels>1!
        call memalloc(SPACE_DIM, this%num_parts_x_dir,__FILE__,__LINE__, lb1=0)
@@ -123,12 +123,12 @@ contains
     end if
     
     ! Optional (array)
-    if( parameter_list%isPresent(key = struct_hex_triang_domain_limits_key) ) then
-      istat = parameter_list%GetShape(key = struct_hex_triang_domain_limits_key   , shape = array_size); check(istat==0)
+    if( parameter_list%isPresent(key = struct_hex_mesh_generator_domain_limits_key) ) then
+      istat = parameter_list%GetShape(key = struct_hex_mesh_generator_domain_limits_key   , shape = array_size); check(istat==0)
       assert(array_size(1) >= 2*this%num_dims)
       call memalloc(array_size(1), domain_limits,__FILE__,__LINE__)
-      assert(parameter_list%isAssignable(struct_hex_triang_domain_limits_key, domain_limits))
-      istat = parameter_list%get(key = struct_hex_triang_domain_limits_key , value = domain_limits); check(istat==0)
+      assert(parameter_list%isAssignable(struct_hex_mesh_generator_domain_limits_key, domain_limits))
+      istat = parameter_list%get(key = struct_hex_mesh_generator_domain_limits_key , value = domain_limits); check(istat==0)
       do idime = 1,this%num_dims
         this%domain_limits(idime,1) = domain_limits(2*idime-1)
         this%domain_limits(idime,2) = domain_limits(2*idime)

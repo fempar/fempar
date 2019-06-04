@@ -194,7 +194,7 @@ contains
         call this%triangulation%fill_cells_set(this%cell_set_ids)
     end if
     
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then

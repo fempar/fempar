@@ -170,11 +170,7 @@ end subroutine free_timers
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
+    istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
@@ -242,18 +238,16 @@ end subroutine free_timers
         call this%triangulation%free_cell_iterator(cell)
     end if
 
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if  
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+       if(vef%is_at_boundary()) then
+          call vef%set_set_id(1)
+       else
+          call vef%set_set_id(0)
+       end if
+       call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
 
     ! Set all the vefs on the interface between full/void if there are void fes
     if (this%test_params%get_use_void_fes()) then

@@ -24,13 +24,13 @@ then
     if [ -d "$TEST_INPUT_DATA_PATH" ] 
     then
         # test 1 - Analytical known function test with unit constant coefficients
-        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $prefix_flag 'square' $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 6 6 6 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_levels_flag 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case homogeneous $bddc_scaling_function_case_flag cardinality -bmass_trick .false. -coefficient_case unit_constant"
+        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $prefix_flag 'square' $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 6 6 6 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_levels_flag 2 -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case homogeneous $bddc_scaling_function_case_flag cardinality -bmass_trick .false. -coefficient_case unit_constant"
         echo $COMMAND
         eval $COMMAND
 
 
         #test 2 - Unknown solution w/ checkerboard distrib. of materials ------------------------------
-        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $prefix_flag 'square' $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 8 8 8 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_levels_flag 2 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee $TMP_OUTPUT"
+        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $prefix_flag 'square' $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 8 8 8 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_levels_flag 2 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee $TMP_OUTPUT"
         echo $COMMAND
         eval $COMMAND
 
@@ -45,7 +45,7 @@ then
 
 
         #test 3 - Unknown solution w/ analytical functions describing coeffs ---------------------------------
-        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $prefix_flag 'square' $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 12 12 12 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_levels_flag 2 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case heterogeneous $bddc_scaling_function_case_flag weighted_coefficients -bmass_trick .false. -rpb_bddc_threshold 1e3 -coefficient_case sinusoidal -mass_coeff_white 3 -curl_curl_coeff_white 3 -num_peaks_curl_curl_coeff 2 -num_peaks_mass_coeff 2  | tee $TMP_OUTPUT"
+        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $prefix_flag 'square' $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 12 12 12 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_levels_flag 2 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case heterogeneous $bddc_scaling_function_case_flag weighted_coefficients -bmass_trick .false. -rpb_bddc_threshold 1e3 -coefficient_case sinusoidal -mass_coeff_white 3 -curl_curl_coeff_white 3 -num_peaks_curl_curl_coeff 2 -num_peaks_mass_coeff 2  | tee $TMP_OUTPUT"
         echo $COMMAND
         eval $COMMAND
 

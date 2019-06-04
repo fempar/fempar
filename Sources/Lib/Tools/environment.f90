@@ -360,9 +360,9 @@ contains
           call uniform_hex_mesh%free()
        else if(environment_type==p4est) then
           ! Optional
-          if( parameters%isPresent(struct_hex_triang_num_levels_key) ) then
-             assert(parameters%isAssignable(struct_hex_triang_num_levels_key, num_levels))
-             istat = parameters%get(key = struct_hex_triang_num_levels_key , value = num_levels)
+          if( parameters%isPresent(struct_hex_mesh_generator_num_levels_key) ) then
+             assert(parameters%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
+             istat = parameters%get(key = struct_hex_mesh_generator_num_levels_key , value = num_levels)
              assert(istat==0)
           else
              num_levels = 1

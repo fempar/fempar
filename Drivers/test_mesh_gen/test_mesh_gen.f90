@@ -82,11 +82,11 @@ contains
     error = error + this%list%set(key = dir_path_key                  , value = '.')
     error = error + this%list%set(key = prefix_key                    , value = 'uniform')
     error = error + this%list%set(key = dir_path_out_key              , value = '.')
-    error = error + this%list%set(key = struct_hex_triang_num_dims_key      , value =  2)
-    error = error + this%list%set(key = triang_geometric_interpolation_order_key       , value =  1)
+    error = error + this%list%set(key = struct_hex_mesh_generator_num_dims_key      , value =  2)
+    error = error + this%list%set(key = static_triang_geometric_interpolation_order_key       , value =  1)
     tmp = [4,4,0]; error = error + this%list%set(key = struct_hex_triang_num_cells_dir   , value = tmp)
-    tmp = [3,1,1]; error = error + this%list%set(key = struct_hex_triang_num_parts_x_dir_key   , value = tmp)
-    tmp = [0,1,0]; error = error + this%list%set(key = struct_hex_triang_is_dir_periodic_key           , value = tmp)
+    tmp = [3,1,1]; error = error + this%list%set(key = struct_hex_mesh_generator_num_parts_x_dim_key   , value = tmp)
+    tmp = [0,1,0]; error = error + this%list%set(key = struct_hex_mesh_generator_is_dir_periodic_key           , value = tmp)
     check(error==0)
 
     ! Only some of them are controlled from cli

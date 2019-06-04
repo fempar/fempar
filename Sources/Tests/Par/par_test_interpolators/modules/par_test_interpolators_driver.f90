@@ -112,7 +112,7 @@ contains
     class(par_test_interpolators_driver_t), intent(inout) :: this
     class(execution_context_t)                    , intent(in)    :: world_context
     integer(ip) :: istat
-   if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+   if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     else
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)

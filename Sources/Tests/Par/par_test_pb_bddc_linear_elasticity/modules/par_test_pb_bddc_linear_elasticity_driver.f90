@@ -170,11 +170,7 @@ contains
     class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
     integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
+    istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
 
@@ -187,41 +183,39 @@ contains
 
     call this%triangulation%create(this%par_environment, this%parameter_list)
 
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then 
-       call this%triangulation%create_vef_iterator(vef)
-       if (this%test_params%get_is_a_beam()) then        
-          do while ( .not. vef%has_finished() )
-             if (vef%is_at_boundary()) then
-                if (vef%is_local()) then 
-                   num_nodes = vef%get_num_nodes()
-                   allocate (nodes_coordinates(num_nodes),stat=istat)! Is max_num_nodes available so that this can be done only once!
-                   call vef%get_nodes_coordinates(nodes_coordinates)
-                   if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
-                      call vef%set_set_id(1)
-                   else 
-                      call vef%set_set_id(0)
-                   end if
-                   deallocate(nodes_coordinates)
+    call this%triangulation%create_vef_iterator(vef)
+    if (this%test_params%get_is_a_beam()) then        
+       do while ( .not. vef%has_finished() )
+          if (vef%is_at_boundary()) then
+             if (vef%is_local()) then 
+                num_nodes = vef%get_num_nodes()
+                allocate (nodes_coordinates(num_nodes),stat=istat)! Is max_num_nodes available so that this can be done only once!
+                call vef%get_nodes_coordinates(nodes_coordinates)
+                if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
+                   call vef%set_set_id(1)
                 else 
-                   call vef%set_set_id(0) ! Not neccessary?
+                   call vef%set_set_id(0)
                 end if
-             else
-                call vef%set_set_id(0)
-             end if
-             call vef%next()
-          end do          
-       else       
-          do while (.not. vef%has_finished())
-             if (vef%is_at_boundary()) then
-                call vef%set_set_id(1)
+                deallocate(nodes_coordinates)
              else 
-                call vef%set_set_id(0)
+                call vef%set_set_id(0) ! Not neccessary?
              end if
-             call vef%next()
-          end do
-       end if
-       call this%triangulation%free_vef_iterator(vef)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef%next()
+       end do
+    else       
+       do while (.not. vef%has_finished())
+          if (vef%is_at_boundary()) then
+             call vef%set_set_id(1)
+          else 
+             call vef%set_set_id(0)
+          end if
+          call vef%next()
+       end do
     end if
+    call this%triangulation%free_vef_iterator(vef)
 
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
@@ -281,7 +275,7 @@ contains
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_hex_mesh_domain_limits(), &
-                  this%test_params%get_num_cells_x_dir(), &
+                  this%test_params%get_num_cells_x_dim(), &
                   this%test_params%get_size_sub_object(), &
                   this%test_params%get_nparts())
              cells_set( cell%get_gid() ) = cell_id

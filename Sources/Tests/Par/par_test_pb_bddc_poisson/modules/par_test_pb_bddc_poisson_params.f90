@@ -4,11 +4,9 @@ module par_test_pb_bddc_poisson_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key         = 'write_solution'  
   character(len=*), parameter :: write_matrices_key         = 'write_matrices'  
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: jump_key                   = 'jump'    
   character(len=*), parameter :: inclusion_key              = 'inclusion'  
   character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type_key' 
@@ -17,21 +15,17 @@ module par_test_pb_bddc_poisson_params_names
   character(len=*), parameter :: nchannel_x_direction_key   = 'nchannel_x_direction' 
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
   character(len=*), parameter :: size_sub_object_key        = 'size_sub_object_key' 
-  character(len=*), parameter :: hex_mesh_domain_limits_key = 'hex_mesh_domain_limits_key'
 
   type :: par_test_pb_bddc_poisson_params_t
      private
      contains
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
-       procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
-       procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_write_matrices
-       procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_jump
        procedure, non_overridable             :: get_inclusion
        procedure, non_overridable             :: get_coarse_fe_handler_type
@@ -53,12 +47,11 @@ contains
   subroutine par_test_pb_bddc_poisson_params_define_parameters()
     implicit none
     ! Common
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Overwritten value
-    call parameter_handler%update(triang_generate_key, triangulation_generate_from_mesh)
+    call parameter_handler%update(static_triang_generate_from_key, static_triang_generate_from_mesh_data_files)
 
     ! Specific
     call parameter_handler%add(write_matrices_key, '--write-matrices', .false., 'Write local-to-subdomain sparse matrices  in matrix market format', switch_ab='-wmatrices') 
@@ -68,12 +61,10 @@ contains
     call parameter_handler%add(nchannel_x_direction_key, '--nchannel_x_direction', [1,1,1], 'Number of channels per direction', switch_ab='-nc')
     call parameter_handler%add(nparts_with_channels_key, '--nparts_with_channels', [1,1,1], 'Number of parts per with channels', switch_ab='-npwc')
     call parameter_handler%add(size_sub_object_key, '--size_sub_object', 1, 'Size of subobject in number of mesh size (must be an integer)', switch_ab='-sso')
-    call parameter_handler%add(hex_mesh_domain_limits_key, '--hex_mesh_domain_limits', [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp], 'Limits of the domain', switch_ab='-domain_limits')
         
   end subroutine par_test_pb_bddc_poisson_params_define_parameters
 
   !==================================================================================================
-
   subroutine process_parameters(this)
     implicit none
     class(par_test_pb_bddc_poisson_params_t) , intent(in)  :: this
@@ -81,7 +72,6 @@ contains
   end subroutine process_parameters
 
   !==================================================================================================
-
   function get_parameter_list(this)
     implicit none
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
@@ -89,20 +79,7 @@ contains
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
 
-  ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_dir_path
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_key, 'string'))
-    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    assert(error==0)
-  end function get_dir_path 
-  
-  ! GETTERS *****************************************************************************************
+  !==================================================================================================
   function get_dir_path_out(this)
     implicit none
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
@@ -127,20 +104,7 @@ contains
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix
-
-    !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
-  
+ 
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
@@ -179,19 +143,6 @@ contains
     error = list%Get(key = write_matrices_key, Value = get_write_matrices)
     check(error==0)
   end function get_write_matrices
-
-  !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
-  end function get_triangulation_type 
 
   !==================================================================================================
   function get_jump(this)
@@ -269,14 +220,14 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_levels_key, num_levels))
-    error = list%Get(key = struct_hex_triang_num_levels_key, Value = num_levels)
+    assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
+    error = list%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
     assert(error==0)       
-    error = list%GetShape(key = struct_hex_triang_num_parts_x_dir_key   , shape = array_size); 
+    error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= num_levels*SPACE_DIM)
     call memalloc(array_size(1), num_parts_x_dir)
-    error = list%get(key = struct_hex_triang_num_parts_x_dir_key , value = num_parts_x_dir) 
+    error = list%get(key = struct_hex_mesh_generator_num_parts_x_dim_key , value = num_parts_x_dir) 
     check(error==0)
     get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
@@ -292,8 +243,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(hex_mesh_domain_limits_key, get_hex_mesh_domain_limits))
-    error = list%Get(key = hex_mesh_domain_limits_key, Value = get_hex_mesh_domain_limits)
+    assert(list%isAssignable(struct_hex_mesh_generator_domain_limits_key, get_hex_mesh_domain_limits))
+    error = list%Get(key = struct_hex_mesh_generator_domain_limits_key, Value = get_hex_mesh_domain_limits)
     assert(error==0)
   end function get_hex_mesh_domain_limits
   
@@ -308,11 +259,11 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    error = list%GetShape(key = struct_hex_triang_num_cells_dir_key  , shape = array_size); 
+    error = list%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key  , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= SPACE_DIM)
     call memalloc(array_size(1), num_cells_x_dir)
-    error = list%get(key = struct_hex_triang_num_cells_dir_key , value = num_cells_x_dir) 
+    error = list%get(key = struct_hex_mesh_generator_num_cells_x_dim_key , value = num_cells_x_dir) 
     check(error==0)
     get_num_cells_x_dir=num_cells_x_dir
     if (allocated(array_size)) deallocate(array_size) 

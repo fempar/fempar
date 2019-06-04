@@ -37,7 +37,6 @@ module par_pb_bddc_maxwell_params_names
        procedure, non_overridable             :: get_parameter_list
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
-       procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
@@ -69,7 +68,6 @@ contains
   subroutine par_test_maxwell_params_define_user_parameters()
     implicit none
     ! Common
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
@@ -175,34 +173,21 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_levels_key , num_levels))
-    error = list%Get(key = struct_hex_triang_num_levels_key , Value = num_levels)
+    assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key , num_levels))
+    error = list%Get(key = struct_hex_mesh_generator_num_levels_key , Value = num_levels)
     assert(error==0)       
-    error = list%GetShape(key = struct_hex_triang_num_parts_x_dir_key   , shape = array_size); 
+    error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= num_levels*SPACE_DIM)
     call memalloc(array_size(1), num_parts_x_dir)
-    error = list%get(key = struct_hex_triang_num_parts_x_dir_key , value = num_parts_x_dir) 
+    error = list%get(key = struct_hex_mesh_generator_num_parts_x_dim_key , value = num_parts_x_dir) 
     check(error==0)
     get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
     call memfree(num_parts_x_dir)
 
   end function get_nparts
-  
-    !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
-  
+   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
@@ -236,13 +221,8 @@ contains
   function get_triangulation_type(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
+    character(len=:), allocatable :: get_triangulation_type
+    call parameter_handler%GetAsString(key = static_triang_generate_from_key, string = get_triangulation_type)
   end function get_triangulation_type 
   
     !==================================================================================================

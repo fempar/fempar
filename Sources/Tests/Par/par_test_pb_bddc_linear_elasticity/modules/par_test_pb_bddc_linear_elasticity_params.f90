@@ -4,11 +4,9 @@ module par_test_pb_bddc_linear_elasticity_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key         = 'write_solution'  
   character(len=*), parameter :: write_matrices_key         = 'write_matrices'  
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: jump_key                   = 'jump'    
   character(len=*), parameter :: inclusion_key              = 'inclusion'  
   character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type_key' 
@@ -31,11 +29,9 @@ module par_test_pb_bddc_linear_elasticity_params_names
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
-       procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_write_matrices
-       procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_jump
        procedure, non_overridable             :: get_inclusion
        procedure, non_overridable             :: get_discrete_integration_type
@@ -45,7 +41,7 @@ module par_test_pb_bddc_linear_elasticity_params_names
        procedure, non_overridable             :: get_hex_mesh_domain_limits
        procedure, non_overridable             :: get_is_a_beam
        procedure, non_overridable             :: get_nparts
-       procedure, non_overridable             :: get_num_cells_x_dir
+       procedure, non_overridable             :: get_num_cells_x_dim
        procedure, non_overridable             :: get_size_sub_object
        !procedure, non_overridable             :: get_num_dims
   end type par_test_pb_bddc_linear_elasticity_params_t
@@ -59,7 +55,6 @@ contains
   subroutine par_test_pb_bddc_linear_elasticity_params_define_parameters()
     implicit none
     ! Common
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
@@ -78,7 +73,7 @@ contains
     call parameter_handler%add(is_a_beam_key, '--is_a_beam', .true., 'Is the studied object a beam', switch_ab='-is_a_beam')
 
     ! Overwritten
-    call parameter_handler%update(struct_hex_triang_domain_limits_key, [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp])
+    call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp])
 
   end subroutine par_test_pb_bddc_linear_elasticity_params_define_parameters
 
@@ -137,19 +132,6 @@ contains
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix
-
-    !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
@@ -189,19 +171,6 @@ contains
     error = list%Get(key = write_matrices_key, Value = get_write_matrices)
     check(error==0)
   end function get_write_matrices
-
-  !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
-  end function get_triangulation_type 
 
   !==================================================================================================
   function get_jump(this)
@@ -288,8 +257,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_domain_limits_key, get_hex_mesh_domain_limits))
-    error = list%Get(key = struct_hex_triang_domain_limits_key, Value = get_hex_mesh_domain_limits)
+    assert(list%isAssignable(struct_hex_mesh_generator_domain_limits_key, get_hex_mesh_domain_limits))
+    error = list%Get(key = struct_hex_mesh_generator_domain_limits_key, Value = get_hex_mesh_domain_limits)
     assert(error==0)
   end function get_hex_mesh_domain_limits
 
@@ -317,14 +286,14 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_levels_key, num_levels))
-    error = list%Get(key = struct_hex_triang_num_levels_key, Value = num_levels)
+    assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
+    error = list%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
     assert(error==0)       
-    error = list%GetShape(key = struct_hex_triang_num_parts_x_dir_key   , shape = array_size); 
+    error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= num_levels*SPACE_DIM)
     call memalloc(array_size(1), num_parts_x_dir)
-    error = list%get(key = struct_hex_triang_num_parts_x_dir_key , value = num_parts_x_dir) 
+    error = list%get(key = struct_hex_mesh_generator_num_parts_x_dim_key , value = num_parts_x_dir) 
     check(error==0)
     get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
@@ -333,17 +302,17 @@ contains
   end function get_nparts
 
 !==================================================================================================
-  function get_num_cells_x_dir(this)
+  function get_num_cells_x_dim(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_cells_x_dir(3)
+    integer(ip)                                   :: get_num_cells_x_dim(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_cells_dir_key, get_num_cells_x_dir))
-    error = list%Get(key = struct_hex_triang_num_cells_dir_key, Value = get_num_cells_x_dir)
+    assert(list%isAssignable(struct_hex_mesh_generator_num_cells_x_dim_cla_name, get_num_cells_x_dim))
+    error = list%Get(key = struct_hex_mesh_generator_num_cells_x_dim_cla_name, Value = get_num_cells_x_dim)
     assert(error==0)
-  end function get_num_cells_x_dir
+  end function get_num_cells_x_dim
   !==================================================================================================
   function get_size_sub_object(this)
     implicit none
@@ -356,8 +325,5 @@ contains
     error = list%Get(key = size_sub_object_key, Value = get_size_sub_object)
     assert(error==0)
   end function get_size_sub_object
-  
-  !==================================================================================================
-
  
 end module par_test_pb_bddc_linear_elasticity_params_names

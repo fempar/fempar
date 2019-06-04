@@ -34,32 +34,32 @@ subroutine serial_triangulation_create ( this, environment, parameters)
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
-  type(mesh_t)                 :: mesh
-  type(list_t), pointer        :: given_vefs
-  integer(ip) , pointer        :: lst_vefs_geo(:), lst_vefs_set(:)
-  real(rp)    , allocatable    :: coordinates(:,:)
-  integer(ip)                  :: triangulation_generate
-  integer(ip)                  :: execution_context
-  integer(ip)                  :: istat
-  integer(ip)                  :: geometric_interpolation_order
-  type(p_reference_fe_t)       :: reference_fe_geo_list(1)
-  integer(ip)                  :: ivef 
-  integer(ip), allocatable     :: cells_set(:)
+  type(mesh_t)                  :: mesh
+  type(list_t), pointer         :: given_vefs
+  integer(ip) , pointer         :: lst_vefs_geo(:), lst_vefs_set(:)
+  real(rp)    , allocatable     :: coordinates(:,:)
+  character(len=:), allocatable :: triangulation_generate
+  integer(ip)                   :: execution_context
+  integer(ip)                   :: istat
+  integer(ip)                   :: geometric_interpolation_order
+  type(p_reference_fe_t)        :: reference_fe_geo_list(1)
+  integer(ip)                   :: ivef 
+  integer(ip), allocatable      :: cells_set(:)
   !type(environment_t), pointer :: environment
-  integer(ip)                  :: max_vefs_x_cell, num_edges, num_faces
+  integer(ip)                   :: max_vefs_x_cell, num_edges, num_faces
 
   ! Optional parameters
-  if( parameters%isPresent(triang_generate_key) ) then
-     assert(parameters%isAssignable(triang_generate_key, triangulation_generate))
-     istat = parameters%get(key = triang_generate_key, value = triangulation_generate)
+  if( parameters%isPresent(static_triang_generate_from_key) ) then
+     assert(parameters%isAssignable(static_triang_generate_from_key, triangulation_generate))
+     istat = parameters%GetAsString(key = static_triang_generate_from_key, string = triangulation_generate)
      assert(istat==0)
   else
-     triangulation_generate = triangulation_generate_from_mesh
+     triangulation_generate = static_triang_generate_from_mesh_data_files
   end if
 
-  if( parameters%isPresent(triang_geometric_interpolation_order_key) ) then
-     assert(parameters%isAssignable(triang_geometric_interpolation_order_key, geometric_interpolation_order))
-     istat = parameters%get(key = triang_geometric_interpolation_order_key , value = geometric_interpolation_order)
+  if( parameters%isPresent(static_triang_geometric_interpolation_order_key) ) then
+     assert(parameters%isAssignable(static_triang_geometric_interpolation_order_key, geometric_interpolation_order))
+     istat = parameters%get(key = static_triang_geometric_interpolation_order_key , value = geometric_interpolation_order)
      assert(istat==0)
   else
      geometric_interpolation_order = 1
@@ -68,24 +68,10 @@ subroutine serial_triangulation_create ( this, environment, parameters)
   call this%free()
 
   call this%set_environment(environment)
-
-  ! ! Verify (and eventually set) execution type and create serial environment
-  ! if( parameters%isPresent(execution_context_key) ) then
-  !    assert(parameters%isAssignable(execution_context_key, execution_context))
-  !    istat = parameters%get(key = execution_context_key, value = execution_context)
-  !    assert(istat==0)
-  !    check(execution_context==serial_context)
-  ! else
-  !    istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
-  ! end if
-  
-  ! call this%allocate_environment()
-  ! environment => this%get_environment()
-  ! call environment%create(parameters)
   
   if(geometric_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
-  if(triangulation_generate==triangulation_generate_from_mesh) then
+  if(triangulation_generate==static_triang_generate_from_mesh_data_files) then
      
      call this%set_single_octree_mesh(.false.)
   
@@ -109,15 +95,15 @@ subroutine serial_triangulation_create ( this, environment, parameters)
      call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
      call mesh%free()
 
-  else if(triangulation_generate==triangulation_generate_structured) then
+  else if(triangulation_generate==static_triang_generate_from_struct_hex_mesh_generator) then
 
      call this%set_single_octree_mesh(.true.)
   
      this%num_ghost_cells=0
 
      ! Get num_dims from FPL
-     assert(parameters%isAssignable(struct_hex_triang_num_dims_key, this%num_dims ))
-     istat = parameters%get(key = struct_hex_triang_num_dims_key, value = this%num_dims)
+     assert(parameters%isAssignable(struct_hex_mesh_generator_num_dims_key, this%num_dims ))
+     istat = parameters%get(key = struct_hex_mesh_generator_num_dims_key, value = this%num_dims)
      assert(istat==0)
 
      call uniform_hex_mesh%get_data_from_parameter_list(parameters)

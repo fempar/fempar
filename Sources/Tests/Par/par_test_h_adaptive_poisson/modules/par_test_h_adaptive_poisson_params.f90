@@ -180,8 +180,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
+    assert(list%isAssignable(static_triang_generate_from_key, get_triangulation_type))
+    error = list%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
 

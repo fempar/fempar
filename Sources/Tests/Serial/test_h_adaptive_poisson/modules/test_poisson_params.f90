@@ -52,7 +52,6 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
-     procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
@@ -189,19 +188,6 @@ contains
   end function get_laplacian_type 
 
   !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_triangulation_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
-    assert(error==0)
-  end function get_triangulation_type
-
-  !==================================================================================================
   function get_num_dims(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
@@ -209,8 +195,8 @@ contains
     type(ParameterList_t), pointer            :: list
     integer(ip)                               :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_triang_num_dims_key, get_num_dims))
-    error = list%Get(key = struct_hex_triang_num_dims_key, value = get_num_dims)
+    assert(list%isAssignable(struct_hex_mesh_generator_num_dims_key, get_num_dims))
+    error = list%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
     assert(error==0)
   end function get_num_dims
 

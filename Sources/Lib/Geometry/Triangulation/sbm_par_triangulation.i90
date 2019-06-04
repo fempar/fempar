@@ -62,7 +62,7 @@ subroutine par_triangulation_create ( this, environment, parameters)
   integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
   integer(ip) , allocatable :: lst_vefs_dim_ghost_extended(:)
 
-  integer(ip)                     :: triangulation_generate
+  character(len=:), allocatable   :: triangulation_generate
   character(len=:), allocatable   :: dir_path
   character(len=:), allocatable   :: prefix
   character(len=:), allocatable   :: name
@@ -85,24 +85,24 @@ subroutine par_triangulation_create ( this, environment, parameters)
     assert(istat==0)
 
   ! Optional parameters
-  if( parameters%isPresent(triang_generate_key) ) then
-     assert(parameters%isAssignable(triang_generate_key, triangulation_generate))
-     istat = parameters%Get(key = triang_generate_key, Value = triangulation_generate)
+  if( parameters%isPresent(static_triang_generate_from_key) ) then
+     assert(parameters%isAssignable(static_triang_generate_from_key, triangulation_generate))
+     istat = parameters%GetAsString(key = static_triang_generate_from_key, string = triangulation_generate)
      assert(istat==0)
   else
-     triangulation_generate = triangulation_generate_from_mesh
+     triangulation_generate = static_triang_generate_from_mesh_data_files
   end if
 
 
-  if( parameters%isPresent(triang_geometric_interpolation_order_key) ) then
-     assert(parameters%isAssignable(triang_geometric_interpolation_order_key, geometric_interpolation_order))
-     istat = parameters%Get(key = triang_geometric_interpolation_order_key, Value = geometric_interpolation_order)
+  if( parameters%isPresent(static_triang_geometric_interpolation_order_key) ) then
+     assert(parameters%isAssignable(static_triang_geometric_interpolation_order_key, geometric_interpolation_order))
+     istat = parameters%Get(key = static_triang_geometric_interpolation_order_key, Value = geometric_interpolation_order)
      assert(istat==0)
   else
      geometric_interpolation_order = 1
   end if
   
-  if(triangulation_generate==triangulation_generate_from_mesh) then
+  if(triangulation_generate==static_triang_generate_from_mesh_data_files) then
      if( parameters%isPresent(subparts_coupling_criteria_key) ) then
         assert(parameters%isAssignable(subparts_coupling_criteria_key, subparts_coupling_criteria))
         istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria) 
@@ -111,7 +111,7 @@ subroutine par_triangulation_create ( this, environment, parameters)
      else
         call this%set_subparts_coupling_criteria(loose_coupling) 
      end if
-  elseif(triangulation_generate==triangulation_generate_structured) then
+  elseif(triangulation_generate==static_triang_generate_from_struct_hex_mesh_generator) then
      call this%set_subparts_coupling_criteria(all_coupled)
   end if
 
@@ -140,7 +140,7 @@ subroutine par_triangulation_create ( this, environment, parameters)
   if(this%environment%am_i_l1_task()) then
 
      ! Generate triangulation
-     if(triangulation_generate==triangulation_generate_from_mesh) then
+     if(triangulation_generate==static_triang_generate_from_mesh_data_files) then
         call this%set_single_octree_mesh(.false.)
   
         if(geometric_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
@@ -243,12 +243,12 @@ subroutine par_triangulation_create ( this, environment, parameters)
         call memfree (ptr_vefs_x_cell              , __FILE__, __LINE__)
         call memfree (cell_coordinates               , __FILE__, __LINE__)
         call memfree (cell_coordinates_ghost_extended, __FILE__, __LINE__)
-     else if(triangulation_generate==triangulation_generate_structured) then
+     else if(triangulation_generate==static_triang_generate_from_struct_hex_mesh_generator) then
         call this%set_single_octree_mesh(.true.)
    
         ! Get num_dims from FPL
-        assert(parameters%isAssignable(struct_hex_triang_num_dims_key, this%num_dims))
-        istat = parameters%get(key = struct_hex_triang_num_dims_key, value = this%num_dims)
+        assert(parameters%isAssignable(struct_hex_mesh_generator_num_dims_key, this%num_dims))
+        istat = parameters%get(key = struct_hex_mesh_generator_num_dims_key, value = this%num_dims)
         assert(istat==0)
 
         call uniform_hex_mesh%get_data_from_parameter_list(parameters)

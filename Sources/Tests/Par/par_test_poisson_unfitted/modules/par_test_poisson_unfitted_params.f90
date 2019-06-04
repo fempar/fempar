@@ -31,7 +31,6 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable             :: get_parameter_list
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
-       procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
@@ -123,19 +122,6 @@ contains
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix
-
-    !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
@@ -174,8 +160,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(triang_generate_key, get_triangulation_type))
-    error = list%Get(key = triang_generate_key, Value = get_triangulation_type)
+    assert(list%isAssignable(static_triang_generate_from_key, get_triangulation_type))
+    error = list%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
 

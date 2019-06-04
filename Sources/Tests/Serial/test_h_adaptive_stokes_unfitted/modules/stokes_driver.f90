@@ -138,9 +138,9 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = struct_hex_triang_num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent   (key = struct_hex_mesh_generator_num_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = struct_hex_mesh_generator_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_mesh_generator_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
@@ -325,7 +325,6 @@ contains
       diri_set_id_u = 0
       diri_set_id_u_and_p = 0
     end if
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
 
        call this%triangulation%create_vef_iterator(vef)
        call this%triangulation%create_cell_iterator(cell)
@@ -451,8 +450,6 @@ contains
        call this%triangulation%free_vef_iterator(vef)
        call this%triangulation%free_cell_iterator(cell)
        deallocate(nodal_coords,stat=istat); check(istat == 0)
-
-    end if
     
     !call this%triangulation%print()
 

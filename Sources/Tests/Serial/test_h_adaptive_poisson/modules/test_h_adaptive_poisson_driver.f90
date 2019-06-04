@@ -204,8 +204,6 @@ contains
         call this%triangulation%fill_cells_set(cell_set_ids)
     end if
     
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured) then
-
       ! Set all the vefs on the interface between full/void if there are void fes
       if ( this%test_params%get_use_void_fes()) then
         ! WARNING: Consider updating this piece of code for h-adaptivity, because 
@@ -281,9 +279,7 @@ contains
         call this%triangulation%free_cell_iterator(cell)
         
       end if
-    
-    end if
-    
+        
     if (allocated(cell_set_ids)) call memfree(cell_set_ids,__FILE__,__LINE__)
     
   end subroutine setup_triangulation

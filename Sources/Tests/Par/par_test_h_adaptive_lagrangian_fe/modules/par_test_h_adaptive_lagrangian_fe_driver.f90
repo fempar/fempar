@@ -200,7 +200,7 @@ end subroutine free_timers
     ! Create a p4est mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
-    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_mesh_generator_domain_limits_key , value = domain); check(istat==0)
     istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
     call this%triangulation%create(this%par_environment,this%parameter_list)
     
