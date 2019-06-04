@@ -20,8 +20,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder 
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -41,8 +42,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder 
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1

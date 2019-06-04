@@ -8,7 +8,9 @@ then
 
     # STOKES test
     rm -Rf $PWD/output_test_nsi_iss_oss_stokes.txt
-    $TEST_BINARY_PATH analytical -cnv .false. -ne 4 4 -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_stokes.txt
+    COMMAND="$TEST_BINARY_PATH analytical -cnv .false. -ne 4 4 -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_stokes.txt"
+    echo $COMMAND
+    eval $COMMAND
     if [ $? -ne 0 ] 
     then
         final_exit_code=1
@@ -18,7 +20,9 @@ then
     rm -Rf $PWD/output_test_nsi_iss_oss_navierstokes.txt
     for num_elements in 2 4 8
     do
-	$TEST_BINARY_PATH analytical -cnv .true. -ne $num_elements $num_elements -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_navierstokes.txt
+	    COMMAND="$TEST_BINARY_PATH analytical -cnv .true. -ne $num_elements $num_elements -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_navierstokes.txt"
+        echo $COMMAND
+        eval $COMMAND
         if [ $? -ne 0 ] 
         then
           final_exit_code=1

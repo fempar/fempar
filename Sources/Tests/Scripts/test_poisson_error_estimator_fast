@@ -22,8 +22,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
-            $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2
+            COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1

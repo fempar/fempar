@@ -28,8 +28,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -49,8 +50,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 3"
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 3 
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 3 "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1

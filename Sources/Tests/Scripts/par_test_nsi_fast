@@ -17,9 +17,9 @@ if [ -f "$TEST_BINARY_PATH" ]
 then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
-
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0
+     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0"
+     echo $COMMAND
+     eval $COMMAND
      if [ $? -ne 0 ] 
      then
       final_exit_code=1

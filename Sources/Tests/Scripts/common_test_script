@@ -9,7 +9,9 @@ final_exit_code=0
 
 if [ -f "$TEST_BINARY_PATH" ]
 then   
-      $TEST_BINARY_PATH
+      COMMAND="$TEST_BINARY_PATH"
+      echo $COMMAND
+      eval $COMMAND
       if [ $? -ne 0 ] 
       then
          final_exit_code=1

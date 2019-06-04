@@ -24,8 +24,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 4 4 0 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 4 4 0 -in_space .true. -order $order -gorder $gorder 
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 4 4 0 -in_space .true. -order $order -gorder $gorder "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -45,8 +46,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH  $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 -in_space .true. -order $order -gorder $gorder
+            COMMAND="$TEST_BINARY_PATH  $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 4 4 4 -in_space .true. -order $order -gorder $gorder"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
@@ -68,8 +70,9 @@ then
           do
             if [ $order -ge $gorder ]
             then
-              echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 2 -in_space .true. -order $order -gorder $gorder"
-              $TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 2 -in_space .true. -order $order -gorder $gorder 
+              COMMAND="$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 2 -in_space .true. -order $order -gorder $gorder "
+              echo $COMMAND
+              eval $COMMAND
               if [ $? -ne 0 ] 
               then
                final_exit_code=1
@@ -92,8 +95,9 @@ then
           do
             if [ $order -ge $gorder ]
             then
-              echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder"
-              $TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder
+              COMMAND="$TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder"
+              echo $COMMAND
+              eval $COMMAND
               if [ $? -ne 0 ]
               then
                final_exit_code=1
@@ -112,8 +116,9 @@ then
       nelem=3
       if [ $order -ge $gorder ]
       then
-        echo "$TEST_BINARY_PATH $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder"
-        $TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder
+        COMMAND="$TEST_BINARY_PATH  $triang_generate_flag 0 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $struct_hex_triang_num_dims_flag 3 -in_space .true. -order $order -gorder $gorder"
+        echo $COMMAND
+        eval $COMMAND
         if [ $? -ne 0 ]
         then
           final_exit_code=1

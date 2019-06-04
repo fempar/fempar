@@ -21,8 +21,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder 
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_cells_dir_flag 2 2 0 -order $order -gorder $gorder"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -42,8 +43,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder 
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_cells_dir_flag 2 2 2 -order $order -gorder $gorder "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -63,8 +65,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 2 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 2 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder 
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 2 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
@@ -84,8 +87,9 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder"
-            $TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder
+            COMMAND="$TEST_BINARY_PATH $triang_generate_flag 0 $struct_hex_triang_num_dims_flag 3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1

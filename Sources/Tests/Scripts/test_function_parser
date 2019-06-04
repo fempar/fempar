@@ -13,8 +13,9 @@ then
     do
       for ops in 2 3
       do
-        echo "$TEST_BINARY_PATH --TEST_FUNCTION_NAME test_scalar --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops --TEST_OPERATOR $op"
-        $TEST_BINARY_PATH --TEST_FUNCTION_NAME test_scalar --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops --TEST_OPERATOR "$op"
+        COMMAND="$TEST_BINARY_PATH --TEST_FUNCTION_NAME test_scalar --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops --TEST_OPERATOR $op"
+        echo $COMMAND
+        eval $COMMAND
         if [ $? -ne 0 ] 
         then
           final_exit_code=1
@@ -30,8 +31,9 @@ then
     do
       for ops in 2 3
       do
-        echo "$TEST_BINARY_PATH --TEST_FUNCTION_NAME test_$type --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops"
-        $TEST_BINARY_PATH --TEST_FUNCTION_NAME test_$type --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops 
+        COMMAND="$TEST_BINARY_PATH --TEST_FUNCTION_NAME test_$type --TEST_FUNCTION_TYPE $type --TEST_NUM_POINTS $points --TEST_NUM_OPERATORS $ops "
+        echo $COMMAND
+        eval $COMMAND
         if [ $? -ne 0 ] 
           then
           final_exit_code=1

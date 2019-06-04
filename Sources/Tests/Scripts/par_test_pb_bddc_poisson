@@ -27,9 +27,9 @@ then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
      #test 1
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc $coarse_space_use_vertices_flag .true. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .false.  | tee $TMP_OUTPUT"
-
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc $coarse_space_use_vertices_flag .true. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .false.  | tee $TMP_OUTPUT
+     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 72 72 0 -j 100000000 -i 3  -coarse-handler pb_bddc $coarse_space_use_vertices_flag .true. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .false.  | tee $TMP_OUTPUT"
+     echo $COMMAND
+     eval $COMMAND
      # Number of iterations
      n1=$(grep "CG converged to " $TMP_OUTPUT |sed s/" "" "*/"#"/g|cut -f6 -d#)
      n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test1_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)
@@ -39,9 +39,9 @@ then
      rm -f $TMP_OUTPUT 
 
      #test 2
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_cells_dir_flag 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc $coarse_space_use_vertices_flag .true. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .true. | tee $TMP_OUTPUT"
-
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_cells_dir_flag 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc $coarse_space_use_vertices_flag .true. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .true. | tee $TMP_OUTPUT
+     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_dims_flag 3 $struct_hex_triang_num_parts_x_dir_flag 2 2 2 1 1 1 $struct_hex_triang_num_cells_dir_flag 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2  -coarse-handler pb_bddc $coarse_space_use_vertices_flag .true. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .true. | tee $TMP_OUTPUT"
+     echo $COMMAND
+     eval $COMMAND
      # Number of iterations
      n1=$(grep "CG converged to " $TMP_OUTPUT |sed s/" "" "*/"#"/g|cut -f6 -d#)
      n2=$(grep "CG converged to " $TEST_INPUT_DATA_PATH/test2_convergence |sed s/" "" "*/"#"/g|cut -f6 -d#)

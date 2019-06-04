@@ -33,8 +33,9 @@ then
            
           if [ "$(echo $integration_scheme | grep -E 'runge_kutta|imex_rk_4_3|trapezoidal')" == "" ]
           then
-              echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0 -rk-scheme $integration_scheme -test .true. -tf 0"
-              $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0 -rk-scheme $integration_scheme -test .true. -tf 0          
+              COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0 -rk-scheme $integration_scheme -test .true. -tf 0"
+              echo $COMMAND
+              eval $COMMAND
               if [ $? -ne 0 ]
               then
                 final_exit_code=1
@@ -43,16 +44,18 @@ then
           fi
           if [ "$(echo $integration_scheme | grep -E 'backward|implicit')" != "" ]
           then
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -rk-scheme $integration_scheme -dt 1 -tf 10"
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -rk-scheme $integration_scheme -dt 1 -tf 10
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 2 2 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 8 8 0 -rk-scheme $integration_scheme -dt 1 -tf 10"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ]
             then
               final_exit_code=1
               break 1
             fi
 
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0 -rk-scheme $integration_scheme -dt 0.1 -tf 0.5"
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0 -rk-scheme $integration_scheme -dt 0.1 -tf 0.5
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $triang_generate_flag 1 $struct_hex_triang_num_levels_flag 2 $struct_hex_triang_num_parts_x_dir_flag 3 3 0 1 1 0 $struct_hex_triang_num_cells_dir_flag 12 12 0 -rk-scheme $integration_scheme -dt 0.1 -tf 0.5"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ]
             then
               final_exit_code=1

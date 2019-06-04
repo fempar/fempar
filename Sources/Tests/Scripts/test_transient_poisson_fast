@@ -23,8 +23,9 @@ then
       while [ $id_scheme -le $num_integration_schemes ]
       do 
           integration_scheme=$(echo $lst_integration_schemes|cut -f$id_scheme -d#)
-          echo "$TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -test .true."
-          $TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -test .true.
+          COMMAND="$TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -test .true."
+          echo $COMMAND
+          eval $COMMAND
           if [ $? -ne 0 ]
           then
             final_exit_code=1
@@ -33,8 +34,9 @@ then
           
           if [ "$(echo $integration_scheme | grep -E 'backward|implicit')" != "" ]
           then
-            echo "$TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -dt 1 -tf 10"
-            $TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -dt 1 -tf 10
+            COMMAND="$TEST_BINARY_PATH $dir_path_flag 'data/' $prefix_flag 'square' $dir_path_out_flag 'output/' $triang_generate_flag 1 $struct_hex_triang_num_dims_flag 2 $struct_hex_triang_num_cells_dir_flag 3 3 0 -rk-scheme $integration_scheme -dt 1 -tf 10"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ]
             then
               final_exit_code=1

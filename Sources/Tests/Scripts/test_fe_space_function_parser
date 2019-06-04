@@ -3,7 +3,9 @@ TEST_BINARY_PATH="$1"
 final_exit_code=0
 if [ -f "$TEST_BINARY_PATH" ]
 then   
-      $TEST_BINARY_PATH --STRUCT_HEX_TRIANG_NUM_CELLS_DIM 10 10 10 --FES_REF_FE_ORDERS 3
+      COMMAND="$TEST_BINARY_PATH --STRUCT_HEX_TRIANG_NUM_CELLS_DIM 10 10 10 --FES_REF_FE_ORDERS 3"
+      echo $COMMAND
+      eval $COMMAND
       if [ $? -ne 0 ] 
       then
          final_exit_code=1
