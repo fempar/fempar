@@ -10,7 +10,7 @@ final_exit_code=0
 
 if [ -f "$TEST_BINARY_PATH" ]
 then   
-      COMMAND="$TEST_BINARY_PATH $struct_hex_triang_num_cells_dir_flag 10 10 10 $fes_ref_fe_orders_flag 3"
+      COMMAND="$TEST_BINARY_PATH $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 10 $fes_ref_fe_orders_flag 3"
       echo $COMMAND
       eval $COMMAND
       if [ $? -ne 0 ] 
