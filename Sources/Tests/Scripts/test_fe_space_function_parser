@@ -1,9 +1,16 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
+
+
 if [ -f "$TEST_BINARY_PATH" ]
 then   
-      COMMAND="$TEST_BINARY_PATH --STRUCT_HEX_TRIANG_NUM_CELLS_DIM 10 10 10 --FES_REF_FE_ORDERS 3"
+      COMMAND="$TEST_BINARY_PATH $struct_hex_triang_num_cells_dir_flag 10 10 10 $fes_ref_fe_orders_flag 3"
       echo $COMMAND
       eval $COMMAND
       if [ $? -ne 0 ] 

@@ -309,8 +309,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_cells_x_dim_cla_name, get_num_cells_x_dim))
-    error = list%Get(key = struct_hex_mesh_generator_num_cells_x_dim_cla_name, Value = get_num_cells_x_dim)
+    assert(list%isAssignable(struct_hex_mesh_generator_num_cells_x_dim_key, get_num_cells_x_dim))
+    error = list%Get(key = struct_hex_mesh_generator_num_cells_x_dim_key, Value = get_num_cells_x_dim)
     assert(error==0)
   end function get_num_cells_x_dim
   !==================================================================================================
