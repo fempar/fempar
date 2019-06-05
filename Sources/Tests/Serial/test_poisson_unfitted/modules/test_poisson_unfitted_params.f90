@@ -53,7 +53,6 @@ module test_poisson_unfitted_params_names
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_fe_formulation
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
@@ -109,94 +108,48 @@ contains
   function get_fe_formulation(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable                       :: get_fe_formulation
-    type(ParameterList_t), pointer                      :: list
-    integer(ip)                                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(fe_formulation_key, 'string'))
-    error = list%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
-    assert(error==0)
+    character(len=:), allocatable                      :: get_fe_formulation
+    call parameter_handler%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
   end function get_fe_formulation
-  
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
-  
+
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    integer(ip)                                        :: get_reference_fe_order
+    call parameter_handler%Get(key = reference_fe_order_key, value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
   function get_write_solution(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    logical                                       :: get_write_solution
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    logical                                            :: get_write_solution
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
   
   !==================================================================================================
   function get_laplacian_type(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable                 :: get_laplacian_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(laplacian_type_key, 'string'))
-    error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
-    assert(error==0)
+    character(len=:), allocatable                      :: get_laplacian_type
+    call parameter_handler%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
   end function get_laplacian_type 
 
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(static_triang_generate_from_key, get_triangulation_type))
-    error = list%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
-    assert(error==0)
+    integer(ip)                                        :: get_triangulation_type
+    call parameter_handler%Get(key = static_triang_generate_from_key, value = get_triangulation_type)
   end function get_triangulation_type
 
   !==================================================================================================
   function get_num_dims(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip) :: get_num_dims
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_dims_key, get_num_dims))
-    error = list%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
-    assert(error==0)
+    integer(ip)                                        :: get_num_dims
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
   end function get_num_dims
 
   !==================================================================================================

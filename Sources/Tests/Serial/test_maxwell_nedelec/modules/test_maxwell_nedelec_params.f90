@@ -116,68 +116,39 @@ contains
     implicit none
     class(maxwell_nedelec_params_t)  , intent(in) :: this
     integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(static_triang_generate_from_key, get_triangulation_type))
-    error = list%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
-    assert(error==0)
+    call parameter_handler%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
   end function get_triangulation_type 
   
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
     class(maxwell_nedelec_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
+    integer(ip)                                  :: get_reference_fe_geo_order
+    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(maxwell_nedelec_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    integer(ip)                                  :: get_reference_fe_order
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
   function get_write_solution(this)
     implicit none
     class(maxwell_nedelec_params_t) , intent(in) :: this
-    logical                                       :: get_write_solution
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    logical                                      :: get_write_solution
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
   
   !==================================================================================================
   function get_analytical_function_case(this)
     implicit none
     class(maxwell_nedelec_params_t) , intent(in) :: this
-    character(len=:), allocatable                            :: get_analytical_function_case
-    type(ParameterList_t), pointer                           :: list
-    integer(ip)                                              :: error
-    character(1) :: dummy_string
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(analytical_function_case_key, dummy_string))
-    error = list%GetAsString(key = analytical_function_case_key, string = get_analytical_function_case)
-    assert(error==0)
+    character(len=:), allocatable                :: get_analytical_function_case
+    call parameter_handler%GetAsString(key = analytical_function_case_key, string = get_analytical_function_case)
   end function get_analytical_function_case
   
   

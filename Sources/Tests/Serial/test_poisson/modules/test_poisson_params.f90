@@ -48,12 +48,10 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_fe_formulation
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
-     procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
   end type test_poisson_params_t  
@@ -128,15 +126,7 @@ contains
     character(len=:), allocatable             :: get_fe_formulation
     call parameter_handler%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
   end function get_fe_formulation
-  
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_reference_fe_geo_order
-    call parameter_handler%Get(key = reference_fe_geo_order_key, value = get_reference_fe_geo_order)
-  end function get_reference_fe_geo_order
-  
+    
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
@@ -168,14 +158,6 @@ contains
     character(len=:), allocatable :: get_triangulation_type
     call parameter_handler%GetAsString(key = static_triang_generate_from_key, string = get_triangulation_type)
   end function get_triangulation_type
-
-  !==================================================================================================
-  function get_num_dims(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_num_dims
-    call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
-  end function get_num_dims
 
   !==================================================================================================
   function get_use_void_fes(this)

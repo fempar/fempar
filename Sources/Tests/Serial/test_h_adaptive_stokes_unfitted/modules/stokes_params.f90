@@ -155,12 +155,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     integer(ip)                         :: get_reference_fe_order
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -168,12 +163,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_write_solution
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
 
   !==================================================================================================
@@ -181,12 +171,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_write_matrix
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_matrix_key, get_write_matrix))
-    error = list%Get(key = write_matrix_key, Value = get_write_matrix)
-    assert(error==0)
+    call parameter_handler%Get(key = write_matrix_key, Value = get_write_matrix)
   end function get_write_matrix
 
   !==================================================================================================
@@ -194,12 +179,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_write_error_norms
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_error_norms_key, get_write_error_norms))
-    error = list%Get(key = write_error_norms_key, Value = get_write_error_norms)
-    assert(error==0)
+    call parameter_handler%Get(key = write_error_norms_key, Value = get_write_error_norms)
   end function get_write_error_norms
 
   !==================================================================================================
@@ -207,12 +187,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_write_aggr_info
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_aggr_info_key, get_write_aggr_info))
-    error = list%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
-    assert(error==0)
+    call parameter_handler%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
   end function get_write_aggr_info
       
   !==================================================================================================
@@ -220,12 +195,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     integer(ip)                         :: get_max_level
-   type(ParameterList_t), pointer       :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(max_level_key, get_max_level))
-    error = list%Get(key = max_level_key, Value = get_max_level)
-    assert(error==0)
+    call parameter_handler%Get(key = max_level_key, Value = get_max_level)
   end function get_max_level
 
   !==================================================================================================
@@ -233,12 +203,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     integer(ip)                         :: get_case_id
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(case_id_key, get_case_id))
-    error = list%Get(key = case_id_key, Value = get_case_id)
-    assert(error==0)
+    call parameter_handler%Get(key = case_id_key, Value = get_case_id)
   end function get_case_id
 
   !==================================================================================================
@@ -246,12 +211,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     integer(ip)                         :: get_bc_case_id
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(bc_case_id_key, get_bc_case_id))
-    error = list%Get(key = bc_case_id_key, Value = get_bc_case_id)
-    assert(error==0)
+    call parameter_handler%Get(key = bc_case_id_key, Value = get_bc_case_id)
   end function get_bc_case_id
 
   !==================================================================================================
@@ -259,12 +219,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: are_checks_active
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(check_solution_key, are_checks_active))
-    error = list%Get(key = check_solution_key, Value = are_checks_active)
-    assert(error==0)
+    call parameter_handler%Get(key = check_solution_key, Value = are_checks_active)
   end function are_checks_active
 
   !==================================================================================================
@@ -272,12 +227,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_unfitted_boundary_is_dirichlet
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_dirichlet_key, get_unfitted_boundary_is_dirichlet))
-    error = list%Get(key = is_dirichlet_key, Value = get_unfitted_boundary_is_dirichlet)
-    assert(error==0)
+    call parameter_handler%Get(key = is_dirichlet_key, Value = get_unfitted_boundary_is_dirichlet)
   end function get_unfitted_boundary_is_dirichlet
 
   !==================================================================================================
@@ -285,12 +235,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_is_constant_nitches_beta
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_beta_constant_key, get_is_constant_nitches_beta))
-    error = list%Get(key = is_beta_constant_key, Value = get_is_constant_nitches_beta)
-    assert(error==0)
+    call parameter_handler%Get(key = is_beta_constant_key, Value = get_is_constant_nitches_beta)
   end function get_is_constant_nitches_beta
 
   !==================================================================================================
@@ -298,12 +243,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_use_constraints
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_constraints_key, get_use_constraints))
-    error = list%Get(key = use_constraints_key, Value = get_use_constraints)
-    assert(error==0)
+    call parameter_handler%Get(key = use_constraints_key, Value = get_use_constraints)
   end function get_use_constraints
 
   !==================================================================================================
@@ -311,12 +251,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     character(len=:), allocatable       :: get_levelset_function_type
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(levelset_type_key, get_levelset_function_type))
-    error = list%GetAsString(key = levelset_type_key, string = get_levelset_function_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = levelset_type_key, string = get_levelset_function_type)
   end function get_levelset_function_type 
 
   !==================================================================================================
@@ -324,12 +259,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     real(rp)                            :: get_levelset_tolerance
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(levelset_tol_key, get_levelset_tolerance))
-    error = list%Get(key = levelset_tol_key, Value = get_levelset_tolerance)
-    assert(error==0)
+    call parameter_handler%Get(key = levelset_tol_key, Value = get_levelset_tolerance)
   end function get_levelset_tolerance
 
   !==================================================================================================
@@ -337,12 +267,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     real(rp)                            :: get_domain_limits(2)
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(domain_limits_key, get_domain_limits))
-    error = list%Get(key = domain_limits_key, Value = get_domain_limits)
-    assert(error==0)
+    call parameter_handler%Get(key = domain_limits_key, Value = get_domain_limits)
   end function get_domain_limits 
 
   !==================================================================================================
@@ -350,12 +275,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: get_only_setup
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(only_setup_key, get_only_setup))
-    error = list%Get(key = only_setup_key, Value = get_only_setup)
-    assert(error==0)
+    call parameter_handler%Get(key = only_setup_key, Value = get_only_setup)
   end function get_only_setup
 
   !==================================================================================================
@@ -363,12 +283,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     logical                             :: is_strong_dirichlet_on_fitted_boundary
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(strong_dirichlet_key, is_strong_dirichlet_on_fitted_boundary))
-    error = list%Get(key = strong_dirichlet_key, Value = is_strong_dirichlet_on_fitted_boundary)
-    assert(error==0)
+    call parameter_handler%Get(key = strong_dirichlet_key, Value = is_strong_dirichlet_on_fitted_boundary)
   end function is_strong_dirichlet_on_fitted_boundary
 
   !==================================================================================================
@@ -376,12 +291,7 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     character(len=:), allocatable       :: get_refinement_pattern
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(refinement_pattern_key, get_refinement_pattern))
-    error = list%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
   end function get_refinement_pattern 
 
   !==================================================================================================
@@ -389,25 +299,15 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     character(len=:), allocatable       :: get_lin_solver_type
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(lin_solver_type_key, get_lin_solver_type))
-    error = list%GetAsString(key = lin_solver_type_key, string = get_lin_solver_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = lin_solver_type_key, string = get_lin_solver_type)
   end function get_lin_solver_type 
 
   !==================================================================================================
   function get_use_levelset_complement(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: get_use_levelset_complement
-    type(ParameterList_t), pointer      :: list
-    integer(ip)                         :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_levelset_complement_key, get_use_levelset_complement))
-    error = list%Get(key = use_levelset_complement_key, Value = get_use_levelset_complement)
-    assert(error==0)
+    logical                             :: get_use_levelset_complement
+    call parameter_handler%Get(key = use_levelset_complement_key, Value = get_use_levelset_complement)
   end function get_use_levelset_complement
 
 end module stokes_params_names

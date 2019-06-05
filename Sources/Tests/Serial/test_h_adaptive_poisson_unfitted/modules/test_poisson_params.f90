@@ -34,7 +34,6 @@ module test_poisson_params_names
 
   character(len=*), parameter :: fe_formulation_key            = 'fe_formulation'
   character(len=*), parameter :: laplacian_type_key            = 'laplacian_type'
-  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key            = 'write_solution'
   character(len=*), parameter :: write_matrix_key              = 'write_matrix'
@@ -60,15 +59,12 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_write_matrix
      procedure, non_overridable             :: get_write_error_norms
      procedure, non_overridable             :: get_write_aggr_info
      procedure, non_overridable             :: get_laplacian_type
-     procedure, non_overridable             :: get_triangulation_type
-     procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_max_level
      procedure, non_overridable             :: is_in_fe_space
      procedure, non_overridable             :: are_checks_active
@@ -92,7 +88,6 @@ contains
   subroutine test_poisson_define_user_parameters()
     implicit none
     ! IO parameters
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
@@ -166,38 +161,15 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: is_in_fe_space
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_in_fe_space_key, is_in_fe_space))
-    error = list%Get(key = is_in_fe_space_key, Value = is_in_fe_space)
-    assert(error==0)
+    call parameter_handler%Get(key = is_in_fe_space_key, Value = is_in_fe_space)
   end function is_in_fe_space
-  
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_reference_fe_order
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -205,12 +177,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_write_solution
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
 
   !==================================================================================================
@@ -218,12 +185,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_write_matrix
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_matrix_key, get_write_matrix))
-    error = list%Get(key = write_matrix_key, Value = get_write_matrix)
-    assert(error==0)
+    call parameter_handler%Get(key = write_matrix_key, Value = get_write_matrix)
   end function get_write_matrix
 
   !==================================================================================================
@@ -231,12 +193,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_write_error_norms
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_error_norms_key, get_write_error_norms))
-    error = list%Get(key = write_error_norms_key, Value = get_write_error_norms)
-    assert(error==0)
+    call parameter_handler%Get(key = write_error_norms_key, Value = get_write_error_norms)
   end function get_write_error_norms
 
   !==================================================================================================
@@ -244,12 +201,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_write_aggr_info
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_aggr_info_key, get_write_aggr_info))
-    error = list%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
-    assert(error==0)
+    call parameter_handler%Get(key = write_aggr_info_key, Value = get_write_aggr_info)
   end function get_write_aggr_info
   
   !==================================================================================================
@@ -257,51 +209,15 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_laplacian_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(laplacian_type_key, get_laplacian_type))
-    error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
   end function get_laplacian_type 
-  
-  !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_triangulation_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(static_triang_generate_from_key, get_triangulation_type))
-    error = list%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
-    assert(error==0)
-  end function get_triangulation_type 
-  
-  !==================================================================================================
-  function get_num_dims(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_num_dims
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_dims_key, get_num_dims))
-    error = list%Get(key = struct_hex_mesh_generator_num_dims_key, Value = get_num_dims)
-    assert(error==0)
-  end function get_num_dims
 
   !==================================================================================================
   function get_max_level(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_max_level
-   type(ParameterList_t), pointer             :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(max_level_key, get_max_level))
-    error = list%Get(key = max_level_key, Value = get_max_level)
-    assert(error==0)
+    call parameter_handler%Get(key = max_level_key, Value = get_max_level)
   end function get_max_level
 
   !==================================================================================================
@@ -309,12 +225,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: are_checks_active
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(check_solution_key, are_checks_active))
-    error = list%Get(key = check_solution_key, Value = are_checks_active)
-    assert(error==0)
+    call parameter_handler%Get(key = check_solution_key, Value = are_checks_active)
   end function are_checks_active
 
   !==================================================================================================
@@ -322,12 +233,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_unfitted_boundary_is_dirichlet
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_dirichlet_key, get_unfitted_boundary_is_dirichlet))
-    error = list%Get(key = is_dirichlet_key, Value = get_unfitted_boundary_is_dirichlet)
-    assert(error==0)
+    call parameter_handler%Get(key = is_dirichlet_key, Value = get_unfitted_boundary_is_dirichlet)
   end function get_unfitted_boundary_is_dirichlet
 
   !==================================================================================================
@@ -335,12 +241,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_is_constant_nitches_beta
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_beta_constant_key, get_is_constant_nitches_beta))
-    error = list%Get(key = is_beta_constant_key, Value = get_is_constant_nitches_beta)
-    assert(error==0)
+    call parameter_handler%Get(key = is_beta_constant_key, Value = get_is_constant_nitches_beta)
   end function get_is_constant_nitches_beta
 
   !==================================================================================================
@@ -348,12 +249,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_use_constraints
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_constraints_key, get_use_constraints))
-    error = list%Get(key = use_constraints_key, Value = get_use_constraints)
-    assert(error==0)
+    call parameter_handler%Get(key = use_constraints_key, Value = get_use_constraints)
   end function get_use_constraints
 
   !==================================================================================================
@@ -361,12 +257,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_levelset_function_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(levelset_type_key, get_levelset_function_type))
-    error = list%GetAsString(key = levelset_type_key, string = get_levelset_function_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = levelset_type_key, string = get_levelset_function_type)
   end function get_levelset_function_type 
 
   !==================================================================================================
@@ -374,12 +265,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     real(rp)                                  :: get_levelset_tolerance
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(levelset_tol_key, get_levelset_tolerance))
-    error = list%Get(key = levelset_tol_key, Value = get_levelset_tolerance)
-    assert(error==0)
+    call parameter_handler%Get(key = levelset_tol_key, Value = get_levelset_tolerance)
   end function get_levelset_tolerance
 
   !==================================================================================================
@@ -387,12 +273,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     real(rp)                                  :: get_domain_limits(2)
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(domain_limits_key, get_domain_limits))
-    error = list%Get(key = domain_limits_key, Value = get_domain_limits)
-    assert(error==0)
+    call parameter_handler%Get(key = domain_limits_key, Value = get_domain_limits)
   end function get_domain_limits 
 
   !==================================================================================================
@@ -400,12 +281,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_only_setup
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(only_setup_key, get_only_setup))
-    error = list%Get(key = only_setup_key, Value = get_only_setup)
-    assert(error==0)
+    call parameter_handler%Get(key = only_setup_key, Value = get_only_setup)
   end function get_only_setup
 
   !==================================================================================================
@@ -413,12 +289,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: is_strong_dirichlet_on_fitted_boundary
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(strong_dirichlet_key, is_strong_dirichlet_on_fitted_boundary))
-    error = list%Get(key = strong_dirichlet_key, Value = is_strong_dirichlet_on_fitted_boundary)
-    assert(error==0)
+    call parameter_handler%Get(key = strong_dirichlet_key, Value = is_strong_dirichlet_on_fitted_boundary)
   end function is_strong_dirichlet_on_fitted_boundary
 
   !==================================================================================================
@@ -426,12 +297,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_refinement_pattern
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(refinement_pattern_key, get_refinement_pattern))
-    error = list%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
   end function get_refinement_pattern 
 
 end module test_poisson_params_names

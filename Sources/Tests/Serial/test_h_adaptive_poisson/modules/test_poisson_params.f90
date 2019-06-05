@@ -34,7 +34,6 @@ module test_poisson_params_names
 
   character(len=*), parameter :: fe_formulation_key            = 'fe_formulation'
   character(len=*), parameter :: laplacian_type_key            = 'laplacian_type'
-  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key            = 'write_solution'        
   character(len=*), parameter :: use_void_fes_key              = 'use_void_fes'
@@ -48,11 +47,9 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_fe_formulation
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
-     procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
   end type test_poisson_params_t  
@@ -68,7 +65,6 @@ contains
 
     ! IO parameters
     call parameter_handler%add(fe_formulation_key, '--fe-formulation', 'cG', 'cG or dG FE formulation for Poisson problem (cG,dG)', switch_ab='-f')
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
@@ -127,38 +123,15 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_fe_formulation
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(fe_formulation_key, 'string'))
-    error = list%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
   end function get_fe_formulation
-  
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
-  end function get_reference_fe_geo_order
-  
+    
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     integer(ip)                               :: get_reference_fe_order
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -166,12 +139,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_write_solution
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
   
   !==================================================================================================
@@ -179,38 +147,15 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_laplacian_type
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(laplacian_type_key, 'string'))
-    error = list%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
   end function get_laplacian_type 
-
-  !==================================================================================================
-  function get_num_dims(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    integer(ip)                               :: get_num_dims
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_dims_key, get_num_dims))
-    error = list%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
-    assert(error==0)
-  end function get_num_dims
 
   !==================================================================================================
   function get_use_void_fes(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     logical                                   :: get_use_void_fes
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
-    error = list%Get(key = use_void_fes_key, value = get_use_void_fes)
-    assert(error==0)
+    call parameter_handler%Get(key = use_void_fes_key, value = get_use_void_fes)
   end function get_use_void_fes
 
   !==================================================================================================
@@ -218,12 +163,7 @@ contains
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_use_void_fes_case
-    type(ParameterList_t), pointer            :: list
-    integer(ip)                               :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_case_key, get_use_void_fes_case))
-    error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
   end function get_use_void_fes_case
 
 end module test_poisson_params_names

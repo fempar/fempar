@@ -107,12 +107,7 @@ contains
     implicit none
     class(mixed_laplacian_rt_params_t) , intent(in) :: this
     integer(ip)                                     :: get_reference_fe_geo_order
-    type(ParameterList_t), pointer                  :: list
-    integer(ip)                                     :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
-    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
@@ -120,12 +115,7 @@ contains
     implicit none
     class(mixed_laplacian_rt_params_t) , intent(in) :: this
     integer(ip)                                     :: get_reference_fe_order
-    type(ParameterList_t), pointer                  :: list
-    integer(ip)                                     :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
 end module mixed_laplacian_rt_params_names
