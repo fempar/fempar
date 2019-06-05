@@ -8,11 +8,11 @@ variables:
   DOCKER_DRIVER: overlay2
 
 
-cache:
-  key: "$CI_COMMIT_REF_SLUG"
-  untracked: true
-  paths:
-    - $CI_PROJECT_DIR/cache
+#cache:
+#  key: "$CI_COMMIT_REF_SLUG"
+#  untracked: true
+#  paths:
+#    - $CI_PROJECT_DIR/cache
 
 
 .base_gnu:
@@ -77,7 +77,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - merge_requests
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
   script: *script_template
@@ -90,7 +90,7 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
     - experimental
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
@@ -104,7 +104,7 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL_FAST
   script: *script_template
@@ -117,7 +117,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - merge_requests
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
   script: *script_template
@@ -130,7 +130,7 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
     - experimental
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
@@ -144,7 +144,7 @@ GNU_DEBUG_P4EST_PARALLEL_FAST:
     - experimental
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/debug/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL_FAST
   script: *script_template
@@ -158,7 +158,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - merge_requests
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
   script: *script_template
@@ -171,7 +171,7 @@ GNU_RELEASE_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
   script: *script_template
@@ -185,7 +185,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     - merge_requests
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
   script: *script_template
@@ -198,7 +198,7 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
     - experimental
   extends: .base_gnu
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/gnu/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
   script: *script_template
@@ -213,7 +213,7 @@ INTEL_RELEASE_P4EST_SERIAL:
     - merge_requests
   extends: .base_intel
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
     CLEAN_ENV_COMMAND: module purge
@@ -229,7 +229,7 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_intel
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
     CLEAN_ENV_COMMAND: module purge
@@ -246,7 +246,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
     - merge_requests
   extends: .base_intel
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
     CLEAN_ENV_COMMAND: module purge
@@ -262,7 +262,7 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     - experimental
   extends: .base_intel
   variables:
-    THIRDPARTY_DIR: $CI_PROJECT_DIR/cache/intel/release/THIRDPARTY
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
     CLEAN_ENV_COMMAND: module purge
@@ -284,10 +284,10 @@ SINGULARITY:
   script: 
     - echo $SYLABS_TOKEN > $CI_PROJECT_DIR/sylabs-token
     - singularity remote login SylabsCloud --tokenfile $CI_PROJECT_DIR/sylabs-token
-    - singularity build -d -F -r fempar/experimental/fempar:gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
-    - singularity build -d -F -r fempar/experimental/fempar:gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
-    - singularity build -d -F -r fempar/experimental/fempar:gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
-    - singularity build -d -F -r fempar/experimental/fempar:gnu-release_p4est-paralle $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-release_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
     - rm $CI_PROJECT_DIR/sylabs-token
   only:
     - experimental@fempar/fempar
