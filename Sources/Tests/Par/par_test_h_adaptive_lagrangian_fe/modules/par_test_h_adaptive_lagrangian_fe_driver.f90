@@ -499,7 +499,7 @@ end subroutine free_timers
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration() 
 #ifdef ENABLE_MKL    
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
 #endif    
     !call this%fe_space%print()
   end subroutine setup_fe_space

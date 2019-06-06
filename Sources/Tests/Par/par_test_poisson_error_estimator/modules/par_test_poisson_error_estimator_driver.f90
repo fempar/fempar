@@ -217,7 +217,7 @@ contains
                                coarse_fe_handlers = this%coarse_fe_handlers,  &
                                conditions         = this%poisson_conditions )
     call this%fe_space%set_up_cell_integration()
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
   end subroutine setup_fe_space
   
   subroutine generate_adapted_mesh(this)
