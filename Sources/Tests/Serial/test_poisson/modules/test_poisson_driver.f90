@@ -150,10 +150,6 @@ contains
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
 
-
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%serial_environment, this%parameter_list)
     !call this%triangulation%print()
     

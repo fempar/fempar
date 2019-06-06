@@ -169,9 +169,6 @@ contains
 
     !* First the triangulation is made from the environment and the parameter list:
 
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%serial_environment,this%parameter_list)
     !call this%triangulation%print()
     !* In case the triangulation is *structured*, the boundary ( `set_id = 1`) is set at the dimension limit:

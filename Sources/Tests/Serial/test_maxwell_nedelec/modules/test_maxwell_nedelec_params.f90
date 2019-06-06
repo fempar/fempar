@@ -46,7 +46,6 @@ module maxwell_nedelec_params_names
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_triangulation_type 
-       procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_analytical_function_case
@@ -118,14 +117,6 @@ contains
     integer(ip)                                   :: get_triangulation_type
     call parameter_handler%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
   end function get_triangulation_type 
-  
-    !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
-    integer(ip)                                  :: get_reference_fe_geo_order
-    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)

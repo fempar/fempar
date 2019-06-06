@@ -42,7 +42,6 @@ module mixed_laplacian_rt_params_names
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
   end type mixed_laplacian_rt_params_t
 
@@ -101,14 +100,6 @@ contains
     character(len=:), allocatable                   :: get_dir_path_out
     get_dir_path_out = parameter_handler%get_dir_path_out()
   end function get_dir_path_out
-
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    integer(ip)                                     :: get_reference_fe_geo_order
-    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
