@@ -44,7 +44,7 @@ program tutorial_01_steady_poisson
   !*   3) the user provides the parameter values in the code.
   !* In this tutorial we will explicitly provide the values in the code (option 3), but they could be provided by the command line argument instead.
   !* This is the object in parameter_handler that provides the list of parameters.
-  type(ParameterList_t), pointer       :: parameter_list
+
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
   !* The fe_space_t is the global finite element space to be used.
@@ -109,13 +109,8 @@ program tutorial_01_steady_poisson
   call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                             ! Reference finite element orders
   call parameter_handler%update(fes_ref_fe_types_key, value = 'Lagrangian' )                       ! Reference finite element types
 
-  !* Obtain the list containing all fempar parameters
-  parameter_list => parameter_handler%get_values()
-  
-  !* Print the list of parameters
-  !    call parameter_list%print()
   !* Determine a serial execution mode (default case)
-  call serial_environment%create(world_context, parameter_list)
+  call serial_environment%create(world_context, parameter_handler%get_values())
   !* ### Triangulation
   !* Create triangulation.  
   !* The structure mesh generator creates a domain that has:
@@ -132,7 +127,7 @@ program tutorial_01_steady_poisson
   !*      1 - - - - 2
   !*           5     
   !* ```
-  call triangulation%create(serial_environment, parameter_list)
+  call triangulation%create(serial_environment, parameter_handler%get_values())
 
   !* ### Analytical expressions
   !* User-defined functions for the source term, boundary function and exact solution.
@@ -159,7 +154,7 @@ program tutorial_01_steady_poisson
   !*   The reference FE to be used.
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = poisson_conditions, &
-                        parameters               = parameter_list )
+                        parameters               = parameter_handler%get_values() )
   ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
   call fe_space%set_up_cell_integration()
   ! Now, we define the source term with the function we have created in our module.
@@ -195,8 +190,8 @@ program tutorial_01_steady_poisson
     !* Set verbosity parameter of the direct solver to default value
     call parameter_handler%update(key = pardiso_mkl_message_level, value = pardiso_mkl_default_message_level)
     !* Direct solver setup
-    call direct_solver%set_type_from_pl(parameter_list)
-    call direct_solver%set_parameters_from_pl(parameter_list)
+    call direct_solver%set_type_from_pl(parameter_handler%get_values())
+    call direct_solver%set_parameters_from_pl(parameter_handler%get_values())
     !* Next, we set the matrix in our system from the fe_affine operator
     call direct_solver%set_matrix(fe_affine_operator%get_matrix())
     !* We extract a pointer to the free nodal values of our FE function, which is the plae in which we will store the result.
@@ -213,7 +208,7 @@ program tutorial_01_steady_poisson
     call parameter_handler%update(key = ils_max_num_iterations_key, value = 5000) ! Max number of iterations
     !* Now, we create a serial iterative solver with the values in the parameter list.
     call iterative_linear_solver%create(fe_space%get_environment())
-    call iterative_linear_solver%set_type_and_parameters_from_pl(parameter_list)
+    call iterative_linear_solver%set_type_and_parameters_from_pl(parameter_handler%get_values())
     !* Next, we set the matrix in our system from the fe_affine operator (i.e., its tangent)
     call iterative_linear_solver%set_operators(fe_affine_operator%get_tangent(), .identity. fe_affine_operator) 
     !* We extract a pointer to the free nodal values of our FE function, which is the plae in which we will store the result.
