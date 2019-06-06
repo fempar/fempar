@@ -505,7 +505,7 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
@@ -828,7 +828,7 @@ end subroutine check_solution
     call this%timer_fe_space%stop()
     
 #ifdef ENABLE_MKL    
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
 #endif      
     
     call this%timer_assemply%start()
@@ -886,7 +886,7 @@ end subroutine check_solution
       call this%timer_fe_space%stop()
       
 #ifdef ENABLE_MKL    
-      call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+      call this%fe_space%setup_coarse_fe_space()
 #endif        
       
       ! If not called BUG 

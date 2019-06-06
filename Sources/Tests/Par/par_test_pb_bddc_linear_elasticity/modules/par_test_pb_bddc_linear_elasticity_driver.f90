@@ -912,7 +912,7 @@ contains
           write(*,*) "si_solver:: 0"
        end if
     end if
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
 
 
     ! Prepare the internal parameter list of pardiso

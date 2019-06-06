@@ -491,7 +491,7 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
     call this%mlbddc%create(this%time_operator%get_fe_operator(), this%parameter_list)
 #endif    
    
