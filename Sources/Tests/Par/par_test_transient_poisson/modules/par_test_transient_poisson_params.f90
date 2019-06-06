@@ -77,146 +77,88 @@ contains
   function get_dir_path(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_dir_path
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_key, 'string'))
-    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    assert(error==0)
+    character(len=:),      allocatable                      :: get_dir_path
+    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
   end function get_dir_path
 
   !==================================================================================================
   function get_prefix(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_prefix
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(prefix_key, 'string'))
-    error = list%GetAsString(key = prefix_key, string = get_prefix)
-    assert(error==0)
+    character(len=:),      allocatable                      :: get_prefix
+    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
   end function get_prefix
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    integer(ip)                                             :: get_reference_fe_order
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
   function get_write_solution(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    logical                                       :: get_write_solution
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    logical                                                 :: get_write_solution
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
 
   !==================================================================================================
   function get_use_void_fes(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    logical                                       :: get_use_void_fes
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
-    error = list%Get(key = use_void_fes_key, Value = get_use_void_fes)
-    assert(error==0)
+    logical                                                 :: get_use_void_fes
+    call parameter_handler%Get(key = use_void_fes_key, Value = get_use_void_fes)
   end function get_use_void_fes
 
   !==================================================================================================
   function get_use_void_fes_case(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable                 :: get_use_void_fes_case
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_case_key, 'string'))
-    error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
-    assert(error==0)
+    character(len=:), allocatable                           :: get_use_void_fes_case
+    call parameter_handler%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
   end function get_use_void_fes_case
   
   !==================================================================================================
   function get_initial_time(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    real(rp)                                      :: get_initial_time
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(initial_time_key, get_initial_time))
-    error = list%Get(key = initial_time_key, Value = get_initial_time)
-    assert(error==0)
+    real(rp)                                                :: get_initial_time
+    call parameter_handler%Get(key = initial_time_key, Value = get_initial_time)
   end function get_initial_time
   
     !==================================================================================================
   function get_final_time(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    real(rp)                                      :: get_final_time
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(final_time_key, get_final_time))
-    error = list%Get(key = final_time_key, Value = get_final_time)
-    assert(error==0)
+    real(rp)                                                :: get_final_time
+    call parameter_handler%Get(key = final_time_key, Value = get_final_time)
   end function get_final_time
   
     !==================================================================================================
   function get_time_step(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    real(rp)                                      :: get_time_step
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(time_step_key, get_time_step))
-    error = list%Get(key = time_step_key, Value = get_time_step)
-    assert(error==0)
+    real(rp)                                                :: get_time_step
+    call parameter_handler%Get(key = time_step_key, Value = get_time_step)
   end function get_time_step
   
     !==================================================================================================
   function get_time_integration_scheme(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable                 :: get_time_integration_scheme
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(time_integration_scheme_key, 'string'))
-    error = list%GetAsString(key = time_integration_scheme_key, string = get_time_integration_scheme)
-    assert(error==0)
+    character(len=:), allocatable                           :: get_time_integration_scheme
+    call parameter_handler%GetAsString(key = time_integration_scheme_key, string = get_time_integration_scheme)
   end function get_time_integration_scheme
     
     !==================================================================================================
   function get_is_test(this)
     implicit none
     class(par_test_transient_poisson_params_t) , intent(in) :: this
-    logical                                       :: get_is_test
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_test_key, get_is_test))
-    error = list%Get(key = is_test_key, Value = get_is_test)
-    assert(error==0)
+    logical                                                 :: get_is_test
+    call parameter_handler%Get(key = is_test_key, Value = get_is_test)
   end function get_is_test
  
 end module par_test_transient_poisson_params_names

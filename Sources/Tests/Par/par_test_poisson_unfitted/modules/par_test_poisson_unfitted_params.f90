@@ -6,10 +6,8 @@ module par_test_poisson_unfitted_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'    
   character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type'    
   character(len=*), parameter :: level_set_function_type_key= 'level_set_function_type'    
   character(len=*), parameter :: use_preconditioner_key     = 'use_preconditioner'    
@@ -33,7 +31,6 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
-       procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_coarse_fe_handler_type
        procedure, non_overridable             :: get_level_set_function_type
        procedure, non_overridable             :: get_use_preconditioner
@@ -46,7 +43,6 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable, private    :: print_integer_switch
        procedure, non_overridable, private    :: print_real_switch
        procedure, non_overridable, private    :: print_logical_switch
-       !procedure, non_overridable             :: get_num_dims
        procedure, non_overridable             :: is_in_fe_space
        procedure, non_overridable             :: are_checks_active
   end type par_test_poisson_unfitted_params_t
@@ -60,7 +56,6 @@ contains
   subroutine par_test_poisson_unfitted_params_define_parameters()
     implicit none
     ! common
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
@@ -101,159 +96,88 @@ contains
   function get_dir_path(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_dir_path
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_key, 'string'))
-    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    assert(error==0)
+    character(len=:),      allocatable                     :: get_dir_path
+    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
   end function get_dir_path
 
   !==================================================================================================
   function get_prefix(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_prefix
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(prefix_key, 'string'))
-    error = list%GetAsString(key = prefix_key, string = get_prefix)
-    assert(error==0)
+    character(len=:),      allocatable                     :: get_prefix
+    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
   end function get_prefix
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    integer(ip)                                            :: get_reference_fe_order
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
   function get_write_solution(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    logical                                       :: get_write_solution
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    logical                                                :: get_write_solution
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
-
-  !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(static_triang_generate_from_key, get_triangulation_type))
-    error = list%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
-    assert(error==0)
-  end function get_triangulation_type 
 
   !==================================================================================================
   function get_coarse_fe_handler_type(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_coarse_fe_handler_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(coarse_fe_handler_type_key, 'string'))
-    error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
-    assert(error==0)
+    character(len=:),      allocatable                     :: get_coarse_fe_handler_type
+    call parameter_handler%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
   end function get_coarse_fe_handler_type
 
   !==================================================================================================
   function get_level_set_function_type(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_level_set_function_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(level_set_function_type_key, 'string'))
-    error = list%GetAsString(key = level_set_function_type_key, string = get_level_set_function_type)
-    assert(error==0)
+    character(len=:),      allocatable                     :: get_level_set_function_type
+    call parameter_handler%GetAsString(key = level_set_function_type_key, string = get_level_set_function_type)
   end function get_level_set_function_type
 
   !==================================================================================================
   function get_use_preconditioner(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    logical                                       :: get_use_preconditioner
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_preconditioner_key, get_use_preconditioner))
-    error = list%Get(key = use_preconditioner_key, Value = get_use_preconditioner)
-    assert(error==0)
+    logical                                                :: get_use_preconditioner
+    call parameter_handler%Get(key = use_preconditioner_key, Value = get_use_preconditioner)
   end function get_use_preconditioner
 
   !==================================================================================================
   function get_unfitted_boundary_type(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_unfitted_boundary_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(level_set_function_type_key, 'string'))
-    error = list%GetAsString(key = unfitted_boundary_type_key, string = get_unfitted_boundary_type)
-    assert(error==0)
+    character(len=:),      allocatable                     :: get_unfitted_boundary_type
+    call parameter_handler%GetAsString(key = unfitted_boundary_type_key, string = get_unfitted_boundary_type)
   end function get_unfitted_boundary_type
 
   !==================================================================================================
   function get_nitsche_beta_factor(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    real(rp)                                      :: get_nitsche_beta_factor
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(nitsche_beta_factor_key, get_nitsche_beta_factor))
-    error = list%Get(key = nitsche_beta_factor_key, Value = get_nitsche_beta_factor)
-    assert(error==0)
+    real(rp)                                               :: get_nitsche_beta_factor
+    call parameter_handler%Get(key = nitsche_beta_factor_key, Value = get_nitsche_beta_factor)
   end function get_nitsche_beta_factor
 
   !==================================================================================================
   function get_levelset_tolerance(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    real(rp)                                      :: get_levelset_tolerance
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(levelset_tolerance_key, get_levelset_tolerance))
-    error = list%Get(key = levelset_tolerance_key, Value = get_levelset_tolerance)
-    assert(error==0)
+    real(rp)                                               :: get_levelset_tolerance
+    call parameter_handler%Get(key = levelset_tolerance_key, Value = get_levelset_tolerance)
   end function get_levelset_tolerance
 
   !==================================================================================================
   function get_num_runs(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_runs
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(num_runs_key, get_num_runs))
-    error = list%Get(key = num_runs_key, Value = get_num_runs)
-    assert(error==0)
+    integer(ip)                                            :: get_num_runs
+    call parameter_handler%Get(key = num_runs_key, Value = get_num_runs)
   end function get_num_runs
 
   !==================================================================================================
@@ -279,14 +203,9 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values
-    integer(ip)                    :: error
-    character(len=:), allocatable  :: val
-    character(len=30) :: charaux, charaux_ab
-    values   => parameter_handler%get_values()
-    assert(values%isAssignable  (key = switch_key, value  = 'string'))
-    error= values%GetAsString   (key = switch_key, string = val     )
-    write(*,'(2a30,a20)') adjustl(charaux),adjustl(charaux_ab), val
+    character(len=:), allocatable                          :: val
+    call parameter_handler%GetAsString(key = switch_key, string = val     )
+    write(*,'(a30,a20)') switch_key, val
   end subroutine print_character_switch
 
   !==================================================================================================
@@ -294,14 +213,9 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values
-    integer(ip)                    :: error
-    integer(ip)  :: val
-    character(len=30) :: charaux, charaux_ab
-    values   => parameter_handler%get_values()
-    assert(values%isAssignable  (key = switch_key, value  = val     ))
-    error= values%Get           (key = switch_key, value  = val     )
-    write(*,'(2a30,i20)') adjustl(charaux),adjustl(charaux_ab), val
+    integer(ip)                                            :: val
+    call parameter_handler%Get(key = switch_key, value  = val     )
+    write(*,'(a30,i20)') switch_key, val
   end subroutine print_integer_switch
 
   !==================================================================================================
@@ -309,14 +223,9 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values
-    integer(ip)                    :: error
-    real(rp)  :: val
-    character(len=30) :: charaux, charaux_ab
-    values   => parameter_handler%get_values()
-    assert(values%isAssignable  (key = switch_key, value  = val     ))
-    error= values%Get           (key = switch_key, value  = val     )
-    write(*,'(2a30,e20.5)') adjustl(charaux),adjustl(charaux_ab), val
+    real(rp)                                               :: val
+    call parameter_handler%Get(key = switch_key, value  = val     )
+    write(*,'(a30,e20.5)') switch_key, val
   end subroutine print_real_switch
 
   !==================================================================================================
@@ -324,40 +233,25 @@ contains
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
     character(len=*),                           intent(in) :: switch_key
-    type(ParameterList_t), pointer :: values
-    integer(ip)                    :: error
-    logical  :: val
-    character(len=30) :: charaux, charaux_ab
-    values   => parameter_handler%get_values()
-    assert(values%isAssignable  (key = switch_key, value  = val     ))
-    error= values%Get           (key = switch_key, value  = val     )
-    write(*,'(2a30,l20)') adjustl(charaux),adjustl(charaux_ab), val
+    logical                                                :: val
+    call parameter_handler%Get(key = switch_key, value  = val)
+    write(*,'(a30,l20)') switch_key, val
   end subroutine print_logical_switch
 
   !==================================================================================================
   function is_in_fe_space(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    logical :: is_in_fe_space
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_in_fe_space_key, is_in_fe_space))
-    error = list%Get(key = is_in_fe_space_key, Value = is_in_fe_space)
-    assert(error==0)
+    logical                                                :: is_in_fe_space
+    call parameter_handler%Get(key = is_in_fe_space_key, Value = is_in_fe_space)
   end function is_in_fe_space
 
   !==================================================================================================
   function are_checks_active(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    logical :: are_checks_active
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(are_checks_active_key, are_checks_active))
-    error = list%Get(key = are_checks_active_key, Value = are_checks_active)
-    assert(error==0)
+    logical                                                :: are_checks_active
+    call parameter_handler%Get(key = are_checks_active_key, Value = are_checks_active)
   end function are_checks_active
 
 end module par_test_poisson_unfitted_params_names

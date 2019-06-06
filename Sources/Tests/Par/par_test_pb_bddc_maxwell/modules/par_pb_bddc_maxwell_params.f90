@@ -229,52 +229,32 @@ contains
   function get_mass_coeff_white(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_mass_coeff_white
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(mass_coeff_white_key, get_mass_coeff_white))
-    error = list%Get(key = mass_coeff_white_key, Value = get_mass_coeff_white)
-    assert(error==0)
+    real(rp)                                         :: get_mass_coeff_white
+    call parameter_handler%Get(key = mass_coeff_white_key, Value = get_mass_coeff_white)
   end function get_mass_coeff_white
   
       !==================================================================================================
   function get_mass_coeff_black(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_mass_coeff_black
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(mass_coeff_black_key, get_mass_coeff_black))
-    error = list%Get(key = mass_coeff_black_key, Value = get_mass_coeff_black)
-    assert(error==0)
+    real(rp)                                         :: get_mass_coeff_black
+    call parameter_handler%Get(key = mass_coeff_black_key, Value = get_mass_coeff_black)
   end function get_mass_coeff_black
   
      !==================================================================================================
   function get_curl_curl_coeff_white (this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_curl_curl_coeff_white 
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(curl_curl_coeff_white_key, get_curl_curl_coeff_white ))
-    error = list%Get(key = curl_curl_coeff_white_key, Value = get_curl_curl_coeff_white )
-    assert(error==0)
+    real(rp)                                         :: get_curl_curl_coeff_white 
+    call parameter_handler%Get(key = curl_curl_coeff_white_key, Value = get_curl_curl_coeff_white )
   end function get_curl_curl_coeff_white 
   
        !==================================================================================================
   function get_curl_curl_coeff_black (this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_curl_curl_coeff_black 
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(curl_curl_coeff_black_key, get_curl_curl_coeff_black ))
-    error = list%Get(key = curl_curl_coeff_black_key, Value = get_curl_curl_coeff_black)
-    assert(error==0)
+    real(rp)                                         :: get_curl_curl_coeff_black 
+    call parameter_handler%Get(key = curl_curl_coeff_black_key, Value = get_curl_curl_coeff_black)
   end function get_curl_curl_coeff_black 
   
       !==================================================================================================
@@ -282,13 +262,7 @@ contains
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     character(len=:), allocatable                    :: get_materials_distribution_case
-    type(ParameterList_t), pointer                   :: list
-    integer(ip)                                      :: error
-    character(1) :: dummy_string
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(materials_distribution_case_key, dummy_string))
-    error = list%GetAsString(key = materials_distribution_case_key, string = get_materials_distribution_case)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = materials_distribution_case_key, string = get_materials_distribution_case)
   end function get_materials_distribution_case
   
         !==================================================================================================
@@ -296,78 +270,47 @@ contains
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     character(len=:), allocatable                    :: get_materials_coefficient_case
-    type(ParameterList_t), pointer                   :: list
-    integer(ip)                                      :: error
-    character(1) :: dummy_string
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(materials_coefficient_case_key, dummy_string))
-    error = list%GetAsString(key = materials_coefficient_case_key, string = get_materials_coefficient_case)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = materials_coefficient_case_key, string = get_materials_coefficient_case)
   end function get_materials_coefficient_case
 
        !==================================================================================================
   function get_channels_ratio (this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_channels_ratio 
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(channels_ratio_key, get_channels_ratio ))
-    error = list%Get(key = channels_ratio_key, Value = get_channels_ratio )
-    assert(error==0)
+    real(rp)                                         :: get_channels_ratio 
+    call parameter_handler%Get(key = channels_ratio_key, Value = get_channels_ratio )
   end function get_channels_ratio
   
       !==================================================================================================
   function get_rpb_bddc_threshold(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    real(rp)                                      :: get_rpb_bddc_threshold
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(rpb_bddc_threshold_key, get_rpb_bddc_threshold))
-    error = list%Get(key = rpb_bddc_threshold_key, Value = get_rpb_bddc_threshold)
-    assert(error==0)
+    real(rp)                                         :: get_rpb_bddc_threshold
+    call parameter_handler%Get(key = rpb_bddc_threshold_key, Value = get_rpb_bddc_threshold)
   end function get_rpb_bddc_threshold
   
     !==================================================================================================
   function get_boundary_mass_trick(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t), intent(in) :: this
-    logical                                       :: get_boundary_mass_trick
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(boundary_mass_trick_key, get_boundary_mass_trick))
-    error = list%Get(key = boundary_mass_trick_key, Value = get_boundary_mass_trick)
-    assert(error==0)
+    logical                                         :: get_boundary_mass_trick
+    call parameter_handler%Get(key = boundary_mass_trick_key, Value = get_boundary_mass_trick)
   end function get_boundary_mass_trick
   
     !==================================================================================================
   function get_num_peaks_curl_curl_coeff(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_peaks_curl_curl_coeff
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(num_peaks_curl_curl_coeff_key, get_num_peaks_curl_curl_coeff))
-    error = list%Get(key = num_peaks_curl_curl_coeff_key, Value = get_num_peaks_curl_curl_coeff)
-    assert(error==0)
+    integer(ip)                                      :: get_num_peaks_curl_curl_coeff
+    call parameter_handler%Get(key = num_peaks_curl_curl_coeff_key, Value = get_num_peaks_curl_curl_coeff)
   end function get_num_peaks_curl_curl_coeff
   
       !==================================================================================================
   function get_num_peaks_mass_coeff(this)
     implicit none
     class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_peaks_mass_coeff
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(num_peaks_mass_coeff_key, get_num_peaks_mass_coeff))
-    error = list%Get(key = num_peaks_mass_coeff_key, Value = get_num_peaks_mass_coeff)
-    assert(error==0)
+    integer(ip)                                      :: get_num_peaks_mass_coeff
+    call parameter_handler%Get(key = num_peaks_mass_coeff_key, Value = get_num_peaks_mass_coeff)
   end function get_num_peaks_mass_coeff
   
 end module par_pb_bddc_maxwell_params_names

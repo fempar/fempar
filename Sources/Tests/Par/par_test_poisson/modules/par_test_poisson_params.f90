@@ -25,7 +25,6 @@ module par_test_poisson_params_names
        procedure, non_overridable             :: get_use_void_fes
        procedure, non_overridable             :: get_use_void_fes_case
        procedure, non_overridable             :: get_preconditioner_type
-       !procedure, non_overridable             :: get_num_dims
   end type par_test_poisson_params_t
 
   ! Types
@@ -72,12 +71,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_dir_path
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_key, 'string'))
-    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
   end function get_dir_path
 
   !==================================================================================================
@@ -85,12 +79,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_prefix
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(prefix_key, 'string'))
-    error = list%GetAsString(key = prefix_key, string = get_prefix)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
   end function get_prefix
   
   !==================================================================================================
@@ -98,12 +87,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
@@ -111,15 +95,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     logical                                       :: get_write_solution
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    logical                                       :: is_present
-    logical                                       :: same_data_type
-    integer(ip), allocatable                      :: shape(:)
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    assert(error==0)
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
 
   !==================================================================================================
@@ -135,12 +111,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     logical                                       :: get_use_void_fes
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_key, get_use_void_fes))
-    error = list%Get(key = use_void_fes_key, Value = get_use_void_fes)
-    assert(error==0)
+    call parameter_handler%Get(key = use_void_fes_key, Value = get_use_void_fes)
   end function get_use_void_fes
 
   !==================================================================================================
@@ -148,12 +119,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable                 :: get_use_void_fes_case
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(use_void_fes_case_key, 'string'))
-    error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
   end function get_use_void_fes_case
   
   !==================================================================================================
@@ -161,12 +127,7 @@ contains
     implicit none
     class(par_test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable                 :: get_preconditioner_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(preconditioner_type_key, 'string'))
-    error = list%GetAsString(key = preconditioner_type_key, string = get_preconditioner_type)
-    assert(error==0)
+    call parameter_handler%GetAsString(key = preconditioner_type_key, string = get_preconditioner_type)
   end function get_preconditioner_type
 
 end module par_test_poisson_params_names

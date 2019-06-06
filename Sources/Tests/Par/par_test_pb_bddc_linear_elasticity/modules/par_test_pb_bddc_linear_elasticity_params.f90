@@ -43,7 +43,6 @@ module par_test_pb_bddc_linear_elasticity_params_names
        procedure, non_overridable             :: get_nparts
        procedure, non_overridable             :: get_num_cells_x_dim
        procedure, non_overridable             :: get_size_sub_object
-       !procedure, non_overridable             :: get_num_dims
   end type par_test_pb_bddc_linear_elasticity_params_t
 
   ! Types
@@ -98,193 +97,123 @@ contains
   function get_dir_path(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_dir_path
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_key, 'string'))
-    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    assert(error==0)
+    character(len=:),      allocatable                              :: get_dir_path
+    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
   end function get_dir_path 
   
   ! GETTERS *****************************************************************************************
   function get_dir_path_out(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_dir_path_out
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_out_key, 'string'))
-    error = list%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
-    assert(error==0)
+    character(len=:),      allocatable                              :: get_dir_path_out
+    call parameter_handler%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
   end function get_dir_path_out
 
   !==================================================================================================
   function get_prefix(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_prefix
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(prefix_key, 'string'))
-    error = list%GetAsString(key = prefix_key, string = get_prefix)
-    assert(error==0)
+    character(len=:),      allocatable                              :: get_prefix
+    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
   end function get_prefix
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_reference_fe_order
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
-    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
-    assert(error==0)
+    integer(ip)                                                     :: get_reference_fe_order
+    call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==========================================================================================par_test_pb_bddc_linear_elasticity_params_t========
   function get_write_solution(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    logical                                       :: get_write_solution
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_solution_key, get_write_solution))
-    error = list%Get(key = write_solution_key, Value = get_write_solution)
-    check(error==0)
+    logical                                                         :: get_write_solution
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
   
   !==========================================================================================par_test_pb_bddc_linear_elasticity_params_t========
   function get_write_matrices(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    logical                                       :: get_write_matrices
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(write_matrices_key, get_write_matrices))
-    error = list%Get(key = write_matrices_key, Value = get_write_matrices)
-    check(error==0)
+    logical                                                         :: get_write_matrices
+    call parameter_handler%Get(key = write_matrices_key, Value = get_write_matrices)
   end function get_write_matrices
 
   !==================================================================================================
   function get_jump(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_jump
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(jump_key, get_jump))
-    error = list%Get(key = jump_key, Value = get_jump)
-    assert(error==0)
+    integer(ip)                                                     :: get_jump
+    call parameter_handler%Get(key = jump_key, Value = get_jump)
   end function get_jump
 
   !==================================================================================================
   function get_inclusion(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_inclusion
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(inclusion_key, get_inclusion))
-    error = list%Get(key = inclusion_key, Value = get_inclusion)
-    assert(error==0)
+    integer(ip)                                                     :: get_inclusion
+    call parameter_handler%Get(key = inclusion_key, Value = get_inclusion)
   end function get_inclusion
 
   !==================================================================================================  
   function get_coarse_fe_handler_type(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_coarse_fe_handler_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(coarse_fe_handler_type_key, 'string'))
-    error = list%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
-    assert(error==0)
+    character(len=:),      allocatable                              :: get_coarse_fe_handler_type
+    call parameter_handler%GetAsString(key = coarse_fe_handler_type_key, string = get_coarse_fe_handler_type)
   end function get_coarse_fe_handler_type 
 
   !==================================================================================================  
   function get_discrete_integration_type(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_discrete_integration_type
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(discrete_integration_type_key, 'string'))
-    error = list%GetAsString(key = discrete_integration_type_key, string = get_discrete_integration_type)
-    assert(error==0)
+    character(len=:),      allocatable                              :: get_discrete_integration_type
+    call parameter_handler%GetAsString(key = discrete_integration_type_key, string = get_discrete_integration_type)
   end function get_discrete_integration_type 
   
   !==================================================================================================
   function get_nchannel_x_direction(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_nchannel_x_direction(3)
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(nchannel_x_direction_key, get_nchannel_x_direction))
-    error = list%Get(key = nchannel_x_direction_key, Value = get_nchannel_x_direction)
-    assert(error==0)
+    integer(ip)                                                     :: get_nchannel_x_direction(3)
+    call parameter_handler%Get(key = nchannel_x_direction_key, Value = get_nchannel_x_direction)
   end function get_nchannel_x_direction
 
   !==================================================================================================
   function get_nparts_with_channels(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_nparts_with_channels(3)
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(nparts_with_channels_key, get_nparts_with_channels))
-    error = list%Get(key = nparts_with_channels_key, Value = get_nparts_with_channels)
-    assert(error==0)
+    integer(ip)                                                     :: get_nparts_with_channels(3)
+    call parameter_handler%Get(key = nparts_with_channels_key, Value = get_nparts_with_channels)
   end function get_nparts_with_channels
 !==================================================================================================
   function get_hex_mesh_domain_limits(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    real(rp)                                   :: get_hex_mesh_domain_limits(6)
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_domain_limits_key, get_hex_mesh_domain_limits))
-    error = list%Get(key = struct_hex_mesh_generator_domain_limits_key, Value = get_hex_mesh_domain_limits)
-    assert(error==0)
+    real(rp)                                                        :: get_hex_mesh_domain_limits(6)
+    call parameter_handler%Get(key = struct_hex_mesh_generator_domain_limits_key, Value = get_hex_mesh_domain_limits)
   end function get_hex_mesh_domain_limits
 
   !==================================================================================================
   function get_is_a_beam(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    logical                                       :: get_is_a_beam
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(is_a_beam_key, get_is_a_beam))
-    error = list%Get(key = is_a_beam_key, Value = get_is_a_beam)
-    check(error==0)
+    logical                                                         :: get_is_a_beam
+    call parameter_handler%Get(key = is_a_beam_key, Value = get_is_a_beam)
   end function get_is_a_beam
 
   !==================================================================================================
   function get_nparts(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: num_levels
-    integer(ip)                                   :: get_nparts(3)
-    integer(ip), allocatable :: num_parts_x_dir(:) ! 0:SPACE_DIM-1)
-    integer(ip), allocatable :: array_size(:)
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
+    integer(ip)                                                     :: num_levels
+    integer(ip)                                                     :: get_nparts(3)
+    integer(ip), allocatable                                        :: num_parts_x_dir(:) ! 0:SPACE_DIM-1)
+    integer(ip), allocatable                                        :: array_size(:)
+    type(ParameterList_t), pointer                                  :: list
+    integer(ip)                                                     :: error
     list  => parameter_handler%get_values()
     assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
     error = list%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
@@ -298,32 +227,21 @@ contains
     get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
     call memfree(num_parts_x_dir)
-
   end function get_nparts
 
 !==================================================================================================
   function get_num_cells_x_dim(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_num_cells_x_dim(3)
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_cells_x_dim_key, get_num_cells_x_dim))
-    error = list%Get(key = struct_hex_mesh_generator_num_cells_x_dim_key, Value = get_num_cells_x_dim)
-    assert(error==0)
+    integer(ip)                                                     :: get_num_cells_x_dim(3)
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_cells_x_dim_key, Value = get_num_cells_x_dim)
   end function get_num_cells_x_dim
   !==================================================================================================
   function get_size_sub_object(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_size_sub_object
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(size_sub_object_key, get_size_sub_object))
-    error = list%Get(key = size_sub_object_key, Value = get_size_sub_object)
-    assert(error==0)
+    integer(ip)                                                     :: get_size_sub_object
+    call parameter_handler%Get(key = size_sub_object_key, Value = get_size_sub_object)
   end function get_size_sub_object
  
 end module par_test_pb_bddc_linear_elasticity_params_names
