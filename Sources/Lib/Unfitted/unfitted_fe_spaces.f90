@@ -251,10 +251,10 @@ module unfitted_fe_spaces_names
     contains
 
       ! Creation / deletion methods
-      procedure           :: par_fe_space_create_same_reference_fes_on_all_cells => pufs_create_same_reference_fes_on_all_cells
-      procedure           :: par_fe_space_create_different_ref_fes_between_cells         => pufs_create_different_ref_fes_between_cells
+      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => pufs_create_same_reference_fes_on_all_cells
+      procedure           :: serial_fe_space_create_different_ref_fes_between_cells => pufs_create_different_ref_fes_between_cells
       procedure           :: free  => pufs_free
-
+      
       ! Creation of the iterator
       procedure :: create_fe_cell_iterator           => pufs_create_fe_cell_iterator
       !procedure :: create_fe_facet_iterator          => pufs_create_fe_facet_iterator
@@ -262,7 +262,9 @@ module unfitted_fe_spaces_names
       ! Setup integration structures (overrides)
       procedure    :: set_up_cell_integration   => pufs_set_up_cell_integration
       procedure    :: set_up_facet_integration  => pufs_set_up_facet_integration
-
+      
+      ! Auxiliary (private) TBPs
+      procedure, private  :: set_par_unfitted_triangulation => pufs_set_par_unfitted_triangulation
   end type par_unfitted_fe_space_t
 
 

@@ -328,11 +328,10 @@ end subroutine free_timers
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%par_nsi_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers, &
                                field_blocks        = this%par_nsi_integration%get_field_blocks(), &
                                field_coupling      = this%par_nsi_integration%get_field_coupling() )
    
-    call this%fe_space%setup_coarse_fe_space()
+    call this%fe_space%setup_coarse_fe_space(this%coarse_fe_handlers)
     call this%fe_space%set_up_cell_integration()
 
   end subroutine setup_fe_space
