@@ -32,7 +32,6 @@ module maxwell_nedelec_params_names
   implicit none
   private
   
-  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'
   character(len=*), parameter :: write_solution_key            = 'write_solution'
   character(len=*), parameter :: analytical_function_case_key  = 'analytical_function_case'
@@ -45,8 +44,6 @@ module maxwell_nedelec_params_names
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_dir_path_out
-       procedure, non_overridable             :: get_triangulation_type 
-       procedure, non_overridable             :: get_reference_fe_geo_order
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_analytical_function_case
@@ -60,7 +57,6 @@ contains
  !==================================================================================================
   subroutine maxwell_nedelec_params_define_user_parameters()
     implicit none
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
     call parameter_handler%add(analytical_function_case_key, '--analytical_function_case', 'in_fe_space', &
@@ -110,22 +106,6 @@ contains
     character(len=:), allocatable                :: get_dir_path_out
     get_dir_path_out = parameter_handler%get_dir_path_out()
   end function get_dir_path_out
-
-   !==================================================================================================
-  function get_triangulation_type(this)
-    implicit none
-    class(maxwell_nedelec_params_t)  , intent(in) :: this
-    integer(ip)                                   :: get_triangulation_type
-    call parameter_handler%Get(key = static_triang_generate_from_key, Value = get_triangulation_type)
-  end function get_triangulation_type 
-  
-    !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
-    integer(ip)                                  :: get_reference_fe_geo_order
-    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
-  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)

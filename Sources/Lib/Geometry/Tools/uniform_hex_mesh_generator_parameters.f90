@@ -40,4 +40,7 @@ module uniform_hex_mesh_generator_parameters_names
   character(len=*), parameter :: struct_hex_mesh_generator_num_parts_x_dim_cla_name = '--'//struct_hex_mesh_generator_num_parts_x_dim_key
   character(len=*), parameter :: struct_hex_mesh_generator_is_dir_periodic_cla_name = '--'//struct_hex_mesh_generator_is_dir_periodic_key
   character(len=*), parameter :: struct_hex_mesh_generator_domain_limits_cla_name   = '--'//struct_hex_mesh_generator_domain_limits_key
+  
+  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_cla_choices     = '+2 +3'  
+  
 end module uniform_hex_mesh_generator_parameters_names
