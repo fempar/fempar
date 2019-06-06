@@ -51,7 +51,6 @@ module test_h_adaptive_poisson_driver_names
      
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_params_t)    :: test_params
-     type(ParameterList_t), pointer :: parameter_list
      
      ! Cells and lower dim objects container
      type(p4est_serial_triangulation_t)           :: triangulation
@@ -114,7 +113,6 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
     call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -122,7 +120,7 @@ contains
     class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -156,7 +154,7 @@ contains
     integer(ip), parameter :: num_nodes_x_cell = 4
     integer(ip) :: i
     
-    call this%triangulation%create(this%serial_environment,this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
     
     if ( .not. this%test_params%get_use_void_fes() ) then
       call this%triangulation%create_vef_iterator(vef)

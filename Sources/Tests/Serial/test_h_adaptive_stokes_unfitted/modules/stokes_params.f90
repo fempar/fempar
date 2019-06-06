@@ -80,6 +80,7 @@ module stokes_params_names
      procedure, non_overridable             :: get_refinement_pattern
      procedure, non_overridable             :: get_lin_solver_type
      procedure, non_overridable             :: get_use_levelset_complement
+     procedure, non_overridable             :: get_struct_hex_mesh_generator_num_dims_key
   end type stokes_params_t  
 
   ! Types
@@ -309,5 +310,13 @@ contains
     logical                             :: get_use_levelset_complement
     call parameter_handler%Get(key = use_levelset_complement_key, Value = get_use_levelset_complement)
   end function get_use_levelset_complement
+
+  !==================================================================================================
+  function get_struct_hex_mesh_generator_num_dims_key(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    integer(ip)                         :: get_struct_hex_mesh_generator_num_dims_key
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, Value = get_struct_hex_mesh_generator_num_dims_key)
+  end function get_struct_hex_mesh_generator_num_dims_key
 
 end module stokes_params_names

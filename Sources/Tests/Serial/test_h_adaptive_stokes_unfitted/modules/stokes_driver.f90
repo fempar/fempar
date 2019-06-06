@@ -62,7 +62,6 @@ module stokes_driver_names
      private 
      
      type(stokes_params_t)                        :: test_params
-     type(ParameterList_t), pointer               :: parameter_list
      type(unfitted_p4est_serial_triangulation_t)  :: triangulation
      class(level_set_function_t), allocatable     :: level_set_function
      type(serial_unfitted_fe_space_t)             :: fe_space 
@@ -109,7 +108,6 @@ contains
     implicit none
     class(stokes_driver_t ), intent(inout) :: this
     call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -117,7 +115,7 @@ contains
     class(stokes_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -129,24 +127,17 @@ contains
   subroutine setup_levelset(this)
     implicit none
     class(stokes_driver_t ), target, intent(inout) :: this
-
-    integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     type(level_set_function_factory_t) :: level_set_factory
     real(rp) :: dom1d(2)
     real(rp) :: dom3d(6)
 
-    ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = struct_hex_mesh_generator_num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = struct_hex_mesh_generator_num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = struct_hex_mesh_generator_num_dims_key, value=num_dime); check(istat==0)
-
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dims(num_dime)
+    call this%level_set_function%set_num_dims(this%test_params%get_struct_hex_mesh_generator_num_dims_key())
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
     dom1d = this%test_params%get_domain_limits()
     mcheck(dom1d(2)>dom1d(1),'Upper limit has to be bigger than lower limit')
@@ -199,7 +190,7 @@ contains
     logical :: active_found, innactive_found
 
     ! Create the triangulation, with the levelset function
-    call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
+    call this%triangulation%create(this%test_params%get_parameter_list(),this%level_set_function,this%serial_environment)
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )

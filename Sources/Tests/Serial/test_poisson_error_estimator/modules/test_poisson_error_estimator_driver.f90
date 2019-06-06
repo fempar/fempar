@@ -44,7 +44,6 @@ module test_poisson_error_estimator_driver_names
      private 
      
      type(test_poisson_error_estimator_params_t) :: test_params
-     type(ParameterList_t), pointer              :: parameter_list
      
      type(p4est_serial_triangulation_t)          :: triangulation
      
@@ -97,7 +96,6 @@ contains
     implicit none
     class(test_poisson_error_estimator_driver_t ), intent(inout) :: this
     call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
   subroutine setup_environment(this, world_context)
@@ -105,7 +103,7 @@ contains
     class(test_poisson_error_estimator_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -119,7 +117,7 @@ contains
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
     integer(ip)                        :: i
-    call this%triangulation%create(this%serial_environment, this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
     call this%triangulation%create_vef_iterator(vef)
     do while ( .not. vef%has_finished() )
       if(vef%is_at_boundary()) then
@@ -191,7 +189,7 @@ contains
     
     global_estimate = 1.0_rp; global_true_error = 1.0_rp
     
-    call poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
+    call poisson_cG_error_estimator%create(this%fe_space, this%test_params%get_parameter_list())
     call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions%get_analytical_functions())
     call poisson_cG_error_estimator%set_fe_function(this%solution)
     

@@ -77,6 +77,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_only_setup
      procedure, non_overridable             :: is_strong_dirichlet_on_fitted_boundary
      procedure, non_overridable             :: get_refinement_pattern
+     procedure, non_overridable             :: get_struct_hex_mesh_generator_num_dims_key
   end type test_poisson_params_t  
 
   ! Types
@@ -299,5 +300,13 @@ contains
     character(len=:), allocatable             :: get_refinement_pattern
     call parameter_handler%GetAsString(key = refinement_pattern_key, string = get_refinement_pattern)
   end function get_refinement_pattern 
+
+  !==================================================================================================
+  function get_struct_hex_mesh_generator_num_dims_key(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    integer(ip)                               :: get_struct_hex_mesh_generator_num_dims_key
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_struct_hex_mesh_generator_num_dims_key)
+  end function get_struct_hex_mesh_generator_num_dims_key
 
 end module test_poisson_params_names

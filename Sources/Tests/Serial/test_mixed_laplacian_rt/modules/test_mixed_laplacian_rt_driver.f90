@@ -41,7 +41,6 @@ module test_mixed_laplacian_rt_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(mixed_laplacian_rt_params_t)           :: test_params
-     type(ParameterList_t), pointer              :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)                :: triangulation
@@ -95,7 +94,6 @@ contains
     implicit none
     class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
     call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -103,7 +101,7 @@ contains
     class(test_mixed_laplacian_rt_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -115,7 +113,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_mixed_laplacian_rt_driver_t), intent(inout) :: this
-    call this%triangulation%create(this%serial_environment,this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)

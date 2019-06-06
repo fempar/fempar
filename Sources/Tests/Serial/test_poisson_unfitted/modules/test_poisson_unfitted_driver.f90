@@ -57,7 +57,6 @@ module test_poisson_unfitted_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_unfitted_params_t)   :: test_params
-     type(ParameterList_t), pointer         :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_unfitted_triangulation_t)              :: triangulation
@@ -122,7 +121,6 @@ contains
     implicit none
     class(test_poisson_unfitted_driver_t ), intent(inout) :: this
     call this%test_params%process_parameters()
-    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -130,7 +128,7 @@ contains
     class(test_poisson_unfitted_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -204,7 +202,7 @@ contains
     real(rp) :: x, y
     integer(ip) :: num_void_neigs
 
-    call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
+    call this%triangulation%create(this%test_params%get_parameter_list(),this%level_set_function,this%serial_environment)
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
