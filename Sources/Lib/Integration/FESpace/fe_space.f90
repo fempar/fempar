@@ -930,12 +930,7 @@ module fe_space_names
   
  type, extends(serial_fe_space_t) :: par_fe_space_t
    private   
-   ! Multilevel fe space 
-   
-   ! A reference to the type(parameterlist_t) instance 
-   ! par_fe_space%setup_coarse_fe_space() was called with
-   type(parameterlist_t)         , pointer     :: parameter_list => NULL()
-   
+      
    ! It is the equivalent to the "element_to_dof" at the finer level
    ! Pointers to the start/end of coarse DoFs GIDs of each field (lst_coarse_dofs)
    integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)

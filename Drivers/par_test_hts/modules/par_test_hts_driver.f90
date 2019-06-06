@@ -628,7 +628,7 @@ contains
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
     call this%mlbddc%create(this%fe_operator, this%parameter_list)     
 
     ! Linear solver
@@ -731,7 +731,7 @@ contains
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
     
     call this%mlbddc%free() 
     call this%mlbddc%create(this%fe_operator, this%parameter_list)     

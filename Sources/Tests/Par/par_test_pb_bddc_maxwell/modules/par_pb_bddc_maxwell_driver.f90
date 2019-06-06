@@ -597,7 +597,7 @@ contains
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
     if ( this%test_params%get_boundary_mass_trick() ) then 
        call this%mlbddc%create(this%fe_affine_prec_operator, this%parameter_list)
     else 

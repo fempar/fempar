@@ -483,7 +483,7 @@ end subroutine free_timers
     end select
 
     ! At this point we can create the coarse fe space
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space()
 
     ! Set-up MLBDDC preconditioner
     if (this%test_params%get_use_preconditioner()) then

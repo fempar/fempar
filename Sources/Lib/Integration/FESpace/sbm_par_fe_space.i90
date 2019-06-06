@@ -330,7 +330,6 @@ subroutine par_fe_space_free( this )
      end if
      nullify(this%triangulation)
      nullify(this%environment)
-     nullify(this%parameter_list)
      call this%free_coarse_fe_handlers()
      call this%set_coarse_fe_space_is_set_up(.false.) 
   end if
@@ -4000,10 +3999,9 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
 
 end subroutine par_fe_space_project_dirichlet_values_curl_conforming 
 
- subroutine par_fe_space_setup_coarse_dofs ( this, parameter_list )
+ subroutine par_fe_space_setup_coarse_dofs ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
-  type(ParameterList_t), intent(in)    :: parameter_list
   integer(ip)                          :: i, istat, field_id
   type(environment_t), pointer         :: environment
   integer(ip)                          :: coarse_dof_gid
@@ -4147,10 +4145,9 @@ subroutine par_fe_space_free_coarse_dofs(this)
     end if
 end subroutine par_fe_space_free_coarse_dofs
    
-subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
+subroutine par_fe_space_setup_coarse_fe_space(this)
   implicit none
   class(par_fe_space_t)        , intent(inout)  :: this
-  type(parameterlist_t), target, intent(in)     :: parameter_list
   integer(ip)                           :: istat
   integer(ip)                           :: num_fields
   integer(ip), allocatable              :: fe_space_type_x_field(:)
@@ -4166,13 +4163,12 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   environment    => this%get_environment()
   triangulation  => this%get_triangulation()
   assert ( triangulation%coarse_triangulation_is_set_up() )
-  this%parameter_list => parameter_list 
  
   call this%free_coarse_fe_space_l1_data()
   call this%free_coarse_fe_space_lgt1_data()
  
   if ( environment%am_i_l1_task() ) then
-    call this%setup_coarse_dofs(parameter_list)
+    call this%setup_coarse_dofs()
     call this%compute_faces_object()
   end if  
   
@@ -4479,7 +4475,7 @@ subroutine par_fe_space_refine_and_coarsen_single_fe_function( this, fe_function
   call serial_fe_space_refine_and_coarsen_single_fe_function(this,fe_function)
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then
-     call this%setup_coarse_fe_space(this%parameter_list)
+     call this%setup_coarse_fe_space()
   end if
 #else
   call this%not_enabled_error()
@@ -4699,7 +4695,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   call serial_fe_space_refine_and_coarsen_fe_function_array(this,fe_functions)
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then
-     call this%setup_coarse_fe_space(this%parameter_list)
+     call this%setup_coarse_fe_space()
   end if
 #else  
   call this%not_enabled_error()
@@ -4891,7 +4887,7 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
   end if
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then
-     call this%setup_coarse_fe_space(this%parameter_list)
+     call this%setup_coarse_fe_space()
   end if
 #else
   call this%not_enabled_error()
@@ -4935,7 +4931,7 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
   end if
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then
-    call this%setup_coarse_fe_space(this%parameter_list)
+    call this%setup_coarse_fe_space()
   end if
 #else
   call this%not_enabled_error()
