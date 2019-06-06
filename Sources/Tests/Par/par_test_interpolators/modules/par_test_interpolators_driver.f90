@@ -237,13 +237,11 @@ contains
     if (test_case == TEST_SCALAR_VECTOR_INTERPOLATORS ) then 
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
-                                 coarse_fe_handlers  = this%coarse_fe_handlers, &
                                  conditions          = this%interpolators_conditions )
       call this%fe_space%set_up_facet_integration()
     else if ( test_case == TEST_TENSOR_INTERPOLATORS ) then 
       call this%fe_space%create( triangulation       = this%triangulation,      &
-                                 reference_fes       = this%reference_fes,      &
-                                 coarse_fe_handlers  = this%coarse_fe_handlers )
+                                 reference_fes       = this%reference_fes )
     end if
     call this%fe_space%set_up_cell_integration()
 

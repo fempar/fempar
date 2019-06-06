@@ -482,7 +482,6 @@ contains
        ! Create FE SPACE 
        call this%fe_space%create( triangulation       = this%triangulation,      &
             reference_fes       = this%reference_fes,      &
-            coarse_fe_handlers  = this%coarse_fe_handlers, & 
             conditions          = this%maxwell_conditions  )   
 
     elseif ( .not. this%test_params%get_is_analytical_solution() ) then   
@@ -501,7 +500,6 @@ contains
        ! Create FE SPACE 
        call this%fe_space%create( triangulation       = this%triangulation,      &
             reference_fes       = this%reference_fes,      &
-            coarse_fe_handlers  = this%coarse_fe_handlers, & 
             conditions          = this%hts_conditions  )
     end if
 
@@ -628,7 +626,7 @@ contains
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-    call this%fe_space%setup_coarse_fe_space()
+    call this%fe_space%setup_coarse_fe_space(this%coarse_fe_handlers)
     call this%mlbddc%create(this%fe_operator, this%parameter_list)     
 
     ! Linear solver
@@ -731,7 +729,7 @@ contains
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-    call this%fe_space%setup_coarse_fe_space()
+    call this%fe_space%setup_coarse_fe_space(this%coarse_fe_handlers)
     
     call this%mlbddc%free() 
     call this%mlbddc%create(this%fe_operator, this%parameter_list)     

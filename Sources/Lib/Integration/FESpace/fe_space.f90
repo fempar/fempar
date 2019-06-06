@@ -983,15 +983,9 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: rcv_lst_parts_dofs_cell_wise
    
  contains
-   procedure          :: serial_fe_space_create_with_parameter_list                => par_fe_space_serial_create_with_parameter_list
-   procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
-   procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
-   procedure          :: par_fe_space_create_with_parameter_list
-   procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
-   procedure          :: par_fe_space_create_different_ref_fes_between_cells
-   generic                                     :: create                                          => par_fe_space_create_with_parameter_list, & 
-                                                                                                     par_fe_space_create_same_reference_fes_on_all_cells, &
-                                                                                                     par_fe_space_create_different_ref_fes_between_cells
+   procedure  :: serial_fe_space_create_with_parameter_list                => par_fe_space_create_with_parameter_list
+   procedure  :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_create_same_reference_fes_on_all_cells 
+   procedure  :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_create_different_ref_fes_between_cells 
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
    procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
@@ -1049,6 +1043,8 @@ module fe_space_names
    procedure, nopass, non_overridable, private :: generate_coarse_dof_ggid                        => par_fe_space_generate_coarse_dof_ggid
    procedure        , non_overridable, private :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
    procedure        , non_overridable          :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure        , non_overridable          :: update_coarse_fe_space                          => par_fe_space_update_coarse_fe_space
+   procedure        , non_overridable, private :: setup_coarse_fe_space_body                      => par_fe_space_setup_coarse_fe_space_body
    procedure        , non_overridable, private :: free_coarse_fe_space_l1_data                    => par_fe_space_free_coarse_fe_space_l1_data
    procedure        , non_overridable, private :: free_coarse_fe_space_lgt1_data                  => par_fe_space_free_coarse_fe_space_lgt1_data
    procedure        , non_overridable, private :: transfer_num_fields                             => par_fe_space_transfer_num_fields

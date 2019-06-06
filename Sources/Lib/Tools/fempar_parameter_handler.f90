@@ -92,7 +92,19 @@ module fempar_parameter_handler_names
         procedure, private, non_overridable :: fph_Get_0D
         procedure, private, non_overridable :: fph_Get_1D
         procedure, public                   :: getasstring              => fph_GetAsString
+        
         procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
+        procedure, private, non_overridable :: fph_mesh_partitioner_define_parameters
+        procedure, private, non_overridable :: fph_static_triang_define_parameters
+        procedure, private, non_overridable :: fph_struct_hex_mesh_generator_define_parameters
+        procedure, private, non_overridable :: fph_p4est_triang_define_parameters
+        procedure, private, non_overridable :: fph_fes_define_parameters
+        procedure, private, non_overridable :: fph_coarse_fe_handler_define_parameters
+        procedure, private, non_overridable :: fph_ils_define_parameters
+        procedure, private, non_overridable :: fph_nls_define_parameters
+        procedure, private, non_overridable :: fph_dls_define_parameters
+        procedure, private, non_overridable :: fph_output_handler_define_parameters
+        
         procedure                           :: process_parameters       => fph_process_parameters
         procedure                           :: free                     => fph_free
         procedure                           :: get_dir_path             => fph_get_dir_path
@@ -745,210 +757,406 @@ contains
     !------------------------------------------------------------------
         implicit none
         class(fempar_parameter_handler_t), intent(inout) :: this
-        character(len=:), allocatable                    :: help_string
-        integer(ip)                                      :: i
-#ifdef UMFPACK
-        integer(ip)                                      :: umfpack_control(UMFPACK_INFO)
-#endif 
-    !------------------------------------------------------------------
-        ! General
-        ! We should use some kind of style to define all these keys. We should include the acceptable values and explain 
-        ! what do they mean. In some keys we use magic numbers 0, 1, etc instead of descriptive labels. 
-        ! We could also eliminate the switch_ab, since it is not very practical, and when we will have many keys, it will
-        ! be hard to get short abbreviations without conflict.
-        help_string = "Directory of the source files" // BRK_LINE // & 
-                  "To read from GiD mesh" // BRK_LINE // &
-                  "To read from GiD mesh" 
-                  
-        call this%add(dir_path_key, dir_path_cla_name, '.', help_string)
-        call this%add(prefix_key, prefix_cla_name, 'A', 'Name of the GiD files')
-        call this%add(dir_path_out_key, dir_path_out_cla_name, '.', 'Output Directory')
-
-        ! Iterative linear solver keys
-        call this%add(ils_type_key, ils_type_cla_name, rgmres_name,  'Iterative linear solver type')
-        call this%add(ils_rtol_key, ils_rtol_cla_name, default_rtol, 'Relative tolerance for the stopping criteria')
-        call this%add(ils_atol_key, ils_atol_cla_name, default_atol, 'Absolute tolerance for the stopping criteria')
-
-        call this%add(ils_stopping_criterium_key, ils_stopping_criterium_cla_name, default_rgmres_stopping_criteria, help='Stopping criterium type')
-        call this%add(ils_output_frequency_key, ils_output_frequency_cla_name, default_output_frequency, 'Frequency for output printing') 
-        call this%add(ils_max_num_iterations_key, ils_max_num_iterations_cla_name, default_max_num_iterations, 'Maximum number of iterations')
-        call this%add(ils_track_convergence_history_key,ils_track_convergence_history_cla_name, default_track_convergence_history,'Track convergence history')
-        call this%add(ils_max_dim_krylov_basis_key, ils_max_dim_krylov_basis_cla_name, default_dkrymax, 'Maximum dimension of Krylov basis') 
-        call this%add(ils_orthonorm_strategy_key, ils_orthonorm_strategy_cla_name, default_orthonorm_strat, 'Orthonormalization strategy (for GMRES)')
-
-        call this%add(ils_relaxation_key, ils_relaxation_cla_name, default_richardson_relaxation, 'Relaxation value (for Richardson)')
-
-        !call this%add(ils_luout_key, ils_luout_cla_name, default_luout, 'Write unit for solver report')
-
-        ! Sparse direct solver keys
-        call this%add(dls_type_key, dls_type_cla_name, pardiso_mkl, 'Direct solver type')
-
-        ! PARDISO MKL default values
-        call this%add(pardiso_mkl_message_level, pardiso_mkl_message_level_cla_name, pardiso_mkl_default_message_level, 'PARDISO message level')
-        call this%add(pardiso_mkl_iparm, pardiso_mkl_iparm_cla_name, [ (pardiso_mkl_default_iparm, i=1,64) ], 'PARDISO parameters')     
-        call this%add(pardiso_mkl_matrix_type, pardiso_mkl_matrix_type_cla_name, pardiso_mkl_default_matrix_type, 'PARDISO matrix type')
-
-        ! UMFPACK keys
-#ifdef UMFPACK
-        call umfpack_di_defaults(umfpack_control)
-        call this%add(umfpack_control_params, umfpack_control_params_cla_name, umfpack_control, 'UMFPACK control parameters')
-#endif 
-
-        call this%add(nls_rtol_key, nls_rtol_cla_name, default_nls_rtol, 'Relative tolerance for the nonlinear solvers stopping criteria')
-        call this%add(nls_atol_key, nls_atol_cla_name, default_nls_atol, 'Absolute tolerance for the nonlinear solvers stopping criteria')
-
-        call this%add(nls_stopping_criterium_key, nls_stopping_criterium_cla_name, default_nls_stopping_criterium, 'Nonlinear solvers stopping criterium type')
-        call this%add(nls_max_num_iterations_key, nls_max_num_iterations_cla_name, default_nls_max_iter, 'Nonlinear solvers maximum number of iterations')
-        call this%add(nls_print_iteration_output_key, nls_print_iteration_output_cla_name, default_nls_print_iteration_output, 'Print output per nonlinear solver iteration')
-
-        ! Finite element space 
-
-        ! New keys to create FE space with ParameterList
-        ! Reference FE types ( lagrangian, edge, face, B-spline...)
-
-        ! Number of fields in the FE space
-        call this%add(fes_num_fields_key, fes_num_fields_cla_name, 1, 'Finite element space number of fields')
-
-        ! Number of reference FEs
-        call this%add(fes_num_ref_fes_key,  fes_num_ref_fes_cla_name, 1, 'Finite element space number of fields')
-
-        ! set_ids_to_reference_fes: Given a field ID and cell set ID, returns the desired reference FE ID
-        call this%add(fes_set_ids_ref_fes_key, fes_set_ids_ref_fes_cla_name, [ 1 ], 'Set IDs to reference FEs for every field')
-
-        ! Reference FE IDs    
-        call this%add(fes_ref_fe_types_key, fes_ref_fe_types_cla_name, fe_type_lagrangian, 'Reference finite element types')
-
-        ! Reference FE order (0,1,2,...) fe_space_orders_key
-        call this%add(fes_ref_fe_orders_key, fes_ref_fe_orders_cla_name, [ 1 ], 'Reference finite element orders')
-
-        ! FE space conformities ( true = no face integration needed, false = face integration required )
-        call this%add(fes_ref_fe_conformities_key, fes_ref_fe_conformities_cla_name, [ .true. ], 'Finite element space conformities')
-
-        ! FE space continuities ( true = continuous FE space, false = otherwise )
-        call this%add(fes_ref_fe_continuities_key, fes_ref_fe_continuities_cla_name, [ .true. ], 'Finite element space continuities')
-
-        ! FE field types (scalar, vector, tensor)
-        call this%add(fes_field_types_key, fes_field_types_cla_name, field_type_scalar, 'Finite element space field types')
-
-        ! FE field blocks (scalar, vector, tensor)
-        call this%add(fes_field_blocks_key, fes_field_blocks_cla_name, [ 1 ], 'Finite element space field blocks')
-
-        ! FE space construction type homogeneous/heterogeneous ( .true. = all cells same reference fe, .false. = otherwise ) 
-        call this%add(fes_same_ref_fes_all_cells_key, fes_same_ref_fes_all_cells_cla_name, .true., 'Finite element space fixed reference fe logical')
-        call this%add(coarse_space_use_vertices_key, coarse_space_use_vertices_cla_name, .true., 'Shape functions on vertices')
-        call this%add(coarse_space_use_edges_key, coarse_space_use_edges_cla_name, .true., 'Shape functions on edges')
-        call this%add(coarse_space_use_faces_key, coarse_space_use_faces_cla_name, .true., 'Shape functions on faces')
-
+       
         ! Environment
         call this%add(environment_type_key, environment_type_cla_name, structured, 'Type of environment')
 
-        ! Partitioner
-        call this%add(num_parts_key, num_parts_cla_name, 1, 'Number of parts to split mesh with a graph partitioner') 
-        call this%add(num_levels_distribution_key, num_levels_distribution_cla_name, 1, 'Number of levels of the parallel distribution') 
-        call this%add(num_parts_x_level_key, num_parts_x_level_cla_name, [1], 'Number of parts per level') 
-        call this%add(debug_key, debug_cla_name, 0, 'Debug key for partitioner') 
-        call this%add(strategy_key, strategy_cla_name, part_kway, 'Strategy key for partitioner') 
-
-        ! METIS keys
-        call this%add(metis_option_debug_key, metis_option_debug_cla_name, 2, 'METIS debug key') 
-        call this%add(metis_option_ufactor_key, metis_option_ufactor_cla_name, 30, 'METIS option ufactor') 
-        call this%add(metis_option_minconn_key, metis_option_minconn_cla_name, 0, 'METIS option minconn') 
-        call this%add(metis_option_contig_key, metis_option_contig_cla_name, 1, 'METIS option config') 
-        call this%add(metis_option_ctype_key, metis_option_ctype_cla_name, METIS_CTYPE_SHEM, 'METIS option ctype')
-        call this%add(metis_option_iptype_key, metis_option_iptype_cla_name, METIS_IPTYPE_EDGE, 'METIS option iptype')
-
-        ! Triangulation keys
-        call this%add(static_triang_generate_from_key, &
-                      static_triang_generate_cla_name, &
-                      static_triang_generate_from_struct_hex_mesh_generator, &
-                      'Way to generate the triangulation')
-        
-        call this%add(static_triang_geometric_interpolation_order_key, &
-                      static_triang_geometric_interpolation_order_cla_name, &
-                      1, 'Interpolation order for geometrical mapping' )
-
-        ! Uniform hexahedral mesh keys
-        call this%add(struct_hex_mesh_generator_num_dims_key, &
-                      struct_hex_mesh_generator_num_dims_cla_name, &
-                      2, &
-                      'Number of space dimensions')
-        
-        call this%add(struct_hex_mesh_generator_num_cells_x_dim_key, &
-                      struct_hex_mesh_generator_num_cells_x_dim_cla_name, &
-                      [10,10,10], &
-                      'Number of cells per each dimension')  
-        
-        call this%add(struct_hex_mesh_generator_is_dir_periodic_key, &
-                      struct_hex_mesh_generator_is_dir_periodic_cla_name, &
-                      [0,0,0], &
-                      'Is the mesh periodic for every dimension')    
-        call this%add(struct_hex_mesh_generator_num_levels_key, &
-                      struct_hex_mesh_generator_num_levels_cla_name, &
-                      1, &
-                      'Number of levels')
-        
-        call this%add(struct_hex_mesh_generator_num_parts_x_dim_key, &
-                      struct_hex_mesh_generator_num_parts_x_dim_cla_name, &
-                      [1,1,1], &
-                      'Number of parts per each dimension')
-        
-        call this%add(struct_hex_mesh_generator_domain_limits_key, &
-                      struct_hex_mesh_generator_domain_limits_cla_name, &
-                      [0.0,1.0,0.0,1.0,0.0,1.0], &
-                      'Domain interval per direction')
-
-        ! P4EST triangulation parameters
-        call this%add(p4est_triang_num_dims_key, &
-                      p4est_triang_num_dims_cla_name, &
-                      default_p4est_triang_num_dims, &
-                      'p4est triangulation number of space dimensions')
-        
-        call this%add(p4est_triang_domain_limits_key, &
-                      p4est_triang_domain_limits_cla_name, &
-                      default_p4est_triang_domain_limits, &
-                      'p4est triangulation domain interval per dimension')
-        
-        call this%add(p4est_triang_log_level_key, &
-                      p4est_triang_log_level_cla_name, &
-                      default_p4est_triang_log_level, &
-                      'p4est library level of logging output')
-        
-        call this%add(p4est_triang_2_1_k_balance_key, &
-                      p4est_triang_2_1_k_balance_cla_name, &
-                      default_p4est_triang_2_1_k_balance,  &
-                      'value of k for 2:1 k-balanced forest-of-octrees &
-                      (use with care, at present, only k={0,1} supported/tested)')
-        
-        call this%add(p4est_triang_k_ghost_cells_key, &
-                      p4est_triang_k_ghost_cells_cla_name, &
-                      default_p4est_triang_k_ghost_cells, &
-                      'value of k for the k-ghost cells set of each processor &
-                      (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
-
-        ! BDDC
-        call this%add(bddc_scaling_function_case_key, '--BDDC_SCALING_FUNCTION_CASE', cardinality, 'Scaling type for the BDDC weighting operator')
-
-        !    ! I would say that all this should be handled by groups, one for the Dirichlet problem, 
-        !    ! one for the Neumann problem, one for the coarse problem, etc
-        !    !error = error + values%set(key=mlbddc_coarse_matrix_symmetric_storage , Value= .false. )
-        !    !error = error + values%set(key=mlbddc_coarse_matrix_is_symmetric      , Value= .false. )
-        !    !error = error + values%set(key=mlbddc_coarse_matrix_sign              , Value= SPARSE_MATRIX_SIGN_UNKNOWN )
-        !
-        !    ! Output Handler
-        !    !error = error + values%set(key=oh_staticgrid , Value= )
-        !    !error = error + values%set(key=xh5_Strategy  , Value= )
-        !    !error = error + values%set(key=xh5_Info      , Value= )
-        !
-        !    ! Sample
-        !    !error = error + values%set(key=, Value= )
-
-        !if associated ( this%define_user_parameters) then
-        !  call this%define_user_parameters()
-        !end if 
-
+        call this%fph_static_triang_define_parameters()
+        call this%fph_struct_hex_mesh_generator_define_parameters()
+        call this%fph_p4est_triang_define_parameters()
+        call this%fph_mesh_partitioner_define_parameters()
+        call this%fph_fes_define_parameters()
+        call this%fph_ils_define_parameters()
+        call this%fph_nls_define_parameters()
+        call this%fph_dls_define_parameters()
+        call this%fph_coarse_fe_handler_define_parameters()
+        call this%fph_output_handler_define_parameters()        
     end subroutine fph_define_fempar_parameters
+    
+    subroutine fph_static_triang_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      call this%add(static_triang_generate_from_key, &
+           static_triang_generate_cla_name, &
+           static_triang_generate_from_struct_hex_mesh_generator, &
+           'Way to generate static triangulation') !, &
+           ! choices = static_triang_generate_cla_choices)
+      
+      call this%add(static_triang_geometric_interpolation_order_key, &
+           static_triang_geometric_interpolation_order_cla_name, &
+           1, 'Interpolation order static triangulation geometrical mapping (only partial/unstable support for order>1)' )
+    end subroutine fph_static_triang_define_parameters
+    
+    
+    subroutine fph_struct_hex_mesh_generator_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      
+      call this%add(struct_hex_mesh_generator_num_dims_key, &
+           struct_hex_mesh_generator_num_dims_cla_name, &
+           2, &
+           'Number of space dimensions') ! , &
+           ! choices = struct_hex_mesh_generator_num_dims_cla_choices )
 
+      call this%add(struct_hex_mesh_generator_domain_limits_key, &
+           struct_hex_mesh_generator_domain_limits_cla_name, &
+           [0.0,1.0,0.0,1.0,0.0,1.0], &
+           'Domain interval per dimension')
 
+      call this%add(struct_hex_mesh_generator_is_dir_periodic_key, &
+           struct_hex_mesh_generator_is_dir_periodic_cla_name, &
+           [0,0,0], &
+           'Is the mesh periodic per dimension')
+
+      call this%add(struct_hex_mesh_generator_num_levels_key, &
+           struct_hex_mesh_generator_num_levels_cla_name, &
+           1, &
+           'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
+
+      call this%add(struct_hex_mesh_generator_num_cells_x_dim_key, &
+           struct_hex_mesh_generator_num_cells_x_dim_cla_name, &
+           [10,10,10], &
+           'Number of cells per dimension per level')  
+
+      call this%add(struct_hex_mesh_generator_num_parts_x_dim_key, &
+           struct_hex_mesh_generator_num_parts_x_dim_cla_name, &
+           [1,1,1], &
+           'Number of parts per dimension per level')
+
+    end subroutine fph_struct_hex_mesh_generator_define_parameters
+
+    subroutine fph_p4est_triang_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      call this%add(p4est_triang_num_dims_key, &
+           p4est_triang_num_dims_cla_name, &
+           default_p4est_triang_num_dims, &
+           'p4est triangulation number of space dimensions')
+
+      call this%add(p4est_triang_domain_limits_key, &
+           p4est_triang_domain_limits_cla_name, &
+           default_p4est_triang_domain_limits, &
+           'p4est triangulation domain interval per dimension')
+
+      call this%add(p4est_triang_log_level_key, &
+           p4est_triang_log_level_cla_name, &
+           default_p4est_triang_log_level, &
+           'p4est library level of logging output')
+
+      call this%add(p4est_triang_2_1_k_balance_key, &
+           p4est_triang_2_1_k_balance_cla_name, &
+           default_p4est_triang_2_1_k_balance,  &
+           'value of k for 2:1 k-balanced forest-of-octrees &
+           (use with care, at present, only k={0,1} supported/tested)')
+
+      call this%add(p4est_triang_k_ghost_cells_key, &
+           p4est_triang_k_ghost_cells_cla_name, &
+           default_p4est_triang_k_ghost_cells, &
+           'value of k for the k-ghost cells set of each processor &
+           (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
+    end subroutine fph_p4est_triang_define_parameters
+
+    subroutine fph_mesh_partitioner_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      character(len=:), allocatable                    :: help_string
+      help_string = "Directory of the source files" // BRK_LINE // & 
+           "To read from GiD mesh" // BRK_LINE // &
+           "To read from GiD mesh" 
+
+      call this%add(dir_path_key, &
+           dir_path_cla_name, &
+           '.', &
+           help_string)
+
+      call this%add(prefix_key, &
+           prefix_cla_name, &
+           'A', &
+           'Name of the GiD files')
+
+      call this%add(num_parts_key, &
+           num_parts_cla_name, &
+           1, &
+           'Number of parts to split an unstructured mesh with a graph partitioner') 
+
+      call this%add(num_levels_distribution_key, &
+           num_levels_distribution_cla_name, &
+           1, &
+           'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
+
+      call this%add(num_parts_x_level_key, &
+           num_parts_x_level_cla_name, &
+           [1], &
+           'Number of parts per level') 
+
+      call this%add(debug_key, &
+           debug_cla_name, &
+           0, &
+           'Debug key for partitioner') 
+
+      call this%add(strategy_key, &
+           strategy_cla_name, &
+           part_kway, &
+           'Strategy key for partitioner') 
+
+      call this%add(metis_option_debug_key, &
+           metis_option_debug_cla_name, &
+           2, &
+           'METIS debug key') 
+
+      call this%add(metis_option_ufactor_key, &
+           metis_option_ufactor_cla_name, &
+           30, &
+           'METIS option ufactor') 
+
+      call this%add(metis_option_minconn_key, &
+           metis_option_minconn_cla_name, &
+           0, &
+           'METIS option minconn') 
+
+      call this%add(metis_option_contig_key, &
+           metis_option_contig_cla_name, &
+           1, &
+           'METIS option config') 
+
+      call this%add(metis_option_ctype_key, &
+           metis_option_ctype_cla_name, &
+           METIS_CTYPE_SHEM, &
+           'METIS option ctype')
+
+      call this%add(metis_option_iptype_key, &
+           metis_option_iptype_cla_name, &
+           METIS_IPTYPE_EDGE, &
+           'METIS option iptype')
+    end subroutine fph_mesh_partitioner_define_parameters
+    
+    subroutine fph_fes_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+
+      ! Number of fields in the FE space
+      call this%add(fes_num_fields_key, &
+           fes_num_fields_cla_name, 1, &
+           'Finite element space number of fields')
+
+      ! Number of reference FEs
+      call this%add(fes_num_ref_fes_key, &
+           fes_num_ref_fes_cla_name, &
+           1, &
+           'Finite element space number of fields')
+
+      ! set_ids_to_reference_fes: Given a field ID and cell set ID, 
+      ! returns the desired reference FE ID
+      call this%add(fes_set_ids_ref_fes_key, &
+           fes_set_ids_ref_fes_cla_name, &
+           [ 1 ], &
+           'Set IDs to reference FEs for every field')
+
+      ! Reference FE IDs    
+      call this%add(fes_ref_fe_types_key, &
+           fes_ref_fe_types_cla_name, &
+           fe_type_lagrangian, &
+           'Reference finite element types')
+
+      ! Reference FE order (0,1,2,...) fe_space_orders_key
+      call this%add(fes_ref_fe_orders_key, &
+           fes_ref_fe_orders_cla_name, &
+           [ 1 ], &
+           'Reference finite element orders')
+
+      ! FE space conformities 
+      ! ( true = no face integration needed, false = face integration required )
+      call this%add(fes_ref_fe_conformities_key, &
+           fes_ref_fe_conformities_cla_name, &
+           [ .true. ], &
+           'Finite element space conformities')
+
+      ! FE space continuities 
+      ! ( true = continuous FE space, false = otherwise )
+      call this%add(fes_ref_fe_continuities_key, &
+           fes_ref_fe_continuities_cla_name, &
+           [ .true. ], &
+           'Finite element space continuities')
+
+      ! FE field types (scalar, vector, tensor)
+      call this%add(fes_field_types_key, &
+           fes_field_types_cla_name, &
+           field_type_scalar, &
+           'Finite element space field types')
+
+      ! FE field blocks (scalar, vector, tensor)
+      call this%add(fes_field_blocks_key, &
+           fes_field_blocks_cla_name, &
+           [ 1 ], &
+           'Finite element space map field_id to block_id')
+
+      ! FE space construction type homogeneous/heterogeneous 
+      ! ( .true. = all cells same reference fe, .false. = otherwise ) 
+      call this%add(fes_same_ref_fes_all_cells_key, &
+           fes_same_ref_fes_all_cells_cla_name, &
+           .true., &
+           'Finite element space fixed reference fe logical')
+
+    end subroutine fph_fes_define_parameters
+     
+    subroutine fph_coarse_fe_handler_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+
+      call this%add(coarse_space_use_vertices_key, &
+           coarse_space_use_vertices_cla_name, &
+           .true., &
+           'Shape functions on vertices')
+
+      call this%add(coarse_space_use_edges_key, &
+           coarse_space_use_edges_cla_name, &
+           .true., &
+           'Shape functions on edges')
+
+      call this%add(coarse_space_use_faces_key, &
+           coarse_space_use_faces_cla_name, &
+           .true., &
+           'Shape functions on faces')
+
+      ! H-curl COARSE FE HANDLER BDDC
+      call this%add(bddc_scaling_function_case_key, &
+           '--BDDC_SCALING_FUNCTION_CASE', &
+           cardinality, &
+           'Scaling type for the BDDC weighting operator')
+    end subroutine fph_coarse_fe_handler_define_parameters
+
+    subroutine fph_ils_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+
+      ! Iterative linear solver keys
+      call this%add(ils_type_key, & 
+           ils_type_cla_name, & 
+           rgmres_name,  & 
+           'Iterative linear solver type')
+
+      call this%add(ils_rtol_key, & 
+           ils_rtol_cla_name, & 
+           default_rtol, & 
+           'Relative tolerance for the stopping criteria')
+
+      call this%add(ils_atol_key, & 
+           ils_atol_cla_name, & 
+           default_atol, & 
+           'Absolute tolerance for the stopping criteria')
+
+      call this%add(ils_stopping_criterium_key, & 
+           ils_stopping_criterium_cla_name, & 
+           default_rgmres_stopping_criteria, & 
+           help='Stopping criterium type')
+
+      call this%add(ils_output_frequency_key, & 
+           ils_output_frequency_cla_name, & 
+           default_output_frequency, & 
+           'Frequency for output printing') 
+
+      call this%add(ils_max_num_iterations_key, & 
+           ils_max_num_iterations_cla_name, & 
+           default_max_num_iterations, & 
+           'Maximum number of iterations')
+
+      call this%add(ils_track_convergence_history_key, & 
+           ils_track_convergence_history_cla_name, & 
+           default_track_convergence_history,'Track convergence history')
+
+      call this%add(ils_max_dim_krylov_basis_key, & 
+           ils_max_dim_krylov_basis_cla_name, & 
+           default_dkrymax, & 
+           'Maximum dimension of Krylov basis') 
+
+      call this%add(ils_orthonorm_strategy_key, & 
+           ils_orthonorm_strategy_cla_name, & 
+           default_orthonorm_strat, & 
+           'Orthonormalization strategy (for GMRES)')
+
+      call this%add(ils_relaxation_key, & 
+           ils_relaxation_cla_name, & 
+           default_richardson_relaxation, & 
+           'Relaxation value (for Richardson)')
+    end subroutine fph_ils_define_parameters
+     
+
+    subroutine fph_dls_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      integer(ip) :: i
+#ifdef UMFPACK
+      integer(ip) :: umfpack_control(UMFPACK_INFO)
+#endif 
+
+      call this%add(dls_type_key, & 
+           dls_type_cla_name, & 
+           pardiso_mkl, & 
+           'Direct solver type')
+
+      call this%add(pardiso_mkl_message_level, & 
+           pardiso_mkl_message_level_cla_name, & 
+           pardiso_mkl_default_message_level, & 
+           'PARDISO message level')
+
+      call this%add(pardiso_mkl_iparm, & 
+           pardiso_mkl_iparm_cla_name, & 
+           [ (pardiso_mkl_default_iparm, i=1,64) ], & 
+           'PARDISO parameters')     
+
+      call this%add(pardiso_mkl_matrix_type, &
+           pardiso_mkl_matrix_type_cla_name, & 
+           pardiso_mkl_default_matrix_type, & 
+           'PARDISO matrix type')
+
+#ifdef UMFPACK
+      call umfpack_di_defaults(umfpack_control)
+      call this%add(umfpack_control_params, &
+           umfpack_control_params_cla_name, &
+           umfpack_control, &
+           'UMFPACK control parameters')
+#endif  
+    end subroutine fph_dls_define_parameters
+
+    subroutine fph_nls_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      call this%add(nls_rtol_key, &
+           nls_rtol_cla_name, &
+           default_nls_rtol, &
+           'Relative tolerance for the nonlinear solvers stopping criteria')
+
+      call this%add(nls_atol_key, &
+           nls_atol_cla_name, &
+           default_nls_atol, &
+           'Absolute tolerance for the nonlinear solvers stopping criteria')
+
+      call this%add(nls_stopping_criterium_key, &
+           nls_stopping_criterium_cla_name, &
+           default_nls_stopping_criterium, &
+           'Nonlinear solvers stopping criterium type')
+
+      call this%add(nls_max_num_iterations_key, &
+           nls_max_num_iterations_cla_name, &
+           default_nls_max_iter, &
+           'Nonlinear solvers maximum number of iterations')
+
+      call this%add(nls_print_iteration_output_key, &
+           nls_print_iteration_output_cla_name, &
+           default_nls_print_iteration_output, &
+           'Print output per nonlinear solver iteration')
+    end subroutine fph_nls_define_parameters
+     
+    subroutine fph_output_handler_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      ! General
+      call this%add(dir_path_out_key, &
+           dir_path_out_cla_name, &
+           '.', &
+           'Output Directory')
+    end subroutine fph_output_handler_define_parameters
+     
     subroutine fph_Get_0D(this, key, value)
     !------------------------------------------------------------------
     !< Get 0D value given its key
