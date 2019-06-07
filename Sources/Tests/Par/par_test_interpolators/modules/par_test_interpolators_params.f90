@@ -5,7 +5,6 @@ module par_test_interpolators_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key      = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key          = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key              = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key          = 'triangulation_type'    
@@ -30,7 +29,6 @@ contains
   subroutine par_test_interpolators_params_define_parameters()
     implicit none
     ! Common
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
   end subroutine par_test_interpolators_params_define_parameters

@@ -5,7 +5,6 @@ module par_pb_bddc_maxwell_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key           = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key               = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key                   = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key               = 'triangulation_type'    

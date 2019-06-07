@@ -20,13 +20,9 @@ then
     # Square + Quads    
     if [ $final_exit_code -eq 0 ] 
     then   
-      for gorder in 1
-      do
         for order in 2 3 #1
         do
-          if [ $order -ge $gorder ]
-          then
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 0 $struct_hex_mesh_generator_num_levels_flag 2 $struct_hex_mesh_generator_num_parts_x_dim_flag 2 2 0 1 1 0 -order $order -gorder $gorder"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 0 $struct_hex_mesh_generator_num_levels_flag 2 $struct_hex_mesh_generator_num_parts_x_dim_flag 2 2 0 1 1 0 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -34,21 +30,15 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
 
     # Cube + Hexas         
     if [ $final_exit_code -eq 0 ] 
     then
-      for gorder in 1
-      do
         for order in 2 3 #1
         do
-          if [ $order -ge $gorder ]
-          then
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 4 $struct_hex_mesh_generator_num_levels_flag 2 $struct_hex_mesh_generator_num_parts_x_dim_flag 2 2 2 1 1 1 -order $order -gorder $gorder"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 4 $struct_hex_mesh_generator_num_levels_flag 2 $struct_hex_mesh_generator_num_parts_x_dim_flag 2 2 2 1 1 1 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -56,21 +46,15 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
 
     # Square +  Tetrahedra
     if [ $final_exit_code -eq 0 ] 
     then       
-      for gorder in 1
-      do
         for order in 2 3 #1
         do
-          if [ $order -ge $gorder ]
-          then
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra' $static_triang_generate_from_flag mesh_data_files $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 0 $struct_hex_mesh_generator_num_levels_flag 3 $struct_hex_mesh_generator_num_parts_x_dim_flag 4 4 0 2 2 0 1 1 0 -order $order -gorder $gorder"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra' $static_triang_generate_from_flag mesh_data_files $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 0 $struct_hex_mesh_generator_num_levels_flag 3 $struct_hex_mesh_generator_num_parts_x_dim_flag 4 4 0 2 2 0 1 1 0 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -78,7 +62,6 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
       done
     fi
@@ -86,13 +69,9 @@ then
     # Cube + Tetrahedra
     if [ $final_exit_code -eq 0 ] 
     then
-      for gorder in 1
-      do
         for order in 2 3 #1
         do
-          if [ $order -ge $gorder ]
-          then
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' $static_triang_generate_from_flag mesh_data_files $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 12 $struct_hex_mesh_generator_num_levels_flag 3 $struct_hex_mesh_generator_num_parts_x_dim_flag 4 4 0 2 2 0 1 1 0 -order $order -gorder $gorder"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' $static_triang_generate_from_flag mesh_data_files $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 12 $struct_hex_mesh_generator_num_levels_flag 3 $struct_hex_mesh_generator_num_parts_x_dim_flag 4 4 0 2 2 0 1 1 0 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -100,9 +79,7 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
    else
       echo "$0: input data directory not found!"

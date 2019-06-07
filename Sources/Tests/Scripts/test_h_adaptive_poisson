@@ -18,12 +18,8 @@ then
     # Square + Quads 
     if [ $final_exit_code -eq 0 ] 
     then    
-      for gorder in 1
-      do
        for order in 3 4 5 6 7 8 #2 
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag 2  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
             echo $COMMAND
             eval $COMMAND
@@ -32,20 +28,14 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi      
 
     # Square + Quads + dG
     if [ $final_exit_code -eq 0 ] 
     then    
-      for gorder in 1
-      do
        for order in 3 4 5 6 7 8 #2
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag 2 -order $order -f dG"
             echo $COMMAND
             eval $COMMAND
@@ -54,20 +44,14 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
       
     # Square + Quads + Hybrid Void/Full FEs (half pattern)
     if [ $final_exit_code -eq 0 ] 
     then
-      for gorder in 1
-      do
        for order in 2
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
             echo $COMMAND
             eval $COMMAND
@@ -76,20 +60,14 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
       
     # Square + Quads + Hybrid Void/Full FEs + dG (half pattern)
     if [ $final_exit_code -eq 0 ] 
     then    
-      for gorder in 1
-      do
        for order in 2
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
             echo $COMMAND
             eval $COMMAND
@@ -98,9 +76,7 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
       
     ###############################################################################################################################
@@ -109,13 +85,9 @@ then
 
     # Square + Quads
     if [ $final_exit_code -eq 0 ] 
-    then    
-      for gorder in 1
-      do
+    then
        for order in 3 4 5 6 7 8 #2 
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag 2  -order $order -lt vector"
             echo $COMMAND
             eval $COMMAND
@@ -124,20 +96,14 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
 
     # Cube + Hexas
     if [ $final_exit_code -eq 0 ] 
     then     
-      for gorder in 1
-      do
        for order in 3 4 #2
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag 3  -order $order -wsolution .true. $dir_path_out_flag $SCRIPT_NAME $prefix_flag  $SCRIPT_NAME"
             echo $COMMAND
             eval $COMMAND
@@ -146,9 +112,7 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
 
 else

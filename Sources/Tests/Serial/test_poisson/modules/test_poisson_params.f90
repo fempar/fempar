@@ -49,6 +49,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_fe_formulation
      procedure, non_overridable             :: get_reference_fe_order
+     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
@@ -134,6 +135,14 @@ contains
     integer(ip)                               :: get_reference_fe_order
     call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
+
+  !==================================================================================================
+  function get_reference_fe_geo_order(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    integer(ip)                               :: get_reference_fe_geo_order
+    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_write_solution(this)

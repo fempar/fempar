@@ -32,7 +32,6 @@ module mixed_laplacian_rt_params_names
   implicit none
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order' 
 
   type :: mixed_laplacian_rt_params_t      
@@ -55,7 +54,6 @@ contains
     implicit none
 
     ! IO parameters
-    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')     
   end subroutine mixed_laplacian_rt_define_parameters
 
