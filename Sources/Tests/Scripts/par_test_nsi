@@ -27,8 +27,6 @@ then
       do
         for v_order in 2 3
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $num_parts_flag 2 $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
             echo $COMMAND
             eval $COMMAND
@@ -48,7 +46,6 @@ then
              then
                break 2
              fi
-          fi
         done
       done
     fi
@@ -61,8 +58,6 @@ then
       do
        for v_order in 2 3
         do
-          if [ $order -ge $gorder ]
-          then
 	         COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $num_parts_flag 2 $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
              echo $COMMAND
              eval $COMMAND
@@ -82,7 +77,6 @@ then
              then
                break 2
              fi
-          fi
         done
       done
     fi
@@ -94,8 +88,6 @@ then
       do
        for v_order in 2 3
         do
-          if [ $order -ge $gorder ]
-          then
 	         COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $num_parts_flag 2 $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
              echo $COMMAND
              eval $COMMAND
@@ -115,7 +107,6 @@ then
              then
                break 2
              fi
-           fi
          done
       done
     fi
@@ -127,8 +118,6 @@ then
       do
        for v_order in 2 
         do
-          if [ $order -ge $gorder ]
-          then
              COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $num_parts_flag 2 $num_levels_distribution_flag 2 $num_parts_x_level_flag 4 1 0 0 0"
              echo $COMMAND
              eval $COMMAND
@@ -148,7 +137,6 @@ then
              then
                break 2
              fi
-           fi
          done
       done
     fi

@@ -16,12 +16,8 @@ then
     # Square + Quads + Uniform refinement    
     if [ $final_exit_code -eq 0 ] 
     then 
-      for gorder in 1
-      do
        for order in 1 2
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
             echo $COMMAND
             eval $COMMAND
@@ -30,9 +26,7 @@ then
              final_exit_code=1
              break 2
             fi
-          fi
         done
-      done
     fi
       
 else

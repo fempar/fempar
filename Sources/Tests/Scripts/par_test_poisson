@@ -24,12 +24,8 @@ then
     # Square + Quads (4 parts)
     if [ $final_exit_code -eq 0 ] 
     then
-      for gorder in 1 # 2 3 4 5 6
-      do
         for order in 1 2 3 # 4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
             COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $num_parts_flag 3 $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1 0 0 "
             echo $COMMAND
             eval $COMMAND
@@ -49,20 +45,14 @@ then
              then
                break 2
              fi
-          fi
         done
-      done
     fi
 
     # Square + Tets        
     if [ $final_exit_code -eq 0 ] 
     then
-      for gorder in 1 #2 3 4 5 6
-      do
        for order in 1 2 3 #4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
 	         COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $num_parts_flag 3 $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1 0 0 "
              echo $COMMAND
              eval $COMMAND
@@ -82,20 +72,14 @@ then
              then
                break 2
              fi
-          fi
         done
-      done
     fi
 
     # Cube + Hexas
     if [ $final_exit_code -eq 0 ] 
     then        
-      for gorder in 1 #2 3 4 5 6
-      do
        for order in 1 2 3 #1 2 3 4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
              COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $num_parts_flag 3 $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1 0 0 "
              echo $COMMAND
              eval $COMMAND
@@ -115,20 +99,14 @@ then
              then
                break 2
              fi
-          fi
         done
-      done
     fi
 
     # Cube + Tets
     if [ $final_exit_code -eq 0 ] 
     then        
-      for gorder in 1 #2 3 4 5 6
-      do
        for order in 1 2 #1 2 3 4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
              COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $dir_path_out_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $num_parts_flag 3 $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1 0 0 "
              echo $COMMAND
              eval $COMMAND
@@ -148,9 +126,7 @@ then
              then
                break 2
              fi
-          fi
         done
-      done
     fi
 
 
