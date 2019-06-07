@@ -98,6 +98,34 @@ module mesh_names
           coord(:,:)                         ! Vertex coordinates
     
     contains
+     ! Sizes getters
+      procedure, non_overridable                   :: get_element_order                    ! order
+      procedure, non_overridable                   :: get_num_element_types                ! nelty
+      procedure, non_overridable                   :: get_num_dim                          ! ndime
+      procedure, non_overridable                   :: get_num_nodes                        ! npoin
+      procedure, non_overridable                   :: get_num_elements                     ! nelem
+      procedure, non_overridable                   :: get_max_num_nodes_x_element          ! nnode
+      procedure, non_overridable                   :: get_max_num_nodes_x_boundary_element ! nnodb
+
+     ! Element getters
+      procedure, non_overridable                   :: get_vef_x_element_pointers            ! pnods
+      procedure, non_overridable                   :: get_vef_x_element                     ! lnods
+      procedure, non_overridable                   :: get_element_geometry                  ! legeo
+      procedure, non_overridable                   :: get_element_sets                      ! leset
+
+     ! Vef getters
+      procedure, non_overridable                   :: get_boundary_elements                 ! given_vefs
+      procedure, non_overridable                   :: get_vef_geometric_entities            ! lst_vefs_geo
+      procedure, non_overridable                   :: get_boundary_sets                     ! lst_vefs_set
+
+     ! Dual mesh (elements around vertices) getters
+      procedure, non_overridable                   :: get_num_elements_around_vertices      ! nelpo
+      procedure, non_overridable                   :: get_elements_around_vertices_pointers ! pelpo
+      procedure, non_overridable                   :: get_elements_around_vertices_sets     ! lelpo
+
+     ! Coords getters
+      procedure, non_overridable                   :: get_vertex_coordinates                ! coord
+
       procedure, non_overridable                   :: mesh_read_fempar_gid_problem_type_format_dir_path_prefix
       procedure, non_overridable                   :: mesh_read_fempar_gid_problem_type_format_pl
       procedure, non_overridable                   :: mesh_read_fempar_gid_problem_type_format_file_unit
@@ -144,6 +172,132 @@ module mesh_names
   public :: mesh_distribution_write_for_postprocess
 
 contains
+
+  !=============================================================================
+    function get_element_order(this) result(order)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: order
+        order = this%order
+    end function get_element_order
+
+  !=============================================================================
+    function get_num_element_types(this) result(nelty)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: nelty
+        nelty = this%nelty
+    end function get_num_element_types
+
+  !=============================================================================
+    function get_num_dim(this) result(ndime)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: ndime
+        ndime = this%ndime
+    end function get_num_dim
+
+  !=============================================================================
+    function get_num_nodes(this) result(npoin)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: npoin
+        npoin = this%npoin
+    end function get_num_nodes
+
+  !=============================================================================
+    function get_num_elements(this) result(nelem)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: nelem
+        nelem = this%nelem
+    end function get_num_elements
+
+  !=============================================================================
+    function get_max_num_nodes_x_element(this) result(nnode)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: nnode
+        nnode = this%nnode
+    end function get_max_num_nodes_x_element
+
+  !=============================================================================
+    function get_max_num_nodes_x_boundary_element(this) result(nnodb)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: nnodb
+        nnodb = this%nnodb
+    end function get_max_num_nodes_x_boundary_element
+
+  !=============================================================================
+    function get_vef_x_element_pointers(this) result(pnods)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: pnods(:)
+        pnods => this%pnods
+    end function get_vef_x_element_pointers
+
+  !=============================================================================
+    function get_vef_x_element(this) result(lnods)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: lnods(:)
+        lnods => this%lnods
+    end function get_vef_x_element
+
+  !=============================================================================
+    function get_element_geometry(this) result(legeo)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: legeo(:)
+        legeo => this%legeo
+    end function get_element_geometry
+
+  !=============================================================================
+    function get_element_sets(this) result(leset)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: leset(:)
+        leset => this%leset
+    end function get_element_sets
+
+  !=============================================================================
+    function get_boundary_elements(this) result(given_vefs)
+        class(mesh_t), target, intent(in) :: this
+        type(list_t),  pointer            :: given_vefs
+        given_vefs => this%given_vefs
+    end function get_boundary_elements
+
+  !=============================================================================
+    function get_vef_geometric_entities(this) result(lst_vefs_geo)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: lst_vefs_geo(:)
+        lst_vefs_geo => this%lst_vefs_geo
+    end function get_vef_geometric_entities
+
+  !=============================================================================
+    function get_boundary_sets(this) result(lst_vefs_set)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: lst_vefs_set(:)
+        lst_vefs_set => this%lst_vefs_set
+    end function get_boundary_sets
+
+  !=============================================================================
+    function get_num_elements_around_vertices(this) result(nelpo)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: nelpo
+        nelpo = this%nelpo
+    end function get_num_elements_around_vertices
+
+  !=============================================================================
+    function get_elements_around_vertices_pointers(this) result(pelpo)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: pelpo(:)
+        pelpo => this%pelpo
+    end function get_elements_around_vertices_pointers
+
+  !=============================================================================
+    function get_elements_around_vertices_sets(this) result(lelpo)
+        class(mesh_t), target, intent(in) :: this
+        integer(ip),   pointer            :: lelpo(:)
+        lelpo => this%lelpo
+    end function get_elements_around_vertices_sets
+
+  !=============================================================================
+    function get_vertex_coordinates(this) result(coord)
+        class(mesh_t), target, intent(in) :: this
+        real(rp),      pointer            :: coord(:,:)
+        coord => this%coord
+    end function get_vertex_coordinates
 
   !=============================================================================
    subroutine mesh_read_fempar_gid_problem_type_format_pl(this, parameter_list)
