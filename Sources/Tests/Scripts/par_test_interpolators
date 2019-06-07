@@ -63,7 +63,6 @@ then
              break 2
             fi
         done
-      done
     fi
 
     # Cube + Tetrahedra
