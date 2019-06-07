@@ -35,18 +35,21 @@ subroutine serial_triangulation_create ( this, environment, parameters)
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
   type(mesh_t)                  :: mesh
-  type(list_t), pointer         :: given_vefs
-  integer(ip) , pointer         :: lst_vefs_geo(:), lst_vefs_set(:)
+  type(list_t), pointer         :: boundary_vefs
+  integer(ip) , pointer         :: boundary_vefs_geometry_id(:), boundary_vefs_set(:)
   real(rp)    , allocatable     :: coordinates(:,:)
   character(len=:), allocatable :: triangulation_generate
-  integer(ip)                   :: execution_context
   integer(ip)                   :: istat
   integer(ip)                   :: geometric_interpolation_order
   type(p_reference_fe_t)        :: reference_fe_geo_list(1)
-  integer(ip)                   :: ivef 
   integer(ip), allocatable      :: cells_set(:)
-  !type(environment_t), pointer :: environment
-  integer(ip)                   :: max_vefs_x_cell, num_edges, num_faces
+  integer(ip)                   :: num_edges, num_faces
+  
+  integer(ip), pointer :: mesh_vertices_x_cell_pointers(:), &
+                          mesh_vertices_x_cell(:), &
+                          mesh_cells_set(:)
+                          
+  real(rp), pointer :: mesh_vertex_coordinates(:,:)
 
   ! Optional parameters
   if( parameters%isPresent(static_triang_generate_from_key) ) then
@@ -78,21 +81,42 @@ subroutine serial_triangulation_create ( this, environment, parameters)
      call mesh%read_fempar_gid_problem_type_format(parameters)
 
      ! Extract data from mesh
-     call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
+     this%num_dims = mesh%get_num_dims()
+     this%num_vertices = mesh%get_num_vertices()
+     this%num_local_cells = mesh%get_num_cells()
+     
      this%num_global_cells=this%num_local_cells
      this%num_vefs=this%num_vertices
      this%num_ghost_cells=0
-     call mesh%move_cells(this%ptr_vefs_x_cell,this%lst_vefs_gids, cells_set)
-     call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
+     
+     mesh_vertices_x_cell_pointers => mesh%get_vertices_x_cell_pointers()
+     call memalloc (size(mesh_vertices_x_cell_pointers), this%ptr_vefs_x_cell, __FILE__, __LINE__)
+     this%ptr_vefs_x_cell = mesh_vertices_x_cell_pointers
+     
+     mesh_vertices_x_cell => mesh%get_vertices_x_cell()
+     call memalloc (size(mesh_vertices_x_cell), this%lst_vefs_gids, __FILE__, __LINE__)
+     this%lst_vefs_gids = mesh_vertices_x_cell
+     
+     mesh_cells_set => mesh%get_cells_set()
+     call memalloc (size(mesh_cells_set), cells_set, __FILE__, __LINE__)
+     cells_set = mesh_cells_set
+     
+     boundary_vefs => mesh%get_boundary_vefs()
+     boundary_vefs_geometry_id => mesh%get_boundary_vefs_geometry_id()
+     boundary_vefs_set => mesh%get_boundary_vefs_set()
 
-     call mesh%move_coordinates(coordinates)
-
+     mesh_vertex_coordinates => mesh%get_vertex_coordinates()
+     call memalloc (size(mesh_vertex_coordinates,1), &
+                    size(mesh_vertex_coordinates,2), &
+                    coordinates, __FILE__, __LINE__)
+     coordinates = mesh_vertex_coordinates
+     
      ! Generate dual mesh (at this point around vertices only)
      call this%allocate_and_fill_cells_around()
      call this%fill_reference_fe_geo_list(geometric_interpolation_order)
      if (this%is_tet_mesh()) call this%orient_tet_mesh()
      call this%generate_vefs(geometric_interpolation_order)
-     call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
+     call this%allocate_and_fill_geometry_and_set(boundary_vefs,boundary_vefs_geometry_id,boundary_vefs_set)
      call mesh%free()
 
   else if(triangulation_generate==static_triang_generate_from_struct_hex_mesh_generator) then
