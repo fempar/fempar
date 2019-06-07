@@ -100,7 +100,7 @@ then
             eval $COMMAND
 
             for order in 1 2; do
-                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_levels_flag 2 $coarse_space_use_faces_flag .false. -edge_cont tangential_average_and_first_order_moment -order $order $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' -wsolution .false. | tee $TMP_OUTPUT "
+                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $struct_hex_mesh_generator_num_levels_flag 2 $coarse_space_use_faces_flag .false. -edge_cont tangential_average_and_first_order_moment -order $order $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' -wsolution .false. | tee $TMP_OUTPUT "
                 echo $COMMAND
                 eval $COMMAND
 
