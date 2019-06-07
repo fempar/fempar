@@ -18,9 +18,13 @@ then
     # Square + Quads    
     if [ $final_exit_code -eq 0 ] 
     then      
-        for order in 1 2 5
+      for gorder in 1 2 5
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads -order $order"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads -order $order -gorder $gorder "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -28,15 +32,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Square + Quads + dG 
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1 2 5
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads -order $order -f dG"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads -order $order -gorder $gorder -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -44,15 +54,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Square + Quads + Hybrid Void/Full FEs (half pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -use-voids T -use-voids-case half "
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -gorder $gorder -use-voids T -use-voids-case half "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -60,15 +76,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
       
     # Square + Quads + Hybrid Void/Full FEs + dG (half pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -use-voids T -use-voids-case half -f dG"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -gorder $gorder -use-voids T -use-voids-case half -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -76,15 +98,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -use-voids T -use-voids-case quarter "
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -gorder $gorder -use-voids T -use-voids-case quarter "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -92,15 +120,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
       
     # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -use-voids T -use-voids-case quarter -f dG"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -108,15 +142,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Circle + Quads
     if [ $final_exit_code -eq 0 ] 
     then          
-        for order in 1 2 5
+      for gorder in 1 2 5
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -124,15 +164,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Square +  Tetrahedra       
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1 #2 3 4 5 6
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -140,15 +186,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Square +  Tetrahedra + dG      
     if [ $final_exit_code -eq 0 ] 
     then  
+      for gorder in 1 #2 3 4 5 6
+      do
        for order in 1 2 5
        do
-           COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -f dG"
+         if [ $order -ge $gorder ]
+         then
+           COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG"
            echo $COMMAND
            eval $COMMAND
            if [ $? -ne 0 ]
@@ -156,15 +208,21 @@ then
             final_exit_code=1
              break 2
            fi
+         fi
        done
+      done
     fi
 
     # Cube + Hexas       
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 3 #4 5 6
+      for gorder in 1 #2 3 4 5 6
+      do
+       for order in 1 2 3 #4 5 6
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $prefix_flag cube_hexas -order $order"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $prefix_flag cube_hexas -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -172,15 +230,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Cube + Hexas + dG  
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 3 #4 5 6
+      for gorder in 1 #2 3 4 5 6
+      do
+       for order in 1 2 3 #4 5 6
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $prefix_flag cube_hexas -order $order -f dG"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $prefix_flag cube_hexas -order $order -gorder $gorder -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -188,15 +252,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 #5
+      for gorder in 1
+      do
+       for order in 1 2 #5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 18 18 18 -order $order -use-voids T -use-voids-case popcorn "
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 18 18 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -204,15 +274,21 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
       
     # Cube + Hexas + Hybrid Void/Full FEs + dG (popcorn pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 #2 5
+      for gorder in 1
+      do
+       for order in 1 #2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 18 18 18 -order $order -use-voids T -use-voids-case popcorn -f dG "
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 18 18 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn -f dG "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -220,37 +296,50 @@ then
              final_exit_code=1
              break 2
             fi
+          fi
         done
+      done
     fi
 
     # Cube + Tetrahedra
     if [ $final_exit_code -eq 0 ] 
-    then    
+    then        for gorder in 1 #2 3 4 5 6
+      do
         for order in 1 2 4
         do
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
       
     # Cube + Tetrahedra + dG
     if [ $final_exit_code -eq 0 ] 
     then  
+      for gorder in 1 #2 3 4 5 6
+      do
         for order in 1 2 4
         do
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -f dG"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     ###############################################################################################################################
@@ -260,121 +349,169 @@ then
     # Square + Quads        
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1 2 5
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads -order $order -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     # Square + Quads + Hybrid Void/Full FEs (half pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -use-voids T -use-voids-case half -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -gorder $gorder -use-voids T -use-voids-case half -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -use-voids T -use-voids-case quarter -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator -order $order -gorder $gorder -use-voids T -use-voids-case quarter -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     # Circle + Quads        
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 5
+      for gorder in 1 2 5
+      do
+       for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $prefix_flag circle -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     # Square +  Tetrahedra       
     if [ $final_exit_code -eq 0 ] 
     then  
+      for gorder in 1 #2 3 4 5 6
+      do
         for order in 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     # Cube + Hexas       
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 2 3 #4 5 6
+      for gorder in 1 #2 3 4 5 6
+      do
+       for order in 1 2 3 #4 5 6
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $prefix_flag cube_hexas -order $order -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $prefix_flag cube_hexas -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
       
     # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
     if [ $final_exit_code -eq 0 ] 
     then  
-        for order in 1 #2 5
+      for gorder in 1
+      do
+       for order in 1 #2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 18 18 18 -order $order -use-voids T -use-voids-case popcorn -lt vector "
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 18 18 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn -lt vector "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
     # Cube + Tetrahedra
     if [ $final_exit_code -eq 0 ] 
     then  
+      for gorder in 1 #2 3 4 5 6
+      do
         for order in 1 2 4
         do
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -lt vector"
+          if [ $order -ge $gorder ]
+          then
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
             then
              final_exit_code=1
             fi
+          fi
         done
+      done
     fi
 
    else

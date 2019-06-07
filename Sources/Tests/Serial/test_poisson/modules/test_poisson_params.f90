@@ -34,6 +34,7 @@ module test_poisson_params_names
 
   character(len=*), parameter :: fe_formulation_key            = 'fe_formulation'
   character(len=*), parameter :: laplacian_type_key            = 'laplacian_type'
+  character(len=*), parameter :: reference_fe_geo_order_key    = 'reference_fe_geo_order'
   character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key            = 'write_solution'        
   character(len=*), parameter :: use_void_fes_key              = 'use_void_fes'
@@ -48,6 +49,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_fe_formulation
      procedure, non_overridable             :: get_reference_fe_order
+     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
@@ -65,6 +67,7 @@ contains
     implicit none
     ! IO parameters
     call parameter_handler%add(fe_formulation_key, '--fe-formulation', 'cG', 'cG or dG FE formulation for Poisson problem (cG,dG)', switch_ab='-f')
+    call parameter_handler%add(reference_fe_geo_order_key, '--reference-fe-geo-order', 1, 'Order of the triangulation reference fe', switch_ab='-gorder')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
@@ -132,6 +135,14 @@ contains
     integer(ip)                               :: get_reference_fe_order
     call parameter_handler%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
   end function get_reference_fe_order
+
+  !==================================================================================================
+  function get_reference_fe_geo_order(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    integer(ip)                               :: get_reference_fe_geo_order
+    call parameter_handler%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+  end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_write_solution(this)
