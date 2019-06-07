@@ -146,11 +146,11 @@ subroutine par_triangulation_create ( this, environment, parameters)
         if(geometric_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
         ! Read mesh
-        call mesh%compose_name ( prefix, name )
+        call mesh%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
         if(this%environment%get_l1_size()>1) &
              &  call par_filename( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
         lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
-        call mesh%read (lunio) 
+        call mesh%read_fempar_gid_problem_type_format (lunio) 
         call io_close(lunio)
 
         ! Extract data from mesh

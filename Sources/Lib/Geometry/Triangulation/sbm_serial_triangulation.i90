@@ -75,7 +75,7 @@ subroutine serial_triangulation_create ( this, environment, parameters)
      
      call this%set_single_octree_mesh(.false.)
   
-     call mesh%read(parameters)
+     call mesh%read_fempar_gid_problem_type_format(parameters)
 
      ! Extract data from mesh
      call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
