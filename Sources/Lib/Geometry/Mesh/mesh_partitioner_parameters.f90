@@ -25,8 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mesh_distribution_parameters_names
+module mesh_partitioner_parameters_names
   use types_names
+  use metis_names
   implicit none
 
   character(len=*), parameter :: num_parts_key               = 'PART_NUM_PARTS'
@@ -59,5 +60,27 @@ module mesh_distribution_parameters_names
   integer(ip), parameter :: part_recursive = 1
   integer(ip), parameter :: part_strip     = 2
   integer(ip), parameter :: part_rcm_strip = 3
+  
+  
+  integer(ip), parameter :: mesh_partitioner_default_debug = 1
+  
+  integer(ip), parameter :: mesh_partitioner_default_strat = part_kway
+  
+  ! Use METIS defaults (i.e., == -1) 30 for part_kway, and 1 for part_recursive
+  integer(ip), parameter :: mesh_partitioner_default_metis_option_ufactor = -1
+  
+  ! (Try to) Minimize maximum degree of subdomain graph
+  integer(ip), parameter :: mesh_partitioner_default_metis_option_minconn = 1
+  
+  ! (Try to) Produce partitions that are contiguous
+  integer(ip), parameter :: mesh_partitioner_default_metis_option_contig = 1
+  
+  ! Random matching
+  integer(ip), parameter :: mesh_partitioner_default_metis_option_ctype = METIS_CTYPE_RM
+  
+  ! Grow bisection greedy
+  integer(ip), parameter :: mesh_partitioner_default_metis_option_iptype = METIS_IPTYPE_GROW
+  
+  integer(ip), parameter :: mesh_partitioner_default_metis_option_debug = 0
 
-end module mesh_distribution_parameters_names
+end module mesh_partitioner_parameters_names

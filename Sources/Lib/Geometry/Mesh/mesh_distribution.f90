@@ -29,13 +29,17 @@ module mesh_distribution_names
   use types_names
   use memor_names
   use stdio_names
-  use metis_interface_names
-  use mesh_distribution_parameters_names
+  use metis_names
+  use mesh_partitioner_parameters_names
   use FPL
   implicit none
 # include "debug.i90"
   private
 
+  
+  
+  
+  
   ! Data required to describe on each MPI task the distribution of the mesh
   type mesh_distribution_t
      integer(ip) ::                &

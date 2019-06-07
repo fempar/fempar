@@ -31,8 +31,8 @@ module fempar_parameter_handler_names
     use direct_solver_parameters_names
     use nonlinear_solver_parameters_names
     use environment_parameters_names
-    use mesh_distribution_parameters_names
-    use metis_interface_names
+    use mesh_partitioner_parameters_names
+    use metis_names
     use triangulation_parameters_names
     use uniform_hex_mesh_generator_parameters_names
     use p4est_triangulation_parameters_names

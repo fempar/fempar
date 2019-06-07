@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module metis_interface_names
+module metis_names
   use types_names
   use iso_c_binding
   implicit none
@@ -282,4 +282,4 @@ contains
   end subroutine enable_metis_error_message
 #endif 
 
-end module metis_interface_names
+end module metis_names

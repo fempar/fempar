@@ -56,9 +56,9 @@ module fempar_names
   
 
   ! Geometry
-  use metis_interface_names
+  use metis_names
   use mesh_distribution_names
-  use mesh_distribution_parameters_names
+  use mesh_partitioner_parameters_names
   use triangulation_names
   use triangulation_parameters_names
   use p4est_triangulation_names
