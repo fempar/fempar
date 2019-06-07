@@ -1,15 +1,13 @@
 module rcm_renumbering_names
-use types_names
-use list_types_names
-use memor_names
+  use types_names
+  use list_types_names
+  use memor_names
   implicit none
   private
-
 
   public :: genrcm  
 
 contains 
-
 
   subroutine degree ( root, gp , mask, deg, iccsze, ls)
 

@@ -41,8 +41,8 @@ program partitioner
   parameters => parameter_handler%get_values()
 
   ! Read and partition gmesh into lmesh
-  call gmesh%read(parameters)
-  call gmesh%write_file_for_postprocess(parameters)
+  call gmesh%read_fempar_gid_problem_type_format(parameters)
+  call gmesh%write_gid_post_process_format(parameters)
   call gmesh%create_distribution (parameters, distr, env, lmesh)
 
   ! Write environments
