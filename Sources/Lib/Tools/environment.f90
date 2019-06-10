@@ -33,6 +33,7 @@ module environment_names
   use par_io_names
   use uniform_hex_mesh_generator_names
   use uniform_hex_mesh_generator_parameters_names
+  use p4est_triangulation_parameters_names
   use timer_names
   ! Parallel modules
   use execution_context_names
@@ -360,9 +361,9 @@ contains
           call uniform_hex_mesh%free()
        else if(environment_type==p4est) then
           ! Optional
-          if( parameters%isPresent(struct_hex_mesh_generator_num_levels_key) ) then
-             assert(parameters%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
-             istat = parameters%get(key = struct_hex_mesh_generator_num_levels_key , value = num_levels)
+          if( parameters%isPresent(p4est_triang_num_levels_key) ) then
+             assert(parameters%isAssignable(p4est_triang_num_levels_key, num_levels))
+             istat = parameters%get(key = p4est_triang_num_levels_key , value = num_levels)
              assert(istat==0)
           else
              num_levels = 1

@@ -844,6 +844,11 @@ contains
            p4est_triang_num_dims_cla_name, &
            default_p4est_triang_num_dims, &
            'p4est triangulation number of space dimensions')
+      
+      call this%add(p4est_triang_num_levels_key, &
+           p4est_triang_num_levels_cla_name, &
+           default_p4est_triang_num_levels, &
+           'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
 
       call this%add(p4est_triang_domain_limits_key, &
            p4est_triang_domain_limits_cla_name, &
