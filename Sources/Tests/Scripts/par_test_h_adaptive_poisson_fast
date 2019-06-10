@@ -26,45 +26,45 @@ then
 		            for num_parts in 9 
 		            do 
 		                num_tasks=`expr "$num_parts" + 1` 
-		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
-                        echo $COMMAND
-                        eval $COMMAND
+		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+                                echo $COMMAND
+                                eval $COMMAND
 		                if [ $? -ne 0 ] 
 		                then
 			                final_exit_code=1
-                            break 4 
+                                        break 4 
 		                fi
 
-	                    COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case half"
-                        echo $COMMAND
-                        eval $COMMAND
+	                    COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case half"
+                            echo $COMMAND
+                            eval $COMMAND
 		                if [ $? -ne 0 ] 
 		                then
 			                final_exit_code=1
-                            break 4 
+                                        break 4 
 		                fi
 
-		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case half -prec-type jacobi"
-                        echo $COMMAND
-                        eval $COMMAND
+		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case half -prec-type jacobi"
+                                echo $COMMAND
+                                eval $COMMAND
 		                if [ $? -ne 0 ] 
 		                then
 			                final_exit_code=1
-                            break 4
+                                        break 4
 		                fi
 
-		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case half -prec-type identity"
-                        echo $COMMAND
-                        eval $COMMAND
+		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case half -prec-type identity"
+                                echo $COMMAND
+                                eval $COMMAND
 		                if [ $? -ne 0 ] 
 		                then
 			                final_exit_code=1
-                            break 4
+                                        break 4
 		                fi
 
-		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
-                        echo $COMMAND
-                        eval $COMMAND
+		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
+                               echo $COMMAND
+                                eval $COMMAND
 		                if [ $? -ne 0 ] 
 		                then
 			                final_exit_code=1
@@ -80,7 +80,7 @@ then
             num_refinements=3
             refinement_pattern=even_cells 
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -89,7 +89,7 @@ then
                 break 1
             fi
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $prefix_flag 'square' $struct_hex_mesh_generator_num_levels_flag 2 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $p4est_triang_num_levels_flag 2 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -106,9 +106,3 @@ fi
 
 rm -Rf $TEST_COMBINATIONS_FILE_NAME
 exit $final_exit_code 
-
-
-
-
-
-
