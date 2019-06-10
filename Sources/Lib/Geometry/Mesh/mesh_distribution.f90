@@ -36,10 +36,6 @@ module mesh_distribution_names
 # include "debug.i90"
   private
 
-  
-  
-  
-  
   ! Data required to describe on each MPI task the distribution of the mesh
   type mesh_distribution_t
      integer(ip) ::                &

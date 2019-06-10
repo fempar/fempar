@@ -61,6 +61,7 @@ module mesh_names
   !> source directory). Using this data type, one may also write the mesh into GiD's postprocess
   !> file format for visualization purposes using GiD.
   type mesh_t
+     !private
      ! Sizes
      integer(ip)                :: &
           order=c_order,           &         ! GiD element order (c)
@@ -147,8 +148,11 @@ module mesh_names
                                                                                     mesh_write_gid_postprocess_format_pl, &
                                                                                     mesh_write_gid_postprocess_format_file_unit
       
-      procedure, non_overridable          :: free                          => mesh_free      
+      procedure, non_overridable          :: free                          => mesh_free
     
+      
+      procedure, non_overridable          :: build_dual_graph              => mesh_build_dual_graph
+      
       procedure, non_overridable          :: to_dual                       => mesh_to_dual
       procedure, non_overridable          :: create_distribution           => create_mesh_distribution
   end type mesh_t
@@ -561,33 +565,6 @@ contains
 
   end subroutine mesh_write_fempar_gid_problem_type_format_file_unit
   
-  !=============================================================================
-  subroutine mesh_move_cells(this,pvefs,lvefs,cells_set)
-    class(mesh_t)           , intent(inout) :: this
-    integer(ip), allocatable, intent(inout) :: pvefs(:)
-    integer(ip), allocatable, intent(inout) :: lvefs(:)
-    integer(ip), allocatable, intent(inout) :: cells_set(:)
-    call memmovealloc(this%pnods,pvefs,__FILE__,__LINE__)
-    call memmovealloc(this%lnods,lvefs,__FILE__,__LINE__)
-    call memmovealloc(this%leset,cells_set,__FILE__,__LINE__)
-  end subroutine mesh_move_cells
-  !=============================================================================
-  subroutine mesh_move_coordinates(this,coord)
-    class(mesh_t)        , intent(inout) :: this
-    real(rp), allocatable, intent(inout) :: coord(:,:)
-    call memmovealloc(this%coord,coord,__FILE__,__LINE__)
-  end subroutine mesh_move_coordinates
-
-  !=============================================================================
-  subroutine mesh_get_given_vefs(this,given_vefs,lst_vefs_geo,lst_vefs_set)
-    class(mesh_t), target   , intent(inout) :: this
-    type(list_t), pointer   , intent(inout) :: given_vefs
-    integer(ip) , pointer   , intent(inout) :: lst_vefs_geo(:), lst_vefs_set(:)
-    given_vefs => this%given_vefs
-    lst_vefs_geo => this%lst_vefs_geo
-    lst_vefs_set => this%lst_vefs_set
-  end subroutine mesh_get_given_vefs
-
 !=============================================================================
   subroutine mesh_to_dual(this)
     class(mesh_t), intent(inout)     :: this
@@ -989,7 +966,7 @@ contains
     call femesh%to_dual()
 
     ! Create dual (i.e. list of elements around elements)
-    call create_dual_graph(femesh,fe_graph)
+    call mesh_build_dual_graph(femesh,fe_graph)
    
     ! Partition dual graph to assign a domain to each element (in ldome)
     call memalloc (femesh%nelem, ldome, __FILE__,__LINE__)   
@@ -1076,18 +1053,19 @@ contains
   end subroutine create_mesh_distribution
 
   !================================================================================================
-  subroutine create_dual_graph(mesh,graph)
+  subroutine mesh_build_dual_graph(mesh,graph)
     ! Parameters
-    type(mesh_t) , intent(in)  :: mesh
-    type(list_t),  intent(out) :: graph
+    class(mesh_t) , intent(in)    :: mesh
+    type(list_t)  , intent(inout) :: graph
     ! Locals
     integer(ip), allocatable :: lelem(:)
     integer(ip), allocatable :: keadj(:)
 
+    call graph%free()
+    
     call memalloc(           mesh%nelem,lelem,__FILE__,__LINE__)
     call memalloc(mesh%nelpo*mesh%nnode,keadj,__FILE__,__LINE__)
     lelem=0
-    !call graph%create(mesh%nelem)
 
     call count_elemental_graph(mesh%ndime,mesh%npoin,mesh%nelem, &
          &                     mesh%pnods,mesh%lnods,mesh%nnode,mesh%nelpo, &
@@ -1101,8 +1079,7 @@ contains
 
     call memfree(lelem,__FILE__,__LINE__)
     call memfree(keadj,__FILE__,__LINE__)
-
-  end subroutine create_dual_graph
+  end subroutine mesh_build_dual_graph
 
   !-----------------------------------------------------------------------
   subroutine count_elemental_graph(ncomm,npoin,nelem,pnods,lnods,nnode, &
