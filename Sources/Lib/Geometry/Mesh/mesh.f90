@@ -66,10 +66,10 @@ module mesh_names
           order=c_order,           &         ! GiD element order (c)
           nelty=1,                 &         ! Number of element types
           ndime,                   &         ! Number of space dimensions
-          npoin,                   &         ! Number of nodes (vertices)
+          npoin,                   &         ! Number of vertices
           nelem,                   &         ! Number of elements
-          nnode,                   &         ! Maximum number of nodes per element
-          nnodb                              ! Maximum number of nodes per boundary element
+          nnode,                   &         ! Maximum number of vertices per element
+          nnodb                              ! Maximum number of vertices per boundary element
 
      ! Elements
      integer(ip), allocatable ::  &
@@ -99,29 +99,26 @@ module mesh_names
     
     contains
      ! Sizes getters
-      procedure, non_overridable                   :: get_element_order                    ! order
-      procedure, non_overridable                   :: get_num_element_types                ! nelty
-      procedure, non_overridable                   :: get_num_dim                          ! ndime
-      procedure, non_overridable                   :: get_num_nodes                        ! npoin
-      procedure, non_overridable                   :: get_num_elements                     ! nelem
-      procedure, non_overridable                   :: get_max_num_nodes_x_element          ! nnode
-      procedure, non_overridable                   :: get_max_num_nodes_x_boundary_element ! nnodb
+      procedure, non_overridable                   :: get_num_dims     ! ndime
+      procedure, non_overridable                   :: get_num_vertices ! npoin
+      procedure, non_overridable                   :: get_num_cells    ! nelem
 
-     ! Element getters
-      procedure, non_overridable                   :: get_vef_x_element_pointers            ! pnods
-      procedure, non_overridable                   :: get_vef_x_element                     ! lnods
-      procedure, non_overridable                   :: get_element_geometry                  ! legeo
-      procedure, non_overridable                   :: get_element_sets                      ! leset
+
+     ! cell getters
+      procedure, non_overridable                   :: get_vertices_x_cell_pointers  ! pnods
+      procedure, non_overridable                   :: get_vertices_x_cell           ! lnods
+      procedure, non_overridable                   :: get_cells_geometry_id         ! legeo
+      procedure, non_overridable                   :: get_cells_set                 ! leset
 
      ! Vef getters
-      procedure, non_overridable                   :: get_boundary_elements                 ! given_vefs
-      procedure, non_overridable                   :: get_vef_geometric_entities            ! lst_vefs_geo
-      procedure, non_overridable                   :: get_boundary_sets                     ! lst_vefs_set
+      procedure, non_overridable                   :: get_boundary_vefs             ! given_vefs
+      procedure, non_overridable                   :: get_boundary_vefs_geometry_id ! lst_vefs_geo
+      procedure, non_overridable                   :: get_boundary_vefs_set         ! lst_vefs_set
 
-     ! Dual mesh (elements around vertices) getters
-      procedure, non_overridable                   :: get_num_elements_around_vertices      ! nelpo
-      procedure, non_overridable                   :: get_elements_around_vertices_pointers ! pelpo
-      procedure, non_overridable                   :: get_elements_around_vertices_sets     ! lelpo
+     ! Dual mesh (cells around vertices) getters
+      procedure, non_overridable                   :: get_num_cells_around_vertices      ! nelpo
+      procedure, non_overridable                   :: get_cells_around_vertices_pointers ! pelpo
+      procedure, non_overridable                   :: get_cells_around_vertices          ! lelpo
 
      ! Coords getters
       procedure, non_overridable                   :: get_vertex_coordinates                ! coord
@@ -154,11 +151,6 @@ module mesh_names
     
       procedure, non_overridable          :: to_dual                       => mesh_to_dual
       procedure, non_overridable          :: create_distribution           => create_mesh_distribution
-      procedure, non_overridable          :: get_sizes                     => mesh_get_sizes
-      procedure, non_overridable          :: move_cells                    => mesh_move_cells
-      procedure, non_overridable          :: move_coordinates              => mesh_move_coordinates
-      procedure, non_overridable          :: get_coordinates               => mesh_get_coordinates
-      procedure, non_overridable          :: get_given_vefs                => mesh_get_given_vefs
   end type mesh_t
 
   ! Types
@@ -173,124 +165,97 @@ module mesh_names
 
 contains
 
-  !=============================================================================
-    function get_element_order(this) result(order)
-        class(mesh_t), intent(in) :: this
-        integer(ip)               :: order
-        order = this%order
-    end function get_element_order
 
   !=============================================================================
-    function get_num_element_types(this) result(nelty)
-        class(mesh_t), intent(in) :: this
-        integer(ip)               :: nelty
-        nelty = this%nelty
-    end function get_num_element_types
-
-  !=============================================================================
-    function get_num_dim(this) result(ndime)
+    function get_num_dims(this) result(ndime)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: ndime
         ndime = this%ndime
-    end function get_num_dim
+    end function get_num_dims
 
   !=============================================================================
-    function get_num_nodes(this) result(npoin)
+    function get_num_vertices(this) result(npoin)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: npoin
         npoin = this%npoin
-    end function get_num_nodes
+    end function get_num_vertices
 
   !=============================================================================
-    function get_num_elements(this) result(nelem)
+    function get_num_cells(this) result(nelem)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: nelem
         nelem = this%nelem
-    end function get_num_elements
+    end function get_num_cells
 
   !=============================================================================
-    function get_max_num_nodes_x_element(this) result(nnode)
-        class(mesh_t), intent(in) :: this
-        integer(ip)               :: nnode
-        nnode = this%nnode
-    end function get_max_num_nodes_x_element
-
-  !=============================================================================
-    function get_max_num_nodes_x_boundary_element(this) result(nnodb)
-        class(mesh_t), intent(in) :: this
-        integer(ip)               :: nnodb
-        nnodb = this%nnodb
-    end function get_max_num_nodes_x_boundary_element
-
-  !=============================================================================
-    function get_vef_x_element_pointers(this) result(pnods)
+    function get_vertices_x_cell_pointers(this) result(pnods)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: pnods(:)
         pnods => this%pnods
-    end function get_vef_x_element_pointers
+    end function get_vertices_x_cell_pointers
 
   !=============================================================================
-    function get_vef_x_element(this) result(lnods)
+    function get_vertices_x_cell(this) result(lnods)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: lnods(:)
         lnods => this%lnods
-    end function get_vef_x_element
+    end function get_vertices_x_cell
 
   !=============================================================================
-    function get_element_geometry(this) result(legeo)
+    function get_cells_geometry_id(this) result(legeo)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: legeo(:)
         legeo => this%legeo
-    end function get_element_geometry
+    end function get_cells_geometry_id
 
   !=============================================================================
-    function get_element_sets(this) result(leset)
+    function get_cells_set(this) result(leset)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: leset(:)
         leset => this%leset
-    end function get_element_sets
+    end function get_cells_set
 
   !=============================================================================
-    function get_boundary_elements(this) result(given_vefs)
+    function get_boundary_vefs(this) result(given_vefs)
         class(mesh_t), target, intent(in) :: this
         type(list_t),  pointer            :: given_vefs
         given_vefs => this%given_vefs
-    end function get_boundary_elements
+    end function get_boundary_vefs
 
   !=============================================================================
-    function get_vef_geometric_entities(this) result(lst_vefs_geo)
+    function get_boundary_vefs_geometry_id(this) result(lst_vefs_geo)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: lst_vefs_geo(:)
         lst_vefs_geo => this%lst_vefs_geo
-    end function get_vef_geometric_entities
+    end function get_boundary_vefs_geometry_id
 
   !=============================================================================
-    function get_boundary_sets(this) result(lst_vefs_set)
+    function get_boundary_vefs_set(this) result(lst_vefs_set)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: lst_vefs_set(:)
         lst_vefs_set => this%lst_vefs_set
-    end function get_boundary_sets
+    end function get_boundary_vefs_set
 
   !=============================================================================
-    function get_num_elements_around_vertices(this) result(nelpo)
+    function get_num_cells_around_vertices(this) result(nelpo)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: nelpo
         nelpo = this%nelpo
-    end function get_num_elements_around_vertices
+    end function get_num_cells_around_vertices
 
   !=============================================================================
-    function get_elements_around_vertices_pointers(this) result(pelpo)
+    function get_cells_around_vertices_pointers(this) result(pelpo)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: pelpo(:)
         pelpo => this%pelpo
-    end function get_elements_around_vertices_pointers
+    end function get_cells_around_vertices_pointers
 
   !=============================================================================
-    function get_elements_around_vertices_sets(this) result(lelpo)
+    function get_cells_around_vertices(this) result(lelpo)
         class(mesh_t), target, intent(in) :: this
         integer(ip),   pointer            :: lelpo(:)
         lelpo => this%lelpo
-    end function get_elements_around_vertices_sets
+    end function get_cells_around_vertices
 
   !=============================================================================
     function get_vertex_coordinates(this) result(coord)
@@ -346,12 +311,12 @@ contains
 
     call this%free()
     
-    ! Read first line: "MESH dimension  2  order  0  types  1  elements          1  vertices          4  vefs          8
+    ! Read first line: "MESH dimension  2  order  0  types  1  cells          1  vertices          4  vefs          8
     read(lunio,'(a14,1x,i2, a7,1x,i2, a7,1x,i2, a10,1x,i10, a10,1x,i10, a6,1x,i10)') &
          & dum1,this%ndime,dum2,this%order,dum3,this%nelty,dum4,this%nelem, dum5,this%npoin,dum6,nboun
 
 
-    ! Read nodes
+    ! Read vertices
     call memalloc(SPACE_DIM,this%npoin,this%coord,__FILE__,__LINE__)
     ! In case of 2D domains (num_dims=2) when SPACE_DIM is used, it is necessary to initialize the
     ! coordinates array to zero in order to guarantee that the third component is initialized to zero.
@@ -367,7 +332,7 @@ contains
        read(lunio,'(a)') tel
     end do
 
-    ! Read elements' size (pnods)
+    ! Read cells' size (pnods)
     call memalloc(this%nelem+1,this%pnods,__FILE__,__LINE__)
     do while(tel(1:5).ne.'eleme')
        read(lunio,'(a)') tel
@@ -385,7 +350,7 @@ contains
        this%pnods(ielem) = this%pnods(ielem)+this%pnods(ielem-1)
     end do
 
-    ! Read elements
+    ! Read cells
     call memalloc(this%pnods(this%nelem+1)-1,this%lnods,__FILE__,__LINE__)
     call memalloc(this%nelem,this%legeo,__FILE__,__LINE__)
     call memalloc(this%nelem,this%leset,__FILE__,__LINE__)
@@ -399,7 +364,7 @@ contains
        read(lunio,'(a)') tel
     end do
 
-    ! Read boundary elements' size (pnodb)
+    ! Read boundary cells' size (pnodb)
     !write(*,*) 'Reading boundaries sizes'
     call this%given_vefs%create(nboun)
     do while(tel(1:5).ne.'vefs')
@@ -419,7 +384,7 @@ contains
        this%nnodb = max(this%nnodb,this%given_vefs%get_sublist_size(iboun))
     end do
 
-    ! Read boundary elements
+    ! Read boundary cells
     !write(*,*) 'Reading boundaries'
     call this%given_vefs%allocate_list_from_pointer()
     call memalloc(this%given_vefs%get_num_pointers(),this%lst_vefs_geo,__FILE__,__LINE__)
@@ -443,7 +408,7 @@ contains
        read(lunio,'(a)') tel
     end do
 
-    ! Reordering (c to z) the nodes of the mesh, if needed
+    ! Reordering (c to z) the vertices of the mesh, if needed
     !if(permute_c2z_) then
     if(this%order==c_order) then
        this%order= z_order
@@ -596,16 +561,6 @@ contains
 
   end subroutine mesh_write_fempar_gid_problem_type_format_file_unit
   
-
-  !=============================================================================
-  subroutine mesh_get_sizes(this,ndime,npoin,nnode,nelem)
-    class(mesh_t), intent(inout) :: this
-    integer(ip), intent(inout) :: ndime,npoin,nnode,nelem
-    ndime=this%ndime  ! Number of space dimensions
-    npoin=this%npoin  ! Number of nodes (vertices)
-    nelem=this%nelem  ! Number of elements
-    nnode=this%nnode  ! Maximum number of nodes per element
-  end subroutine mesh_get_sizes
   !=============================================================================
   subroutine mesh_move_cells(this,pvefs,lvefs,cells_set)
     class(mesh_t)           , intent(inout) :: this
@@ -622,12 +577,7 @@ contains
     real(rp), allocatable, intent(inout) :: coord(:,:)
     call memmovealloc(this%coord,coord,__FILE__,__LINE__)
   end subroutine mesh_move_coordinates
-  !=============================================================================
-  function mesh_get_coordinates(this)
-    class(mesh_t), target, intent(inout) :: this
-    real(rp)     , pointer       :: mesh_get_coordinates(:,:)
-    mesh_get_coordinates => this%coord
-  end function mesh_get_coordinates
+
   !=============================================================================
   subroutine mesh_get_given_vefs(this,given_vefs,lst_vefs_geo,lst_vefs_set)
     class(mesh_t), target   , intent(inout) :: this
@@ -1106,7 +1056,7 @@ contains
                      distr(ipart)%l2g_cells,           &
                      femesh,                           &
                      lmesh(ipart))
-       call build_adjacency_new (femesh, ldome,             &
+       call build_adjacency (femesh, ldome,             &
             &                    ipart,                     &
             &                    lmesh(ipart),              &
             &                    distr(ipart)%l2g_vertices, &
@@ -1160,7 +1110,7 @@ contains
     implicit none
     integer(ip),  intent(in)    :: ncomm,npoin,nelem
     integer(ip),  intent(in)    :: pnods(nelem+1),lnods(pnods(nelem+1))
-    integer(ip),  intent(in)    :: nnode             ! Number of nodes of each element (max.)
+    integer(ip),  intent(in)    :: nnode             ! Number of vertices of each element (max.)
     integer(ip),  intent(in)    :: nelpo             ! Number of elements around points (max.)
     integer(ip),  intent(in)    :: pelpo(npoin+1)    ! Number of elements around points
     integer(ip),  intent(in)    :: lelpo(pelpo(npoin+1))    ! List of elements around points
@@ -1176,7 +1126,7 @@ contains
     call graph%create(nelem)
     do ielem=1,nelem
        !call graph%sum_to_pointer_index(ielem-1, neadj)
-       ! Loop over nodes and their surrounding elements and count
+       ! Loop over vertices and their surrounding elements and count
        ! how many times they are repeated as neighbors of ielem
        nelel=0
        keadj=0
@@ -1195,9 +1145,9 @@ contains
        end do
 
        ! Now we loop over the elements around ielem and define neighbors
-       ! as those sharing ncomm nodes. The smaller this number is the
+       ! as those sharing ncomm vertices. The smaller this number is the
        ! higher the connectivity of elemental graph is. Note that prisms,
-       ! for example, could share 3 or 4 nodes depending on the face, so
+       ! for example, could share 3 or 4 vertices depending on the face, so
        ! ndime (the number of space dimensions) is a good choice.
        jelel=0
        do ielel=1,nelel
@@ -1222,7 +1172,7 @@ contains
     implicit none
     integer(ip),  intent(in)    :: ncomm,npoin,nelem
     integer(ip),  intent(in)    :: pnods(nelem+1),lnods(pnods(nelem+1))
-    integer(ip),  intent(in)    :: nnode             ! Number of nodes of each element (max.)
+    integer(ip),  intent(in)    :: nnode             ! Number of vertices of each element (max.)
     integer(ip),  intent(in)    :: nelpo             ! Number of elements around points (max.)
     integer(ip),  intent(in)    :: pelpo(npoin+1)    ! Number of elements around points
     integer(ip),  intent(in)    :: lelpo(pelpo(npoin+1))    ! List of elements around points
@@ -1237,7 +1187,7 @@ contains
     lelem=0
     knode=nnode
     do ielem=1,nelem
-       ! Loop over nodes and their surrounding elements and count
+       ! Loop over vertices and their surrounding elements and count
        ! how many times they are repeated as neighbors of ielem
        nelel=0
        keadj=0
@@ -1275,7 +1225,7 @@ contains
   end subroutine list_elemental_graph
 
   !================================================================================================
-  subroutine build_adjacency_new ( gmesh, ldome, my_part, lmesh, l2gn, l2ge, &
+  subroutine build_adjacency ( gmesh, ldome, my_part, lmesh, l2gn, l2ge, &
        &                           nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
     implicit none
     integer(ip)   , intent(in)  :: my_part
@@ -1286,7 +1236,7 @@ contains
     integer(ip)   , intent(out) :: nebou
     integer(ip)   , intent(out) :: nnbou
     integer(ip)   , allocatable, intent(out) ::  lebou(:)    ! List of boundary elements
-    integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary nodes
+    integer(ip)   , allocatable, intent(out) ::  lnbou(:)    ! List of boundary vertices
     integer(ip)   , allocatable, intent(out) ::  pextn(:)    ! Pointers to the lextn
     integer(igp)  , allocatable, intent(out) ::  lextn(:)    ! List of (GID of) external neighbors
     integer(ip)   , allocatable, intent(out) ::  lextp(:)    ! List of parts of external neighbors
@@ -1313,13 +1263,13 @@ contains
        do lelem=1,lmesh%nelem
           write(*,*)  lelem, l2ge(lelem),lmesh%lnods(lmesh%pnods(lelem):lmesh%pnods(lelem+1)-1)
        end do
-       write(*,*)  'Local2Global (nodes)'
+       write(*,*)  'Local2Global (vertices)'
        do lpoin=1,lmesh%npoin
           write(*,*)  lpoin, l2gn(lpoin)
        end do
     end if
 
-    ! Count boundary nodes
+    ! Count boundary vertices
     nnbou = 0 
     do lpoin=1, lmesh%npoin
        ipoin = l2gn(lpoin)
@@ -1333,7 +1283,7 @@ contains
        end do
     end do
 
-    ! List boundary nodes
+    ! List boundary vertices
     call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
     nnbou = 0
     do lpoin=1, lmesh%npoin
@@ -1470,7 +1420,7 @@ contains
     call external_visited%free
     call memfree(local_visited,__FILE__,__LINE__)
 
-  end subroutine build_adjacency_new
+  end subroutine build_adjacency
 
   !================================================================================================
   subroutine build_maps( nparts, ldome, femesh, distr )
@@ -1510,7 +1460,7 @@ contains
 
     call memfree ( nedom,__FILE__,__LINE__)
 
-    ! Number of nodes of each part and global to local node map (is NOT one to one)
+    ! Number of vertices of each part and global to local node map (is NOT one to one)
     call memalloc ( nparts, npdom,__FILE__,__LINE__)
     call memalloc ( femesh%npoin, work1,__FILE__,__LINE__)
     call memalloc ( femesh%npoin, work2,__FILE__,__LINE__)
@@ -1541,7 +1491,7 @@ contains
 
   ! Inspired on http://en.wikipedia.org/wiki/Breadth-first_search.
   ! Given a mesh (m) and its dual graph (g), it computes the list 
-  ! of nodes (lconn) of each connected component in m. Can be very
+  ! of vertices (lconn) of each connected component in m. Can be very
   ! useful as a tool to determine whether the mesh partitioning process
   ! leads to disconnected subdomains or not.
   subroutine mesh_graph_compute_connected_components (m, g, lconn)
@@ -1599,7 +1549,7 @@ contains
              j=q(head)
              head = head + 1
 
-             ! Traverse the nodes of the element number j
+             ! Traverse the vertices of the element number j
              inods1d = m%pnods(j)
              inods2d = m%pnods(j+1)-1
 
@@ -1657,7 +1607,7 @@ contains
        do current=current,current+auxe(i)-1
           j=e(current)
 
-          ! Traverse the nodes of the element number j
+          ! Traverse the vertices of the element number j
           inods1d = m%pnods(j)
           inods2d = m%pnods(j+1)-1
 
