@@ -36,16 +36,12 @@ module mesh_distribution_names
 # include "debug.i90"
   private
 
-  ! Data required to describe on each MPI task the distribution of the mesh
+  !> Derived data type which describes on each MPI task its local 
+  !> subdomain and its interface with neighbouring subdomains
   type mesh_distribution_t
      integer(ip) ::                &
         ipart  = 1,                &    ! Part identifier
-        nparts = 1,                &    ! Number of parts
-        num_levels = 1     
-
-     integer(ip), allocatable ::   &
-        num_parts_x_level(:),    &
-        parts_mapping(:)
+        nparts = 1                      ! Number of parts
 
      integer(ip), allocatable ::   &
         pextn(:),                  &    ! Pointers to the lext*
@@ -64,16 +60,10 @@ module mesh_distribution_names
         
      integer(ip)               :: num_local_vertices=0     ! Number of local vertices
      integer(igp)              :: num_global_vertices=0    ! Number of global vertices
-     integer(ip)               :: num_internal_vertices=0  ! Internal vertices
-     integer(ip)               :: num_boundary_vertices=0  ! Boundary vertices
-     integer(ip)               :: num_external_vertices=0  ! External vertices 
      integer(igp), allocatable :: l2g_vertices(:)          ! Local 2 global array of vertices
      
      integer(ip)               :: num_local_cells=0     ! Number of local cells
      integer(igp)              :: num_global_cells=0    ! Number of global cells
-     integer(ip)               :: num_internal_cells=0  ! Internal cells
-     integer(ip)               :: num_boundary_cells=0  ! Boundary cells
-     integer(ip)               :: num_external_cells=0  ! External cells
      integer(igp), allocatable :: l2g_cells(:)          ! Local 2 global array of cells
 
    contains
@@ -270,7 +260,6 @@ contains
 
     ! Parameters
     class(mesh_distribution_t), intent(inout)  :: f_msh_dist
-
     if(allocated(f_msh_dist%lebou)) call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
     if(allocated(f_msh_dist%lnbou)) call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
     if(allocated(f_msh_dist%pextn)) call memfree ( f_msh_dist%pextn ,__FILE__,__LINE__)
@@ -278,10 +267,6 @@ contains
     if(allocated(f_msh_dist%lextp)) call memfree ( f_msh_dist%lextp ,__FILE__,__LINE__)
     if(allocated(f_msh_dist%l2g_vertices)) call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
     if(allocated(f_msh_dist%l2g_cells)) call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
-
-    if(allocated(f_msh_dist%num_parts_x_level))  call memfree(f_msh_dist%num_parts_x_level,__FILE__,__LINE__)
-    if(allocated(f_msh_dist%parts_mapping))  call memfree(f_msh_dist%parts_mapping,__FILE__,__LINE__)
-
   end subroutine mesh_distribution_free
 
   !=============================================================================
@@ -352,17 +337,11 @@ contains
     write ( lunio, '(10i10)' ) f_msh_dist%lextp
 
     write ( lunio, '(10i10)' ) f_msh_dist%num_local_vertices, &
-                               f_msh_dist%num_global_vertices, &
-                               f_msh_dist%num_internal_vertices, &
-                               f_msh_dist%num_boundary_vertices, &
-                               f_msh_dist%num_external_vertices
+                               f_msh_dist%num_global_vertices
     if(f_msh_dist%num_local_vertices>0) write ( lunio,'(10i10)') f_msh_dist%l2g_vertices
     
     write ( lunio, '(10i10)' ) f_msh_dist%num_local_cells, &
-                               f_msh_dist%num_global_cells, &
-                               f_msh_dist%num_internal_cells, &
-                               f_msh_dist%num_boundary_cells, &
-                               f_msh_dist%num_external_cells
+                               f_msh_dist%num_global_cells
     if(f_msh_dist%num_local_cells>0) write ( lunio,'(10i10)') f_msh_dist%l2g_cells
 
 
@@ -414,10 +393,7 @@ contains
     read ( lunio, '(10i10)' ) f_msh_dist%lextp
 
     read ( lunio, '(10i10)' ) f_msh_dist%num_local_vertices, &
-                              f_msh_dist%num_global_vertices, &
-                              f_msh_dist%num_internal_vertices, &
-                              f_msh_dist%num_boundary_vertices, &
-                              f_msh_dist%num_external_vertices
+                              f_msh_dist%num_global_vertices
     if(f_msh_dist%num_local_vertices>0) then
        if(allocated(f_msh_dist%l2g_vertices)) call memfree(f_msh_dist%l2g_vertices, __FILE__, __LINE__)
        call memalloc(f_msh_dist%num_local_vertices, f_msh_dist%l2g_vertices, __FILE__, __LINE__)
@@ -425,10 +401,7 @@ contains
     end if
 
     read ( lunio, '(10i10)' ) f_msh_dist%num_local_cells, &
-                              f_msh_dist%num_global_cells, &
-                              f_msh_dist%num_internal_cells, &
-                              f_msh_dist%num_boundary_cells, &
-                              f_msh_dist%num_external_cells
+                              f_msh_dist%num_global_cells
     if(f_msh_dist%num_local_cells>0) then
        if(allocated(f_msh_dist%l2g_cells)) call memfree(f_msh_dist%l2g_cells, __FILE__, __LINE__)
        call memalloc(f_msh_dist%num_local_cells, f_msh_dist%l2g_cells, __FILE__, __LINE__)
