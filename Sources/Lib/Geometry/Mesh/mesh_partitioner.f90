@@ -311,9 +311,9 @@ contains
     implicit none
     integer(ip)   , intent(in)  :: my_part
     type(mesh_t)  , intent(in)  :: gmesh,lmesh
-    integer(ip)   , intent(in)  :: ldome(gmesh%nelem)
-    integer(igp)  , intent(in)  :: l2gn(lmesh%npoin)
-    integer(igp)  , intent(in)  :: l2ge(lmesh%nelem)
+    integer(ip)   , intent(in)  :: ldome(gmesh%get_num_cells())
+    integer(igp)  , intent(in)  :: l2gn(lmesh%get_num_vertices())
+    integer(igp)  , intent(in)  :: l2ge(lmesh%get_num_cells())
     integer(ip)   , intent(out) :: nebou
     integer(ip)   , intent(out) :: nnbou
     integer(ip)   , allocatable, intent(inout) ::  lebou(:)    ! List of boundary elements
@@ -325,37 +325,53 @@ contains
     integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, lpoin, jpart, iebou, istat, touch
     integer(ip) :: nextn, nexte, nepos
     integer(ip), allocatable :: local_visited(:)
+    integer(ip), pointer :: pnods(:), lnods(:), pelpo(:), lelpo(:)
     type(hash_table_ip_ip_t)   :: external_visited
 
     if(my_part==0) then
        write(*,*)  'Parts:'
-       do ielem=1,gmesh%nelem
+       do ielem=1,gmesh%get_num_cells()
           write(*,*)  ielem, ldome(ielem)
        end do
-       write(*,*)  'Global mesh:',gmesh%npoin,gmesh%nelem
-       do ielem=1,gmesh%nelem
-          write(*,*)  ielem, gmesh%lnods(gmesh%pnods(ielem):gmesh%pnods(ielem+1)-1)
+       write(*,*)  'Global mesh:',gmesh%get_num_vertices(),gmesh%get_num_cells()
+       lnods => gmesh%get_vertices_x_cell()
+       pnods => gmesh%get_vertices_x_cell_pointers()
+       assert(associated(lnods) .and. associated(pnods))
+       do ielem=1,gmesh%get_num_cells()
+          write(*,*)  ielem, lnods(pnods(ielem):pnods(ielem+1)-1)
        end do
-       write(*,*)  'Global dual mesh:',gmesh%nelpo
-       do ipoin=1,gmesh%npoin
-          write(*,*)  ipoin, gmesh%lelpo(gmesh%pelpo(ipoin):gmesh%pelpo(ipoin+1)-1)
+       write(*,*)  'Global dual mesh:',gmesh%get_num_cells_around_vertices()
+       pelpo => gmesh%get_cells_around_vertices_pointers()
+       lelpo => gmesh%get_cells_around_vertices()
+       assert(associated(pelpo) .and. associated(lelpo))
+       do ipoin=1,gmesh%get_num_vertices()
+          write(*,*)  ipoin, lelpo(pelpo(ipoin):pelpo(ipoin+1)-1)
        end do
-       write(*,*)  'Local mesh:',lmesh%npoin,lmesh%nelem
-       do lelem=1,lmesh%nelem
-          write(*,*)  lelem, l2ge(lelem),lmesh%lnods(lmesh%pnods(lelem):lmesh%pnods(lelem+1)-1)
+       lnods => lmesh%get_vertices_x_cell()
+       pnods => lmesh%get_vertices_x_cell_pointers()
+       assert(associated(lnods) .and. associated(pnods))
+       write(*,*)  'Local mesh:',lmesh%get_num_vertices(),lmesh%get_num_cells()
+       do lelem=1,lmesh%get_num_cells()
+          write(*,*)  lelem, l2ge(lelem),lnods(pnods(lelem):pnods(lelem+1)-1)
        end do
        write(*,*)  'Local2Global (vertices)'
-       do lpoin=1,lmesh%npoin
+       do lpoin=1,lmesh%get_num_vertices()
           write(*,*)  lpoin, l2gn(lpoin)
        end do
     end if
 
+    lnods => gmesh%get_vertices_x_cell()
+    pnods => gmesh%get_vertices_x_cell_pointers()
+    pelpo => gmesh%get_cells_around_vertices_pointers()
+    lelpo => gmesh%get_cells_around_vertices()
+    assert(associated(lnods) .and. associated(pnods) .and. associated(pelpo) .and. associated(lelpo))
+
     ! Count boundary vertices
     nnbou = 0 
-    do lpoin=1, lmesh%npoin
+    do lpoin=1, lmesh%get_num_vertices()
        ipoin = l2gn(lpoin)
-       do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
-          ielem = gmesh%lelpo(pelem)
+       do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
+          ielem = lelpo(pelem)
           jpart = ldome(ielem)
           if ( jpart /= my_part ) then 
              nnbou = nnbou +1
@@ -367,10 +383,10 @@ contains
     ! List boundary vertices
     call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
     nnbou = 0
-    do lpoin=1, lmesh%npoin
+    do lpoin=1, lmesh%get_num_vertices()
        ipoin = l2gn(lpoin)
-       do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
-          ielem = gmesh%lelpo(pelem)
+       do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
+          ielem = lelpo(pelem)
           jpart = ldome(ielem)
           if ( jpart /= my_part ) then 
              lnbou(nnbou+1) = ipoin
@@ -381,7 +397,7 @@ contains
     end do
 
     ! As the dual mesh is given with global IDs we need a hash table to do the touch.
-    call memalloc(lmesh%nelem, local_visited,__FILE__,__LINE__)
+    call memalloc(lmesh%get_num_cells(), local_visited,__FILE__,__LINE__)
     local_visited = 0
     call external_visited%init(20)
 
@@ -389,15 +405,15 @@ contains
     touch = 1
     nebou = 0 ! number of boundary elements
     nextn = 0 ! number of external edges
-    do lelem = 1, lmesh%nelem
+    do lelem = 1, lmesh%get_num_cells()
        nexte = 0   ! number of external neighbours of this element
        ielem = l2ge(lelem)
-       inode1 = gmesh%pnods(ielem)
-       inode2 = gmesh%pnods(ielem+1)-1
+       inode1 = pnods(ielem)
+       inode2 = pnods(ielem+1)-1
        do pnode = inode1, inode2
-          ipoin = gmesh%lnods(pnode)
-          do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
-             jelem = gmesh%lelpo(pelem)
+          ipoin = lnods(pnode)
+          do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
+             jelem = lelpo(pelem)
              if(jelem/=ielem) then
                 jpart = ldome(jelem)
                 if(jpart/=my_part) then                                   ! This is an external element
@@ -414,9 +430,9 @@ contains
        ! Clean hash table
        if(local_visited(lelem) /= 0 ) then 
           do pnode = inode1, inode2
-             ipoin = gmesh%lnods(pnode)
-             do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
-                jelem = gmesh%lelpo(pelem)
+             ipoin = lnods(pnode)
+             do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
+                jelem = lelpo(pelem)
                 if(jelem/=ielem) then
                    jpart = ldome(jelem)
                    if(jpart/=my_part) then
@@ -431,7 +447,7 @@ contains
 
     if(my_part==0) then
        write(*,*)  'Visited (boundary) elements:'
-       do lelem=1,lmesh%nelem
+       do lelem=1,lmesh%get_num_cells()
           write(*,*)  local_visited(lelem)
        end do
     end if
@@ -444,7 +460,7 @@ contains
 
     iebou = 0
     pextn(1) = 1
-    do lelem = 1, lmesh%nelem
+    do lelem = 1, lmesh%get_num_cells()
        if(local_visited(lelem) /= 0 ) then
           iebou = iebou +1
           lebou(iebou) = lelem
@@ -464,12 +480,12 @@ contains
        lelem = lebou(iebou)
        ielem = l2ge(lelem)
        nexte = 0   ! number of external neighbours of this element
-       inode1 = gmesh%pnods(ielem)
-       inode2 = gmesh%pnods(ielem+1)-1
+       inode1 = pnods(ielem)
+       inode2 = pnods(ielem+1)-1
        do pnode = inode1, inode2
-          ipoin = gmesh%lnods(pnode)
-          do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
-             jelem = gmesh%lelpo(pelem)
+          ipoin = lnods(pnode)
+          do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
+             jelem = lelpo(pelem)
              if(jelem/=ielem) then
                 jpart = ldome(jelem)
                 if(jpart/=my_part) then                                   ! This is an external element
@@ -485,9 +501,9 @@ contains
        end do
        ! Clean hash table
        do pnode = inode1, inode2
-          ipoin = gmesh%lnods(pnode)
-          do pelem = gmesh%pelpo(ipoin), gmesh%pelpo(ipoin+1) - 1
-             jelem = gmesh%lelpo(pelem)
+          ipoin = lnods(pnode)
+          do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
+             jelem = lelpo(pelem)
              if(jelem/=ielem) then
                 jpart = ldome(jelem)
                 if(jpart/=my_part) then                                   ! This is an external element
@@ -508,7 +524,7 @@ contains
     implicit none
     integer(ip)                , intent(in)    :: nparts
     type(mesh_t)               , intent(in)    :: femesh
-    integer(ip)                , intent(in)    :: ldome(femesh%nelem)
+    integer(ip)                , intent(in)    :: ldome(femesh%get_num_cells())
     type(mesh_distribution_t), intent(inout) :: distr(nparts)
 
     integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
@@ -516,22 +532,23 @@ contains
     integer(ip)   , allocatable  :: work1(:)
     integer(ip)   , allocatable  :: work2(:)
     integer(ip) :: ielem, ipart, inode, iboun
+    integer(ip), pointer :: pnods(:), lnods(:), pelpo(:), lelpo(:)
 
     ! Number of elements of each part and global to local element map (is one to one)
     call memalloc (nparts, nedom,__FILE__,__LINE__)
     nedom=0
-    do ielem=1,femesh%nelem
+    do ielem=1,femesh%get_num_cells()
        ipart = ldome(ielem)
        nedom(ipart)=nedom(ipart)+1
     end do
     ! Allocate local to global maps
     do ipart=1,nparts
        distr(ipart)%num_local_cells  = nedom(ipart)
-       distr(ipart)%num_global_cells = int(femesh%nelem,igp)
+       distr(ipart)%num_global_cells = int(femesh%get_num_cells(),igp)
        call memalloc(distr(ipart)%num_local_cells, distr(ipart)%l2g_cells, __FILE__, __LINE__)
     end do
     nedom = 0
-    do ielem=1,femesh%nelem
+    do ielem=1,femesh%get_num_cells()
        ipart = ldome(ielem)
        nedom(ipart)=nedom(ipart)+1
        distr(ipart)%l2g_cells(nedom(ipart)) = ielem
@@ -541,25 +558,30 @@ contains
 
     ! Number of vertices of each part and global to local node map (is NOT one to one)
     call memalloc ( nparts, npdom,__FILE__,__LINE__)
-    call memalloc ( femesh%npoin, work1,__FILE__,__LINE__)
-    call memalloc ( femesh%npoin, work2,__FILE__,__LINE__)
+    call memalloc ( femesh%get_num_vertices(), work1,__FILE__,__LINE__)
+    call memalloc ( femesh%get_num_vertices(), work2,__FILE__,__LINE__)
+
+    lnods => femesh%get_vertices_x_cell()
+    pnods => femesh%get_vertices_x_cell_pointers()
+    assert(associated(lnods) .and. associated(pnods))
+
     npdom=0
     do ipart = 1, nparts
        work1 = 0
        work2 = 0
-       do ielem=1,femesh%nelem
+       do ielem=1,femesh%get_num_cells()
           if(ldome(ielem)==ipart) then
-             do inode = femesh%pnods(ielem), femesh%pnods(ielem+1) - 1 
-                if(work1(femesh%lnods(inode)) == 0 ) then
+             do inode = pnods(ielem), pnods(ielem+1) - 1 
+                if(work1(lnods(inode)) == 0 ) then
                    npdom(ipart) = npdom(ipart)+1
-                   work1(femesh%lnods(inode)) = 1
-                   work2(npdom(ipart)) = femesh%lnods(inode)
+                   work1(lnods(inode)) = 1
+                   work2(npdom(ipart)) = lnods(inode)
                 end if
              end do
           end if
        end do
        distr(ipart)%num_local_vertices  = npdom(ipart)
-       distr(ipart)%num_global_vertices = int(femesh%npoin,igp)
+       distr(ipart)%num_global_vertices = int(femesh%get_num_vertices(),igp)
        call memalloc(distr(ipart)%num_local_vertices, distr(ipart)%l2g_vertices, __FILE__, __LINE__)
        distr(ipart)%l2g_vertices = work2(1:npdom(ipart))
     end do
@@ -589,18 +611,22 @@ contains
          j, l, k, inods1d, inods2d, p_ipoin, ipoin, graph_num_rows, lconnn
     type(list_iterator_t)    :: graph_column_iterator
     type(list_iterator_t)    :: lconn_iterator
+    integer(ip), pointer :: pnods(:), lnods(:)
 
     graph_num_rows = g%get_num_pointers()
     call memalloc ( graph_num_rows   , auxe     , __FILE__,__LINE__)
     call memalloc ( graph_num_rows   , auxv     , __FILE__,__LINE__)
     call memalloc ( graph_num_rows   , q        , __FILE__,__LINE__)
     call memalloc ( graph_num_rows   , emarked  , __FILE__,__LINE__)
-    call memalloc ( m%npoin          , vmarked  , __FILE__,__LINE__)
+    call memalloc ( m%get_num_vertices(), vmarked  , __FILE__,__LINE__)
     call memalloc ( graph_num_rows   ,  e       , __FILE__,__LINE__)
 
-    lconnn  = 0
+    lconnn   = 0
     emarked  = 0
-    current  = 1 
+    current  = 1
+    lnods   => m%get_vertices_x_cell()
+    pnods   => m%get_vertices_x_cell_pointers()
+    assert(associated(lnods) .and. associated(pnods)) 
 
     do i=1, graph_num_rows
        if (emarked(i) == 0) then
@@ -629,11 +655,11 @@ contains
              head = head + 1
 
              ! Traverse the vertices of the element number j
-             inods1d = m%pnods(j)
-             inods2d = m%pnods(j+1)-1
+             inods1d = pnods(j)
+             inods2d = pnods(j+1)-1
 
              do p_ipoin = inods1d, inods2d
-                ipoin = m%lnods(p_ipoin)
+                ipoin = lnods(p_ipoin)
                 if (vmarked(ipoin)==0) then
                    vmarked(ipoin)=1
                    vsize = vsize+1
@@ -687,11 +713,11 @@ contains
           j=e(current)
 
           ! Traverse the vertices of the element number j
-          inods1d = m%pnods(j)
-          inods2d = m%pnods(j+1)-1
+          inods1d = pnods(j)
+          inods2d = pnods(j+1)-1
 
           do p_ipoin = inods1d, inods2d
-             ipoin = m%lnods(p_ipoin)
+             ipoin = lnods(p_ipoin)
              if (vmarked(ipoin)==0) then
                 vmarked(ipoin)=1
                 call lconn_iterator%set_current(ipoin)
@@ -841,11 +867,13 @@ contains
     integer(ip)                    :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
     type(list_iterator_t)          :: given_vefs_iterator
     logical :: count_it
+    integer(ip), pointer  :: gpnods(:), glnods(:), glegeo(:), gleset(:), lpnods(:), llnods(:), glst_vefs_geo(:), glst_vefs_set(:)
+    type(list_t), pointer :: ggiven_vefs, lgiven_vefs
+    real(rp), pointer     :: gcoord(:,:)
 
-
-    lmesh%order=gmesh%order
-    lmesh%nelty=gmesh%nelty
-    lmesh%ndime=gmesh%ndime
+    lmesh%order=gmesh%get_element_order()
+    lmesh%nelty=gmesh%get_num_element_types()
+    lmesh%ndime=gmesh%get_num_dim()
     lmesh%npoin=num_local_vertices
     lmesh%nelem=num_local_cells
 
@@ -864,28 +892,36 @@ contains
     end do
 
     ! Elements
-    call memalloc(lmesh%nelem+1, lmesh%pnods, __FILE__,__LINE__)
-    call memalloc(lmesh%nelem  , lmesh%legeo, __FILE__,__LINE__)
-    call memalloc(lmesh%nelem  , lmesh%leset, __FILE__,__LINE__)
+    call memalloc(lmesh%get_num_cells()+1, lmesh%pnods, __FILE__,__LINE__)
+    call memalloc(lmesh%get_num_cells()  , lmesh%legeo, __FILE__,__LINE__)
+    call memalloc(lmesh%get_num_cells()  , lmesh%leset, __FILE__,__LINE__)
     lmesh%nnode=0
     lmesh%pnods=0
     lmesh%pnods(1)=1
-    do ielem_lmesh=1,lmesh%nelem
+
+    glnods   => gmesh%get_vertices_x_cell()
+    gpnods   => gmesh%get_vertices_x_cell_pointers()
+    assert(associated(glnods) .and. associated(gpnods)) 
+    llnods   => gmesh%get_vertices_x_cell()
+    lpnods   => gmesh%get_vertices_x_cell_pointers()
+    assert(associated(llnods) .and. associated(lpnods)) 
+
+    do ielem_lmesh=1,lmesh%get_num_cells()
        ielem_gmesh = l2g_cells(ielem_lmesh)
-       knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
-       lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
+       knode = gpnods(ielem_gmesh+1)-gpnods(ielem_gmesh)
+       lmesh%pnods(ielem_lmesh+1)=lpnods(ielem_lmesh)+knode
        lmesh%nnode=max(lmesh%nnode,knode)
-       lmesh%legeo(ielem_lmesh)=gmesh%legeo(ielem_gmesh)
-       lmesh%leset(ielem_lmesh)=gmesh%leset(ielem_gmesh)
+       lmesh%legeo(ielem_lmesh)=glegeo(ielem_gmesh)
+       lmesh%leset(ielem_lmesh)=gleset(ielem_gmesh)
     end do
-    call memalloc (lmesh%pnods(lmesh%nelem+1), lmesh%lnods, __FILE__,__LINE__)
-    do ielem_lmesh=1,lmesh%nelem
+    call memalloc (lpnods(lmesh%get_num_cells()+1), lmesh%lnods, __FILE__,__LINE__)
+    do ielem_lmesh=1,lmesh%get_num_cells()
        ielem_gmesh = l2g_cells(ielem_lmesh)
-       p_ipoin_gmesh = gmesh%pnods(ielem_gmesh)-1
-       p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
-       knode = gmesh%pnods(ielem_gmesh+1)-gmesh%pnods(ielem_gmesh)
+       p_ipoin_gmesh = gpnods(ielem_gmesh)-1
+       p_ipoin_lmesh = lpnods(ielem_lmesh)-1
+       knode = gpnods(ielem_gmesh+1)-gpnods(ielem_gmesh)
        do inode=1,knode
-          call ws_inmap%get(key=int(gmesh%lnods(p_ipoin_gmesh+inode),igp),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
+          call ws_inmap%get(key=int(glnods(p_ipoin_gmesh+inode),igp),val=llnods(p_ipoin_lmesh+inode),stat=istat) 
        end do
     end do
 
@@ -893,8 +929,10 @@ contains
     ivef_lmesh=0
     lmesh%nnodb=0
     lvef_size=0
-    do ivef_gmesh=1,gmesh%given_vefs%get_num_pointers()
-       given_vefs_iterator = gmesh%given_vefs%create_iterator(ivef_gmesh)
+    ggiven_vefs => gmesh%get_boundary_vefs()
+    assert(associated(ggiven_vefs))
+    do ivef_gmesh=1,ggiven_vefs%get_num_pointers()
+       given_vefs_iterator = ggiven_vefs%create_iterator(ivef_gmesh)
        kvef_size = given_vefs_iterator%get_size()
        count_it=.true.
        do while(.not. given_vefs_iterator%is_upper_bound())
@@ -918,11 +956,18 @@ contains
        call memalloc(   ivef_lmesh, lmesh%lst_vefs_geo, __FILE__,__LINE__)
        call memalloc(   ivef_lmesh, lmesh%lst_vefs_set, __FILE__,__LINE__)
 
-       call lmesh%given_vefs%create(ivef_lmesh)
+       glst_vefs_geo => lmesh%get_boundary_vefs_geometry_id()
+       glst_vefs_set => lmesh%get_boundary_vefs_set()
+       assert(associated(glst_vefs_geo) .and. associated(glst_vefs_set))
+
+       lgiven_vefs => lmesh%get_boundary_vefs()
+       assert(associated(ggiven_vefs))
+
+       call lgiven_vefs%create(ivef_lmesh)
 
        ivef_lmesh=1
-       do ivef_gmesh=1,gmesh%given_vefs%get_num_pointers()
-          given_vefs_iterator = gmesh%given_vefs%create_iterator(ivef_gmesh)
+       do ivef_gmesh=1,lgiven_vefs%get_num_pointers()
+          given_vefs_iterator = ggiven_vefs%create_iterator(ivef_gmesh)
           kvef_size = given_vefs_iterator%get_size()
           count_it=.true.
           do inode=1,kvef_size
@@ -934,19 +979,19 @@ contains
              end if
           end do
           if(count_it) then
-             call lmesh%given_vefs%sum_to_pointer_index(ivef_lmesh, kvef_size)
-             lmesh%lst_vefs_geo(ivef_lmesh)=gmesh%lst_vefs_geo(ivef_gmesh)
-             lmesh%lst_vefs_set(ivef_lmesh)=gmesh%lst_vefs_set(ivef_gmesh)
+             call lgiven_vefs%sum_to_pointer_index(ivef_lmesh, kvef_size)
+             lmesh%lst_vefs_geo(ivef_lmesh)=glst_vefs_geo(ivef_gmesh)
+             lmesh%lst_vefs_set(ivef_lmesh)=glst_vefs_set(ivef_gmesh)
              ivef_lmesh=ivef_lmesh+1
           end if
        end do
 
-       call lmesh%given_vefs%calculate_header()
-       call lmesh%given_vefs%allocate_list_from_pointer()
+       call lgiven_vefs%calculate_header()
+       call lgiven_vefs%allocate_list_from_pointer()
 
        ivef_lmesh=1
-       do ivef_gmesh=1,gmesh%given_vefs%get_num_pointers()
-          given_vefs_iterator = gmesh%given_vefs%create_iterator(ivef_gmesh)
+       do ivef_gmesh=1,lgiven_vefs%get_num_pointers()
+          given_vefs_iterator = ggiven_vefs%create_iterator(ivef_gmesh)
           kvef_size = given_vefs_iterator%get_size()
           count_it=.true.
           do inode=1,kvef_size
@@ -958,7 +1003,7 @@ contains
              end if
           end do
           if(count_it) then
-             given_vefs_iterator = lmesh%given_vefs%create_iterator(ivef_lmesh)
+             given_vefs_iterator = lgiven_vefs%create_iterator(ivef_lmesh)
              do inode=1,kvef_size
                 call given_vefs_iterator%set_current(node_list(inode))
                 call given_vefs_iterator%next()
@@ -972,9 +1017,12 @@ contains
     call ws_inmap%free
     call el_inmap%free
 
-    call memalloc(SPACE_DIM, lmesh%npoin, lmesh%coord, __FILE__,__LINE__)
+    gcoord => gmesh%get_vertex_coordinates()
+    assert(associated(gcoord))
+
+    call memalloc(SPACE_DIM, lmesh%get_num_vertices(), lmesh%coord, __FILE__,__LINE__)
     do ipoin=1,num_local_vertices
-       lmesh%coord(:,ipoin)=gmesh%coord(:,l2g_vertices(ipoin))
+       lmesh%coord(:,ipoin)=gcoord(:,l2g_vertices(ipoin))
     end do
 
   end subroutine mesh_g2l
