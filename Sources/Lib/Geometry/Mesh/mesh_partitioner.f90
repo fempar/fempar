@@ -873,7 +873,7 @@ contains
 
     lmesh%order=gmesh%get_element_order()
     lmesh%nelty=gmesh%get_num_element_types()
-    lmesh%ndime=gmesh%get_num_dim()
+    lmesh%ndime=gmesh%get_num_dims()
     lmesh%npoin=num_local_vertices
     lmesh%nelem=num_local_cells
 

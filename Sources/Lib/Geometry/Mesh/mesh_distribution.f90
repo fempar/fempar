@@ -36,42 +36,53 @@ module mesh_distribution_names
 # include "debug.i90"
   private
 
-  !> Derived data type which describes on each MPI task its local 
-  !> subdomain and its interface with neighbouring subdomains
+  !> Derived data type which describes the local subdomain corresponding to each
+  !> MPI task and its interface with its neighbouring subdomains
   type mesh_distribution_t
+     ! private
      integer(ip) ::                &
-        ipart  = 1,                &    ! Part identifier
-        nparts = 1                      ! Number of parts
+        ipart,                     & ! Part identifier
+        nparts                       ! Number of parts
 
      integer(ip), allocatable ::   &
-        pextn(:),                  &    ! Pointers to the lext*
-        lextp(:)                        ! List of parts of external neighbors
+        pextn(:),                  & ! Pointers to the lext*
+        lextp(:)                     ! List of parts of external neighbors
      
      integer(igp), allocatable ::  &
-        lextn(:)                        ! List of (GIDs of) external neighbors
+        lextn(:)                     ! List of (GIDs of) external neighbors
 
      integer(ip) ::                &
-        nebou=0,                   &    ! Number of boundary elements
-        nnbou=0                         ! Number of boundary nodes 
+        nebou,                     & ! Number of boundary elements
+        nnbou                        ! Number of boundary nodes
 
      integer(ip), allocatable  ::  & 
-        lebou(:),                  &  ! List of boundary elements 
+        lebou(:),                  &  ! List of boundary elements
         lnbou(:)                      ! List of boundary nodes
         
-     integer(ip)               :: num_local_vertices=0     ! Number of local vertices
-     integer(igp)              :: num_global_vertices=0    ! Number of global vertices
-     integer(igp), allocatable :: l2g_vertices(:)          ! Local 2 global array of vertices
+     integer(ip)               :: num_local_vertices
+     integer(igp)              :: num_global_vertices
+     integer(igp), allocatable :: l2g_vertices(:)        ! Local2global array of vertices
      
-     integer(ip)               :: num_local_cells=0     ! Number of local cells
-     integer(igp)              :: num_global_cells=0    ! Number of global cells
-     integer(igp), allocatable :: l2g_cells(:)          ! Local 2 global array of cells
+     integer(ip)               :: num_local_cells        ! Number of local cells
+     integer(igp)              :: num_global_cells       ! Number of global cells
+     integer(igp), allocatable :: l2g_cells(:)           ! Local2global array of cells
 
    contains
-     procedure, non_overridable :: free  => mesh_distribution_free
-     procedure, non_overridable :: print => mesh_distribution_print
-     procedure, non_overridable :: read  => mesh_distribution_read
-     procedure, non_overridable :: write => mesh_distribution_write
-     procedure, non_overridable :: read_file    => mesh_distribution_read_file
+     procedure, non_overridable         :: create => mesh_distribution_create
+     procedure, non_overridable         :: free   => mesh_distribution_free
+
+     procedure, non_overridable         :: mesh_distribution_read_dir_path_prefix 
+     procedure, non_overridable         :: mesh_distribution_read_file_unit 
+     procedure, non_overridable, nopass :: mesh_distribution_compose_name
+     generic                            :: read => mesh_distribution_read_dir_path_prefix, &
+                                                   mesh_distribution_read_file_unit
+
+     procedure, non_overridable         :: mesh_distribution_write_dir_path_prefix 
+     procedure, non_overridable         :: mesh_distribution_write_file_unit 
+     generic                            :: write => mesh_distribution_write_dir_path_prefix, &
+                                                    mesh_distribution_write_file_unit
+
+     procedure, non_overridable :: print  => mesh_distribution_print
      procedure, non_overridable :: create_empty => mesh_distribution_create_empty
      procedure, non_overridable :: get_sizes    => mesh_distribution_get_sizes
      procedure, non_overridable :: move_gids    => mesh_distribution_move_gids
@@ -115,9 +126,347 @@ module mesh_distribution_names
   ! Functions
   public :: mesh_distribution_write_files
   public :: mesh_distribution_read_files
-  public :: mesh_distribution_compose_name
 
 contains
+
+  subroutine mesh_distribution_create (this, &
+                                       ipart, &
+                                       nparts, &
+                                       num_local_cells, &
+                                       num_global_cells, &
+                                       nebou, &
+                                       num_local_vertices, &
+                                       num_global_vertices, &
+                                       nnbou, &
+                                       l2g_cells, &
+                                       l2g_vertices, &
+                                       lebou, &
+                                       lnbou, &
+                                       pextn, &
+                                       lextn, &
+                                       lextp)
+    implicit none
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(ip)               , intent(in)    :: ipart
+    integer(ip)               , intent(in)    :: nparts
+    integer(ip)               , intent(in)    :: num_local_cells
+    integer(igp)              , intent(in)    :: num_global_cells
+    integer(ip)               , intent(in)    :: nebou
+    integer(ip)               , intent(in)    :: num_local_vertices
+    integer(igp)              , intent(in)    :: num_global_vertices
+    integer(ip)               , intent(in)    :: nnbou
+    integer(igp)              , intent(in)    :: l2g_cells(num_local_cells)
+    integer(igp)              , intent(in)    :: l2g_vertices(num_local_vertices)
+    integer(ip)               , intent(in)    :: lebou(nebou)
+    integer(ip)               , intent(in)    :: lnbou(nnbou)
+    integer(ip)               , intent(in)    :: pextn(nebou+1)
+    integer(igp)              , intent(in)    :: lextn(pextn(nebou+1)-1)
+    integer(ip)               , intent(in)    :: lextp(pextn(nebou+1)-1)
+    call this%free()
+    
+    this%ipart               = ipart 
+    this%nparts              = nparts 
+    this%num_local_cells     = num_local_cells
+    this%num_global_cells    = num_global_cells
+    this%nebou               = nebou
+    this%num_local_vertices  = num_local_vertices
+    this%num_global_vertices = num_global_vertices
+    this%nnbou               = nnbou
+    call memalloc(size(l2g_cells)   , this%l2g_cells,__FILE__,__LINE__)
+    this%l2g_cells = l2g_cells
+    call memalloc(size(l2g_vertices), this%l2g_vertices,__FILE__,__LINE__)
+    this%l2g_vertices = l2g_vertices
+    call memalloc(size(lebou)       , this%lebou,__FILE__,__LINE__)
+    this%lebou = lebou
+    call memalloc(size(lnbou)       , this%lnbou,__FILE__,__LINE__)
+    this%lnbou = lnbou
+    call memalloc(size(pextn)       , this%pextn,__FILE__,__LINE__)
+    this%pextn = pextn
+    call memalloc(size(lextn)       , this%lextn,__FILE__,__LINE__)
+    this%lextn = lextn
+    call memalloc(size(lextp)       , this%lextp,__FILE__,__LINE__)
+    this%lextp = lextp
+  end subroutine mesh_distribution_create 
+
+  !=============================================================================
+  subroutine mesh_distribution_free (this)
+    implicit none
+
+    ! Parameters
+    class(mesh_distribution_t), intent(inout)  :: this
+    if(allocated(this%lebou)) call memfree ( this%lebou,__FILE__,__LINE__)
+    if(allocated(this%lnbou)) call memfree ( this%lnbou,__FILE__,__LINE__)
+    if(allocated(this%pextn)) call memfree ( this%pextn ,__FILE__,__LINE__)
+    if(allocated(this%lextn)) call memfree ( this%lextn ,__FILE__,__LINE__)
+    if(allocated(this%lextp)) call memfree ( this%lextp ,__FILE__,__LINE__)
+    if(allocated(this%l2g_vertices)) call memfree ( this%l2g_vertices, __FILE__,__LINE__)
+    if(allocated(this%l2g_cells)) call memfree ( this%l2g_cells, __FILE__,__LINE__)
+    this%ipart               = 0 
+    this%nparts              = 0 
+    this%num_local_cells     = 0
+    this%num_global_cells    = 0
+    this%nebou               = 0
+    this%num_local_vertices  = 0
+    this%num_global_vertices = 0
+    this%nnbou               = 0   
+  end subroutine mesh_distribution_free
+
+  subroutine mesh_distribution_read_dir_path_prefix (this,  dir_path, prefix)
+     implicit none 
+     ! Parameters
+     class(mesh_distribution_t), intent(inout) :: this
+     character(*)              , intent(in)    :: dir_path
+     character(*)              , intent(in)    :: prefix
+     ! Locals
+     integer(ip)                    :: lunio
+     character(len=:), allocatable  :: name
+
+     ! Read mesh
+     call this%mesh_distribution_compose_name ( prefix, name )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' ); check(lunio>0)
+     call this%read(lunio)
+     call io_close(lunio)
+  end subroutine mesh_distribution_read_dir_path_prefix
+
+  subroutine mesh_distribution_read_file_unit (this, lunio)
+    implicit none 
+    ! Parameters
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(ip)               , intent(in)    :: lunio
+    !-----------------------------------------------------------------------
+    ! This subroutine reads a mesh_distribution object
+    !-----------------------------------------------------------------------
+
+    call this%free()
+
+    read ( lunio, '(10i10)' ) this%ipart, this%nparts
+
+    read ( lunio, '(10i10)' ) this%nebou       
+    call memalloc ( this%nebou, this%lebou,__FILE__,__LINE__  )
+    read ( lunio, '(10i10)' ) this%lebou
+        
+    read ( lunio, '(10i10)' ) this%nnbou      
+    call memalloc ( this%nnbou, this%lnbou,__FILE__,__LINE__  )
+    read ( lunio, '(10i10)' ) this%lnbou
+    
+    
+    call memalloc ( this%nebou+1, this%pextn ,__FILE__,__LINE__  )
+    read ( lunio, '(10i10)' ) this%pextn
+    
+    call memalloc ( this%pextn(this%nebou+1)-1, this%lextn ,__FILE__,__LINE__  )
+    call memalloc ( this%pextn(this%nebou+1)-1, this%lextp ,__FILE__,__LINE__  )
+    read ( lunio, '(10i10)' ) this%lextn
+    read ( lunio, '(10i10)' ) this%lextp
+
+    read ( lunio, '(10i10)' ) this%num_local_vertices, &
+                              this%num_global_vertices
+    if(this%num_local_vertices>0) then
+       call memalloc(this%num_local_vertices, this%l2g_vertices, __FILE__, __LINE__)
+       read ( lunio,'(10i10)') this%l2g_vertices
+    end if
+
+    read ( lunio, '(10i10)' ) this%num_local_cells, &
+                              this%num_global_cells
+    if(this%num_local_cells>0) then
+       call memalloc(this%num_local_cells, this%l2g_cells, __FILE__, __LINE__)
+       read ( lunio,'(10i10)') this%l2g_cells
+    end if
+  end subroutine mesh_distribution_read_file_unit
+
+  !=============================================================================
+  subroutine mesh_distribution_compose_name ( prefix, name ) 
+    implicit none
+    character (len=*)             , intent(in)    :: prefix 
+    character (len=:), allocatable, intent(inout) :: name
+    name = trim(prefix) // '.prt'
+  end subroutine mesh_distribution_compose_name 
+
+
+  !=============================================================================
+  subroutine mesh_distribution_get_sizes(this,ipart,nparts)
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(ip), intent(inout) :: ipart,nparts
+    ipart=this%ipart
+    nparts=this%nparts
+  end subroutine mesh_distribution_get_sizes
+  !=============================================================================
+  subroutine mesh_distribution_move_gids(this,cells_gid,vefs_gid)
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(igp), intent(inout), allocatable :: vefs_gid(:)
+    integer(igp), intent(inout), allocatable :: cells_gid(:)
+    call memmovealloc(this%l2g_vertices,vefs_gid,__FILE__,__LINE__)
+    call memmovealloc(this%l2g_cells,cells_gid,__FILE__,__LINE__)
+  end subroutine mesh_distribution_move_gids
+  !=============================================================================
+  subroutine mesh_distribution_move_external_elements_info(this,nebou,lebou,pextn,lextn,lextp)
+    class(mesh_distribution_t), intent(inout) :: this
+    integer(ip), intent(inout)   :: nebou
+    integer(ip), intent(inout), allocatable :: lebou(:)
+    integer(ip), intent(inout), allocatable :: pextn(:)
+    integer(igp), intent(inout), allocatable :: lextn(:)
+    integer(ip), intent(inout), allocatable :: lextp(:)
+    nebou=this%nebou
+    call memmovealloc(this%lebou,lebou,__FILE__,__LINE__)
+    call memmovealloc(this%pextn,pextn,__FILE__,__LINE__)
+    call memmovealloc(this%lextn,lextn,__FILE__,__LINE__)
+    call memmovealloc(this%lextp,lextp,__FILE__,__LINE__)
+  end subroutine mesh_distribution_move_external_elements_info
+  !=============================================================================
+  subroutine mesh_distribution_create_empty(this)
+    class(mesh_distribution_t), intent(inout) :: this
+    call memalloc ( 1, this%pextn ,__FILE__,__LINE__  )
+    this%pextn(1) = 1
+  end subroutine mesh_distribution_create_empty
+  
+  !=============================================================================
+  subroutine mesh_distribution_print (msh_dist, lu_out)
+    !-----------------------------------------------------------------------
+    ! This subroutine prints a mesh_distribution object
+    !-----------------------------------------------------------------------
+    implicit none
+
+    ! Parameters
+    integer(ip)              , intent(in)  :: lu_out
+    class(mesh_distribution_t), intent(in)  :: msh_dist
+
+    ! Local variables
+    integer (ip) :: i, j
+
+    if(lu_out>0) then
+       write(lu_out,'(a)') '*** begin mesh_distribution data structure ***'
+
+       write(lu_out,'(a,i10)') 'Number of parts:', &
+           &  msh_dist%nparts
+
+       write(lu_out,'(a,i10)') 'Number of elements on the boundary:', &
+          &  msh_dist%nebou
+
+       write(lu_out,'(a,i10)') 'Number of neighbours:', &
+          &  msh_dist%pextn(msh_dist%nebou+1)-msh_dist%pextn(1)
+
+       write(lu_out,'(a)') 'GEIDs of boundary elements:'
+       do i=1,msh_dist%nebou
+          write(lu_out,'(10i10)') msh_dist%l2g_cells(msh_dist%lebou(i))
+       end do
+
+       write(lu_out,'(a)') 'GEIDs of neighbors:'
+       do i=1,msh_dist%nebou
+          write(lu_out,'(10i10)') (msh_dist%lextn(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
+       end do
+
+       write(lu_out,'(a)') 'Parts of neighbours:'
+       do i=1,msh_dist%nebou
+          write(lu_out,'(10i10)') (msh_dist%lextp(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
+       end do
+
+       write(lu_out,'(a)') '*** end mesh_distribution data structure ***'
+    end if
+  end subroutine mesh_distribution_print
+
+  !=============================================================================
+  subroutine mesh_distribution_write_dir_path_prefix (this, dir_path, prefix)
+     implicit none 
+     ! Parameters
+     class(mesh_distribution_t), intent(inout) :: this
+     character(*)              , intent(in)    :: dir_path
+     character(*)              , intent(in)    :: prefix
+     ! Locals
+     integer(ip) :: lunio
+     character(len=:), allocatable  :: name
+
+     ! Read mesh
+     call this%mesh_distribution_compose_name ( prefix, name )
+     lunio = io_open( trim(dir_path)//'/'//trim(name), 'write' ); check(lunio>0)
+     call this%write(lunio)
+     call io_close(lunio)
+  end subroutine mesh_distribution_write_dir_path_prefix
+
+  !=============================================================================
+  subroutine mesh_distribution_write_file_unit (this, lunio)
+    implicit none
+    ! Parameters
+    class(mesh_distribution_t), intent(in) :: this
+    integer                   , intent(in) :: lunio
+    write ( lunio, '(10i10)' ) this%ipart, this%nparts
+    write ( lunio, '(10i10)' ) this%nebou
+    write ( lunio, '(10i10)' ) this%lebou
+    write ( lunio, '(10i10)' ) this%nnbou
+    write ( lunio, '(10i10)' ) this%lnbou
+    write ( lunio, '(10i10)' ) this%pextn
+    write ( lunio, '(10i10)' ) this%lextn
+    write ( lunio, '(10i10)' ) this%lextp
+    write ( lunio, '(10i10)' ) this%num_local_vertices, &
+                               this%num_global_vertices
+    if(this%num_local_vertices>0) write ( lunio,'(10i10)') this%l2g_vertices
+    
+    write ( lunio, '(10i10)' ) this%num_local_cells, &
+                               this%num_global_cells
+    if(this%num_local_cells>0) write ( lunio,'(10i10)') this%l2g_cells
+  end subroutine mesh_distribution_write_file_unit
+
+  !=============================================================================
+  subroutine mesh_distribution_write_files ( parameter_list, parts )
+    implicit none
+    ! Parameters
+    type(ParameterList_t)    , intent(in) :: parameter_list
+    type(mesh_distribution_t), intent(in)  :: parts(:)
+
+    ! Locals
+    integer(ip)                   :: nparts
+    integer(ip)                   :: istat
+    logical                       :: is_present
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
+    character(len=:), allocatable :: name, rename
+    integer(ip)                   :: lunio
+    integer(ip)                   :: i
+
+    nparts = size(parts)
+
+    ! Mandatory parameters
+    assert(parameter_list%isAssignable(dir_path_out_key, 'string'))
+    istat = parameter_list%GetAsString(key = dir_path_out_key, String = dir_path)
+    assert(istat == 0)
+    
+    assert(parameter_list%isAssignable(prefix_key, 'string'))
+    istat = istat + parameter_list%GetAsString(key = prefix_key, String = prefix)
+    assert(istat==0)
+
+    call mesh_distribution_compose_name ( prefix, name )
+    
+    do i=1,nparts
+       rename=name
+       call numbered_filename_compose(i,nparts,rename)
+       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
+       call parts(i)%write (lunio)
+       call io_close (lunio)
+    end do
+  end subroutine  mesh_distribution_write_files
+
+  !=============================================================================
+  subroutine mesh_distribution_read_files ( dir_path, prefix, nparts, parts )
+    implicit none
+    ! Parameters 
+    character(*), intent(in)    :: dir_path 
+    character(*), intent(in)    :: prefix
+    integer(ip)     , intent(in)    :: nparts
+    type(mesh_distribution_t), intent(inout)  :: parts(nparts)
+
+    ! Locals 
+    integer (ip)                        :: i
+    character(len=:), allocatable       :: name,rename ! Deferred-length allocatable character arrays
+    integer(ip)                         :: lunio
+
+    call mesh_distribution_compose_name ( prefix, name )
+
+    do i=1,nparts
+       rename=name
+       call numbered_filename_compose(i,nparts,rename)
+       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
+       call parts(i)%read (lunio)
+       call io_close (lunio)
+    end do
+  end subroutine  mesh_distribution_read_files
 
   subroutine mesh_distribution_get_parameters_from_fpl(this,parameter_list)
     !-----------------------------------------------------------------------------------------------!
@@ -216,276 +565,5 @@ contains
     call memfree(this%num_parts_x_level,__FILE__,__LINE__)
   end subroutine mesh_distribution_parameters_free
 
-  !=============================================================================
-  subroutine mesh_distribution_get_sizes(this,ipart,nparts)
-    class(mesh_distribution_t), intent(inout) :: this
-    integer(ip), intent(inout) :: ipart,nparts
-    ipart=this%ipart
-    nparts=this%nparts
-  end subroutine mesh_distribution_get_sizes
-  !=============================================================================
-  subroutine mesh_distribution_move_gids(this,cells_gid,vefs_gid)
-    class(mesh_distribution_t), intent(inout) :: this
-    integer(igp), intent(inout), allocatable :: vefs_gid(:)
-    integer(igp), intent(inout), allocatable :: cells_gid(:)
-    call memmovealloc(this%l2g_vertices,vefs_gid,__FILE__,__LINE__)
-    call memmovealloc(this%l2g_cells,cells_gid,__FILE__,__LINE__)
-  end subroutine mesh_distribution_move_gids
-  !=============================================================================
-  subroutine mesh_distribution_move_external_elements_info(this,nebou,lebou,pextn,lextn,lextp)
-    class(mesh_distribution_t), intent(inout) :: this
-    integer(ip), intent(inout)   :: nebou
-    integer(ip), intent(inout), allocatable :: lebou(:)
-    integer(ip), intent(inout), allocatable :: pextn(:)
-    integer(igp), intent(inout), allocatable :: lextn(:)
-    integer(ip), intent(inout), allocatable :: lextp(:)
-    nebou=this%nebou
-    call memmovealloc(this%lebou,lebou,__FILE__,__LINE__)
-    call memmovealloc(this%pextn,pextn,__FILE__,__LINE__)
-    call memmovealloc(this%lextn,lextn,__FILE__,__LINE__)
-    call memmovealloc(this%lextp,lextp,__FILE__,__LINE__)
-  end subroutine mesh_distribution_move_external_elements_info
-  !=============================================================================
-  subroutine mesh_distribution_create_empty(this)
-    class(mesh_distribution_t), intent(inout) :: this
-    call memalloc ( 1, this%pextn ,__FILE__,__LINE__  )
-    this%pextn(1) = 1
-  end subroutine mesh_distribution_create_empty
-  !=============================================================================
-  subroutine mesh_distribution_free (f_msh_dist)
-    !-----------------------------------------------------------------------
-    ! This subroutine deallocates a mesh_distribution object
-    !-----------------------------------------------------------------------
-    implicit none
-
-    ! Parameters
-    class(mesh_distribution_t), intent(inout)  :: f_msh_dist
-    if(allocated(f_msh_dist%lebou)) call memfree ( f_msh_dist%lebou,__FILE__,__LINE__)
-    if(allocated(f_msh_dist%lnbou)) call memfree ( f_msh_dist%lnbou,__FILE__,__LINE__)
-    if(allocated(f_msh_dist%pextn)) call memfree ( f_msh_dist%pextn ,__FILE__,__LINE__)
-    if(allocated(f_msh_dist%lextn)) call memfree ( f_msh_dist%lextn ,__FILE__,__LINE__)
-    if(allocated(f_msh_dist%lextp)) call memfree ( f_msh_dist%lextp ,__FILE__,__LINE__)
-    if(allocated(f_msh_dist%l2g_vertices)) call memfree ( f_msh_dist%l2g_vertices, __FILE__,__LINE__)
-    if(allocated(f_msh_dist%l2g_cells)) call memfree ( f_msh_dist%l2g_cells, __FILE__,__LINE__)
-  end subroutine mesh_distribution_free
-
-  !=============================================================================
-  subroutine mesh_distribution_print (msh_dist, lu_out)
-    !-----------------------------------------------------------------------
-    ! This subroutine prints a mesh_distribution object
-    !-----------------------------------------------------------------------
-    implicit none
-
-    ! Parameters
-    integer(ip)              , intent(in)  :: lu_out
-    class(mesh_distribution_t), intent(in)  :: msh_dist
-
-    ! Local variables
-    integer (ip) :: i, j
-
-    if(lu_out>0) then
-
-       write(lu_out,'(a)') '*** begin mesh_distribution data structure ***'
-
-       write(lu_out,'(a,i10)') 'Number of parts:', &
-           &  msh_dist%nparts
-
-       write(lu_out,'(a,i10)') 'Number of elements on the boundary:', &
-          &  msh_dist%nebou
-
-       write(lu_out,'(a,i10)') 'Number of neighbours:', &
-          &  msh_dist%pextn(msh_dist%nebou+1)-msh_dist%pextn(1)
-
-       write(lu_out,'(a)') 'GEIDs of boundary elements:'
-       do i=1,msh_dist%nebou
-          write(lu_out,'(10i10)') msh_dist%l2g_cells(msh_dist%lebou(i))
-       end do
-
-       write(lu_out,'(a)') 'GEIDs of neighbors:'
-       do i=1,msh_dist%nebou
-          write(lu_out,'(10i10)') (msh_dist%lextn(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
-       end do
-
-       write(lu_out,'(a)') 'Parts of neighbours:'
-       do i=1,msh_dist%nebou
-          write(lu_out,'(10i10)') (msh_dist%lextp(j),j=msh_dist%pextn(i),msh_dist%pextn(i+1)-1)
-       end do
-
-       write(lu_out,'(a)') '*** end mesh_distribution data structure ***'
-
-    end if
- 
-  end subroutine mesh_distribution_print
-
-  !=============================================================================
-  subroutine mesh_distribution_write (f_msh_dist, lunio)
-    ! Parameters
-    integer                  , intent(in) :: lunio
-    class(mesh_distribution_t), intent(in) :: f_msh_dist
-    !-----------------------------------------------------------------------
-    ! This subroutine writes a mesh_distribution to lunio
-    !-----------------------------------------------------------------------
-
-    write ( lunio, '(10i10)' ) f_msh_dist%ipart, f_msh_dist%nparts
-
-    write ( lunio, '(10i10)' ) f_msh_dist%nebou
-    write ( lunio, '(10i10)' ) f_msh_dist%lebou
-    write ( lunio, '(10i10)' ) f_msh_dist%nnbou
-    write ( lunio, '(10i10)' ) f_msh_dist%lnbou
-    write ( lunio, '(10i10)' ) f_msh_dist%pextn
-    write ( lunio, '(10i10)' ) f_msh_dist%lextn
-    write ( lunio, '(10i10)' ) f_msh_dist%lextp
-
-    write ( lunio, '(10i10)' ) f_msh_dist%num_local_vertices, &
-                               f_msh_dist%num_global_vertices
-    if(f_msh_dist%num_local_vertices>0) write ( lunio,'(10i10)') f_msh_dist%l2g_vertices
-    
-    write ( lunio, '(10i10)' ) f_msh_dist%num_local_cells, &
-                               f_msh_dist%num_global_cells
-    if(f_msh_dist%num_local_cells>0) write ( lunio,'(10i10)') f_msh_dist%l2g_cells
-
-
-  end subroutine mesh_distribution_write
-
-   subroutine mesh_distribution_read (f_msh_dist,  dir_path, prefix)
-     implicit none 
-     ! Parameters
-     character(*)         , intent(in)    :: dir_path
-     character(*)         , intent(in)    :: prefix
-     class(mesh_distribution_t), intent(inout) :: f_msh_dist
-     ! Locals
-     integer(ip)                    :: lunio
-     character(len=:), allocatable  :: name
-
-     ! Read mesh
-     call mesh_distribution_compose_name ( prefix, name )
-     lunio = io_open( trim(dir_path)//'/'//trim(name), 'read', status='old' ); check(lunio>0)
-     call f_msh_dist%read_file(lunio)
-     call io_close(lunio)
-   end subroutine mesh_distribution_read
-
-
-   subroutine mesh_distribution_read_file (f_msh_dist, lunio)
-    ! Parameters
-    integer(ip)               , intent(in)    :: lunio
-    class(mesh_distribution_t), intent(inout) :: f_msh_dist
-    !-----------------------------------------------------------------------
-    ! This subroutine reads a mesh_distribution object
-    !-----------------------------------------------------------------------
-
-    read ( lunio, '(10i10)' ) f_msh_dist%ipart, f_msh_dist%nparts
-
-    read ( lunio, '(10i10)' ) f_msh_dist%nebou       
-    call memalloc ( f_msh_dist%nebou, f_msh_dist%lebou,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) f_msh_dist%lebou
-        
-    read ( lunio, '(10i10)' ) f_msh_dist%nnbou      
-    call memalloc ( f_msh_dist%nnbou, f_msh_dist%lnbou,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) f_msh_dist%lnbou
-    
-    
-    call memalloc ( f_msh_dist%nebou+1, f_msh_dist%pextn ,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) f_msh_dist%pextn
-    
-    call memalloc ( f_msh_dist%pextn(f_msh_dist%nebou+1)-1, f_msh_dist%lextn ,__FILE__,__LINE__  )
-    call memalloc ( f_msh_dist%pextn(f_msh_dist%nebou+1)-1, f_msh_dist%lextp ,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) f_msh_dist%lextn
-    read ( lunio, '(10i10)' ) f_msh_dist%lextp
-
-    read ( lunio, '(10i10)' ) f_msh_dist%num_local_vertices, &
-                              f_msh_dist%num_global_vertices
-    if(f_msh_dist%num_local_vertices>0) then
-       if(allocated(f_msh_dist%l2g_vertices)) call memfree(f_msh_dist%l2g_vertices, __FILE__, __LINE__)
-       call memalloc(f_msh_dist%num_local_vertices, f_msh_dist%l2g_vertices, __FILE__, __LINE__)
-       read ( lunio,'(10i10)') f_msh_dist%l2g_vertices
-    end if
-
-    read ( lunio, '(10i10)' ) f_msh_dist%num_local_cells, &
-                              f_msh_dist%num_global_cells
-    if(f_msh_dist%num_local_cells>0) then
-       if(allocated(f_msh_dist%l2g_cells)) call memfree(f_msh_dist%l2g_cells, __FILE__, __LINE__)
-       call memalloc(f_msh_dist%num_local_cells, f_msh_dist%l2g_cells, __FILE__, __LINE__)
-       read ( lunio,'(10i10)') f_msh_dist%l2g_cells
-    end if
-
-  end subroutine mesh_distribution_read_file
-
-  !=============================================================================
-  subroutine mesh_distribution_compose_name ( prefix, name ) 
-    implicit none
-    character (len=*), intent(in)    :: prefix 
-    character (len=:), allocatable, intent(inout) :: name
-    name = trim(prefix) // '.prt'
-  end subroutine 
-
-  !=============================================================================
-  subroutine mesh_distribution_write_files ( parameter_list, parts )
-    implicit none
-    ! Parameters
-    type(ParameterList_t)    , intent(in) :: parameter_list
-    type(mesh_distribution_t), intent(in)  :: parts(:)
-
-    ! Locals
-    integer(ip)                   :: nparts
-    integer(ip)                   :: istat
-    logical                       :: is_present
-    character(len=:), allocatable :: dir_path
-    character(len=:), allocatable :: prefix
-    character(len=:), allocatable :: name, rename
-    integer(ip)                   :: lunio
-    integer(ip)                   :: i
-
-    nparts = size(parts)
-
-    ! Mandatory parameters
-    assert(parameter_list%isAssignable(dir_path_out_key, 'string'))
-    istat = parameter_list%GetAsString(key = dir_path_out_key, String = dir_path)
-    assert(istat == 0)
-    
-    assert(parameter_list%isAssignable(prefix_key, 'string'))
-    istat = istat + parameter_list%GetAsString(key = prefix_key, String = prefix)
-    assert(istat==0)
-
-    call mesh_distribution_compose_name ( prefix, name )
-    
-    do i=1,nparts
-       rename=name
-       call numbered_filename_compose(i,nparts,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
-       call parts(i)%write (lunio)
-       call io_close (lunio)
-    end do
-
-    ! name, and rename should be automatically deallocated by the compiler when they
-    ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  mesh_distribution_write_files
-
-  !=============================================================================
-  subroutine mesh_distribution_read_files ( dir_path, prefix, nparts, parts )
-    implicit none
-    ! Parameters 
-    character(*), intent(in)    :: dir_path 
-    character(*), intent(in)    :: prefix
-    integer(ip)     , intent(in)    :: nparts
-    type(mesh_distribution_t), intent(inout)  :: parts(nparts)
-
-    ! Locals 
-    integer (ip)                        :: i
-    character(len=:), allocatable       :: name,rename ! Deferred-length allocatable character arrays
-    integer(ip)                         :: lunio
-
-    call mesh_distribution_compose_name ( prefix, name )
-
-    do i=1,nparts
-       rename=name
-       call numbered_filename_compose(i,nparts,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
-       call parts(i)%read_file (lunio)
-       call io_close (lunio)
-    end do
-
-    ! name, and rename should be automatically deallocated by the compiler when they
-    ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  mesh_distribution_read_files
 
 end module mesh_distribution_names

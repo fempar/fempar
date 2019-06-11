@@ -61,7 +61,7 @@ module mesh_names
   !> source directory). Using this data type, one may also write the mesh into GiD's postprocess
   !> file format for visualization purposes using GiD.
   type mesh_t
-     private
+     ! private
      ! Sizes
      integer(ip)                :: &
           order=c_order,           &         ! GiD element order (c)
@@ -100,12 +100,14 @@ module mesh_names
     
     contains
      ! Sizes getters
+      procedure, non_overridable                   :: get_element_order     ! order
+      procedure, non_overridable                   :: get_num_element_types ! nelty
       procedure, non_overridable                   :: get_num_dims     ! ndime
       procedure, non_overridable                   :: get_num_vertices ! npoin
       procedure, non_overridable                   :: get_num_cells    ! nelem
 
 
-     ! cell getters
+     ! Cell getters
       procedure, non_overridable                   :: get_vertices_x_cell_pointers  ! pnods
       procedure, non_overridable                   :: get_vertices_x_cell           ! lnods
       procedure, non_overridable                   :: get_cells_geometry_id         ! legeo
@@ -169,6 +171,19 @@ module mesh_names
 
 contains
 
+   !=============================================================================
+    function get_element_order(this) result(order)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: order
+        order = this%order
+    end function get_element_order
+
+  !=============================================================================
+    function get_num_element_types(this) result(nelty)
+        class(mesh_t), intent(in) :: this
+        integer(ip)               :: nelty
+        nelty = this%nelty
+    end function get_num_element_types
 
   !=============================================================================
     pure function get_num_dims(this) result(ndime)

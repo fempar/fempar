@@ -173,10 +173,10 @@ subroutine par_triangulation_create ( this, environment, parameters)
         
         ! Read mesh distribution 
         if(this%environment%get_l1_size()>1) then
-           call mesh_distribution_compose_name ( prefix, name )
+           call mesh_distribution%mesh_distribution_compose_name ( prefix, name )
            call par_filename( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
            lunio = io_open (trim(dir_path) // '/' // trim(name)); check(lunio>0)
-           call mesh_distribution%read_file(lunio)
+           call mesh_distribution%read(lunio)
            call io_close(lunio)
         else
            call mesh_distribution%create_empty()
