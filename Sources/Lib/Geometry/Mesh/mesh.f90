@@ -61,7 +61,7 @@ module mesh_names
   !> source directory). Using this data type, one may also write the mesh into GiD's postprocess
   !> file format for visualization purposes using GiD.
   type mesh_t
-     !private
+     private
      ! Sizes
      integer(ip)                :: &
           order=c_order,           &         ! GiD element order (c)
@@ -171,21 +171,21 @@ contains
 
 
   !=============================================================================
-    function get_num_dims(this) result(ndime)
+    pure function get_num_dims(this) result(ndime)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: ndime
         ndime = this%ndime
     end function get_num_dims
 
   !=============================================================================
-    function get_num_vertices(this) result(npoin)
+    pure function get_num_vertices(this) result(npoin)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: npoin
         npoin = this%npoin
     end function get_num_vertices
 
   !=============================================================================
-    function get_num_cells(this) result(nelem)
+    pure function get_num_cells(this) result(nelem)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: nelem
         nelem = this%nelem
@@ -241,7 +241,7 @@ contains
     end function get_boundary_vefs_set
 
   !=============================================================================
-    function get_num_cells_around_vertices(this) result(nelpo)
+    pure function get_num_cells_around_vertices(this) result(nelpo)
         class(mesh_t), intent(in) :: this
         integer(ip)               :: nelpo
         nelpo = this%nelpo
