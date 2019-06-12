@@ -81,6 +81,22 @@ module mesh_distribution_names
      procedure, non_overridable         :: mesh_distribution_write_file_unit 
      generic                            :: write => mesh_distribution_write_dir_path_prefix, &
                                                     mesh_distribution_write_file_unit
+    ! Getters
+     procedure, non_overridable         :: get_ipart               => mesh_distribution_get_ipart
+     procedure, non_overridable         :: get_nparts              => mesh_distribution_get_nparts
+     procedure, non_overridable         :: get_pextn               => mesh_distribution_get_pextn
+     procedure, non_overridable         :: get_lextp               => mesh_distribution_get_lextp
+     procedure, non_overridable         :: get_lextn               => mesh_distribution_get_lextn
+     procedure, non_overridable         :: get_nebou               => mesh_distribution_get_nebou
+     procedure, non_overridable         :: get_nnbou               => mesh_distribution_get_nnbou
+     procedure, non_overridable         :: get_lebou               => mesh_distribution_get_lebou
+     procedure, non_overridable         :: get_lnbou               => mesh_distribution_get_lnbou
+     procedure, non_overridable         :: get_num_local_vertices  => mesh_distribution_get_num_local_vertices
+     procedure, non_overridable         :: get_num_global_vertices => mesh_distribution_get_num_global_vertices
+     procedure, non_overridable         :: get_l2g_vertices        => mesh_distribution_get_l2g_vertices
+     procedure, non_overridable         :: get_num_local_cells     => mesh_distribution_get_num_local_cells
+     procedure, non_overridable         :: get_num_global_cells    => mesh_distribution_get_num_global_cells
+     procedure, non_overridable         :: get_l2g_cells           => mesh_distribution_get_l2g_cells
 
      procedure, non_overridable :: print  => mesh_distribution_print
      procedure, non_overridable :: create_empty => mesh_distribution_create_empty
@@ -272,6 +288,126 @@ contains
        read ( lunio,'(10i10)') this%l2g_cells
     end if
   end subroutine mesh_distribution_read_file_unit
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_ipart(this) result(ipart)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(ip)                            :: ipart
+        ipart = this%ipart
+    end function mesh_distribution_get_ipart
+
+  !=============================================================================
+    pure function mesh_distribution_get_nparts(this) result(nparts)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(ip)                            :: nparts
+        nparts = this%nparts
+    end function mesh_distribution_get_nparts
+
+
+  !=============================================================================
+    function mesh_distribution_get_pextn(this) result(pextn)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(ip),                pointer            :: pextn(:)
+        pextn => this%pextn
+    end function mesh_distribution_get_pextn
+
+
+  !=============================================================================
+    function mesh_distribution_get_lextp(this) result(lextp)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(ip),                pointer            :: lextp(:)
+        lextp => this%lextp
+    end function mesh_distribution_get_lextp
+
+
+  !=============================================================================
+    function mesh_distribution_get_lextn(this) result(lextn)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(igp),               pointer            :: lextn(:)
+        lextn => this%lextn
+    end function mesh_distribution_get_lextn
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_nebou(this) result(nebou)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(ip)                            :: nebou
+        nebou = this%nebou
+    end function mesh_distribution_get_nebou
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_nnbou(this) result(nnbou)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(ip)                            :: nnbou
+        nnbou = this%nnbou
+    end function mesh_distribution_get_nnbou
+
+
+  !=============================================================================
+    function mesh_distribution_get_lebou(this) result(lebou)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(ip),                pointer            :: lebou(:)
+        lebou => this%lebou
+    end function mesh_distribution_get_lebou
+
+
+  !=============================================================================
+    function mesh_distribution_get_lnbou(this) result(lnbou)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(ip),                pointer            :: lnbou(:)
+        lnbou => this%lnbou
+    end function mesh_distribution_get_lnbou
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_num_local_vertices(this) result(num_local_vertices)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(ip)                            :: num_local_vertices
+        num_local_vertices = this%num_local_vertices
+    end function mesh_distribution_get_num_local_vertices
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_num_global_vertices(this) result(num_global_vertices)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(igp)                           :: num_global_vertices
+        num_global_vertices = this%num_global_vertices
+    end function mesh_distribution_get_num_global_vertices
+
+
+  !=============================================================================
+    function mesh_distribution_get_l2g_vertices(this) result(l2g_vertices)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(igp),               pointer            :: l2g_vertices(:)
+        l2g_vertices = this%l2g_vertices
+    end function mesh_distribution_get_l2g_vertices
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_num_local_cells(this) result(num_local_cells)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(ip)                            :: num_local_cells
+        num_local_cells = this%num_local_cells
+    end function mesh_distribution_get_num_local_cells
+
+
+  !=============================================================================
+    pure function mesh_distribution_get_num_global_cells(this) result(num_global_cells)
+        class(mesh_distribution_t), intent(in) :: this
+        integer(igp)                           :: num_global_cells
+        num_global_cells = this%num_global_cells
+    end function mesh_distribution_get_num_global_cells
+
+
+  !=============================================================================
+    function mesh_distribution_get_l2g_cells(this) result(l2g_cells)
+        class(mesh_distribution_t), target, intent(in) :: this
+        integer(igp),               pointer            :: l2g_cells(:)
+        l2g_cells => this%l2g_cells
+    end function mesh_distribution_get_l2g_cells
+
 
   !=============================================================================
   subroutine mesh_distribution_compose_name ( prefix, name ) 
