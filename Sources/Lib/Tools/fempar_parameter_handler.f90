@@ -906,11 +906,6 @@ contains
            [1], &
            'Number of parts per level') 
 
-      call this%add(debug_key, &
-           debug_cla_name, &
-           0, &
-           'Debug key for partitioner') 
-
       call this%add(strategy_key, &
            strategy_cla_name, &
            part_kway, &

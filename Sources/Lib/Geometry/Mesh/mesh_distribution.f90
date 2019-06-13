@@ -39,7 +39,7 @@ module mesh_distribution_names
   !> Derived data type which describes the local subdomain corresponding to each
   !> MPI task and its interface with its neighbouring subdomains
   type mesh_distribution_t
-     ! private
+     !private
      integer(ip) ::                &
         ipart,                     & ! Part identifier
         nparts                       ! Number of parts
@@ -648,13 +648,7 @@ contains
        this%num_parts_x_level(1)=this%nparts
     end if
 
-    ! Optional paramters
-    if( parameter_list%isPresent(debug_key) ) then
-       assert(parameter_list%isAssignable(debug_key, this%debug))
-       istat = parameter_list%get(key = debug_key  , value = this%debug)
-       assert(istat==0)
-    end if
-
+    ! Optional parameters
     if( parameter_list%isPresent(strategy_key) ) then
        assert(parameter_list%isAssignable(strategy_key, this%strat))
        istat = parameter_list%get(key = strategy_key  , value = this%strat)

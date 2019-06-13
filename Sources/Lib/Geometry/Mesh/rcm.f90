@@ -71,7 +71,7 @@ contains
 
     ! Parameters
     integer (ip), intent(in)    :: root
-    type(list_t), intent(inout) :: gp
+    type(list_t), intent(in)    :: gp
     integer (ip), intent(in)    :: mask(gp%get_num_pointers())
     integer (ip), intent(out)   :: deg(gp%get_num_pointers())
     integer (ip), intent(out)   :: iccsze
@@ -216,7 +216,7 @@ contains
     implicit none
     
     ! Parameters
-    type(list_t), intent(inout) :: gp
+    type(list_t), intent(in)    :: gp
     integer (ip), intent(out)   :: perm(gp%get_num_pointers())
 
 
@@ -431,7 +431,7 @@ contains
     
     ! Parameters
     integer (ip), intent(in)    :: root
-    type(list_t), intent(inout) :: gp
+    type(list_t), intent(in)    :: gp
     integer (ip), intent(inout) :: mask(gp%get_num_pointers())
     integer (ip), intent(out)   :: level_num
     integer (ip), intent(out)   :: level_row(gp%get_num_pointers()+1)
@@ -586,7 +586,7 @@ contains
 
     ! Parameters
     integer (ip), intent(in)    :: root
-    type(list_t), intent(inout) :: gp
+    type(list_t), intent(in)    :: gp
     integer (ip), intent(inout) :: mask(gp%get_num_pointers())
     integer (ip), intent(out)   :: perm(gp%get_num_pointers())
     integer (ip), intent(out)   :: iccsze
@@ -827,7 +827,7 @@ contains
     !
     implicit none
     integer (ip), intent(inout) :: root
-    type(list_t), intent(inout) :: gp
+    type(list_t), intent(in)    :: gp
     integer (ip), intent(inout) :: mask(gp%get_num_pointers())
     integer (ip), intent(out) :: level_num
     integer (ip), intent(out) :: level_row(gp%get_num_pointers()+1)

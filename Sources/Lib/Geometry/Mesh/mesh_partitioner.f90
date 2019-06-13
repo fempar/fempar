@@ -28,6 +28,7 @@
 module mesh_partitioner_names
   use types_names
   use list_types_names
+  use allocatable_array_names
   use hash_table_names
   use rcm_renumbering_names
   use memor_names
@@ -36,6 +37,8 @@ module mesh_partitioner_names
   use mesh_names
   use mesh_distribution_names
   use mesh_partitioner_parameters_names
+  use environment_names
+  use postpro_names
   use FPL
   implicit none
 # include "debug.i90"
@@ -44,14 +47,18 @@ module mesh_partitioner_names
   type mesh_partitioner_t
      private
      
-     type(mesh_t)             , allocatable :: lmesh(:)
-     type(mesh_distribution_t), allocatable :: distr(:)
+     type(mesh_t), pointer                      :: mesh      ! Global mesh to be partitioned
      
-     integer(ip)              :: nparts
-     integer(ip)              :: num_levels
-     integer(ip), allocatable :: num_parts_x_level (:)
+     integer(ip)                                :: nparts
+     integer(ip)                                :: num_levels
+     integer(ip)                  , allocatable :: num_parts_x_level (:)
+     type(allocatable_array_ip1_t), allocatable :: parts_mapping (:)
      
-     integer(ip)              :: debug                   ! Print (on screen?) info partition
+     type(mesh_t)                 , allocatable :: subdomain_meshes(:)
+     type(mesh_distribution_t)    , allocatable :: mesh_distributions(:)
+     type(list_t)                 , allocatable :: graph_hierarchy(:)
+     type(allocatable_array_ip1_t), allocatable :: cells_part(:)
+     
      integer(ip)              :: strat                   ! Partitioning algorithm (part_kway,part_recursive,part_strip,part_rcm_strip)
      integer(ip)              :: metis_option_ufactor    ! Imbalance tol of metis_option_ufactor/1000 + 1
      integer(ip)              :: metis_option_minconn 
@@ -60,128 +67,216 @@ module mesh_partitioner_names
      integer(ip)              :: metis_option_iptype
      integer(ip)              :: metis_option_debug
   contains 
-     procedure, non_overridable          :: partition_mesh               => mesh_partitioner_partition_mesh
-     procedure, non_overridable, private :: set_default_parameter_values => mesh_partitioner_set_default_parameter_values
-     procedure, non_overridable, private :: set_parameters_from_pl       => mesh_partitioner_set_parameters_from_pl
-     procedure, non_overridable, private :: graph_pt_renumbering
-     procedure, non_overridable, private :: mesh_partitioner_write_mesh_parts_dir_path_prefix
-     procedure, non_overridable, private :: mesh_partitioner_write_mesh_parts_pl
-     generic                             :: write_mesh_parts             => mesh_partitioner_write_mesh_parts_dir_path_prefix, &
-                                                                            mesh_partitioner_write_mesh_parts_pl
-     procedure, non_overridable          :: free                         => mesh_partitioner_free
+     procedure, non_overridable                   :: create         => mesh_partitioner_create
+     procedure, non_overridable                   :: partition_mesh => mesh_partitioner_partition_mesh
+     procedure, non_overridable, private          :: set_mesh
+     procedure, non_overridable, private          :: set_default_parameter_values
+     procedure, non_overridable, private          :: set_parameters_from_pl
+     procedure, non_overridable, private          :: allocate_graph_hierarchy
+     procedure, non_overridable, private          :: allocate_cells_part
+     procedure, non_overridable, private          :: allocate_parts_mapping
+     procedure, non_overridable, private          :: setup_parts_mapping
+     procedure, non_overridable, private          :: build_and_partition_graph_hierarchy
+     procedure, non_overridable, private          :: partition_dual_graph
+     procedure, non_overridable, private, nopass  :: build_parts_graph
+     procedure, non_overridable, private          :: allocate_subdomain_meshes
+     procedure, non_overridable, private          :: allocate_mesh_distributions
+     procedure, non_overridable, private          :: write_mesh_parts_fempar_gid_problem_type_format_dir_path_prefix
+     procedure, non_overridable, private          :: write_mesh_parts_fempar_gid_problem_type_format_pl
+     procedure, non_overridable, private          :: write_environment_related_data_file_unit
+     generic                                      :: write_mesh_parts_fempar_gid_problem_type_format & 
+                                                       => write_mesh_parts_fempar_gid_problem_type_format_dir_path_prefix, &
+                                                          write_mesh_parts_fempar_gid_problem_type_format_pl
+                                                          
+     procedure, non_overridable, private          :: write_mesh_parts_gid_postprocess_format_dir_path_prefix
+     procedure, non_overridable, private          :: write_mesh_parts_gid_postprocess_format_pl
+     generic                                      :: write_mesh_parts_gid_postprocess_format & 
+                                                       => write_mesh_parts_gid_postprocess_format_dir_path_prefix, &
+                                                          write_mesh_parts_gid_postprocess_format_pl
+                                                          
+     procedure, non_overridable, private          :: write_mesh_partition_gid_postprocess_format_dir_path_prefix
+     procedure, non_overridable, private          :: write_mesh_partition_gid_postprocess_format_pl
+     generic                                      :: write_mesh_partition_gid_postprocess_format &
+                                                        => write_mesh_partition_gid_postprocess_format_dir_path_prefix, &
+                                                           write_mesh_partition_gid_postprocess_format_pl
+                                                           
+     procedure, non_overridable          :: free                                  => mesh_partitioner_free
+     procedure, non_overridable, nopass  :: get_dir_path_and_prefix_from_pl       => mesh_partitioner_get_dir_path_and_prefix_from_pl
+     procedure, non_overridable, private :: graph_hierarchy_free
+     procedure, non_overridable, private :: cells_part_free
+     procedure, non_overridable, private :: parts_mapping_free
+     procedure, non_overridable, private :: num_parts_x_level_free
+     procedure, non_overridable, private :: subdomain_meshes_free
+     procedure, non_overridable, private :: mesh_distributions_free
   end type mesh_partitioner_t
+  
+  public :: mesh_partitioner_t
   
 contains
 
+  subroutine mesh_partitioner_create ( this, mesh, parameter_list )
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    type(mesh_t)             , intent(in)    :: mesh
+    type(parameterlist_t)    , intent(in)    :: parameter_list
+    call this%free()
+    call this%set_mesh(mesh)
+    call this%set_parameters_from_pl(parameter_list)
+  end subroutine mesh_partitioner_create
+
+
   !=============================================================================
-  subroutine mesh_partitioner_partition_mesh ( this, mesh, parameter_list ) 
+  subroutine mesh_partitioner_partition_mesh ( this ) 
      implicit none
      class(mesh_partitioner_t), intent(inout) :: this
-     type(mesh_t)             , intent(inout) :: mesh
-     type(ParameterList_t)    , intent(in)    :: parameter_list
+     integer(ip) :: ipart, istat
+         
+     assert ( associated(this%mesh) ) 
+     call this%build_and_partition_graph_hierarchy(this%mesh)
+     call this%setup_parts_mapping()
     
-     ! Local variables
-    type(list_t)                     :: fe_graph         ! Dual graph (to be partitioned)
-    type(list_t)                     :: parts_graph      ! Parts graph (to be partitioned)
-    integer(ip), allocatable, target :: ldome(:)         ! Part of each element
-    type(i1p_t), allocatable         :: ldomp(:)         ! Part of each part (recursively)
-    integer(ip), allocatable         :: parts_mapping(:) ! Part of each element
-    integer(ip) :: istat, ilevel, jlevel, ipart, itask, num_tasks
-     
-     
-     call this%free()
-     call this%set_parameters_from_pl(parameter_list)
-     
+     call this%allocate_subdomain_meshes()
+     call this%allocate_mesh_distributions()
 
-    ! Generate dual mesh (i.e., list of elements around points)
-    call mesh%to_dual()
-
-    ! Create dual (i.e. list of elements around elements)
-    call mesh%build_dual_graph(fe_graph)
-   
-    ! Partition dual graph to assign a domain to each element (in ldome)
-    call memalloc (mesh%get_num_cells(), ldome, __FILE__,__LINE__)   
-    
-    call this%graph_pt_renumbering(fe_graph,ldome)
-
-    allocate(ldomp(this%num_levels), stat=istat); check(istat==0);
-    ldomp(1)%p => ldome
-    do ilevel=1,this%num_levels-1
-       call memallocp(this%num_parts_x_level(ilevel),ldomp(ilevel+1)%p, __FILE__,__LINE__)
-       if(this%num_parts_x_level(ilevel+1)>1) then  ! Typically in the last level there is onle one part
-          call build_parts_graph (this%num_parts_x_level(ilevel), ldomp(ilevel)%p, fe_graph, parts_graph)
-          call fe_graph%free()
-          fe_graph = parts_graph
-          this%nparts = this%num_parts_x_level(ilevel+1)
-          call this%graph_pt_renumbering(parts_graph,ldomp(ilevel+1)%p)
-       else
-          ldomp(ilevel+1)%p = 1
-       end if
-       call parts_graph%free()
-    end do
-    this%nparts = this%num_parts_x_level(1)
-    call fe_graph%free()
-
-    num_tasks = 0
-    do ilevel=1,this%num_levels
-       num_tasks = num_tasks + this%num_parts_x_level(ilevel)
-    end do
-    !allocate(env(num_tasks), stat=istat); check(istat==0) 
-    itask = 0
-    call memalloc(this%num_levels,parts_mapping,__FILE__,__LINE__)
-    do ilevel=1,this%num_levels
-       do ipart = 1, this%num_parts_x_level(ilevel)
-          itask = itask+1
-          do jlevel = 1 , ilevel - 1 
-             parts_mapping(jlevel) = 0
-          end do
-          parts_mapping(ilevel) = ipart
-          do jlevel = ilevel+1 , this%num_levels
-             parts_mapping(jlevel) = ldomp(jlevel)%p( parts_mapping(jlevel-1) )
-          end do
-          !call env(itask)%assign_parts_to_tasks(this%num_levels,this%num_parts_x_level,parts_mapping)
-       end do
-    end do
-    call memfree(parts_mapping,__FILE__,__LINE__)
-
-    this%nparts = this%num_parts_x_level(1)
-    do ilevel=1,this%num_levels-1
-       call memfreep(ldomp(ilevel+1)%p, __FILE__,__LINE__)
-    end do
-    deallocate(ldomp, stat=istat); check(istat==0);
-
-    allocate(this%distr(this%nparts), stat=istat); check(istat==0)
-    allocate(this%lmesh(this%nparts), stat=istat); check(istat==0) 
-
-    call build_maps(this%nparts, ldome, mesh, this%distr)
+     call build_maps(this%nparts, &
+                     this%cells_part(1)%a, &
+                     this%mesh, &
+                     this%mesh_distributions)
 
     ! Build local meshes and their duals and generate partition adjacency
     do ipart=1,this%nparts
        ! Generate Local mesh
-       call mesh_g2l(this%distr(ipart)%num_local_vertices,  &
-                     this%distr(ipart)%l2g_vertices,        &
-                     this%distr(ipart)%num_local_cells,     &
-                     this%distr(ipart)%l2g_cells,           &
-                     mesh,                           &
-                     this%lmesh(ipart))
-       call build_adjacency (mesh, ldome,             &
+       call mesh_g2l(this%mesh_distributions(ipart)%num_local_vertices,  &
+                     this%mesh_distributions(ipart)%l2g_vertices,        &
+                     this%mesh_distributions(ipart)%num_local_cells,     &
+                     this%mesh_distributions(ipart)%l2g_cells,           &
+                     this%mesh,                                          &
+                     this%subdomain_meshes(ipart))
+       call build_adjacency (this%mesh, this%cells_part(1)%a,             &
             &                    ipart,                     &
-            &                    this%lmesh(ipart),              &
-            &                    this%distr(ipart)%l2g_vertices, &
-            &                    this%distr(ipart)%l2g_cells,    &
-            &                    this%distr(ipart)%nebou,        &
-            &                    this%distr(ipart)%nnbou,        &
-            &                    this%distr(ipart)%lebou,        &
-            &                    this%distr(ipart)%lnbou,        &
-            &                    this%distr(ipart)%pextn,        &
-            &                    this%distr(ipart)%lextn,        &
-            &                    this%distr(ipart)%lextp )
+            &                    this%subdomain_meshes(ipart),              &
+            &                    this%mesh_distributions(ipart)%l2g_vertices, &
+            &                    this%mesh_distributions(ipart)%l2g_cells,    &
+            &                    this%mesh_distributions(ipart)%nebou,        &
+            &                    this%mesh_distributions(ipart)%nnbou,        &
+            &                    this%mesh_distributions(ipart)%lebou,        &
+            &                    this%mesh_distributions(ipart)%lnbou,        &
+            &                    this%mesh_distributions(ipart)%pextn,        &
+            &                    this%mesh_distributions(ipart)%lextn,        &
+            &                    this%mesh_distributions(ipart)%lextp )
     end do
-    call memfree(ldome,__FILE__,__LINE__)     
   end subroutine mesh_partitioner_partition_mesh
   
+  subroutine allocate_graph_hierarchy(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: istat
+    call this%graph_hierarchy_free()
+    allocate(this%graph_hierarchy(this%num_levels), stat=istat); check(istat==0);
+  end subroutine allocate_graph_hierarchy
+  
+  subroutine allocate_cells_part( this )
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: istat
+    call this%cells_part_free()
+    allocate(this%cells_part(this%num_levels), stat=istat); check(istat==0);
+  end subroutine allocate_cells_part
+  
+  subroutine allocate_parts_mapping(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: i, istat   
+    call this%parts_mapping_free()
+    allocate(this%parts_mapping(sum(this%num_parts_x_level)), stat=istat); check(istat==0)
+    do i=1, sum(this%num_parts_x_level)
+      call this%parts_mapping(i)%create(this%num_levels)
+    end do
+  end subroutine allocate_parts_mapping
+  
+  subroutine allocate_subdomain_meshes(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: istat
+    call this%subdomain_meshes_free()
+    allocate(this%subdomain_meshes(this%nparts), stat=istat); check(istat==0);
+  end subroutine allocate_subdomain_meshes
+  
+  subroutine allocate_mesh_distributions(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: istat
+    call this%mesh_distributions_free()
+    allocate(this%mesh_distributions(this%nparts), stat=istat); check(istat==0);
+  end subroutine allocate_mesh_distributions
+    
+  subroutine build_and_partition_graph_hierarchy(this, mesh)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    type(mesh_t)             , intent(in)    :: mesh
+    
+    integer(ip), allocatable :: pelpo(:)
+    integer(ip), allocatable :: lelpo(:)
+    integer(ip) :: i, ilevel, istat
+    
+    call this%allocate_graph_hierarchy()
+    call this%allocate_cells_part()
+    
+    ! Generate dual mesh (i.e., list of elements around points)
+    call mesh%build_dual_mesh(pelpo, lelpo)
+    
+    ! Create dual (i.e. list of elements around elements)
+    call mesh%build_dual_graph(pelpo, lelpo, this%graph_hierarchy(1))
+    
+    ! Free dual mesh
+    call memfree(pelpo, __FILE__, __LINE__ )
+    call memfree(lelpo, __FILE__, __LINE__ )
+    
+    ! Partition dual graph to assign a domain to each element (in cell_parts(1))
+    call this%cells_part(1)%create(mesh%get_num_cells()) 
+    call this%partition_dual_graph(this%num_parts_x_level(1), &
+                                   this%graph_hierarchy(1), &
+                                   this%cells_part(1)%a)
+    do ilevel=1,this%num_levels-1
+       call this%cells_part(ilevel+1)%create(this%num_parts_x_level(ilevel)) 
+       ! Typically in the last level there is only one part
+       if(this%num_parts_x_level(ilevel+1)>1) then
+          call this%build_parts_graph (this%num_parts_x_level(ilevel), &
+                                       this%cells_part(ilevel)%a, &
+                                       this%graph_hierarchy(ilevel), &
+                                       this%graph_hierarchy(ilevel+1))
+
+          call this%partition_dual_graph(this%num_parts_x_level(ilevel+1), &
+                                         this%graph_hierarchy(ilevel+1), &
+                                         this%cells_part(ilevel+1)%a)
+       else
+          this%cells_part(ilevel+1)%a(:) = 1
+       end if
+    end do
+  end subroutine build_and_partition_graph_hierarchy
+  
+  subroutine setup_parts_mapping(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: itask, ilevel, jlevel, ipart
+    call this%allocate_parts_mapping()
+    itask = 0
+    do ilevel=1,this%num_levels
+       do ipart = 1, this%num_parts_x_level(ilevel)
+          itask = itask+1
+          do jlevel = 1 , ilevel - 1 
+             this%parts_mapping(itask)%a(jlevel) = 0
+          end do
+          this%parts_mapping(itask)%a(ilevel) = ipart
+          do jlevel = ilevel+1 , this%num_levels
+             this%parts_mapping(itask)%a(jlevel) = this%cells_part(jlevel)%a( this%parts_mapping(itask)%a(jlevel-1) )
+          end do
+       end do
+    end do
+  end subroutine setup_parts_mapping
+  
   !=============================================================================
-  subroutine mesh_partitioner_set_parameters_from_pl(this,parameter_list)
+  subroutine set_parameters_from_pl(this,parameter_list)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
     type(ParameterList_t)    , intent(in)    :: parameter_list
@@ -222,13 +317,6 @@ contains
        this%num_parts_x_level(1)=this%nparts
     end if
 
-    ! Optional paramters
-    if( parameter_list%isPresent(debug_key) ) then
-       assert(parameter_list%isAssignable(debug_key, this%debug))
-       istat = parameter_list%get(key = debug_key  , value = this%debug)
-       assert(istat==0)
-    end if
-
     if( parameter_list%isPresent(strategy_key) ) then
        assert(parameter_list%isAssignable(strategy_key, this%strat))
        istat = parameter_list%get(key = strategy_key  , value = this%strat)
@@ -265,13 +353,20 @@ contains
        istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
        assert(istat==0)
     end if
-  end subroutine mesh_partitioner_set_parameters_from_pl
+  end subroutine set_parameters_from_pl
   
   !=============================================================================
-  subroutine mesh_partitioner_set_default_parameter_values(this)
+  subroutine set_mesh(this, mesh)
+    implicit none
+    class(mesh_partitioner_t), intent(inout)      :: this
+    type(mesh_t)             , target, intent(in) :: mesh
+    this%mesh => mesh
+  end subroutine set_mesh
+  
+  !=============================================================================
+  subroutine set_default_parameter_values(this)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
-    this%debug = mesh_partitioner_default_debug
     this%strat = mesh_partitioner_default_strat
     this%metis_option_ufactor = mesh_partitioner_default_metis_option_ufactor
     this%metis_option_minconn = mesh_partitioner_default_metis_option_minconn
@@ -279,22 +374,154 @@ contains
     this%metis_option_ctype = mesh_partitioner_default_metis_option_ctype
     this%metis_option_iptype = mesh_partitioner_default_metis_option_iptype
     this%metis_option_debug = mesh_partitioner_default_metis_option_debug
-  end subroutine mesh_partitioner_set_default_parameter_values
+  end subroutine set_default_parameter_values
   
-  subroutine mesh_partitioner_write_mesh_parts_pl(this, parameter_list)
+  !=============================================================================
+  subroutine write_mesh_parts_fempar_gid_problem_type_format_pl(this, parameter_list)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
-    type(ParameterList_t)    , intent(in)    :: parameter_list
-    
-  end subroutine mesh_partitioner_write_mesh_parts_pl
+    type(ParameterList_t)    , intent(in)    :: parameter_list 
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
+    call this%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
+    call this%write_mesh_parts_fempar_gid_problem_type_format(dir_path,prefix)
+  end subroutine write_mesh_parts_fempar_gid_problem_type_format_pl
   
-  subroutine mesh_partitioner_write_mesh_parts_dir_path_prefix(this, dir_path, prefix)
+  !=============================================================================
+  subroutine write_mesh_parts_fempar_gid_problem_type_format_dir_path_prefix(this, dir_path, prefix)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
     character(len=*)         , intent(in)    :: dir_path
     character(len=*)         , intent(in)    :: prefix
+   
+    character(len=:), allocatable  :: name, rename
+    integer(ip) :: lunio
+    integer(ip) :: i
+
+    ! Write subdomain meshes
+    call this%subdomain_meshes(1)%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
+    do i=this%nparts, 1, -1  
+       rename=name
+       call numbered_filename_compose(i,this%nparts,rename)
+       lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
+       call this%subdomain_meshes(i)%write_fempar_gid_problem_type_format(lunio)
+       call io_close(lunio)
+    end do
     
-  end subroutine mesh_partitioner_write_mesh_parts_dir_path_prefix
+    ! Write mesh_distributions
+    call this%mesh_distributions(1)%mesh_distribution_compose_name ( prefix, name )
+    do i=this%nparts, 1, -1  
+       rename=name
+       call numbered_filename_compose(i,this%nparts,rename)
+       lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
+       call this%mesh_distributions(i)%write(lunio)
+       call io_close(lunio)
+    end do
+    
+    ! Write environment related data
+    call environment_compose_name ( prefix, name )
+    do i=sum(this%num_parts_x_level), 1, -1  
+       rename=name
+       call numbered_filename_compose(i,sum(this%num_parts_x_level),rename)
+       lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
+       call this%write_environment_related_data_file_unit(i, lunio)
+       call io_close(lunio)
+    end do
+    
+  end subroutine write_mesh_parts_fempar_gid_problem_type_format_dir_path_prefix
+  
+  !=============================================================================
+  subroutine write_mesh_parts_gid_postprocess_format_pl(this, parameter_list)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    type(ParameterList_t)    , intent(in)    :: parameter_list 
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
+    call this%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
+    call this%write_mesh_parts_gid_postprocess_format(dir_path,prefix)
+  end subroutine write_mesh_parts_gid_postprocess_format_pl
+  
+  !=============================================================================
+  subroutine write_mesh_parts_gid_postprocess_format_dir_path_prefix(this, dir_path, prefix)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    character(len=*)         , intent(in)    :: dir_path
+    character(len=*)         , intent(in)    :: prefix
+   
+    character(len=:), allocatable  :: name, rename
+    integer(ip) :: lunio
+    integer(ip) :: i
+
+    ! Write subdomain meshes
+    call this%subdomain_meshes(1)%mesh_gid_postprocess_format_compose_name ( prefix, name )
+    do i=this%nparts, 1, -1  
+       rename=name
+       call numbered_filename_compose(i,this%nparts,rename)
+       lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
+       call this%subdomain_meshes(i)%write_gid_postprocess_format(lunio)
+       call io_close(lunio)
+    end do
+  end subroutine write_mesh_parts_gid_postprocess_format_dir_path_prefix
+  
+  !=============================================================================
+  subroutine write_environment_related_data_file_unit (this, level, lunio)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip)              , intent(in)    :: level
+    integer(ip)              , intent(in)    :: lunio
+    assert( this%num_levels>0)
+    write ( lunio, '(10i10)' ) this%num_levels
+    write ( lunio, '(10i10)' ) this%num_parts_x_level
+    write ( lunio, '(10i10)' ) this%parts_mapping(level)%a
+  end subroutine   write_environment_related_data_file_unit 
+  
+  !=============================================================================
+  subroutine write_mesh_partition_gid_postprocess_format_pl(this, parameter_list)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    type(ParameterList_t)    , intent(in)    :: parameter_list 
+    character(len=:), allocatable :: dir_path
+    character(len=:), allocatable :: prefix
+    call this%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
+    call this%write_mesh_partition_gid_postprocess_format_dir_path_prefix(dir_path,prefix)
+  end subroutine write_mesh_partition_gid_postprocess_format_pl
+  
+  !=============================================================================
+  subroutine write_mesh_partition_gid_postprocess_format_dir_path_prefix(this, dir_path, prefix)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    character(len=*)         , intent(in)    :: dir_path
+    character(len=*)         , intent(in)    :: prefix  
+    ! Locals
+    type(post_file_t) :: lupos
+    character(len=:), allocatable :: file_path
+    assert ( associated(this%mesh) )
+    file_path = trim(dir_path)// '/' // trim(prefix) // '.post.res'
+    call postpro_open_file(1,file_path,lupos)
+    call postpro_gp_init(lupos,1,this%mesh%get_num_vertices(),this%mesh%get_num_dims())
+    call postpro_gp(lupos,this%mesh%get_num_dims(),this%mesh%get_num_vertices(),this%cells_part(1)%a,"MESH_PARTITION",1,1.0)
+    call postpro_close_file(lupos)
+  end subroutine write_mesh_partition_gid_postprocess_format_dir_path_prefix
+  
+  !=============================================================================
+  subroutine mesh_partitioner_get_dir_path_and_prefix_from_pl( parameter_list, dir_path, prefix ) 
+     implicit none
+     type(ParameterList_t),         intent(in)    :: parameter_list
+     character(len=:), allocatable, intent(inout) :: dir_path
+     character(len=:), allocatable, intent(inout) :: prefix
+     ! Locals
+     integer(ip)                                  :: error
+
+     ! Mandatory parameters
+     assert(parameter_list%isAssignable(dir_path_out_key, 'string'))
+     error = parameter_list%GetAsString(key = dir_path_out_key, string = dir_path)
+     assert(error==0)
+
+     assert(parameter_list%isAssignable(prefix_key, 'string'))
+     error = parameter_list%GetAsString(key = prefix_key, string = prefix)
+     assert(error==0)
+  end subroutine mesh_partitioner_get_dir_path_and_prefix_from_pl
+  
   
   !=============================================================================
   subroutine mesh_partitioner_free(this)
@@ -302,16 +529,90 @@ contains
     class(mesh_partitioner_t), intent(inout) :: this
     if ( allocated(this%num_parts_x_level) ) call memfree(this%num_parts_x_level,__FILE__,__LINE__)
     call this%set_default_parameter_values()
+    call this%graph_hierarchy_free()
+    call this%cells_part_free()
+    call this%parts_mapping_free()
+    call this%num_parts_x_level_free()
+    call this%subdomain_meshes_free()
+    call this%mesh_distributions_free()
+    nullify(this%mesh)
   end subroutine mesh_partitioner_free
+  
+    subroutine graph_hierarchy_free ( this )
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: i, istat
+    if ( allocated(this%graph_hierarchy) ) then
+       do i = 1, size(this%graph_hierarchy)
+         call this%graph_hierarchy(i)%free()
+       end do
+       deallocate(this%graph_hierarchy, stat=istat); check(istat==0);
+    end if
+  end subroutine graph_hierarchy_free 
+  
+  subroutine subdomain_meshes_free(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: i, istat
+    if ( allocated(this%subdomain_meshes) ) then
+       do i=1,size(this%subdomain_meshes)
+         call this%subdomain_meshes(i)%free()
+       end do
+       deallocate(this%subdomain_meshes, stat=istat); check(istat==0);
+    end if 
+  end subroutine subdomain_meshes_free
+  
+  subroutine mesh_distributions_free(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: i, istat
+    if ( allocated(this%mesh_distributions) ) then
+       do i=1,size(this%mesh_distributions)
+         call this%mesh_distributions(i)%free()
+       end do
+       deallocate(this%mesh_distributions, stat=istat); check(istat==0);
+    end if
+  end subroutine mesh_distributions_free
+  
+  subroutine cells_part_free( this )
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: i, istat
+    if ( allocated(this%cells_part) ) then
+       do i = 1, size(this%cells_part)
+         call this%cells_part(i)%free()
+       end do
+       deallocate(this%cells_part, stat=istat); check(istat==0) 
+    end if
+  end subroutine cells_part_free
+  
+  subroutine parts_mapping_free(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    integer(ip) :: i, istat
+    if ( allocated(this%parts_mapping) ) then
+      do i=1, size(this%parts_mapping)
+        call this%parts_mapping(i)%free()
+      end do
+      deallocate(this%parts_mapping, stat=istat); check(istat==0) 
+    end if  
+  end subroutine parts_mapping_free
+ 
+  subroutine num_parts_x_level_free(this)
+    implicit none
+    class(mesh_partitioner_t), intent(inout) :: this
+    if ( allocated(this%num_parts_x_level) ) & 
+      call memfree(this%num_parts_x_level,__FILE__,__LINE__)
+  end subroutine num_parts_x_level_free
   
   
     !================================================================================================
-  subroutine build_adjacency ( gmesh, ldome, my_part, lmesh, l2gn, l2ge, &
+  subroutine build_adjacency ( gmesh, cell_parts, my_part, lmesh, l2gn, l2ge, &
        &                           nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
     implicit none
     integer(ip)   , intent(in)  :: my_part
     type(mesh_t)  , intent(in)  :: gmesh,lmesh
-    integer(ip)   , intent(in)  :: ldome(gmesh%get_num_cells())
+    integer(ip)   , intent(in)  :: cell_parts(gmesh%get_num_cells())
     integer(igp)  , intent(in)  :: l2gn(lmesh%get_num_vertices())
     integer(igp)  , intent(in)  :: l2ge(lmesh%get_num_cells())
     integer(ip)   , intent(out) :: nebou
@@ -325,13 +626,16 @@ contains
     integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, lpoin, jpart, iebou, istat, touch
     integer(ip) :: nextn, nexte, nepos
     integer(ip), allocatable :: local_visited(:)
-    integer(ip), pointer :: pnods(:), lnods(:), pelpo(:), lelpo(:)
+    integer(ip), pointer :: pnods(:), lnods(:)
+    integer(ip), allocatable :: pelpo(:), lelpo(:)
     type(hash_table_ip_ip_t)   :: external_visited
 
+    call gmesh%build_dual_mesh(pelpo, lelpo)
+    
     if(my_part==0) then
        write(*,*)  'Parts:'
        do ielem=1,gmesh%get_num_cells()
-          write(*,*)  ielem, ldome(ielem)
+          write(*,*)  ielem, cell_parts(ielem)
        end do
        write(*,*)  'Global mesh:',gmesh%get_num_vertices(),gmesh%get_num_cells()
        lnods => gmesh%get_vertices_x_cell()
@@ -340,10 +644,7 @@ contains
        do ielem=1,gmesh%get_num_cells()
           write(*,*)  ielem, lnods(pnods(ielem):pnods(ielem+1)-1)
        end do
-       write(*,*)  'Global dual mesh:',gmesh%get_num_cells_around_vertices()
-       pelpo => gmesh%get_cells_around_vertices_pointers()
-       lelpo => gmesh%get_cells_around_vertices()
-       assert(associated(pelpo) .and. associated(lelpo))
+       write(*,*)  'Global dual mesh:'
        do ipoin=1,gmesh%get_num_vertices()
           write(*,*)  ipoin, lelpo(pelpo(ipoin):pelpo(ipoin+1)-1)
        end do
@@ -362,9 +663,7 @@ contains
 
     lnods => gmesh%get_vertices_x_cell()
     pnods => gmesh%get_vertices_x_cell_pointers()
-    pelpo => gmesh%get_cells_around_vertices_pointers()
-    lelpo => gmesh%get_cells_around_vertices()
-    assert(associated(lnods) .and. associated(pnods) .and. associated(pelpo) .and. associated(lelpo))
+    assert(associated(lnods) .and. associated(pnods))
 
     ! Count boundary vertices
     nnbou = 0 
@@ -372,7 +671,7 @@ contains
        ipoin = l2gn(lpoin)
        do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
           ielem = lelpo(pelem)
-          jpart = ldome(ielem)
+          jpart = cell_parts(ielem)
           if ( jpart /= my_part ) then 
              nnbou = nnbou +1
              exit
@@ -387,7 +686,7 @@ contains
        ipoin = l2gn(lpoin)
        do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
           ielem = lelpo(pelem)
-          jpart = ldome(ielem)
+          jpart = cell_parts(ielem)
           if ( jpart /= my_part ) then 
              lnbou(nnbou+1) = ipoin
              nnbou = nnbou +1
@@ -415,7 +714,7 @@ contains
           do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
              jelem = lelpo(pelem)
              if(jelem/=ielem) then
-                jpart = ldome(jelem)
+                jpart = cell_parts(jelem)
                 if(jpart/=my_part) then                                   ! This is an external element
                    if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
                    !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
@@ -434,7 +733,7 @@ contains
              do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
                 jelem = lelpo(pelem)
                 if(jelem/=ielem) then
-                   jpart = ldome(jelem)
+                   jpart = cell_parts(jelem)
                    if(jpart/=my_part) then
                       call external_visited%del(key=jelem, stat=istat)
                    end if
@@ -487,7 +786,7 @@ contains
           do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
              jelem = lelpo(pelem)
              if(jelem/=ielem) then
-                jpart = ldome(jelem)
+                jpart = cell_parts(jelem)
                 if(jpart/=my_part) then                                   ! This is an external element
                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
                    if(istat==now_stored) then
@@ -505,7 +804,7 @@ contains
           do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
              jelem = lelpo(pelem)
              if(jelem/=ielem) then
-                jpart = ldome(jelem)
+                jpart = cell_parts(jelem)
                 if(jpart/=my_part) then                                   ! This is an external element
                    call external_visited%del(key=jelem, stat=istat)
                 end if
@@ -515,16 +814,18 @@ contains
     end do
     call external_visited%free()
     call memfree(local_visited,__FILE__,__LINE__)
+    call memfree(pelpo)
+    call memfree(lelpo)
   end subroutine build_adjacency
 
   !================================================================================================
-  subroutine build_maps( nparts, ldome, femesh, distr )
+  subroutine build_maps( nparts, cell_parts, femesh, distr )
     ! This routine builds (node and element) partition maps without using the objects
     ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
     implicit none
     integer(ip)                , intent(in)    :: nparts
     type(mesh_t)               , intent(in)    :: femesh
-    integer(ip)                , intent(in)    :: ldome(femesh%get_num_cells())
+    integer(ip)                , intent(in)    :: cell_parts(femesh%get_num_cells())
     type(mesh_distribution_t), intent(inout) :: distr(nparts)
 
     integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
@@ -538,7 +839,7 @@ contains
     call memalloc (nparts, nedom,__FILE__,__LINE__)
     nedom=0
     do ielem=1,femesh%get_num_cells()
-       ipart = ldome(ielem)
+       ipart = cell_parts(ielem)
        nedom(ipart)=nedom(ipart)+1
     end do
     ! Allocate local to global maps
@@ -549,7 +850,7 @@ contains
     end do
     nedom = 0
     do ielem=1,femesh%get_num_cells()
-       ipart = ldome(ielem)
+       ipart = cell_parts(ielem)
        nedom(ipart)=nedom(ipart)+1
        distr(ipart)%l2g_cells(nedom(ipart)) = ielem
     end do
@@ -570,7 +871,7 @@ contains
        work1 = 0
        work2 = 0
        do ielem=1,femesh%get_num_cells()
-          if(ldome(ielem)==ipart) then
+          if(cell_parts(ielem)==ipart) then
              do inode = pnods(ielem), pnods(ielem+1) - 1 
                 if(work1(lnods(inode)) == 0 ) then
                    npdom(ipart) = npdom(ipart)+1
@@ -734,15 +1035,20 @@ contains
   end subroutine mesh_graph_compute_connected_components
 
   !=================================================================================================
-  subroutine graph_pt_renumbering(this,gp,ldomn,weight)
+  subroutine partition_dual_graph(this, &
+                                         nparts, &
+                                         graph, &
+                                         cell_parts, &
+                                         cell_weights)
     !-----------------------------------------------------------------------
     ! This routine computes a nparts-way-partitioning of the input graph gp
     !-----------------------------------------------------------------------
     implicit none
     class(mesh_partitioner_t)       , target, intent(in)    :: this
-    type(list_t)                    , target, intent(inout) :: gp
-    integer(ip)                     , target, intent(inout) :: ldomn(gp%get_num_pointers())
-    integer(ip),            optional, target, intent(in)    :: weight(gp%get_size())
+    integer(ip)                     , target, intent(in)    :: nparts
+    type(list_t)                    , target, intent(in)    :: graph
+    integer(ip)                     , target, intent(inout) :: cell_parts(graph%get_num_pointers())
+    integer(ip),            optional, target, intent(in)    :: cell_weights(graph%get_num_pointers())
 
     ! Local variables 
     integer(ip), target      :: kedge
@@ -793,15 +1099,15 @@ contains
        options(METIS_OPTION_IPTYPE)    = this%metis_option_iptype
        
        ncon = 1
-       if(present(weight)) then
+       if(present(cell_weights)) then
           options(METIS_OPTION_NITER) = 100
-          ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
-                                      C_NULL_PTR  , C_NULL_PTR , c_loc(weight) , c_loc(this%nparts), &
-                                      C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+          ierr = metis_partgraphkway( graph%get_num_pointers_c_loc(), c_loc(ncon), graph%get_pointers_c_loc(), graph%get_list_c_loc() , & 
+                                      C_NULL_PTR  , C_NULL_PTR , c_loc(cell_weights) , c_loc(nparts), &
+                                      C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(cell_parts) )
        else
-          ierr = metis_partgraphkway( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
-                                      C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(this%nparts), &
-                                      C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+          ierr = metis_partgraphkway( graph%get_num_pointers_c_loc(), c_loc(ncon), graph%get_pointers_c_loc(), graph%get_list_c_loc() , & 
+                                      C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(nparts), &
+                                      C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(cell_parts) )
        end if
 
        assert(ierr == METIS_OK) 
@@ -812,34 +1118,34 @@ contains
        options(METIS_OPTION_UFACTOR)   = this%metis_option_ufactor
 
        ncon = 1 
-       ierr = metis_partgraphrecursive( gp%get_num_pointers_c_loc(), c_loc(ncon), gp%get_pointers_c_loc(), gp%get_list_c_loc() , & 
-                                        C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(this%nparts), &
-                                        C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(ldomn) )
+       ierr = metis_partgraphrecursive( graph%get_num_pointers_c_loc(), c_loc(ncon), graph%get_pointers_c_loc(), graph%get_list_c_loc() , & 
+                                        C_NULL_PTR  , C_NULL_PTR , C_NULL_PTR    , c_loc(nparts), &
+                                        C_NULL_PTR  , C_NULL_PTR , c_loc(options), c_loc(kedge), c_loc(cell_parts) )
     end if    
 #else
     call enable_metis_error_message
 #endif
 
     if ( this%strat == part_strip ) then
-       j = gp%get_num_pointers()
+       j = graph%get_num_pointers()
        m = 0
-       do ipart=1,this%nparts
-          k = j / (this%nparts-ipart+1)
+       do ipart=1,nparts
+          k = j / (nparts-ipart+1)
           do i = 1, k
-             ldomn(m+i) = ipart
+             cell_parts(m+i) = ipart
           end do
           m = m + k
           j = j - k
        end do
     else if ( this%strat == part_rcm_strip ) then
-       call memalloc ( gp%get_num_pointers(), iperm, __FILE__,__LINE__ )
-       call genrcm ( gp, iperm )
-       j = gp%get_num_pointers()
+       call memalloc ( graph%get_num_pointers(), iperm, __FILE__,__LINE__ )
+       call genrcm ( graph, iperm )
+       j = graph%get_num_pointers()
        m = 0
-       do ipart=1,this%nparts
-          k = j / (this%nparts-ipart+1)
+       do ipart=1,nparts
+          k = j / (nparts-ipart+1)
           do i = 1, k
-             ldomn(iperm(m+i)) = ipart
+             cell_parts(iperm(m+i)) = ipart
           end do
           m = m + k
           j = j - k
@@ -847,7 +1153,7 @@ contains
        call memfree ( iperm,__FILE__,__LINE__)
     end if
 
-  end subroutine graph_pt_renumbering
+  end subroutine partition_dual_graph
 
 
   !================================================================================================
@@ -867,7 +1173,7 @@ contains
     integer(ip)                    :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
     type(list_iterator_t)          :: given_vefs_iterator
     logical :: count_it
-    integer(ip), pointer  :: gpnods(:), glnods(:), glegeo(:), gleset(:), lpnods(:), llnods(:), glst_vefs_geo(:), glst_vefs_set(:)
+    integer(ip), pointer  :: gpnods(:), glnods(:), glegeo(:), gleset(:), glst_vefs_geo(:), glst_vefs_set(:)
     type(list_t), pointer :: ggiven_vefs, lgiven_vefs
     real(rp), pointer     :: gcoord(:,:)
 
@@ -901,27 +1207,26 @@ contains
 
     glnods   => gmesh%get_vertices_x_cell()
     gpnods   => gmesh%get_vertices_x_cell_pointers()
-    assert(associated(glnods) .and. associated(gpnods)) 
-    llnods   => gmesh%get_vertices_x_cell()
-    lpnods   => gmesh%get_vertices_x_cell_pointers()
-    assert(associated(llnods) .and. associated(lpnods)) 
+    assert(associated(glnods) .and. associated(gpnods))
+    glegeo  => gmesh%get_cells_geometry_id()
+    gleset => gmesh%get_cells_set()
 
     do ielem_lmesh=1,lmesh%get_num_cells()
        ielem_gmesh = l2g_cells(ielem_lmesh)
        knode = gpnods(ielem_gmesh+1)-gpnods(ielem_gmesh)
-       lmesh%pnods(ielem_lmesh+1)=lpnods(ielem_lmesh)+knode
+       lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
        lmesh%nnode=max(lmesh%nnode,knode)
        lmesh%legeo(ielem_lmesh)=glegeo(ielem_gmesh)
        lmesh%leset(ielem_lmesh)=gleset(ielem_gmesh)
     end do
-    call memalloc (lpnods(lmesh%get_num_cells()+1), lmesh%lnods, __FILE__,__LINE__)
+    call memalloc (lmesh%pnods(lmesh%get_num_cells()+1)-1, lmesh%lnods, __FILE__,__LINE__)
     do ielem_lmesh=1,lmesh%get_num_cells()
        ielem_gmesh = l2g_cells(ielem_lmesh)
        p_ipoin_gmesh = gpnods(ielem_gmesh)-1
-       p_ipoin_lmesh = lpnods(ielem_lmesh)-1
+       p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
        knode = gpnods(ielem_gmesh+1)-gpnods(ielem_gmesh)
        do inode=1,knode
-          call ws_inmap%get(key=int(glnods(p_ipoin_gmesh+inode),igp),val=llnods(p_ipoin_lmesh+inode),stat=istat) 
+          call ws_inmap%get(key=int(glnods(p_ipoin_gmesh+inode),igp),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
        end do
     end do
 
@@ -956,17 +1261,16 @@ contains
        call memalloc(   ivef_lmesh, lmesh%lst_vefs_geo, __FILE__,__LINE__)
        call memalloc(   ivef_lmesh, lmesh%lst_vefs_set, __FILE__,__LINE__)
 
-       glst_vefs_geo => lmesh%get_boundary_vefs_geometry_id()
-       glst_vefs_set => lmesh%get_boundary_vefs_set()
+       glst_vefs_geo => gmesh%get_boundary_vefs_geometry_id()
+       glst_vefs_set => gmesh%get_boundary_vefs_set()
        assert(associated(glst_vefs_geo) .and. associated(glst_vefs_set))
 
        lgiven_vefs => lmesh%get_boundary_vefs()
-       assert(associated(ggiven_vefs))
-
+       assert(associated(lgiven_vefs))
        call lgiven_vefs%create(ivef_lmesh)
 
        ivef_lmesh=1
-       do ivef_gmesh=1,lgiven_vefs%get_num_pointers()
+       do ivef_gmesh=1,ggiven_vefs%get_num_pointers()
           given_vefs_iterator = ggiven_vefs%create_iterator(ivef_gmesh)
           kvef_size = given_vefs_iterator%get_size()
           count_it=.true.
@@ -990,7 +1294,7 @@ contains
        call lgiven_vefs%allocate_list_from_pointer()
 
        ivef_lmesh=1
-       do ivef_gmesh=1,lgiven_vefs%get_num_pointers()
+       do ivef_gmesh=1,ggiven_vefs%get_num_pointers()
           given_vefs_iterator = ggiven_vefs%create_iterator(ivef_gmesh)
           kvef_size = given_vefs_iterator%get_size()
           count_it=.true.
@@ -1014,8 +1318,8 @@ contains
        call memfree (node_list, __FILE__,__LINE__)
     end if
     
-    call ws_inmap%free
-    call el_inmap%free
+    call ws_inmap%free()
+    call el_inmap%free()
 
     gcoord => gmesh%get_vertex_coordinates()
     assert(associated(gcoord))
@@ -1027,16 +1331,16 @@ contains
 
   end subroutine mesh_g2l
 
-  subroutine build_parts_graph (nparts, ldome, fe_graph, parts_graph)
+  subroutine build_parts_graph (nparts, cell_parts, graph, parts_graph)
     implicit none
-    integer(ip)             , intent(in)  :: nparts
-    type(list_t)            , intent(in)  :: fe_graph
-    integer(ip)             , intent(in)  :: ldome(:)
-    type(list_t)            , intent(out) :: parts_graph
+    integer(ip)             , intent(in)    :: nparts
+    type(list_t)            , intent(in)    :: graph
+    integer(ip)             , intent(in)    :: cell_parts(:)
+    type(list_t)            , intent(inout) :: parts_graph
 
     integer(ip)              :: istat,ielem,jelem,ipart,jpart
     integer(ip)              :: num_parts_around, touched
-    type(list_iterator_t)                    :: fe_graph_iterator
+    type(list_iterator_t)                    :: graph_iterator
     type(list_iterator_t)                    :: parts_graph_iterator
     type(position_hash_table_t), allocatable :: visited_parts_touched(:)
     type(hash_table_ip_ip_t)   , allocatable :: visited_parts_numbers(:)
@@ -1047,9 +1351,9 @@ contains
     ! maximum number of elements connected to an element, that is, by the 
     ! maximum degree of elements graph. Note, however, that it can be bigger.
     num_parts_around=0
-    do ielem=1,fe_graph%get_num_pointers()
-       fe_graph_iterator = fe_graph%create_iterator(ielem)
-       num_parts_around = max(num_parts_around,fe_graph_iterator%get_size())
+    do ielem=1,graph%get_num_pointers()
+       graph_iterator = graph%create_iterator(ielem)
+       num_parts_around = max(num_parts_around,graph_iterator%get_size())
     end do
     allocate(visited_parts_touched(nparts),stat=istat); assert(istat==0);
     allocate(visited_parts_numbers(nparts),stat=istat); assert(istat==0);
@@ -1059,18 +1363,18 @@ contains
     end do
 
     ! Now compute graph pointers and fill tables
-    do ielem=1,fe_graph%get_num_pointers()
-       ipart = ldome(ielem)
-       fe_graph_iterator = fe_graph%create_iterator(ielem)
-       do while(.not.fe_graph_iterator%is_upper_bound())
-          jelem = fe_graph_iterator%get_current()
-          jpart = ldome(jelem)
+    do ielem=1,graph%get_num_pointers()
+       ipart = cell_parts(ielem)
+       graph_iterator = graph%create_iterator(ielem)
+       do while(.not.graph_iterator%is_upper_bound())
+          jelem = graph_iterator%get_current()
+          jpart = cell_parts(jelem)
           call visited_parts_touched(ipart)%get(key=jpart,val=num_parts_around,stat=istat) ! Touch it (jpart is around ipart)
           if(istat==new_index) then
              call visited_parts_numbers(ipart)%put(key=num_parts_around,val=jpart,stat=istat) ! Store it
              assert(istat==now_stored)
           end if
-          call fe_graph_iterator%next()
+          call graph_iterator%next()
        end do
     end do
     do ipart=1,nparts

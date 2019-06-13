@@ -330,6 +330,7 @@ contains
 
           call environment_compose_name(prefix, name )  
           call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
+          write(*,*) trim(dir_path) // '/' // trim(name)
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
           !$ write(*,*) omp_get_thread_num(),lunio 
 

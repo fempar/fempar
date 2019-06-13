@@ -33,7 +33,6 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: num_parts_key               = 'PART_NUM_PARTS'
   character(len=*), parameter :: num_levels_distribution_key = 'PART_NUM_LEVELS_DISTRIBUTION'
   character(len=*), parameter :: num_parts_x_level_key       = 'PART_NUM_PARTS_X_LEVEL'
-  character(len=*), parameter :: debug_key                   = 'PART_DEBUG'
   character(len=*), parameter :: strategy_key                = 'PART_STRATEGY'
 
   character(len=*), parameter :: metis_option_debug_key      = 'METIS_DEBUG'
@@ -46,7 +45,6 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: num_parts_cla_name               = '--'//num_parts_key
   character(len=*), parameter :: num_levels_distribution_cla_name = '--'//num_levels_distribution_key
   character(len=*), parameter :: num_parts_x_level_cla_name       = '--'//num_parts_x_level_key
-  character(len=*), parameter :: debug_cla_name                   = '--'//debug_key
   character(len=*), parameter :: strategy_cla_name                = '--'//strategy_key
 
   character(len=*), parameter :: metis_option_debug_cla_name      = '--'//metis_option_debug_key
@@ -61,9 +59,7 @@ module mesh_partitioner_parameters_names
   integer(ip), parameter :: part_strip     = 2
   integer(ip), parameter :: part_rcm_strip = 3
   
-  
-  integer(ip), parameter :: mesh_partitioner_default_debug = 1
-  
+    
   integer(ip), parameter :: mesh_partitioner_default_strat = part_kway
   
   ! Use METIS defaults (i.e., == -1) 30 for part_kway, and 1 for part_recursive

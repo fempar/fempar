@@ -29,47 +29,19 @@
 program partitioner
   use fempar_names
   implicit none
-  type(ParameterList_t)    , pointer     :: parameters
-  type(mesh_t)                           :: gmesh
-  type(mesh_distribution_t), allocatable :: distr(:)
-  type(environment_t)  , allocatable :: env(:)
-  type(mesh_t)             , allocatable :: lmesh(:)
-  integer(ip) :: ipart, ienv
-
+  type(mesh_t) :: gmesh
+  type(mesh_partitioner_t) :: mesh_partitioner
+  type(parameterlist_t), pointer :: parameters
   call fempar_init()
   call parameter_handler%process_parameters()
   parameters => parameter_handler%get_values()
-
-  ! Read and partition gmesh into lmesh
   call gmesh%read_fempar_gid_problem_type_format(parameters)
-  call gmesh%write_gid_post_process_format(parameters)
-  call gmesh%create_distribution (parameters, distr, env, lmesh)
-
-  ! Write environments
-  call environment_write_files             ( parameters, env )
-
-  ! Write partition info
-  call mesh_distribution_write_files           ( parameters, distr )
-  call mesh_distribution_write_for_postprocess ( parameters, gmesh, distr )
-
-  ! Write local meshes
-  call mesh_write_files                 ( parameters, lmesh )
-  call mesh_write_files_for_postprocess ( parameters, lmesh )
-
-  ! Deallocate partition objects and envs
-  do ipart=1,size(distr)
-     call distr(ipart)%free()
-     call lmesh(ipart)%free
-  end do
-  deallocate (distr)
-  deallocate (lmesh)
-
-  do ienv=1,size(env)
-     call env(ienv)%free()
-  end do
-  deallocate (env)
-  
+  call gmesh%write_gid_postprocess_format(parameters)
+  call mesh_partitioner%create(gmesh, parameters)
+  call mesh_partitioner%partition_mesh()
+  call mesh_partitioner%write_mesh_parts_fempar_gid_problem_type_format(parameters)
+  call mesh_partitioner%write_mesh_partition_gid_postprocess_format(parameters)
+  call mesh_partitioner%free()
   call gmesh%free()
   call fempar_finalize()
-
 end program partitioner
