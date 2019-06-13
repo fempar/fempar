@@ -145,6 +145,8 @@ contains
 
     ! Build local meshes and their duals and generate partition adjacency
     do ipart=1,this%nparts
+       this%mesh_distributions(ipart)%ipart  = ipart
+       this%mesh_distributions(ipart)%nparts = this%nparts
        ! Generate Local mesh
        call mesh_g2l(this%mesh_distributions(ipart)%num_local_vertices,  &
                      this%mesh_distributions(ipart)%l2g_vertices,        &
