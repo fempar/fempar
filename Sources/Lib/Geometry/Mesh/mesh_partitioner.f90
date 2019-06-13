@@ -54,7 +54,7 @@ module mesh_partitioner_names
      integer(ip)                  , allocatable :: num_parts_x_level (:)
      type(allocatable_array_ip1_t), allocatable :: parts_mapping (:)
      
-     type(mesh_t)                 , allocatable :: subdomain_meshes(:)
+     type(mesh_t)                 , allocatable :: part_meshes(:)
      type(mesh_distribution_t)    , allocatable :: mesh_distributions(:)
      type(list_t)                 , allocatable :: graph_hierarchy(:)
      type(allocatable_array_ip1_t), allocatable :: cells_part(:)
@@ -77,9 +77,12 @@ module mesh_partitioner_names
      procedure, non_overridable, private          :: allocate_parts_mapping
      procedure, non_overridable, private          :: setup_parts_mapping
      procedure, non_overridable, private          :: build_and_partition_graph_hierarchy
-     procedure, non_overridable, private          :: partition_dual_graph
+     procedure, non_overridable, private          :: partition_graph
      procedure, non_overridable, private, nopass  :: build_parts_graph
-     procedure, non_overridable, private          :: allocate_subdomain_meshes
+     procedure, non_overridable, private          :: setup_part_l2g_cells_and_vertices
+     procedure, non_overridable, private          :: setup_part_interface
+     procedure, non_overridable, private          :: setup_part_mesh
+     procedure, non_overridable, private          :: allocate_part_meshes
      procedure, non_overridable, private          :: allocate_mesh_distributions
      procedure, non_overridable, private          :: write_mesh_parts_fempar_gid_problem_type_format_dir_path_prefix
      procedure, non_overridable, private          :: write_mesh_parts_fempar_gid_problem_type_format_pl
@@ -106,7 +109,7 @@ module mesh_partitioner_names
      procedure, non_overridable, private :: cells_part_free
      procedure, non_overridable, private :: parts_mapping_free
      procedure, non_overridable, private :: num_parts_x_level_free
-     procedure, non_overridable, private :: subdomain_meshes_free
+     procedure, non_overridable, private :: part_meshes_free
      procedure, non_overridable, private :: mesh_distributions_free
   end type mesh_partitioner_t
   
@@ -129,44 +132,73 @@ contains
   subroutine mesh_partitioner_partition_mesh ( this ) 
      implicit none
      class(mesh_partitioner_t), intent(inout) :: this
-     integer(ip) :: ipart, istat
-         
+     integer(ip)  :: ipart, istat
+     integer(ip)  :: num_local_vertices, num_local_cells
+     integer(igp) :: num_global_vertices, num_global_cells
+     integer(igp), allocatable :: l2g_vertices(:)
+     integer(igp), allocatable :: l2g_cells(:)
+     integer(ip) , allocatable :: lebou(:), lnbou(:)
+     integer(ip) , allocatable :: pextn(:), lextp(:)
+     integer(igp), allocatable :: lextn(:)
+     integer(ip) :: nebou, nnbou
+     
      assert ( associated(this%mesh) ) 
      call this%build_and_partition_graph_hierarchy(this%mesh)
      call this%setup_parts_mapping()
     
-     call this%allocate_subdomain_meshes()
+     call this%allocate_part_meshes()
      call this%allocate_mesh_distributions()
 
-     call build_maps(this%nparts, &
-                     this%cells_part(1)%a, &
-                     this%mesh, &
-                     this%mesh_distributions)
-
-    ! Build local meshes and their duals and generate partition adjacency
+     num_global_vertices = int(this%mesh%get_num_vertices(),igp)
+     num_global_cells    = int(this%mesh%get_num_cells(),igp)
     do ipart=1,this%nparts
-       this%mesh_distributions(ipart)%ipart  = ipart
-       this%mesh_distributions(ipart)%nparts = this%nparts
-       ! Generate Local mesh
-       call mesh_g2l(this%mesh_distributions(ipart)%num_local_vertices,  &
-                     this%mesh_distributions(ipart)%l2g_vertices,        &
-                     this%mesh_distributions(ipart)%num_local_cells,     &
-                     this%mesh_distributions(ipart)%l2g_cells,           &
-                     this%mesh,                                          &
-                     this%subdomain_meshes(ipart))
-       call build_adjacency (this%mesh, this%cells_part(1)%a,             &
-            &                    ipart,                     &
-            &                    this%subdomain_meshes(ipart),              &
-            &                    this%mesh_distributions(ipart)%l2g_vertices, &
-            &                    this%mesh_distributions(ipart)%l2g_cells,    &
-            &                    this%mesh_distributions(ipart)%nebou,        &
-            &                    this%mesh_distributions(ipart)%nnbou,        &
-            &                    this%mesh_distributions(ipart)%lebou,        &
-            &                    this%mesh_distributions(ipart)%lnbou,        &
-            &                    this%mesh_distributions(ipart)%pextn,        &
-            &                    this%mesh_distributions(ipart)%lextn,        &
-            &                    this%mesh_distributions(ipart)%lextp )
+       call this%setup_part_l2g_cells_and_vertices(ipart, &
+                                                   num_local_vertices,  &
+                                                   num_local_cells,     &
+                                                   l2g_vertices,        &
+                                                   l2g_cells)                          
+       
+       call this%setup_part_mesh(ipart, &
+                                 num_local_vertices, &
+                                 num_local_cells, &
+                                 l2g_vertices, &
+                                 l2g_cells)
+       
+       call this%setup_part_interface (ipart, &
+                                       l2g_vertices, &
+                                       l2g_cells,    &
+                                       nebou,        &
+                                       nnbou,        &
+                                       lebou,        &
+                                       lnbou,        &
+                                       pextn,        &
+                                       lextn,        &
+                                       lextp )
+       
+       call this%mesh_distributions(ipart)%create (ipart, &
+                                       this%nparts, &
+                                       num_local_cells, &
+                                       num_global_cells, &
+                                       nebou, &
+                                       num_local_vertices, &
+                                       num_global_vertices, &
+                                       nnbou, &
+                                       l2g_cells, &
+                                       l2g_vertices, &
+                                       lebou, &
+                                       lnbou, &
+                                       pextn, &
+                                       lextn, &
+                                       lextp)
+       
     end do
+    call memfree(l2g_cells, __FILE__, __LINE__ )
+    call memfree(l2g_vertices, __FILE__, __LINE__ )
+    call memfree(lebou, __FILE__, __LINE__ )
+    call memfree(lnbou, __FILE__, __LINE__ )
+    call memfree(pextn, __FILE__, __LINE__ )
+    call memfree(lextn, __FILE__, __LINE__ )
+    call memfree(lextp, __FILE__, __LINE__ )
   end subroutine mesh_partitioner_partition_mesh
   
   subroutine allocate_graph_hierarchy(this)
@@ -196,13 +228,13 @@ contains
     end do
   end subroutine allocate_parts_mapping
   
-  subroutine allocate_subdomain_meshes(this)
+  subroutine allocate_part_meshes(this)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
     integer(ip) :: istat
-    call this%subdomain_meshes_free()
-    allocate(this%subdomain_meshes(this%nparts), stat=istat); check(istat==0);
-  end subroutine allocate_subdomain_meshes
+    call this%part_meshes_free()
+    allocate(this%part_meshes(this%nparts), stat=istat); check(istat==0);
+  end subroutine allocate_part_meshes
   
   subroutine allocate_mesh_distributions(this)
     implicit none
@@ -236,7 +268,7 @@ contains
     
     ! Partition dual graph to assign a domain to each element (in cell_parts(1))
     call this%cells_part(1)%create(mesh%get_num_cells()) 
-    call this%partition_dual_graph(this%num_parts_x_level(1), &
+    call this%partition_graph(this%num_parts_x_level(1), &
                                    this%graph_hierarchy(1), &
                                    this%cells_part(1)%a)
     do ilevel=1,this%num_levels-1
@@ -248,7 +280,7 @@ contains
                                        this%graph_hierarchy(ilevel), &
                                        this%graph_hierarchy(ilevel+1))
 
-          call this%partition_dual_graph(this%num_parts_x_level(ilevel+1), &
+          call this%partition_graph(this%num_parts_x_level(ilevel+1), &
                                          this%graph_hierarchy(ilevel+1), &
                                          this%cells_part(ilevel+1)%a)
        else
@@ -286,38 +318,27 @@ contains
     integer(ip)              :: istat
     integer(ip), allocatable :: param_size(:), param(:)
 
-    ! Mandatory parameters: either nparts or num_levels
-    assert(parameter_list%isPresent(key = num_parts_key).or.parameter_list%isPresent(key = num_levels_distribution_key))
-    if( parameter_list%isPresent(num_parts_key)) then
-       assert(parameter_list%isAssignable(num_parts_key, this%nparts))
-       istat = parameter_list%get(key = num_parts_key , value = this%nparts)
-       assert(istat==0)
-    end if
-    if( parameter_list%isPresent(num_levels_distribution_key) ) then
-       assert(parameter_list%isAssignable(num_levels_distribution_key, this%num_levels))
-       istat = parameter_list%get(key = num_levels_distribution_key  , value = this%num_levels)
-       assert(istat==0)
+    ! Mandatory parameters num_levels
+    assert(parameter_list%isPresent(key = num_levels_distribution_key))
+    assert(parameter_list%isAssignable(num_levels_distribution_key, this%num_levels))
+    istat = parameter_list%get(key = num_levels_distribution_key  , value = this%num_levels)
+    assert(istat==0)
        
-       assert(parameter_list%isPresent(key = num_parts_x_level_key ))
-       assert( parameter_list%GetDimensions(key = num_parts_x_level_key) == 1)
+    assert(parameter_list%isPresent(key = num_parts_x_level_key ))
+    assert(parameter_list%GetDimensions(key = num_parts_x_level_key) == 1)
 
-       ! Get the array using the local variable
-       istat =  parameter_list%GetShape(key = num_parts_x_level_key, shape = param_size ); check(istat==0)
-       call memalloc(param_size(1), param,__FILE__,__LINE__)
-       assert(parameter_list%isAssignable(num_parts_x_level_key, param))
-       istat = parameter_list%get(key = num_parts_x_level_key, value = param)
-       assert(istat==0)
+    ! Get the array using the local variable
+    istat =  parameter_list%GetShape(key = num_parts_x_level_key, shape = param_size ); check(istat==0)
+    call memalloc(param_size(1), param,__FILE__,__LINE__)
+    assert(parameter_list%isAssignable(num_parts_x_level_key, param))
+    istat = parameter_list%get(key = num_parts_x_level_key, value = param)
+    assert(istat==0)
 
-       call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__)
-       this%num_parts_x_level = param(1:this%num_levels)
-       call memfree(param,__FILE__,__LINE__)
+    call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__)
+    this%num_parts_x_level = param(1:this%num_levels)
+    call memfree(param,__FILE__,__LINE__)
 
-       this%nparts = this%num_parts_x_level(1)
-    else
-       this%num_levels=1
-       call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__)
-       this%num_parts_x_level(1)=this%nparts
-    end if
+    this%nparts = this%num_parts_x_level(1)
 
     if( parameter_list%isPresent(strategy_key) ) then
        assert(parameter_list%isAssignable(strategy_key, this%strat))
@@ -400,13 +421,13 @@ contains
     integer(ip) :: lunio
     integer(ip) :: i
 
-    ! Write subdomain meshes
-    call this%subdomain_meshes(1)%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
+    ! Write part meshes
+    call this%part_meshes(1)%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
     do i=this%nparts, 1, -1  
        rename=name
        call numbered_filename_compose(i,this%nparts,rename)
        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
-       call this%subdomain_meshes(i)%write_fempar_gid_problem_type_format(lunio)
+       call this%part_meshes(i)%write_fempar_gid_problem_type_format(lunio)
        call io_close(lunio)
     end do
     
@@ -454,13 +475,13 @@ contains
     integer(ip) :: lunio
     integer(ip) :: i
 
-    ! Write subdomain meshes
-    call this%subdomain_meshes(1)%mesh_gid_postprocess_format_compose_name ( prefix, name )
+    ! Write part meshes
+    call this%part_meshes(1)%mesh_gid_postprocess_format_compose_name ( prefix, name )
     do i=this%nparts, 1, -1  
        rename=name
        call numbered_filename_compose(i,this%nparts,rename)
        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
-       call this%subdomain_meshes(i)%write_gid_postprocess_format(lunio)
+       call this%part_meshes(i)%write_gid_postprocess_format(lunio)
        call io_close(lunio)
     end do
   end subroutine write_mesh_parts_gid_postprocess_format_dir_path_prefix
@@ -535,7 +556,7 @@ contains
     call this%cells_part_free()
     call this%parts_mapping_free()
     call this%num_parts_x_level_free()
-    call this%subdomain_meshes_free()
+    call this%part_meshes_free()
     call this%mesh_distributions_free()
     nullify(this%mesh)
   end subroutine mesh_partitioner_free
@@ -552,17 +573,17 @@ contains
     end if
   end subroutine graph_hierarchy_free 
   
-  subroutine subdomain_meshes_free(this)
+  subroutine part_meshes_free(this)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
     integer(ip) :: i, istat
-    if ( allocated(this%subdomain_meshes) ) then
-       do i=1,size(this%subdomain_meshes)
-         call this%subdomain_meshes(i)%free()
+    if ( allocated(this%part_meshes) ) then
+       do i=1,size(this%part_meshes)
+         call this%part_meshes(i)%free()
        end do
-       deallocate(this%subdomain_meshes, stat=istat); check(istat==0);
+       deallocate(this%part_meshes, stat=istat); check(istat==0);
     end if 
-  end subroutine subdomain_meshes_free
+  end subroutine part_meshes_free
   
   subroutine mesh_distributions_free(this)
     implicit none
@@ -607,23 +628,99 @@ contains
       call memfree(this%num_parts_x_level,__FILE__,__LINE__)
   end subroutine num_parts_x_level_free
   
-  
-    !================================================================================================
-  subroutine build_adjacency ( gmesh, cell_parts, my_part, lmesh, l2gn, l2ge, &
-       &                           nebou, nnbou, lebou, lnbou, pextn, lextn, lextp)
+  !================================================================================================
+  subroutine setup_part_l2g_cells_and_vertices( this, &
+                                                ipart, &
+                                                num_local_vertices, &
+                                                num_local_cells, &
+                                                l2g_vertices, &
+                                                l2g_cells)
     implicit none
-    integer(ip)   , intent(in)  :: my_part
-    type(mesh_t)  , intent(in)  :: gmesh,lmesh
-    integer(ip)   , intent(in)  :: cell_parts(gmesh%get_num_cells())
-    integer(igp)  , intent(in)  :: l2gn(lmesh%get_num_vertices())
-    integer(igp)  , intent(in)  :: l2ge(lmesh%get_num_cells())
-    integer(ip)   , intent(out) :: nebou
-    integer(ip)   , intent(out) :: nnbou
-    integer(ip)   , allocatable, intent(inout) ::  lebou(:)    ! List of boundary elements
-    integer(ip)   , allocatable, intent(inout) ::  lnbou(:)    ! List of boundary vertices
-    integer(ip)   , allocatable, intent(inout) ::  pextn(:)    ! Pointers to the lextn
-    integer(igp)  , allocatable, intent(inout) ::  lextn(:)    ! List of (GID of) external neighbors
-    integer(ip)   , allocatable, intent(inout) ::  lextp(:)    ! List of parts of external neighbors
+    class(mesh_partitioner_t)  , intent(in)    :: this 
+    integer(ip)                , intent(in)    :: ipart
+    integer(ip)                , intent(inout) :: num_local_vertices
+    integer(ip)                , intent(inout) :: num_local_cells
+    integer(igp), allocatable  , intent(inout) :: l2g_vertices(:)
+    integer(igp), allocatable  , intent(inout) :: l2g_cells(:)
+    
+    integer(igp), allocatable :: work1(:)
+    integer(igp), allocatable :: work2(:)
+    
+    integer(ip), pointer :: pnods(:)
+    integer(ip), pointer :: lnods(:)
+    integer(ip) :: ielem, inode
+    
+    if (allocated(l2g_vertices)) & 
+         call memfree(l2g_vertices, __FILE__, __LINE__ )
+    if (allocated(l2g_cells))& 
+         call memfree(l2g_cells, __FILE__, __LINE__ )  
+
+    num_local_cells=0
+    do ielem=1,this%mesh%get_num_cells()
+       if ( this%cells_part(1)%a(ielem) == ipart ) & 
+          num_local_cells = num_local_cells + 1 
+    end do
+    
+    call memalloc(num_local_cells, l2g_cells, __FILE__, __LINE__)
+    num_local_cells = 0
+    do ielem=1,this%mesh%get_num_cells()
+       if ( this%cells_part(1)%a(ielem) == ipart ) then 
+          num_local_cells = num_local_cells + 1 
+          l2g_cells(num_local_cells) = ielem
+       end if   
+    end do
+   
+    call memalloc ( this%mesh%get_num_vertices(), work1,__FILE__,__LINE__)
+    call memalloc ( this%mesh%get_num_vertices(), work2,__FILE__,__LINE__)
+
+    lnods => this%mesh%get_vertices_x_cell()
+    pnods => this%mesh%get_vertices_x_cell_pointers()
+    assert(associated(lnods) .and. associated(pnods))
+
+    num_local_vertices=0
+    work1 = 0
+    work2 = 0
+    do ielem=1,this%mesh%get_num_cells()
+      if(this%cells_part(1)%a(ielem)==ipart) then
+         do inode = pnods(ielem), pnods(ielem+1) - 1 
+           if(work1(lnods(inode)) == 0 ) then
+              num_local_vertices = num_local_vertices+1
+              work1(lnods(inode)) = 1
+              work2(num_local_vertices) = lnods(inode)
+           end if
+         end do
+      end if
+    end do
+    call memalloc(num_local_vertices, l2g_vertices, __FILE__, __LINE__)
+    l2g_vertices = work2(1:num_local_vertices)
+    call memfree ( work1,__FILE__,__LINE__)
+    call memfree ( work2,__FILE__,__LINE__)
+  end subroutine setup_part_l2g_cells_and_vertices
+  
+  !================================================================================================
+  subroutine setup_part_interface (this, &
+                                   ipart, &
+                                   l2g_vertices, &
+                                   l2g_cells, &
+                                   nebou, &
+                                   nnbou, &
+                                   lebou, &
+                                   lnbou, &
+                                   pextn, &
+                                   lextn, &
+                                   lextp)
+    implicit none
+    class(mesh_partitioner_t)  , intent(in)    :: this 
+    integer(ip)                , intent(in)    :: ipart
+    integer(igp)               , intent(in)    :: l2g_vertices(this%part_meshes(ipart)%get_num_vertices())
+    integer(igp)               , intent(in)    :: l2g_cells(this%part_meshes(ipart)%get_num_cells())
+    integer(ip)                , intent(out)   :: nebou
+    integer(ip)                , intent(out)   :: nnbou
+    integer(ip)   , allocatable, intent(inout) :: lebou(:)    ! List of boundary elements
+    integer(ip)   , allocatable, intent(inout) :: lnbou(:)    ! List of boundary vertices
+    integer(ip)   , allocatable, intent(inout) :: pextn(:)    ! Pointers to the lextn
+    integer(igp)  , allocatable, intent(inout) :: lextn(:)    ! List of (GID of) external neighbors
+    integer(ip)   , allocatable, intent(inout) :: lextp(:)    ! List of parts of external neighbors
 
     integer(ip) :: lelem, ielem, jelem, pelem, pnode, inode1, inode2, ipoin, lpoin, jpart, iebou, istat, touch
     integer(ip) :: nextn, nexte, nepos
@@ -631,50 +728,27 @@ contains
     integer(ip), pointer :: pnods(:), lnods(:)
     integer(ip), allocatable :: pelpo(:), lelpo(:)
     type(hash_table_ip_ip_t)   :: external_visited
-
-    call gmesh%build_dual_mesh(pelpo, lelpo)
     
-    if(my_part==0) then
-       write(*,*)  'Parts:'
-       do ielem=1,gmesh%get_num_cells()
-          write(*,*)  ielem, cell_parts(ielem)
-       end do
-       write(*,*)  'Global mesh:',gmesh%get_num_vertices(),gmesh%get_num_cells()
-       lnods => gmesh%get_vertices_x_cell()
-       pnods => gmesh%get_vertices_x_cell_pointers()
-       assert(associated(lnods) .and. associated(pnods))
-       do ielem=1,gmesh%get_num_cells()
-          write(*,*)  ielem, lnods(pnods(ielem):pnods(ielem+1)-1)
-       end do
-       write(*,*)  'Global dual mesh:'
-       do ipoin=1,gmesh%get_num_vertices()
-          write(*,*)  ipoin, lelpo(pelpo(ipoin):pelpo(ipoin+1)-1)
-       end do
-       lnods => lmesh%get_vertices_x_cell()
-       pnods => lmesh%get_vertices_x_cell_pointers()
-       assert(associated(lnods) .and. associated(pnods))
-       write(*,*)  'Local mesh:',lmesh%get_num_vertices(),lmesh%get_num_cells()
-       do lelem=1,lmesh%get_num_cells()
-          write(*,*)  lelem, l2ge(lelem),lnods(pnods(lelem):pnods(lelem+1)-1)
-       end do
-       write(*,*)  'Local2Global (vertices)'
-       do lpoin=1,lmesh%get_num_vertices()
-          write(*,*)  lpoin, l2gn(lpoin)
-       end do
-    end if
+    if (allocated(lebou)) call memfree(lebou, __FILE__, __LINE__)
+    if (allocated(lnbou)) call memfree(lnbou, __FILE__, __LINE__)
+    if (allocated(pextn)) call memfree(pextn, __FILE__, __LINE__)
+    if (allocated(lextn)) call memfree(lextn, __FILE__, __LINE__)
+    if (allocated(lextp)) call memfree(lextp, __FILE__, __LINE__)
 
-    lnods => gmesh%get_vertices_x_cell()
-    pnods => gmesh%get_vertices_x_cell_pointers()
+    call this%mesh%build_dual_mesh(pelpo, lelpo)
+    
+    lnods => this%mesh%get_vertices_x_cell()
+    pnods => this%mesh%get_vertices_x_cell_pointers()
     assert(associated(lnods) .and. associated(pnods))
 
     ! Count boundary vertices
     nnbou = 0 
-    do lpoin=1, lmesh%get_num_vertices()
-       ipoin = l2gn(lpoin)
+    do lpoin=1, this%part_meshes(ipart)%get_num_vertices()
+       ipoin = l2g_vertices(lpoin)
        do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
           ielem = lelpo(pelem)
-          jpart = cell_parts(ielem)
-          if ( jpart /= my_part ) then 
+          jpart = this%cells_part(1)%a(ielem)
+          if ( jpart /= ipart ) then 
              nnbou = nnbou +1
              exit
           end if
@@ -684,12 +758,12 @@ contains
     ! List boundary vertices
     call memalloc ( nnbou, lnbou, __FILE__, __LINE__ ) 
     nnbou = 0
-    do lpoin=1, lmesh%get_num_vertices()
-       ipoin = l2gn(lpoin)
+    do lpoin=1, this%part_meshes(ipart)%get_num_vertices()
+       ipoin = l2g_vertices(lpoin)
        do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
           ielem = lelpo(pelem)
-          jpart = cell_parts(ielem)
-          if ( jpart /= my_part ) then 
+          jpart = this%cells_part(1)%a(ielem)
+          if ( jpart /= ipart ) then 
              lnbou(nnbou+1) = ipoin
              nnbou = nnbou +1
              exit
@@ -698,7 +772,7 @@ contains
     end do
 
     ! As the dual mesh is given with global IDs we need a hash table to do the touch.
-    call memalloc(lmesh%get_num_cells(), local_visited,__FILE__,__LINE__)
+    call memalloc(this%part_meshes(ipart)%get_num_cells(), local_visited,__FILE__,__LINE__)
     local_visited = 0
     call external_visited%init(20)
 
@@ -706,9 +780,9 @@ contains
     touch = 1
     nebou = 0 ! number of boundary elements
     nextn = 0 ! number of external edges
-    do lelem = 1, lmesh%get_num_cells()
+    do lelem = 1, this%part_meshes(ipart)%get_num_cells()
        nexte = 0   ! number of external neighbours of this element
-       ielem = l2ge(lelem)
+       ielem = l2g_cells(lelem)
        inode1 = pnods(ielem)
        inode2 = pnods(ielem+1)-1
        do pnode = inode1, inode2
@@ -716,8 +790,8 @@ contains
           do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
              jelem = lelpo(pelem)
              if(jelem/=ielem) then
-                jpart = cell_parts(jelem)
-                if(jpart/=my_part) then                                   ! This is an external element
+                jpart = this%cells_part(1)%a(jelem)
+                if(jpart/=ipart) then                                   ! This is an external element
                    if(local_visited(lelem) == 0 ) nebou = nebou +1        ! Count it
                    !call external_visited%put(key=jelem,val=1, stat=istat) ! Touch jelem as external neighbor of lelem.
                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
@@ -735,8 +809,8 @@ contains
              do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
                 jelem = lelpo(pelem)
                 if(jelem/=ielem) then
-                   jpart = cell_parts(jelem)
-                   if(jpart/=my_part) then
+                   jpart = this%cells_part(1)%a(jelem)
+                   if(jpart/=ipart) then
                       call external_visited%del(key=jelem, stat=istat)
                    end if
                 end if
@@ -746,9 +820,9 @@ contains
        call external_visited%print
     end do
 
-    if(my_part==0) then
+    if(ipart==0) then
        write(*,*)  'Visited (boundary) elements:'
-       do lelem=1,lmesh%get_num_cells()
+       do lelem=1,this%part_meshes(ipart)%get_num_cells()
           write(*,*)  local_visited(lelem)
        end do
     end if
@@ -761,7 +835,7 @@ contains
 
     iebou = 0
     pextn(1) = 1
-    do lelem = 1, lmesh%get_num_cells()
+    do lelem = 1, this%part_meshes(ipart)%get_num_cells()
        if(local_visited(lelem) /= 0 ) then
           iebou = iebou +1
           lebou(iebou) = lelem
@@ -769,7 +843,7 @@ contains
        end if
     end do
 
-    if(my_part==0) then
+    if(ipart==0) then
        write(*,*)  'Boundary elements:'
        do iebou=1,nebou
           write(*,*)  lebou(iebou)
@@ -779,7 +853,7 @@ contains
     ! 3) Store boundary elements and external edges
     do iebou = 1, nebou
        lelem = lebou(iebou)
-       ielem = l2ge(lelem)
+       ielem = l2g_cells(lelem)
        nexte = 0   ! number of external neighbours of this element
        inode1 = pnods(ielem)
        inode2 = pnods(ielem+1)-1
@@ -788,8 +862,8 @@ contains
           do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
              jelem = lelpo(pelem)
              if(jelem/=ielem) then
-                jpart = cell_parts(jelem)
-                if(jpart/=my_part) then                                   ! This is an external element
+                jpart = this%cells_part(1)%a(jelem)
+                if(jpart/=ipart) then                                   ! This is an external element
                    call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
                    if(istat==now_stored) then
                       lextn(pextn(iebou)+nexte) = jelem
@@ -806,8 +880,8 @@ contains
           do pelem = pelpo(ipoin), pelpo(ipoin+1) - 1
              jelem = lelpo(pelem)
              if(jelem/=ielem) then
-                jpart = cell_parts(jelem)
-                if(jpart/=my_part) then                                   ! This is an external element
+                jpart = this%cells_part(1)%a(jelem)
+                if(jpart/=ipart) then                                   ! This is an external element
                    call external_visited%del(key=jelem, stat=istat)
                 end if
              end if
@@ -818,86 +892,13 @@ contains
     call memfree(local_visited,__FILE__,__LINE__)
     call memfree(pelpo)
     call memfree(lelpo)
-  end subroutine build_adjacency
-
-  !================================================================================================
-  subroutine build_maps( nparts, cell_parts, femesh, distr )
-    ! This routine builds (node and element) partition maps without using the objects
-    ! and (unlike parts_sizes, parts_maps, etc.) does not generate a new global numbering.
-    implicit none
-    integer(ip)                , intent(in)    :: nparts
-    type(mesh_t)               , intent(in)    :: femesh
-    integer(ip)                , intent(in)    :: cell_parts(femesh%get_num_cells())
-    type(mesh_distribution_t), intent(inout) :: distr(nparts)
-
-    integer(ip)   , allocatable  :: nedom(:) ! Number of points per part (here is not header!)
-    integer(ip)   , allocatable  :: npdom(:) ! Number of elements per part (here is not header!)
-    integer(ip)   , allocatable  :: work1(:)
-    integer(ip)   , allocatable  :: work2(:)
-    integer(ip) :: ielem, ipart, inode, iboun
-    integer(ip), pointer :: pnods(:), lnods(:), pelpo(:), lelpo(:)
-
-    ! Number of elements of each part and global to local element map (is one to one)
-    call memalloc (nparts, nedom,__FILE__,__LINE__)
-    nedom=0
-    do ielem=1,femesh%get_num_cells()
-       ipart = cell_parts(ielem)
-       nedom(ipart)=nedom(ipart)+1
-    end do
-    ! Allocate local to global maps
-    do ipart=1,nparts
-       distr(ipart)%num_local_cells  = nedom(ipart)
-       distr(ipart)%num_global_cells = int(femesh%get_num_cells(),igp)
-       call memalloc(distr(ipart)%num_local_cells, distr(ipart)%l2g_cells, __FILE__, __LINE__)
-    end do
-    nedom = 0
-    do ielem=1,femesh%get_num_cells()
-       ipart = cell_parts(ielem)
-       nedom(ipart)=nedom(ipart)+1
-       distr(ipart)%l2g_cells(nedom(ipart)) = ielem
-    end do
-
-    call memfree ( nedom,__FILE__,__LINE__)
-
-    ! Number of vertices of each part and global to local node map (is NOT one to one)
-    call memalloc ( nparts, npdom,__FILE__,__LINE__)
-    call memalloc ( femesh%get_num_vertices(), work1,__FILE__,__LINE__)
-    call memalloc ( femesh%get_num_vertices(), work2,__FILE__,__LINE__)
-
-    lnods => femesh%get_vertices_x_cell()
-    pnods => femesh%get_vertices_x_cell_pointers()
-    assert(associated(lnods) .and. associated(pnods))
-
-    npdom=0
-    do ipart = 1, nparts
-       work1 = 0
-       work2 = 0
-       do ielem=1,femesh%get_num_cells()
-          if(cell_parts(ielem)==ipart) then
-             do inode = pnods(ielem), pnods(ielem+1) - 1 
-                if(work1(lnods(inode)) == 0 ) then
-                   npdom(ipart) = npdom(ipart)+1
-                   work1(lnods(inode)) = 1
-                   work2(npdom(ipart)) = lnods(inode)
-                end if
-             end do
-          end if
-       end do
-       distr(ipart)%num_local_vertices  = npdom(ipart)
-       distr(ipart)%num_global_vertices = int(femesh%get_num_vertices(),igp)
-       call memalloc(distr(ipart)%num_local_vertices, distr(ipart)%l2g_vertices, __FILE__, __LINE__)
-       distr(ipart)%l2g_vertices = work2(1:npdom(ipart))
-    end do
-    call memfree ( work1,__FILE__,__LINE__)
-    call memfree ( work2,__FILE__,__LINE__)
-    call memfree ( npdom,__FILE__,__LINE__)
-  end subroutine build_maps
+  end subroutine setup_part_interface
 
   ! Inspired on http://en.wikipedia.org/wiki/Breadth-first_search.
   ! Given a mesh (m) and its dual graph (g), it computes the list 
   ! of vertices (lconn) of each connected component in m. Can be very
   ! useful as a tool to determine whether the mesh partitioning process
-  ! leads to disconnected subdomains or not.
+  ! leads to disconnected parts or not.
   subroutine mesh_graph_compute_connected_components (m, g, lconn)
     implicit none
 
@@ -1037,11 +1038,11 @@ contains
   end subroutine mesh_graph_compute_connected_components
 
   !=================================================================================================
-  subroutine partition_dual_graph(this, &
-                                         nparts, &
-                                         graph, &
-                                         cell_parts, &
-                                         cell_weights)
+  subroutine partition_graph(this, &
+                                  nparts, &
+                                  graph, &
+                                  cell_parts, &
+                                  cell_weights)
     !-----------------------------------------------------------------------
     ! This routine computes a nparts-way-partitioning of the input graph gp
     !-----------------------------------------------------------------------
@@ -1092,7 +1093,7 @@ contains
        ! Enforce contiguous partititions
        options(METIS_OPTION_CONTIG)    = this%metis_option_contig
        
-       ! Explicitly minimize the maximum degree of the subdomain graph
+       ! Explicitly minimize the maximum degree of the part graph
        options(METIS_OPTION_MINCONN)   = this%metis_option_minconn
        options(METIS_OPTION_UFACTOR)   = this%metis_option_ufactor
 
@@ -1154,36 +1155,65 @@ contains
        end do
        call memfree ( iperm,__FILE__,__LINE__)
     end if
-
-  end subroutine partition_dual_graph
+  end subroutine partition_graph
 
 
   !================================================================================================
-  subroutine mesh_g2l(num_local_vertices, l2g_vertices, num_local_cells, l2g_cells, gmesh, lmesh)
+  subroutine setup_part_mesh(this, &
+                             ipart, &
+                             num_local_vertices, &
+                             num_local_cells, &
+                             l2g_vertices, &
+                             l2g_cells)
     implicit none
-    integer(ip),     intent(in)    :: num_local_vertices
-    integer(igp),    intent(in)    :: l2g_vertices(num_local_vertices)
-    integer(ip),     intent(in)    :: num_local_cells
-    integer(igp),    intent(in)    :: l2g_cells(num_local_cells)
-    type(mesh_t)   , intent(in)    :: gmesh
-    type(mesh_t)   , intent(inout) :: lmesh
+    class(mesh_partitioner_t),  intent(inout)  :: this
+    integeR(ip)              ,  intent(in)     :: ipart
+    integer(ip)              ,  intent(in)     :: num_local_vertices
+    integer(ip)              ,  intent(in)     :: num_local_cells
+    integer(igp)             ,  intent(in)     :: l2g_vertices(num_local_vertices)
+    integer(igp)             ,  intent(in)     :: l2g_cells(num_local_cells)
+    
+    
     type(hash_table_igp_ip_t)      :: ws_inmap
     type(hash_table_igp_ip_t)      :: el_inmap
     integer(ip)    , allocatable   :: node_list(:)
     integer(ip)                    :: aux, ipoin,inode,knode,kvef_size,lvef_size,istat
     integer(ip)                    :: ielem_lmesh,ielem_gmesh,ivef_lmesh,ivef_gmesh
-    integer(ip)                    :: p_ielem_gmesh,p_ipoin_lmesh,p_ipoin_gmesh
+    integer(ip)                    :: p_ipoin_lmesh,p_ipoin_gmesh
     type(list_iterator_t)          :: given_vefs_iterator
     logical :: count_it
     integer(ip), pointer  :: gpnods(:), glnods(:), glegeo(:), gleset(:), glst_vefs_geo(:), glst_vefs_set(:)
-    type(list_t), pointer :: ggiven_vefs, lgiven_vefs
+    type(list_t), pointer :: ggiven_vefs
     real(rp), pointer     :: gcoord(:,:)
+    
+    ! Sizes
+    integer(ip) :: order 
+    integer(ip) :: nelty
+    integer(ip) :: ndime
+    integer(ip) :: npoin
+    integer(ip) :: nelem
+    
+    ! Elements
+    integer(ip), allocatable :: pnods(:)
+    integer(ip), allocatable :: lnods(:)
+    integer(ip), allocatable :: legeo(:)
+    integer(ip), allocatable :: leset(:)
+      
+    ! Boundary vefs-related data
+    type(list_t)             :: lgiven_vefs
+    integer(ip), allocatable :: lst_vefs_geo(:)
+    integer(ip), allocatable :: lst_vefs_set(:)    
+      
+    ! Vertex coordinates
+    real(rp),  allocatable   :: coord(:,:)
+    
+    integer(ip) :: nnodb, nnode
 
-    lmesh%order=gmesh%get_element_order()
-    lmesh%nelty=gmesh%get_num_element_types()
-    lmesh%ndime=gmesh%get_num_dims()
-    lmesh%npoin=num_local_vertices
-    lmesh%nelem=num_local_cells
+    order=this%mesh%get_element_order()
+    nelty=this%mesh%get_num_element_types()
+    ndime=this%mesh%get_num_dims()
+    npoin=num_local_vertices
+    nelem=num_local_cells
 
     call ws_inmap%init(max(int(num_local_vertices*0.25,ip),10))
     do ipoin=1,num_local_vertices
@@ -1200,43 +1230,43 @@ contains
     end do
 
     ! Elements
-    call memalloc(lmesh%get_num_cells()+1, lmesh%pnods, __FILE__,__LINE__)
-    call memalloc(lmesh%get_num_cells()  , lmesh%legeo, __FILE__,__LINE__)
-    call memalloc(lmesh%get_num_cells()  , lmesh%leset, __FILE__,__LINE__)
-    lmesh%nnode=0
-    lmesh%pnods=0
-    lmesh%pnods(1)=1
+    call memalloc(nelem+1, pnods, __FILE__,__LINE__)
+    call memalloc(nelem  , legeo, __FILE__,__LINE__)
+    call memalloc(nelem  , leset, __FILE__,__LINE__)
+    nnode=0
+    pnods=0
+    pnods(1)=1
 
-    glnods   => gmesh%get_vertices_x_cell()
-    gpnods   => gmesh%get_vertices_x_cell_pointers()
+    glnods   => this%mesh%get_vertices_x_cell()
+    gpnods   => this%mesh%get_vertices_x_cell_pointers()
     assert(associated(glnods) .and. associated(gpnods))
-    glegeo  => gmesh%get_cells_geometry_id()
-    gleset => gmesh%get_cells_set()
+    glegeo  => this%mesh%get_cells_geometry_id()
+    gleset => this%mesh%get_cells_set()
 
-    do ielem_lmesh=1,lmesh%get_num_cells()
+    do ielem_lmesh=1,nelem
        ielem_gmesh = l2g_cells(ielem_lmesh)
        knode = gpnods(ielem_gmesh+1)-gpnods(ielem_gmesh)
-       lmesh%pnods(ielem_lmesh+1)=lmesh%pnods(ielem_lmesh)+knode
-       lmesh%nnode=max(lmesh%nnode,knode)
-       lmesh%legeo(ielem_lmesh)=glegeo(ielem_gmesh)
-       lmesh%leset(ielem_lmesh)=gleset(ielem_gmesh)
+       pnods(ielem_lmesh+1)=pnods(ielem_lmesh)+knode
+       nnode=max(nnode,knode)
+       legeo(ielem_lmesh)=glegeo(ielem_gmesh)
+       leset(ielem_lmesh)=gleset(ielem_gmesh)
     end do
-    call memalloc (lmesh%pnods(lmesh%get_num_cells()+1)-1, lmesh%lnods, __FILE__,__LINE__)
-    do ielem_lmesh=1,lmesh%get_num_cells()
+    call memalloc (pnods(nelem+1)-1, lnods, __FILE__,__LINE__)
+    do ielem_lmesh=1,nelem
        ielem_gmesh = l2g_cells(ielem_lmesh)
        p_ipoin_gmesh = gpnods(ielem_gmesh)-1
-       p_ipoin_lmesh = lmesh%pnods(ielem_lmesh)-1
+       p_ipoin_lmesh = pnods(ielem_lmesh)-1
        knode = gpnods(ielem_gmesh+1)-gpnods(ielem_gmesh)
        do inode=1,knode
-          call ws_inmap%get(key=int(glnods(p_ipoin_gmesh+inode),igp),val=lmesh%lnods(p_ipoin_lmesh+inode),stat=istat) 
+          call ws_inmap%get(key=int(glnods(p_ipoin_gmesh+inode),igp),val=lnods(p_ipoin_lmesh+inode),stat=istat) 
        end do
     end do
 
     ! Boundary elements
     ivef_lmesh=0
-    lmesh%nnodb=0
+    nnodb=0
     lvef_size=0
-    ggiven_vefs => gmesh%get_boundary_vefs()
+    ggiven_vefs => this%mesh%get_boundary_vefs()
     assert(associated(ggiven_vefs))
     do ivef_gmesh=1,ggiven_vefs%get_num_pointers()
        given_vefs_iterator = ggiven_vefs%create_iterator(ivef_gmesh)
@@ -1252,23 +1282,21 @@ contains
        end do
        if(count_it) then
           lvef_size=lvef_size+kvef_size
-          lmesh%nnodb=max(lmesh%nnodb,kvef_size)
+          nnodb=max(nnodb,kvef_size)
           ivef_lmesh=ivef_lmesh+1
        end if
     end do
 
     if(ivef_lmesh>0) then
 
-       call memalloc (  lmesh%nnodb,   node_list, __FILE__,__LINE__)
-       call memalloc(   ivef_lmesh, lmesh%lst_vefs_geo, __FILE__,__LINE__)
-       call memalloc(   ivef_lmesh, lmesh%lst_vefs_set, __FILE__,__LINE__)
+       call memalloc (  nnodb,   node_list, __FILE__,__LINE__)
+       call memalloc(   ivef_lmesh, lst_vefs_geo, __FILE__,__LINE__)
+       call memalloc(   ivef_lmesh, lst_vefs_set, __FILE__,__LINE__)
 
-       glst_vefs_geo => gmesh%get_boundary_vefs_geometry_id()
-       glst_vefs_set => gmesh%get_boundary_vefs_set()
+       glst_vefs_geo => this%mesh%get_boundary_vefs_geometry_id()
+       glst_vefs_set => this%mesh%get_boundary_vefs_set()
        assert(associated(glst_vefs_geo) .and. associated(glst_vefs_set))
 
-       lgiven_vefs => lmesh%get_boundary_vefs()
-       assert(associated(lgiven_vefs))
        call lgiven_vefs%create(ivef_lmesh)
 
        ivef_lmesh=1
@@ -1286,8 +1314,8 @@ contains
           end do
           if(count_it) then
              call lgiven_vefs%sum_to_pointer_index(ivef_lmesh, kvef_size)
-             lmesh%lst_vefs_geo(ivef_lmesh)=glst_vefs_geo(ivef_gmesh)
-             lmesh%lst_vefs_set(ivef_lmesh)=glst_vefs_set(ivef_gmesh)
+             lst_vefs_geo(ivef_lmesh)=glst_vefs_geo(ivef_gmesh)
+             lst_vefs_set(ivef_lmesh)=glst_vefs_set(ivef_gmesh)
              ivef_lmesh=ivef_lmesh+1
           end if
        end do
@@ -1323,15 +1351,37 @@ contains
     call ws_inmap%free()
     call el_inmap%free()
 
-    gcoord => gmesh%get_vertex_coordinates()
+    gcoord => this%mesh%get_vertex_coordinates()
     assert(associated(gcoord))
 
-    call memalloc(SPACE_DIM, lmesh%get_num_vertices(), lmesh%coord, __FILE__,__LINE__)
+    call memalloc(SPACE_DIM, npoin, coord, __FILE__,__LINE__)
     do ipoin=1,num_local_vertices
-       lmesh%coord(:,ipoin)=gcoord(:,l2g_vertices(ipoin))
+       coord(:,ipoin)=gcoord(:,l2g_vertices(ipoin))
     end do
-
-  end subroutine mesh_g2l
+    
+    call this%part_meshes(ipart)%create(order, &
+                           nelty, &
+                           ndime, &
+                           npoin, &
+                           nelem, &
+                           pnods, &
+                           lnods, &
+                           legeo, &
+                           leset, &
+                           lgiven_vefs, &
+                           lst_vefs_geo, &
+                           lst_vefs_set, &
+                           coord)
+    
+    call memfree(pnods, __FILE__, __LINE__)
+    call memfree(lnods, __FILE__, __LINE__)
+    call memfree(legeo, __FILE__, __LINE__)
+    call memfree(leset, __FILE__, __LINE__)
+    call memfree(lst_vefs_geo, __FILE__, __LINE__)
+    call memfree(lst_vefs_set, __FILE__, __LINE__)
+    call memfree(coord, __FILE__, __LINE__)
+    call lgiven_vefs%free()
+  end subroutine setup_part_mesh
 
   subroutine build_parts_graph (nparts, cell_parts, graph, parts_graph)
     implicit none

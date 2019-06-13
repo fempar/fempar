@@ -30,7 +30,6 @@ module mesh_partitioner_parameters_names
   use metis_names
   implicit none
 
-  character(len=*), parameter :: num_parts_key               = 'PART_NUM_PARTS'
   character(len=*), parameter :: num_levels_distribution_key = 'PART_NUM_LEVELS_DISTRIBUTION'
   character(len=*), parameter :: num_parts_x_level_key       = 'PART_NUM_PARTS_X_LEVEL'
   character(len=*), parameter :: strategy_key                = 'PART_STRATEGY'
@@ -42,7 +41,6 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: metis_option_ctype_key      = 'METIS_OPTION_CTYPE'
   character(len=*), parameter :: metis_option_iptype_key     = 'METIS_OPTION_IPTYPE'
 
-  character(len=*), parameter :: num_parts_cla_name               = '--'//num_parts_key
   character(len=*), parameter :: num_levels_distribution_cla_name = '--'//num_levels_distribution_key
   character(len=*), parameter :: num_parts_x_level_cla_name       = '--'//num_parts_x_level_key
   character(len=*), parameter :: strategy_cla_name                = '--'//strategy_key

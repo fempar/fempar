@@ -891,11 +891,6 @@ contains
            'A', &
            'Name of the GiD files')
 
-      call this%add(num_parts_key, &
-           num_parts_cla_name, &
-           1, &
-           'Number of parts to split an unstructured mesh with a graph partitioner') 
-
       call this%add(num_levels_distribution_key, &
            num_levels_distribution_cla_name, &
            1, &

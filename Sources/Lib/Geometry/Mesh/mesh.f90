@@ -61,11 +61,11 @@ module mesh_names
   !> source directory). Using this data type, one may also write the mesh into GiD's postprocess
   !> file format for visualization purposes using GiD.
   type mesh_t
-     ! private
+     private
      ! Sizes
      integer(ip)                :: &
-          order=c_order,           &         ! GiD element order (c)
-          nelty=1,                 &         ! Number of element types
+          order,                   &         ! GiD element order
+          nelty,                   &         ! Number of element types
           ndime,                   &         ! Number of space dimensions
           npoin,                   &         ! Number of vertices
           nelem,                   &         ! Number of elements
@@ -113,6 +113,8 @@ module mesh_names
 
      ! Coords getters
       procedure, non_overridable                   :: get_vertex_coordinates                ! coord
+      
+      procedure, non_overridable                   :: create => mesh_create
 
       procedure, non_overridable                   :: read_fempar_gid_problem_type_format_dir_path_prefix
       procedure, non_overridable                   :: read_fempar_gid_problem_type_format_pl
@@ -147,10 +149,6 @@ module mesh_names
 
   ! Constants
   public :: c_order, z_order
-
-  ! Functions
-  public :: mesh_write_files, mesh_write_files_for_postprocess
-  public :: mesh_distribution_write_for_postprocess
 
 contains
 
@@ -246,6 +244,80 @@ contains
         coord => this%coord
     end function get_vertex_coordinates
 
+  !=============================================================================  
+    subroutine mesh_create(this, &
+                           order, &
+                           nelty, &
+                           ndime, &
+                           npoin, &
+                           nelem, &
+                           pnods, &
+                           lnods, &
+                           legeo, &
+                           leset, &
+                           given_vefs, &
+                           lst_vefs_geo, &
+                           lst_vefs_set, &
+                           coord)
+      implicit none
+      class(mesh_t), intent(inout) :: this
+      ! Sizes
+      integer(ip), intent(in) :: order 
+      integer(ip), intent(in) :: nelty
+      integer(ip), intent(in) :: ndime
+      integer(ip), intent(in) :: npoin
+      integer(ip), intent(in) :: nelem
+      ! Elements
+      integer(ip), intent(in)  :: pnods(nelem+1)
+      integer(ip), intent(in)  :: lnods(pnods(nelem+1)-1)
+      integer(ip), intent(in)  :: legeo(nelem)
+      integer(ip), intent(in)  :: leset(nelem)
+      
+      ! Boundary vefs-related data
+      type(list_t), intent(in) :: given_vefs
+      integer(ip),  intent(in) :: lst_vefs_geo(:)
+      integer(ip),  intent(in) :: lst_vefs_set(:)    
+      
+      ! Vertex coordinates
+      real(rp)   ,  intent(in) :: coord(:,:)
+      
+      integer(ip) :: ielem, iboun
+      
+      call this%free()
+      
+      assert ( order == z_order .or. order == c_order ) 
+      this%order = order
+      this%nelty = nelty
+      this%ndime = ndime
+      this%npoin = npoin
+      this%nelem = nelem
+      call memalloc(size(pnods), this%pnods,__FILE__,__LINE__)
+      this%pnods = pnods
+      call memalloc(size(lnods), this%lnods,__FILE__,__LINE__)
+      this%lnods = lnods
+      call memalloc(size(legeo), this%legeo,__FILE__,__LINE__)
+      this%legeo = legeo
+      call memalloc(size(leset), this%leset,__FILE__,__LINE__)
+      this%leset = leset
+      call memalloc(size(lst_vefs_geo), this%lst_vefs_geo,__FILE__,__LINE__)
+      this%lst_vefs_geo = lst_vefs_geo
+      call memalloc(size(lst_vefs_set), this%lst_vefs_set,__FILE__,__LINE__)
+      this%lst_vefs_set = lst_vefs_set
+      call memalloc(size(coord,1), size(coord,2), this%coord,__FILE__,__LINE__)
+      this%coord = coord
+      this%given_vefs = given_vefs
+      
+      this%nnode = 0
+      do ielem = 2, this%nelem+1
+       this%nnode = max(this%nnode,this%pnods(ielem)-this%pnods(ielem-1))
+      end do
+      
+       this%nnodb    = 0
+       do iboun = 1, this%given_vefs%get_num_pointers()
+         this%nnodb = max(this%nnodb,this%given_vefs%get_sublist_size(iboun))
+       end do
+    end subroutine mesh_create
+    
   !=============================================================================
    subroutine read_fempar_gid_problem_type_format_pl(this, parameter_list)
      implicit none 
@@ -697,106 +769,6 @@ contains
 6   format(i6,10(1x,i6))
 
   end subroutine write_gid_postprocess_format_file_unit
-   
-   
-  !=============================================================================
-  subroutine mesh_write_files_for_postprocess ( parameter_list, lmesh )
-     implicit none
-     ! Parameters 
-     type(ParameterList_t), intent(in) :: parameter_list
-     type(mesh_t)         , intent(in) :: lmesh (:)
-
-     ! Locals
-     integer(ip)                     :: nparts
-     character(len=:), allocatable   :: dir_path
-     character(len=:), allocatable   :: prefix
-     character(len=:), allocatable   :: name, rename
-     integer(ip)                     :: lunio
-     integer(ip)                     :: i
-
-     nparts = size(lmesh)
-
-     ! Mandatory parameters
-     call lmesh(1)%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
-
-     do i=nparts, 1, -1  
-        name=prefix
-        call numbered_filename_compose(i,nparts,name)
-        call lmesh(i)%mesh_gid_postprocess_format_compose_name (name, rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
-        call lmesh(i)%write_gid_postprocess_format(lunio)
-        call io_close(lunio)
-     end do
-     
-   end subroutine mesh_write_files_for_postprocess
-   
-  !=============================================================================
-  subroutine mesh_distribution_write_for_postprocess ( parameter_list, gmesh, parts )
-    implicit none
-    ! Parameters
-    type(ParameterList_t)    , intent(in) :: parameter_list
-    type(mesh_t)             , intent(in) :: gmesh
-    type(mesh_distribution_t), intent(in) :: parts(:)
-
-    ! Locals
-    integer(ip)                     :: nparts
-    character(len=:), allocatable   :: dir_path
-    character(len=:), allocatable   :: prefix
-    character(len=:), allocatable   :: name, rename
-    integer(ip)                     :: lunio
-    integer(ip)                     :: i,j
-    integer(ip),      allocatable   :: ldome(:)
-    type(post_file_t)               :: lupos
-
-    nparts = size(parts)
-
-    call gmesh%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
-
-
-    ! Output domain partition to GiD file
-    call memalloc (gmesh%nelem, ldome, __FILE__,__LINE__)
-    do i=1, nparts
-       do j=1, parts(i)%num_local_cells
-          ldome(parts(i)%l2g_cells(j)) = i
-       end do
-    end do
-    name = trim(dir_path)// '/' // trim(prefix) // '.post.res'
-    call postpro_open_file(1,name,lupos)
-    call postpro_gp_init(lupos,1,gmesh%nnode,gmesh%ndime)
-    call postpro_gp(lupos,gmesh%ndime,gmesh%nnode,ldome,'EDOMS',1,1.0)
-    call postpro_close_file(lupos)
-    call memfree (ldome,__FILE__,__LINE__)
-    
-  end subroutine mesh_distribution_write_for_postprocess
-
-  !=============================================================================
-   subroutine mesh_read_files ( parameter_list, nparts, lmesh ) !    dir_path, prefix, nparts, lmesh )
-     implicit none
-     ! Parameters 
-     type(ParameterList_t), intent(in)  :: parameter_list
-     integer(ip)          , intent(in)  :: nparts
-     type(mesh_t)         , intent(out) :: lmesh (nparts)
-
-     ! Locals
-     character(len=:), allocatable   :: dir_path
-     character(len=:), allocatable   :: prefix
-     character(len=:), allocatable   :: name, rename
-     integer(ip)                     :: lunio
-     integer(ip)                     :: i
-
-     ! Mandatory parameters
-     call get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
-    
-     call lmesh(i)%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
-     do i=nparts, 1, -1  
-        rename=name
-        call numbered_filename_compose(i,nparts,rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'read' ); check(lunio>0)
-        call lmesh(i)%read_fempar_gid_problem_type_format(lunio)
-        call io_close(lunio)
-     end do
-     
-   end subroutine mesh_read_files
 
    !=============================================================================
    subroutine write_gid_postprocess_format_pl ( f_mesh, parameter_list)

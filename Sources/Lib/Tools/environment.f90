@@ -189,7 +189,7 @@ module environment_names
   end type environment_t
 
   ! Types
-  public :: environment_t, environment_compose_name, environment_write_files
+  public :: environment_t, environment_compose_name
 
 contains
 
@@ -200,47 +200,6 @@ contains
     character (len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.env'
   end subroutine environment_compose_name
-
-  !=============================================================================
-  subroutine environment_write_files ( parameter_list, envs )
-    implicit none
-    ! Parameters
-    type(ParameterList_t)  , intent(in) :: parameter_list
-    type(environment_t), intent(in)  :: envs(:)
-
-    ! Locals
-    integer(ip)          :: nenvs
-    integer(ip)          :: istat
-    character(len=:), allocatable :: dir_path
-    character(len=:), allocatable :: prefix
-    character(len=:), allocatable :: name, rename
-    integer(ip)          :: lunio
-    integer(ip)          :: i
-
-    nenvs = size(envs)
-
-     ! Mandatory parameters
-    assert(parameter_list%isAssignable(dir_path_key, 'string'))
-    istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
-    assert(istat==0)
-
-    assert(parameter_list%isAssignable(prefix_key, 'string')) 
-    istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
-    assert(istat==0)
-
-    call environment_compose_name ( prefix, name )
-
-    do i=1,nenvs
-       rename=name
-       call numbered_filename_compose(i,nenvs,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
-       call envs(i)%write (lunio)
-       call io_close (lunio)
-    end do
-
-    ! name, and rename should be automatically deallocated by the compiler when they
-    ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  environment_write_files
 
   !=============================================================================
   subroutine environment_read_file ( this,lunio)
@@ -330,7 +289,6 @@ contains
 
           call environment_compose_name(prefix, name )  
           call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
-          write(*,*) trim(dir_path) // '/' // trim(name)
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
           !$ write(*,*) omp_get_thread_num(),lunio 
 
