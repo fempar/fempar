@@ -97,7 +97,7 @@ MESSAGE(MKL_USE_STATIC_LIBS: ${MKL_USE_STATIC_LIBS})
 # Find REQUIRED MPI library and check MPI.mod compatibility
 #################################################################
 
-FIND_PACKAGE(MPI REQUIRED) # Look for MPI library. This requirement is mandatory required
+FIND_PACKAGE(MPI REQUIRED) # Look for MPI library. This requirement is mandatory
 
 IF(MPI_FOUND)
     # Add MPI directories
@@ -123,6 +123,7 @@ IF(MPI_FOUND)
         MESSAGE(WARNING "MPI: mpi.mod file NOT FOUND! mpif.h is going to be included instead")
         ADD_DEFINITIONS(-DMPI_H)       # If mpi.mod was NOT found add MPI_H preprocessor definition
     ENDIF()
+    SET(${PROJECT_NAME}_ENABLE_MPI ON) # Append MPI_LIBRARIES to the list of FEMPAR_LIBRARIES
     SET(${PROJECT_NAME}_LIBRARIES ${${PROJECT_NAME}_LIBRARIES} ${MPI_LIBRARIES}) # Append MPI_LIBRARIES to the list of FEMPAR_LIBRARIES
 ENDIF()
 
@@ -252,6 +253,13 @@ ENDIF()
 UNSET(${PROJECT_NAME}_EXTERNAL_PROJECTS CACHE)
 SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For FortranParser) # List of Fempar external projects
 
+# Enable HDF5 by default
+IF(NOT DEFINED ${PROJECT_NAME}_ENABLE_HDF5 OR "${${PROJECT_NAME}_ENABLE_HDF5}" STREQUAL "")
+    SET(${PROJECT_NAME}_ENABLE_HDF5 ON) 
+ENDIF()
+
+MESSAGE("EXTERNAL_PROJECTS:  ${EXTERNAL_PROJECTS}") # List of Fempar external projects
+
 # Loop over all (required) external projects
 # ${EXT_PROJ}_DIR is used as a clue to find every external project
 FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
@@ -267,10 +275,12 @@ FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
     SET(${PROJECT_NAME}_EXTERNAL_PROJECTS ${${PROJECT_NAME}_EXTERNAL_PROJECTS} ${${EXT_PROJ}_LIBS})    
     INCLUDE_DIRECTORIES(${${EXT_PROJ}_INCLUDES})          # Include directory of the external project
     SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${EXT_PROJ}_INCLUDES})
-    IF(EXT_PROJ STREQUAL "XH5For" AND XH5For_ENABLE_HDF5) # If XH5For is enabled add ENABLE_HDF5 preprocessor definition
-        ADD_DEFINITIONS(-DENABLE_HDF5)
-    ENDIF()
 ENDFOREACH ()
+
+# If HDF5 and XH5For are enabled add ENABLE_HDF5 preprocessor definition
+IF(${PROJECT_NAME}_ENABLE_HDF5 AND XH5For_ENABLE_HDF5)
+    ADD_DEFINITIONS(-DENABLE_HDF5)
+ENDIF()
 
 
 #################################################################
