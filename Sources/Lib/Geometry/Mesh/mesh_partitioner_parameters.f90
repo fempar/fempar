@@ -30,41 +30,41 @@ module mesh_partitioner_parameters_names
   use metis_names
   implicit none
 
-  character(len=*), parameter :: num_levels_distribution_key          = 'PART_NUM_LEVELS_DISTRIBUTION'
-  character(len=*), parameter :: num_parts_x_level_key                = 'PART_NUM_PARTS_X_LEVEL'
-  character(len=*), parameter :: strategy_key                         = 'PART_STRATEGY'
-  character(len=*), parameter :: mesh_partitioner_dir_path_output_key = 'MESH_PARTITIONER_DIR_PATH_OUTPUT'
-  character(len=*), parameter :: mesh_partitioner_prefix_output_key   = 'MESH_PARTITIONER_PREFIX_OUTPUT'
+  character(len=*), parameter :: mesh_partitioner_num_levels_key        = 'MESH_PARTITIONER_NUM_LEVELS'
+  character(len=*), parameter :: mesh_partitioner_num_parts_x_level_key = 'MESH_PARTITIONER_NUM_PARTS_X_LEVEL'
+  character(len=*), parameter :: mesh_partitioner_strategy_key          = 'MESH_PARTITIONER_STRATEGY'
+  character(len=*), parameter :: mesh_partitioner_dir_path_output_key   = 'MESH_PARTITIONER_DIR_PATH_OUTPUT'
+  character(len=*), parameter :: mesh_partitioner_prefix_output_key     = 'MESH_PARTITIONER_PREFIX_OUTPUT'
   
-  character(len=*), parameter :: metis_option_debug_key      = 'METIS_DEBUG'
-  character(len=*), parameter :: metis_option_ufactor_key    = 'METIS_OPTION_UFACTOR'
-  character(len=*), parameter :: metis_option_minconn_key    = 'METIS_OPTION_MINCONN'
-  character(len=*), parameter :: metis_option_contig_key     = 'METIS_OPTION_CONFIG'
-  character(len=*), parameter :: metis_option_ctype_key      = 'METIS_OPTION_CTYPE'
-  character(len=*), parameter :: metis_option_iptype_key     = 'METIS_OPTION_IPTYPE'
+  character(len=*), parameter :: mesh_partitioner_metis_option_debug_key   = 'MESH_PARTITIONER_METIS_DEBUG'
+  character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_key = 'MESH_PARTITIONER_METIS_OPTION_UFACTOR'
+  character(len=*), parameter :: mesh_partitioner_metis_option_minconn_key = 'MESH_PARTITIONER_METIS_OPTION_MINCONN'
+  character(len=*), parameter :: mesh_partitioner_metis_option_contig_key  = 'MESH_PARTITIONER_METIS_OPTION_CONFIG'
+  character(len=*), parameter :: mesh_partitioner_metis_option_ctype_key   = 'MESH_PARTITIONER_METIS_OPTION_CTYPE'
+  character(len=*), parameter :: metis_option_iptype_key                   = 'MESH_PARTITIONER_METIS_OPTION_IPTYPE'
 
-  character(len=*), parameter :: num_levels_distribution_cla_name          = '--'//num_levels_distribution_key
-  character(len=*), parameter :: num_parts_x_level_cla_name                = '--'//num_parts_x_level_key
-  character(len=*), parameter :: strategy_cla_name                         = '--'//strategy_key
-  character(len=*), parameter :: mesh_partitioner_dir_path_output_cla_name = '--'//mesh_partitioner_dir_path_output_key
-  character(len=*), parameter :: mesh_partitioner_prefix_output_cla_name   = '--'//mesh_partitioner_prefix_output_key
+  character(len=*), parameter :: mesh_partitioner_num_levels_cla_name         = '--'//mesh_partitioner_num_levels_key
+  character(len=*), parameter :: mesh_partitioner_num_parts_x_level_cla_name  = '--'//mesh_partitioner_num_parts_x_level_key
+  character(len=*), parameter :: mesh_partitioner_strategy_cla_name           = '--'//mesh_partitioner_strategy_key
+  character(len=*), parameter :: mesh_partitioner_dir_path_output_cla_name    = '--'//mesh_partitioner_dir_path_output_key
+  character(len=*), parameter :: mesh_partitioner_prefix_output_cla_name      = '--'//mesh_partitioner_prefix_output_key
 
-  character(len=*), parameter :: metis_option_debug_cla_name      = '--'//metis_option_debug_key
-  character(len=*), parameter :: metis_option_ufactor_cla_name    = '--'//metis_option_ufactor_key
-  character(len=*), parameter :: metis_option_minconn_cla_name    = '--'//metis_option_minconn_key
-  character(len=*), parameter :: metis_option_contig_cla_name     = '--'//metis_option_contig_key
-  character(len=*), parameter :: metis_option_ctype_cla_name      = '--'//metis_option_ctype_key
-  character(len=*), parameter :: metis_option_iptype_cla_name     = '--'//metis_option_iptype_key
+  character(len=*), parameter :: mesh_partitioner_metis_option_debug_cla_name   = '--'//mesh_partitioner_metis_option_debug_key
+  character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_cla_name = '--'//mesh_partitioner_metis_option_ufactor_key
+  character(len=*), parameter :: mesh_partitioner_metis_option_minconn_cla_name = '--'//mesh_partitioner_metis_option_minconn_key
+  character(len=*), parameter :: mesh_partitioner_metis_option_contig_cla_name  = '--'//mesh_partitioner_metis_option_contig_key
+  character(len=*), parameter :: mesh_partitioner_metis_option_ctype_cla_name   = '--'//mesh_partitioner_metis_option_ctype_key
+  character(len=*), parameter :: mesh_partitioner_metis_option_iptype_cla_name  = '--'//metis_option_iptype_key
 
-  integer(ip), parameter :: part_kway      = 0
-  integer(ip), parameter :: part_recursive = 1
-  integer(ip), parameter :: part_strip     = 2
-  integer(ip), parameter :: part_rcm_strip = 3
+  character(len=*), parameter :: metis_part_kway      = 'metis_part_kway'
+  character(len=*), parameter :: metis_part_recursive = 'metis_part_recursive'
+  character(len=*), parameter :: metis_part_strip     = 'metis_part_strip'
+  character(len=*), parameter :: metis_part_rcm_strip = 'metis_part_rcm_strip'
   
   character(len=*), parameter :: mesh_partitioner_default_dir_path_output = '.'  
   character(len=*), parameter :: mesh_partitioner_default_prefix_output   = 'mesh_partition'
   
-  integer(ip), parameter :: mesh_partitioner_default_strat = part_kway
+  character(len=*), parameter :: mesh_partitioner_default_strat = metis_part_kway
   
   ! Use METIS defaults (i.e., == -1) 30 for part_kway, and 1 for part_recursive
   integer(ip), parameter :: mesh_partitioner_default_metis_option_ufactor = -1

@@ -26,7 +26,7 @@ then
     then
         for order in 1 2 3 # 4 5 6
         do
-            COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_output_flag square_quads $prefix_flag square_quads $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1"
+            COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_output_flag square_quads $prefix_flag square_quads $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
             echo $COMMAND
             eval $COMMAND
 
@@ -53,7 +53,7 @@ then
     then
        for order in 1 2 3 #4 5 6
         do
-	     COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_prefix_output_flag square_tetrahedra $prefix_flag square_tetrahedra $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1"
+	     COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_prefix_output_flag square_tetrahedra $prefix_flag square_tetrahedra $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
              echo $COMMAND
              eval $COMMAND
 
@@ -80,7 +80,7 @@ then
     then        
        for order in 1 2 3 #1 2 3 4 5 6
         do
-             COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_prefix_output_flag cube_hexas $prefix_flag cube_hexas $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1"
+             COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_prefix_output_flag cube_hexas $prefix_flag cube_hexas $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
              echo $COMMAND
              eval $COMMAND
 
@@ -107,7 +107,7 @@ then
     then        
        for order in 1 2 #1 2 3 4 5 6
         do
-             COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_output_flag cube_tetrahedra $prefix_flag cube_tetrahedra $num_levels_distribution_flag 3 $num_parts_x_level_flag 4 2 1"
+             COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_output_flag cube_tetrahedra $prefix_flag cube_tetrahedra $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
              echo $COMMAND
              eval $COMMAND
 

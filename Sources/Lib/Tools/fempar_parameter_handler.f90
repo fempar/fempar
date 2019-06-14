@@ -903,48 +903,48 @@ contains
            'A', &
            'Name of the GiD files')
 
-      call this%add(num_levels_distribution_key, &
-           num_levels_distribution_cla_name, &
+      call this%add(mesh_partitioner_num_levels_key, &
+           mesh_partitioner_num_levels_cla_name, &
            1, &
            'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
 
-      call this%add(num_parts_x_level_key, &
-           num_parts_x_level_cla_name, &
+      call this%add(mesh_partitioner_num_parts_x_level_key, &
+           mesh_partitioner_num_parts_x_level_cla_name, &
            [1], &
            'Number of parts per level') 
 
-      call this%add(strategy_key, &
-           strategy_cla_name, &
-           part_kway, &
+      call this%add(mesh_partitioner_strategy_key, &
+           mesh_partitioner_strategy_cla_name, &
+           metis_part_kway, &
            'Strategy key for partitioner') 
 
-      call this%add(metis_option_debug_key, &
-           metis_option_debug_cla_name, &
+      call this%add(mesh_partitioner_metis_option_debug_key, &
+           mesh_partitioner_metis_option_debug_cla_name, &
            2, &
            'METIS debug key') 
 
-      call this%add(metis_option_ufactor_key, &
-           metis_option_ufactor_cla_name, &
+      call this%add(mesh_partitioner_metis_option_ufactor_key, &
+           mesh_partitioner_metis_option_ufactor_cla_name, &
            30, &
            'METIS option ufactor') 
 
-      call this%add(metis_option_minconn_key, &
-           metis_option_minconn_cla_name, &
+      call this%add(mesh_partitioner_metis_option_minconn_key, &
+           mesh_partitioner_metis_option_minconn_cla_name, &
            0, &
            'METIS option minconn') 
 
-      call this%add(metis_option_contig_key, &
-           metis_option_contig_cla_name, &
+      call this%add(mesh_partitioner_metis_option_contig_key, &
+           mesh_partitioner_metis_option_contig_cla_name, &
            1, &
            'METIS option config') 
 
-      call this%add(metis_option_ctype_key, &
-           metis_option_ctype_cla_name, &
+      call this%add(mesh_partitioner_metis_option_ctype_key, &
+           mesh_partitioner_metis_option_ctype_cla_name, &
            METIS_CTYPE_SHEM, &
            'METIS option ctype')
 
       call this%add(metis_option_iptype_key, &
-           metis_option_iptype_cla_name, &
+           mesh_partitioner_metis_option_iptype_cla_name, &
            METIS_IPTYPE_EDGE, &
            'METIS option iptype')
     end subroutine fph_mesh_partitioner_define_parameters

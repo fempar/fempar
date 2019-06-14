@@ -59,13 +59,13 @@ module mesh_partitioner_names
      type(list_t)                 , allocatable :: graph_hierarchy(:)
      type(allocatable_array_ip1_t), allocatable :: cells_part(:)
      
-     integer(ip)              :: strat                   ! Partitioning algorithm (part_kway,part_recursive,part_strip,part_rcm_strip)
-     integer(ip)              :: metis_option_ufactor    ! Imbalance tol of metis_option_ufactor/1000 + 1
-     integer(ip)              :: metis_option_minconn 
-     integer(ip)              :: metis_option_contig  
-     integer(ip)              :: metis_option_ctype 
-     integer(ip)              :: metis_option_iptype
-     integer(ip)              :: metis_option_debug
+     character(len=:), allocatable :: strat                   ! Partitioning algorithm (part_kway,part_recursive,part_strip,part_rcm_strip)
+     integer(ip)                   :: metis_option_ufactor    ! Imbalance tol of metis_option_ufactor/1000 + 1
+     integer(ip)                   :: metis_option_minconn 
+     integer(ip)                   :: metis_option_contig  
+     integer(ip)                   :: metis_option_ctype 
+     integer(ip)                   :: metis_option_iptype
+     integer(ip)                   :: metis_option_debug
   contains 
      procedure, non_overridable                   :: create         => mesh_partitioner_create
      procedure, non_overridable                   :: partition_mesh => mesh_partitioner_partition_mesh
@@ -319,19 +319,19 @@ contains
     integer(ip), allocatable :: param_size(:), param(:)
 
     ! Mandatory parameters num_levels
-    assert(parameter_list%isPresent(key = num_levels_distribution_key))
-    assert(parameter_list%isAssignable(num_levels_distribution_key, this%num_levels))
-    istat = parameter_list%get(key = num_levels_distribution_key  , value = this%num_levels)
+    assert(parameter_list%isPresent(key = mesh_partitioner_num_levels_key))
+    assert(parameter_list%isAssignable(mesh_partitioner_num_levels_key, this%num_levels))
+    istat = parameter_list%get(key = mesh_partitioner_num_levels_key  , value = this%num_levels)
     assert(istat==0)
        
-    assert(parameter_list%isPresent(key = num_parts_x_level_key ))
-    assert(parameter_list%GetDimensions(key = num_parts_x_level_key) == 1)
+    assert(parameter_list%isPresent(key = mesh_partitioner_num_parts_x_level_key ))
+    assert(parameter_list%GetDimensions(key = mesh_partitioner_num_parts_x_level_key) == 1)
 
     ! Get the array using the local variable
-    istat =  parameter_list%GetShape(key = num_parts_x_level_key, shape = param_size ); check(istat==0)
+    istat =  parameter_list%GetShape(key = mesh_partitioner_num_parts_x_level_key, shape = param_size ); check(istat==0)
     call memalloc(param_size(1), param,__FILE__,__LINE__)
-    assert(parameter_list%isAssignable(num_parts_x_level_key, param))
-    istat = parameter_list%get(key = num_parts_x_level_key, value = param)
+    assert(parameter_list%isAssignable(mesh_partitioner_num_parts_x_level_key, param))
+    istat = parameter_list%get(key = mesh_partitioner_num_parts_x_level_key, value = param)
     assert(istat==0)
 
     call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__)
@@ -340,40 +340,40 @@ contains
 
     this%nparts = this%num_parts_x_level(1)
 
-    if( parameter_list%isPresent(strategy_key) ) then
-       assert(parameter_list%isAssignable(strategy_key, this%strat))
-       istat = parameter_list%get(key = strategy_key  , value = this%strat)
+    if( parameter_list%isPresent(mesh_partitioner_strategy_key) ) then
+       assert(parameter_list%isAssignable(mesh_partitioner_strategy_key, this%strat))
+       istat = parameter_list%get(key = mesh_partitioner_strategy_key  , value = this%strat)
        assert(istat==0)
-       assert(this%strat==part_kway.or.this%strat==part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
+       assert(this%strat==metis_part_kway.or.this%strat==metis_part_recursive.or.this%strat==metis_part_strip.or.this%strat==metis_part_rcm_strip)
     end if
 
-    if( parameter_list%isPresent(metis_option_debug_key) ) then
-       assert(parameter_list%isAssignable(metis_option_debug_key, this%metis_option_debug))
-       istat = parameter_list%get(key = metis_option_debug_key  , value = this%metis_option_debug)
+    if( parameter_list%isPresent(mesh_partitioner_metis_option_debug_key) ) then
+       assert(parameter_list%isAssignable(mesh_partitioner_metis_option_debug_key, this%metis_option_debug))
+       istat = parameter_list%get(key = mesh_partitioner_metis_option_debug_key  , value = this%metis_option_debug)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(metis_option_ufactor_key) ) then
-       assert(parameter_list%isAssignable(metis_option_ufactor_key, this%metis_option_ufactor))
-       istat = parameter_list%get(key = metis_option_ufactor_key, value = this%metis_option_ufactor)
+    if( parameter_list%isPresent(mesh_partitioner_metis_option_ufactor_key) ) then
+       assert(parameter_list%isAssignable(mesh_partitioner_metis_option_ufactor_key, this%metis_option_ufactor))
+       istat = parameter_list%get(key = mesh_partitioner_metis_option_ufactor_key, value = this%metis_option_ufactor)
        assert(istat==0)
     end if
 
-    if( parameter_list%isPresent(metis_option_minconn_key) ) then
-       assert(parameter_list%isAssignable(metis_option_minconn_key, this%metis_option_minconn))
-       istat = parameter_list%get(key = metis_option_minconn_key, value = this%metis_option_minconn)
+    if( parameter_list%isPresent(mesh_partitioner_metis_option_minconn_key) ) then
+       assert(parameter_list%isAssignable(mesh_partitioner_metis_option_minconn_key, this%metis_option_minconn))
+       istat = parameter_list%get(key = mesh_partitioner_metis_option_minconn_key, value = this%metis_option_minconn)
        check(istat==0)
     end if
 
-    if( parameter_list%isPresent(metis_option_contig_key) ) then
-       assert(parameter_list%isAssignable(metis_option_contig_key, this%metis_option_contig))
-       istat = parameter_list%get(key = metis_option_contig_key , value = this%metis_option_contig)
+    if( parameter_list%isPresent(mesh_partitioner_metis_option_contig_key) ) then
+       assert(parameter_list%isAssignable(mesh_partitioner_metis_option_contig_key, this%metis_option_contig))
+       istat = parameter_list%get(key = mesh_partitioner_metis_option_contig_key , value = this%metis_option_contig)
        assert(istat==0)
     end if
 
-    if( parameter_list%isPresent(metis_option_ctype_key) ) then
-       assert(parameter_list%isAssignable(metis_option_ctype_key, this%metis_option_ctype))
-       istat = parameter_list%get(key = metis_option_ctype_key  , value = this%metis_option_ctype)
+    if( parameter_list%isPresent(mesh_partitioner_metis_option_ctype_key) ) then
+       assert(parameter_list%isAssignable(mesh_partitioner_metis_option_ctype_key, this%metis_option_ctype))
+       istat = parameter_list%get(key = mesh_partitioner_metis_option_ctype_key  , value = this%metis_option_ctype)
        assert(istat==0)
     end if
   end subroutine set_parameters_from_pl
@@ -1086,7 +1086,7 @@ contains
 !!$      METIS_OPTION_CONTIG, METIS_OPTION_SEED, METIS_OPTION_NUMBERING,
 !!$      METIS_OPTION_DBGLVL
 
-    if ( this%strat == part_kway ) then
+    if ( this%strat == metis_part_kway ) then
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = this%metis_option_debug
        
@@ -1115,7 +1115,7 @@ contains
 
        assert(ierr == METIS_OK) 
        
-    else if ( this%strat == part_recursive ) then
+    else if ( this%strat == metis_part_recursive ) then
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = this%metis_option_debug
        options(METIS_OPTION_UFACTOR)   = this%metis_option_ufactor
@@ -1129,7 +1129,7 @@ contains
     call enable_metis_error_message
 #endif
 
-    if ( this%strat == part_strip ) then
+    if ( this%strat == metis_part_strip ) then
        j = graph%get_num_pointers()
        m = 0
        do ipart=1,nparts
@@ -1140,7 +1140,7 @@ contains
           m = m + k
           j = j - k
        end do
-    else if ( this%strat == part_rcm_strip ) then
+    else if ( this%strat == metis_part_rcm_strip ) then
        call memalloc ( graph%get_num_pointers(), iperm, __FILE__,__LINE__ )
        call genrcm ( graph, iperm )
        j = graph%get_num_pointers()
