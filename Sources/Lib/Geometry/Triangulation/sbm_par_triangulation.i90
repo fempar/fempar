@@ -135,7 +135,7 @@ subroutine par_triangulation_create ( this, environment, parameters)
         ! Read mesh
         call mesh%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
         if(this%environment%get_l1_size()>1) &
-             &  call par_filename( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
+             &  call numbered_filename_compose( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
         lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
         call mesh%read_fempar_gid_problem_type_format (lunio) 
         call io_close(lunio)
@@ -174,7 +174,7 @@ subroutine par_triangulation_create ( this, environment, parameters)
         ! Read mesh distribution 
         if(this%environment%get_l1_size()>1) then
            call mesh_distribution%mesh_distribution_compose_name ( prefix, name )
-           call par_filename( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
+           call numbered_filename_compose( this%environment%get_l1_rank()+1, this%environment%get_l1_size(), name )
            lunio = io_open (trim(dir_path) // '/' // trim(name)); check(lunio>0)
            call mesh_distribution%read(lunio)
            call io_close(lunio)

@@ -44,7 +44,6 @@ module triangulation_names
   use reference_fe_names
   use mesh_names
   use mesh_distribution_names
-  use par_io_names
   use stdio_names
   use FPL
   use uniform_hex_mesh_generator_names

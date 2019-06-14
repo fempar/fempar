@@ -30,7 +30,6 @@ module environment_names
   use memor_names
   use stdio_names
   use FPL
-  use par_io_names
   use uniform_hex_mesh_generator_names
   use uniform_hex_mesh_generator_parameters_names
   use p4est_triangulation_parameters_names
@@ -288,7 +287,7 @@ contains
           assert(istat==0)
 
           call environment_compose_name(prefix, name )  
-          call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
+          call numbered_filename_compose( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
           lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
           !$ write(*,*) omp_get_thread_num(),lunio 
 
