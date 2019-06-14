@@ -1,5 +1,15 @@
 #!/bin/bash
 
+############################################
+# Programs
+############################################
+
+export mesh_partitioner_program='mesh_partitioner'
+
+############################################
+# CLA names
+############################################
+
 export dir_path_flag='--DIR_PATH'
 export prefix_flag='--PREFIX'
 export dir_path_out_flag='--DIR_PATH_OUT'

@@ -95,7 +95,7 @@ then
 
 
             #test 5 - Analytical solution w/ unit constant coeffs and tetrahedral, unstructured mesh with pathological edge cases (see art031, sect 4) --------------
-            COMMAND="$DIR/part $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_output_flag cube_tetrahedra  $prefix_flag cube_tetrahedra $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 8 1"
+            COMMAND="$DIR/$mesh_partitioner_program $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_dir_path_output_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_output_flag cube_tetrahedra  $prefix_flag cube_tetrahedra $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 8 1"
             echo $COMMAND
             eval $COMMAND
 

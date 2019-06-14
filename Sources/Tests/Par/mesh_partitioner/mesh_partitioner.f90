@@ -26,22 +26,22 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-program partitioner
+program mesh_partitioner
   use fempar_names
   implicit none
   type(mesh_t) :: gmesh
-  type(mesh_partitioner_t) :: mesh_partitioner
+  type(mesh_partitioner_t) :: partitioner
   type(parameterlist_t), pointer :: parameters
   call fempar_init()
   call parameter_handler%process_parameters()
   parameters => parameter_handler%get_values()
   call gmesh%read_fempar_gid_problem_type_format(parameters)
   call gmesh%write_gid_postprocess_format(parameters)
-  call mesh_partitioner%create(gmesh, parameters)
-  call mesh_partitioner%partition_mesh()
-  call mesh_partitioner%write_mesh_parts_fempar_gid_problem_type_format(parameters)
-  call mesh_partitioner%write_mesh_partition_gid_postprocess_format(parameters)
-  call mesh_partitioner%free()
+  call partitioner%create(gmesh, parameters)
+  call partitioner%partition_mesh()
+  call partitioner%write_mesh_parts_fempar_gid_problem_type_format(parameters)
+  call partitioner%write_mesh_partition_gid_postprocess_format(parameters)
+  call partitioner%free()
   call gmesh%free()
   call fempar_finalize()
-end program partitioner
+end program mesh_partitioner
