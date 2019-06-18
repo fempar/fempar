@@ -49,7 +49,7 @@ then
     then           
        for order in 2 3 #1
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $static_triang_mesh_data_files_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -65,7 +65,7 @@ then
     then    
         for order in 2 3 #1
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $static_triang_mesh_data_files_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $prefix_flag cube_tetrahedra -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]

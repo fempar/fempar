@@ -80,15 +80,6 @@ subroutine par_triangulation_create ( this, environment, parameters)
                           
   real(rp), pointer :: mesh_vertex_coordinates(:,:)
 
-    ! Mandatory parameters
-    assert(parameters%isAssignable(dir_path_key, 'string'))
-    istat = parameters%GetAsString(key = dir_path_key, string = dir_path)
-    assert(istat==0)
-
-    assert(parameters%isAssignable(prefix_key, 'string'))
-    istat = parameters%GetAsString(key = prefix_key, string = prefix)
-    assert(istat==0)
-
   ! Optional parameters
   if( parameters%isPresent(static_triang_generate_from_key) ) then
      assert(parameters%isAssignable(static_triang_generate_from_key, triangulation_generate))
@@ -98,6 +89,16 @@ subroutine par_triangulation_create ( this, environment, parameters)
      triangulation_generate = static_triang_generate_from_mesh_data_files
   end if
 
+  if( triangulation_generate == static_triang_generate_from_mesh_data_files ) then
+     ! Mandatory if static_triang_generate_from_mesh_data_files 
+     assert(parameters%isAssignable(static_triang_mesh_data_files_dir_path_key, 'string'))
+     istat = parameters%GetAsString(key = static_triang_mesh_data_files_dir_path_key, string = dir_path)
+     assert(istat==0)
+
+     assert(parameters%isAssignable(static_triang_mesh_data_files_prefix_key, 'string'))
+     istat = parameters%GetAsString(key = static_triang_mesh_data_files_prefix_key, string = prefix)
+     assert(istat==0)
+  end if
 
   if( parameters%isPresent(static_triang_geometric_interpolation_order_key) ) then
      assert(parameters%isAssignable(static_triang_geometric_interpolation_order_key, geometric_interpolation_order))
