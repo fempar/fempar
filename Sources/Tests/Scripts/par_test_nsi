@@ -27,7 +27,7 @@ then
       do
         for v_order in 2 3
         do
-            COMMAND="$DIR/$mesh_partitioner_program $dir_path_flag $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
+            COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
             echo $COMMAND
             eval $COMMAND
 
