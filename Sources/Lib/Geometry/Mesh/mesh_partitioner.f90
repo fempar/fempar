@@ -536,12 +536,12 @@ contains
      integer(ip)                                  :: error
 
      ! Mandatory parameters
-     assert(parameter_list%isAssignable(mesh_partitioner_dir_path_output_key, 'string'))
-     error = parameter_list%GetAsString(key = mesh_partitioner_dir_path_output_key, string = dir_path)
+     assert(parameter_list%isAssignable(mesh_partitioner_dir_path_key, 'string'))
+     error = parameter_list%GetAsString(key = mesh_partitioner_dir_path_key, string = dir_path)
      assert(error==0)
 
-     assert(parameter_list%isAssignable(mesh_partitioner_prefix_output_key, 'string'))
-     error = parameter_list%GetAsString(key = mesh_partitioner_prefix_output_key, string = prefix)
+     assert(parameter_list%isAssignable(mesh_partitioner_prefix_key, 'string'))
+     error = parameter_list%GetAsString(key = mesh_partitioner_prefix_key, string = prefix)
      assert(error==0)
   end subroutine mesh_partitioner_get_dir_path_and_prefix_from_pl
   

@@ -33,8 +33,8 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_num_levels_key        = 'MESH_PARTITIONER_NUM_LEVELS'
   character(len=*), parameter :: mesh_partitioner_num_parts_x_level_key = 'MESH_PARTITIONER_NUM_PARTS_X_LEVEL'
   character(len=*), parameter :: mesh_partitioner_strategy_key          = 'MESH_PARTITIONER_STRATEGY'
-  character(len=*), parameter :: mesh_partitioner_dir_path_output_key   = 'MESH_PARTITIONER_DIR_PATH_OUTPUT'
-  character(len=*), parameter :: mesh_partitioner_prefix_output_key     = 'MESH_PARTITIONER_PREFIX_OUTPUT'
+  character(len=*), parameter :: mesh_partitioner_dir_path_key          = 'MESH_PARTITIONER_DIR_PATH'
+  character(len=*), parameter :: mesh_partitioner_prefix_key            = 'MESH_PARTITIONER_PREFIX'
   
   character(len=*), parameter :: mesh_partitioner_metis_option_debug_key   = 'MESH_PARTITIONER_METIS_DEBUG'
   character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_key = 'MESH_PARTITIONER_METIS_OPTION_UFACTOR'
@@ -46,8 +46,8 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_num_levels_cla_name         = '--'//mesh_partitioner_num_levels_key
   character(len=*), parameter :: mesh_partitioner_num_parts_x_level_cla_name  = '--'//mesh_partitioner_num_parts_x_level_key
   character(len=*), parameter :: mesh_partitioner_strategy_cla_name           = '--'//mesh_partitioner_strategy_key
-  character(len=*), parameter :: mesh_partitioner_dir_path_output_cla_name    = '--'//mesh_partitioner_dir_path_output_key
-  character(len=*), parameter :: mesh_partitioner_prefix_output_cla_name      = '--'//mesh_partitioner_prefix_output_key
+  character(len=*), parameter :: mesh_partitioner_dir_path_cla_name    = '--'//mesh_partitioner_dir_path_key
+  character(len=*), parameter :: mesh_partitioner_prefix_cla_name      = '--'//mesh_partitioner_prefix_key
 
   character(len=*), parameter :: mesh_partitioner_metis_option_debug_cla_name   = '--'//mesh_partitioner_metis_option_debug_key
   character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_cla_name = '--'//mesh_partitioner_metis_option_ufactor_key

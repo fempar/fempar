@@ -622,37 +622,6 @@ contains
     character(len=:), allocatable, intent(inout) :: name
     name = trim(prefix) // '.post.msh'
   end subroutine mesh_gid_postprocess_format_compose_name
-
-  !=============================================================================
-  subroutine mesh_write_files ( parameter_list, lmesh )
-     implicit none
-     ! Parameters 
-     type(ParameterList_t), intent(in) :: parameter_list
-     type(mesh_t)         , intent(in) :: lmesh (:)
-
-     ! Locals
-     integer(ip)          :: nparts
-     character(len=:), allocatable  :: dir_path
-     character(len=:), allocatable  :: prefix
-     character(len=:), allocatable  :: name, rename
-     integer(ip)                    :: lunio
-     integer(ip)                    :: i
-
-     nparts = size(lmesh)
-
-     call lmesh(1)%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
-
-     call lmesh(1)%mesh_fempar_gid_problem_type_format_compose_name ( prefix, name )
-
-     do i=nparts, 1, -1  
-        rename=name
-        call numbered_filename_compose(i,nparts,rename)
-        lunio = io_open( trim(dir_path) // '/' // trim(rename), 'write' ); check(lunio>0)
-        call lmesh(i)%write_fempar_gid_problem_type_format(lunio)
-        call io_close(lunio)
-     end do   
-   end subroutine mesh_write_files
-
    
   !=============================================================================
   subroutine write_gid_postprocess_format_file_unit (this,lunio,title)
