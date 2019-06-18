@@ -31,6 +31,7 @@ module fempar_parameter_handler_names
     use direct_solver_parameters_names
     use nonlinear_solver_parameters_names
     use environment_parameters_names
+    use mesh_parameters_names
     use mesh_partitioner_parameters_names
     use metis_names
     use triangulation_parameters_names
@@ -94,6 +95,7 @@ module fempar_parameter_handler_names
         procedure, public                   :: getasstring              => fph_GetAsString
         
         procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
+        procedure, private, non_overridable :: fph_mesh_define_parameters
         procedure, private, non_overridable :: fph_mesh_partitioner_define_parameters
         procedure, private, non_overridable :: fph_static_triang_define_parameters
         procedure, private, non_overridable :: fph_struct_hex_mesh_generator_define_parameters
@@ -764,6 +766,7 @@ contains
         call this%fph_static_triang_define_parameters()
         call this%fph_struct_hex_mesh_generator_define_parameters()
         call this%fph_p4est_triang_define_parameters()
+        call this%fph_mesh_define_parameters()
         call this%fph_mesh_partitioner_define_parameters()
         call this%fph_fes_define_parameters()
         call this%fph_ils_define_parameters()
@@ -873,6 +876,23 @@ contains
            (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
     end subroutine fph_p4est_triang_define_parameters
 
+    subroutine fph_mesh_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+
+      call this%add(mesh_dir_path_key, &
+           mesh_dir_path_cla_name, &
+           mesh_default_dir_path_output, &
+           'The relative or full file system path to the & 
+            folder where the mesh data files')
+
+      call this%add(mesh_prefix_key, &
+           mesh_prefix_cla_name, &
+           mesh_default_prefix_output, &
+           'Token string which is used as a prefix to compose & 
+            the names of the mesh data files')
+    end subroutine fph_mesh_define_parameters
+    
     subroutine fph_mesh_partitioner_define_parameters(this)
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this

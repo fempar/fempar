@@ -58,7 +58,7 @@ then
     then
         for order in 1 
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid $static_triang_mesh_data_files_prefix_flag square_tetrahedra_3x3 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid $prefix_flag square_tetrahedra_3x3 -in_space .true. -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid $static_triang_mesh_data_files_prefix_flag square_tetrahedra_3x3 $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid $mesh_prefix_flag square_tetrahedra_3x3 $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_3x3.gid $prefix_flag square_tetrahedra_3x3 -in_space .true. -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -74,7 +74,7 @@ then
     then      
         for order in 1
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid $static_triang_mesh_data_files_prefix_flag cube_tetrahedra_3x3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid $prefix_flag cube_tetrahedra_3x3 -in_space .true. -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid $static_triang_mesh_data_files_prefix_flag cube_tetrahedra_3x3 $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid $mesh_prefix_flag cube_tetrahedra_3x3 $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_3x3.gid $prefix_flag cube_tetrahedra_3x3 -in_space .true. -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -87,7 +87,7 @@ then
       
    if [ $final_exit_code -eq 0 ] 
     then      
-      COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid $static_triang_mesh_data_files_prefix_flag cube_tetrahedra_5x5_centered $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid $prefix_flag cube_tetrahedra_5x5_centered -in_space .true. -order $order"
+      COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid $static_triang_mesh_data_files_prefix_flag cube_tetrahedra_5x5_centered $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid $mesh_prefix_flag cube_tetrahedra_5x5_centered $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_5x5_centered.gid $prefix_flag cube_tetrahedra_5x5_centered -in_space .true. -order $order"
       echo $COMMAND
       eval $COMMAND
       if [ $? -ne 0 ]

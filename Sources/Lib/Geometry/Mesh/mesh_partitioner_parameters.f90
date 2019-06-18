@@ -46,8 +46,8 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_num_levels_cla_name         = '--'//mesh_partitioner_num_levels_key
   character(len=*), parameter :: mesh_partitioner_num_parts_x_level_cla_name  = '--'//mesh_partitioner_num_parts_x_level_key
   character(len=*), parameter :: mesh_partitioner_strategy_cla_name           = '--'//mesh_partitioner_strategy_key
-  character(len=*), parameter :: mesh_partitioner_dir_path_cla_name    = '--'//mesh_partitioner_dir_path_key
-  character(len=*), parameter :: mesh_partitioner_prefix_cla_name      = '--'//mesh_partitioner_prefix_key
+  character(len=*), parameter :: mesh_partitioner_dir_path_cla_name           = '--'//mesh_partitioner_dir_path_key
+  character(len=*), parameter :: mesh_partitioner_prefix_cla_name             = '--'//mesh_partitioner_prefix_key
 
   character(len=*), parameter :: mesh_partitioner_metis_option_debug_cla_name   = '--'//mesh_partitioner_metis_option_debug_key
   character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_cla_name = '--'//mesh_partitioner_metis_option_ufactor_key
