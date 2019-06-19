@@ -58,8 +58,8 @@ module mesh_partitioner_parameters_names
 
   character(len=*), parameter :: metis_part_kway      = 'metis_part_kway'
   character(len=*), parameter :: metis_part_recursive = 'metis_part_recursive'
-  character(len=*), parameter :: metis_part_strip     = 'metis_part_strip'
-  character(len=*), parameter :: metis_part_rcm_strip = 'metis_part_rcm_strip'
+  character(len=*), parameter :: part_strip           = 'part_strip'
+  character(len=*), parameter :: part_rcm_strip       = 'part_rcm_strip'
   
   character(len=*), parameter :: mesh_partitioner_default_dir_path_output = '.'  
   character(len=*), parameter :: mesh_partitioner_default_prefix_output   = 'mesh_partition'

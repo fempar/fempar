@@ -344,7 +344,7 @@ contains
        assert(parameter_list%isAssignable(mesh_partitioner_strategy_key, this%strat))
        istat = parameter_list%get(key = mesh_partitioner_strategy_key  , value = this%strat)
        assert(istat==0)
-       assert(this%strat==metis_part_kway.or.this%strat==metis_part_recursive.or.this%strat==metis_part_strip.or.this%strat==metis_part_rcm_strip)
+       assert(this%strat==metis_part_kway.or.this%strat==metis_part_recursive.or.this%strat==part_strip.or.this%strat==part_rcm_strip)
     end if
 
     if( parameter_list%isPresent(mesh_partitioner_metis_option_debug_key) ) then
@@ -1129,7 +1129,7 @@ contains
     call enable_metis_error_message
 #endif
 
-    if ( this%strat == metis_part_strip ) then
+    if ( this%strat == part_strip ) then
        j = graph%get_num_pointers()
        m = 0
        do ipart=1,nparts
@@ -1140,7 +1140,7 @@ contains
           m = m + k
           j = j - k
        end do
-    else if ( this%strat == metis_part_rcm_strip ) then
+    else if ( this%strat == part_rcm_strip ) then
        call memalloc ( graph%get_num_pointers(), iperm, __FILE__,__LINE__ )
        call genrcm ( graph, iperm )
        j = graph%get_num_pointers()
