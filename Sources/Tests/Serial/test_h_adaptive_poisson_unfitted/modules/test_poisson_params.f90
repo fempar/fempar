@@ -51,6 +51,8 @@ module test_poisson_params_names
   character(len=*), parameter :: strong_dirichlet_key          = 'strong_dirichlet'
   character(len=*), parameter :: refinement_pattern_key        = 'refinement_pattern'
   character(len=*), parameter :: is_in_fe_space_key            = 'is_in_fe_space'
+  character(len=*), parameter :: dir_path_out_key              = 'dir_path_out'
+  character(len=*), parameter :: out_prefix_key                = 'out_prefix'
 
   type :: test_poisson_params_t  
    contains
@@ -58,6 +60,8 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
+     procedure, non_overridable             :: get_dir_path_out
+     procedure, non_overridable             :: get_output_handler_prefix
      procedure, non_overridable             :: get_output_handler_dir_path
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
@@ -89,6 +93,8 @@ contains
   subroutine test_poisson_define_user_parameters()
     implicit none
     ! IO parameters
+    call parameter_handler%add(dir_path_out_key, '--dir-path-out', '.', 'Output path',  switch_ab='-dpo') 
+    call parameter_handler%add(out_prefix_key, '--prefix', 'output', 'Filename prefix for output results',  switch_ab='-p') 
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
@@ -141,13 +147,29 @@ contains
     get_dir_path = parameter_handler%get_dir_path()
   end function get_dir_path
 
-  !==================================================================================================
+   !==================================================================================================
   function get_prefix(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_prefix
-    get_prefix = parameter_handler%get_prefix()
+    call parameter_handler%getasstring(out_prefix_key, get_prefix)
   end function get_prefix
+
+  !==================================================================================================
+  function get_dir_path_out(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_dir_path_out
+    call parameter_handler%getasstring(dir_path_out_key, get_dir_path_out)
+  end function get_dir_path_out
+  
+  !==================================================================================================
+  function get_output_handler_prefix(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_output_handler_prefix
+    call parameter_handler%getasstring(output_handler_prefix_key, get_output_handler_prefix)
+  end function get_output_handler_prefix
 
   !==================================================================================================
   function get_output_handler_dir_path(this)

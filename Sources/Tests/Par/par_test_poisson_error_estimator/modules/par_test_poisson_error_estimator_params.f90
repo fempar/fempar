@@ -44,6 +44,7 @@ module par_test_poisson_error_estimator_params_names
      procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_output_handler_dir_path
+     procedure, non_overridable             :: get_output_handler_prefix
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_refinement_strategy
@@ -112,6 +113,14 @@ contains
     character(len=:), allocatable :: get_output_handler_dir_path
     call parameter_handler%getasstring(output_handler_dir_path_key , get_output_handler_dir_path )
   end function get_output_handler_dir_path
+  
+  !==================================================================================================
+  function get_output_handler_prefix(this)
+    implicit none
+    class(par_test_poisson_error_estimator_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_output_handler_prefix
+    call parameter_handler%getasstring(output_handler_prefix_key , get_output_handler_prefix )
+  end function get_output_handler_prefix
     
   !==================================================================================================
   function get_reference_fe_order(this)

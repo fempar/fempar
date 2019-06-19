@@ -1009,7 +1009,7 @@ contains
 
     if(this%test_params%get_write_solution()) then
         path = this%test_params%get_output_handler_dir_path()
-        prefix = this%test_params%get_prefix()
+        prefix = this%test_params%get_output_handler_prefix()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
@@ -1104,23 +1104,23 @@ contains
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_prefix()//'_mesh.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_mesh.vtu')
         call vtk_writer%free()
         
         ! Write the solution
         call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_prefix()//'_mesh_solution.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_mesh_solution.vtu')
         call vtk_writer%free()
 
         ! Write vefs
         call vtk_writer%attach_vefs(this%triangulation,this%conditions)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_prefix()//'_vefs.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_vefs.vtu')
         call vtk_writer%free()
 
         ! TODO make it work when no cut cells
         ! Write the unfitted mesh
         call vtk_writer%attach_boundary_faces(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_prefix()//'_boundary_faces.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_boundary_faces.vtu')
         call vtk_writer%free()
 
     endif

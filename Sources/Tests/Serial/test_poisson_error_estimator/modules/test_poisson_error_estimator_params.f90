@@ -41,7 +41,7 @@ module test_poisson_error_estimator_params_names
    contains
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
-     procedure, non_overridable             :: get_prefix
+     procedure, non_overridable             :: get_output_handler_prefix
      procedure, non_overridable             :: get_output_handler_dir_path
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
@@ -100,12 +100,12 @@ contains
   
   ! GETTERS *****************************************************************************************
   !==================================================================================================
-  function get_prefix(this)
+  function get_output_handler_prefix(this)
     implicit none
     class(test_poisson_error_estimator_params_t) , intent(in) :: this
-    character(len=:), allocatable                             :: get_prefix
-    get_prefix = parameter_handler%get_prefix()
-  end function get_prefix
+    character(len=:), allocatable                             :: get_output_handler_prefix
+    call parameter_handler%getasstring(output_handler_prefix_key, get_output_handler_prefix)
+  end function get_output_handler_prefix
 
   !==================================================================================================
   function get_output_handler_dir_path(this)

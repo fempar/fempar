@@ -474,7 +474,7 @@ contains
     integer(ip)                        :: error
     if(this%par_test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
       path = this%par_test_params%get_output_handler_dir_path()
-      prefix = this%par_test_params%get_prefix()
+      prefix = this%par_test_params%get_output_handler_prefix()
       call this%output_handler%create()
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
