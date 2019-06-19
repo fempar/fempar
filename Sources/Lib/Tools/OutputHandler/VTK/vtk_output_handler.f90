@@ -168,7 +168,7 @@ contains
 
     subroutine vtk_output_handler_open_body(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
-    !< Open procedure. Set parameters from parameter list
+    !< Open procedure. Set parameters from parameter list and args
     !-----------------------------------------------------------------
         class(vtk_output_handler_t),     intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
@@ -181,19 +181,19 @@ contains
         this%FilePrefix = prefix
 
         ! Set defaults
-        this%vtk_format = vtk_default_format
-        this%StaticGrid = vtk_default_staticgrid
+        this%vtk_format = output_handler_vtk_format_default
+        this%StaticGrid = output_handler_vtk_static_grid_default
 
         if(present(parameter_list)) then
-            if(parameter_list%isPresent(vtk_format)) then
-                assert(parameter_list%isAssignable(vtk_format, 'string'))
-                FPLError   = parameter_list%GetAsString(Key=vtk_format, String=this%vtk_format)
+            if(parameter_list%isPresent(output_handler_vtk_format_key)) then
+                assert(parameter_list%isAssignable(output_handler_vtk_format_key, 'string'))
+                FPLError   = parameter_list%GetAsString(Key=output_handler_vtk_format_key, String=this%vtk_format)
                 assert(FPLError == 0)
             endif
 
-            if(parameter_list%isPresent(oh_staticgrid)) then
-                assert(parameter_list%isAssignable(oh_staticgrid, this%StaticGrid))
-                FPLError   = parameter_list%Get(Key=oh_staticgrid, Value=this%StaticGrid)
+            if(parameter_list%isPresent(output_handler_static_grid_key)) then
+                assert(parameter_list%isAssignable(output_handler_static_grid_key, this%StaticGrid))
+                FPLError   = parameter_list%Get(Key=output_handler_static_grid_key, Value=this%StaticGrid)
                 assert(FPLError == 0)
             endif
         endif

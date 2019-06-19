@@ -65,6 +65,7 @@ USE FPL
 USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_cell_iterator_t, fe_function_t
 USE output_handler_field_generator_names
+USE output_handler_parameters_names
 USE base_output_handler_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
@@ -122,11 +123,13 @@ private
         procedure, non_overridable, public :: add_field_generator            => output_handler_add_field_generator
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
         procedure, non_overridable, public :: update_cell_vector             => output_handler_update_cell_vector
-        procedure, non_overridable, public :: open                           => output_handler_open
+        procedure, non_overridable         :: open_dir_path_prefix           => output_handler_open_dir_path_prefix
+        procedure, non_overridable         :: open_pl                        => output_handler_open_pl
         procedure, non_overridable, public :: append_time_step               => output_handler_append_time_step
         procedure, non_overridable, public :: write                          => output_handler_write
         procedure, non_overridable, public :: close                          => output_handler_close
         procedure, non_overridable, public :: free                           => output_handler_free
+        generic,                    public :: open                           => open_dir_path_prefix, open_pl
         generic,                    public :: create                         => output_handler_create, &
                                                                                 output_handler_create_string, &
                                                                                 output_handler_create_mold
@@ -311,7 +314,7 @@ contains
     
 
 
-    subroutine output_handler_open(this, dir_path, prefix, parameter_list)
+    subroutine output_handler_open_dir_path_prefix(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
     !< Open procedure. 
     !< First procedure to be called after attaching 
@@ -327,7 +330,39 @@ contains
     !-----------------------------------------------------------------
         assert(allocated(this%state))
         call this%state%open(dir_path, prefix, parameter_list)
-    end subroutine output_handler_open
+    end subroutine output_handler_open_dir_path_prefix
+
+
+    subroutine output_handler_open_pl(this, parameter_list)
+    !-----------------------------------------------------------------
+    !< Open procedure. 
+    !< First procedure to be called after attaching 
+    !< the [[serial_fe_space_t(type)]] and adding [[fe_function_t(type)]] and 
+    !< **cell_vector** and before starting to write data to disk.
+    !< This procedure must be called only once and out-of-the-loop
+    !< in transient simulations
+    !-----------------------------------------------------------------
+        class(output_handler_t),         intent(inout) :: this
+        type(ParameterList_t),           intent(in)    :: parameter_list
+        character(len=:), allocatable                  :: dir_path
+        character(len=:), allocatable                  :: prefix
+        integer(ip)                                    :: FPLError
+    !-----------------------------------------------------------------
+        assert(allocated(this%state))
+
+        ! Mandatory parameters
+        ! Get dir_path value from parameter_list
+        assert(parameter_list%isAssignable(output_handler_dir_path_key, 'string'))
+        FPLError   = parameter_list%GetAsString(Key=output_handler_dir_path_key, string=dir_path)
+        assert(FPLError == 0)
+
+        ! Get prefix value from parameter_list
+        assert(parameter_list%isAssignable(output_handler_prefix_key, 'string'))
+        FPLError   = parameter_list%GetAsString(Key=output_handler_prefix_key, String=prefix)
+        assert(FPLError == 0)
+
+        call this%state%open(dir_path, prefix, parameter_list)
+    end subroutine output_handler_open_pl
 
 
     subroutine output_handler_append_time_step(this, value)

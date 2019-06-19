@@ -87,21 +87,28 @@ private
     integer(ip), parameter, public :: vtk_quadratic_tetra      = 24_I1P
     integer(ip), parameter, public :: vtk_quadratic_hexahedron = 25_I1P
 
-    ! PARAMETERS IDENTIFIERS
-    character(len=*), parameter, public :: vtk_format                  = 'vtk_format'
-
     ! VTK_FORMAT PARAMETERS
     character(len=*), parameter, public :: vtk_format_ascii            = 'ASCII'
     character(len=*), parameter, public :: vtk_format_raw              = 'RAW'
     character(len=*), parameter, public :: vtk_format_binary_appended  = 'BINARY-APPENDED'
     character(len=*), parameter, public :: vtk_format_binary           = 'BINARY'
-
-    ! DEFAULT PARAMETERS
-    integer(ip),      parameter, public :: vtk_default_root_task             = 0
+    
+    ! DEFAULT INTERNAL PARAMETERS
+    integer(ip),      parameter, public :: vtk_default_root_task       = 0
     integer(ip),      parameter, public :: vtk_default_num_tasks       = 1
     integer(ip),      parameter, public :: vtk_default_guess_num_steps = 100
-    real(rp),         parameter, public :: vtk_default_step_value            = 0.0_rp
-    character(len=*), parameter, public :: vtk_default_format                = vtk_format_raw
-    logical,          parameter, public :: vtk_default_StaticGrid            = .true.
+    real(rp),         parameter, public :: vtk_default_step_value      = 0.0_rp
+    
+    ! CLA PARAMETERS
+    character(len=*), parameter, public :: output_handler_vtk_format_key      = 'OUTPUT_HANDLER_VTK_FORMAT'
+    character(len=*), parameter, public :: output_handler_vtk_format_cla_name = '--'//output_handler_vtk_format_key
+
+    character(len=*), parameter, public :: output_handler_vtk_format_choices  = vtk_format_ascii           //','// &
+                                                                                vtk_format_raw             //','// &
+                                                                                vtk_format_binary_appended //','// &
+                                                                                vtk_format_binary
+
+    character(len=*), parameter, public :: output_handler_vtk_format_default      = vtk_format_raw
+    logical,          parameter, public :: output_handler_vtk_static_grid_default = .true.
 
 end module vtk_parameters_names

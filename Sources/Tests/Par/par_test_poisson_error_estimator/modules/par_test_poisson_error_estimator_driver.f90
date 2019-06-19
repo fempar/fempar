@@ -480,7 +480,7 @@ contains
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
       call parameter_list%init()
-      error = parameter_list%set(key=oh_staticgrid, value=.false.)
+      error = parameter_list%set(key=output_handler_static_grid_key, value=.false.)
       check (error==0)
       call this%output_handler%open(path, prefix, parameter_list)
       call parameter_list%free()

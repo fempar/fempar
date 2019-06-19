@@ -667,7 +667,7 @@ end subroutine check_solution
       call this%output_handler%add_cell_vector(cell_vector, 'set_id')
       call this%output_handler%add_cell_vector(fe_id, 'fe_id')
       call parameter_list%init()
-      error = parameter_list%set(key=oh_staticgrid, value=.false.)
+      error = parameter_list%set(key=output_handler_static_grid_key, value=.false.)
       check (error==0)
       call this%output_handler%open(path, prefix, parameter_list)
       call parameter_list%free()

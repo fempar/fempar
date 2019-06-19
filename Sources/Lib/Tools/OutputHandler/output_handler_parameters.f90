@@ -56,10 +56,32 @@ module output_handler_parameters_names
 ! [[output_handler_parameters_names(module):curl_diff_operator(variable)]], 
 !---------------------------------------------------------------------
 
+use vtk_parameters_names, only: output_handler_vtk_format_key,      &
+                                output_handler_vtk_format_cla_name, &
+                                output_handler_vtk_format_choices,  &
+                                output_handler_vtk_format_default
+                               
+use xh5_parameters_names, only: output_handler_xh5_strategy_key,      &
+                                output_handler_xh5_info_key,          &
+                                output_handler_xh5_strategy_cla_name, &
+                                output_handler_xh5_info_cla_name,     &
+                                output_handler_xh5_strategy_default,  &
+                                output_handler_xh5_Info_default,      &
+                                output_handler_xh5_strategy_choices
+
 implicit none
 private
 
-    character(*), parameter, public :: oh_staticgrid = 'OH_StaticGrid'
+    character(len=*), parameter, public :: output_handler_dir_path_key          = 'OUTPUT_HANDLER_DIR_PATH'
+    character(len=*), parameter, public :: output_handler_prefix_key            = 'OUTPUT_HANDLER_PREFIX'
+    character(len=*), parameter, public :: output_handler_static_grid_key       = 'OUTPUT_HANDLER_STATIC_GRID'
+
+    character(len=*), parameter, public :: output_handler_dir_path_cla_name     = '--'//output_handler_dir_path_key
+    character(len=*), parameter, public :: output_handler_prefix_cla_name       = '--'//output_handler_prefix_key
+    character(len=*), parameter, public :: output_handler_static_grid_cla_name  = '--'//output_handler_static_grid_key
+    
+    logical,          parameter, public :: output_handler_static_grid_default   = .true.
+    
 
     ! Diff operators
     character(len=*), parameter, public :: no_diff_operator = 'no_diff_operator'
@@ -67,4 +89,17 @@ private
     character(len=*), parameter, public :: div_diff_operator  = 'div_diff_operator'
     character(len=*), parameter, public :: curl_diff_operator = 'curl_diff_operator'
 
+    public :: output_handler_vtk_format_key,      &
+              output_handler_vtk_format_cla_name, &
+              output_handler_vtk_format_choices,  &
+              output_handler_vtk_format_default
+                               
+    public :: output_handler_xh5_strategy_key,      &
+              output_handler_xh5_info_key,          &
+              output_handler_xh5_strategy_cla_name, &
+              output_handler_xh5_info_cla_name,     &
+              output_handler_xh5_strategy_default,  &
+              output_handler_xh5_Info_default,      &
+              output_handler_xh5_strategy_choices
+              
 end module output_handler_parameters_names

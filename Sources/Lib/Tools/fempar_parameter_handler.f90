@@ -39,6 +39,7 @@ module fempar_parameter_handler_names
     use p4est_triangulation_parameters_names
     use fe_space_parameters_names
     use reference_fe_names
+    use output_handler_parameters_names
     use FPL
     use flap, only : Command_Line_Interface
 # include "debug.i90"
@@ -1190,10 +1191,37 @@ contains
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
       ! General
-      call this%add(dir_path_out_key, &
-           dir_path_out_cla_name, &
+      call this%add(output_handler_dir_path_key, &
+           output_handler_dir_path_cla_name, &
            '.', &
            'Output Directory')
+      
+      call this%add(output_handler_prefix_key, &
+           output_handler_prefix_cla_name, &
+           '.', &
+           'Prefix to generate the names of the generated files')
+      
+      call this%add(output_handler_static_grid_key, &
+           output_handler_static_grid_cla_name, &
+           output_handler_static_grid_default, &
+           'Grid does not change along all time steps')
+      
+      call this%add(output_handler_vtk_format_key, &
+           output_handler_vtk_format_cla_name, &
+           output_handler_vtk_format_default, &
+           'Prefix to generate the names of the generated files')
+      
+      call this%add(output_handler_xh5_strategy_key, &
+           output_handler_xh5_strategy_cla_name, &
+           output_handler_xh5_strategy_default, &
+           'Parallel IO strategy (800: Contiguous hyperslabs, 801: Dataset per process). See XH5For docs.', &
+           choices = output_handler_xh5_strategy_choices)
+      
+      call this%add(output_handler_xh5_info_key, &
+           output_handler_xh5_info_cla_name, &
+           output_handler_xh5_info_default, &
+           'HDF5 I/O low level configuration based on MPI info')
+      
     end subroutine fph_output_handler_define_parameters
      
     subroutine fph_Get_0D(this, key, value)

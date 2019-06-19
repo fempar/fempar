@@ -141,39 +141,39 @@ private
         type(fill_patch_field_procedure_t), allocatable:: fill_patch_field(:)
     contains
     private
-        procedure, non_overridable, public :: free                          => base_output_handler_free
-        procedure, non_overridable, public :: get_num_nodes              => base_output_handler_get_num_nodes
-        procedure, non_overridable, public :: get_num_cells              => base_output_handler_get_num_cells
-        procedure, non_overridable, public :: has_mixed_cell_topologies     => base_output_handler_has_mixed_cell_topologies
-        procedure, non_overridable, public :: get_num_dims         => base_output_handler_get_num_dims
-        procedure, non_overridable, public :: get_num_fields             => base_output_handler_get_num_fields
-        procedure, non_overridable, public :: get_num_field_generators   => base_output_handler_get_num_field_generators
-        procedure, non_overridable, public :: get_num_cell_vectors       => base_output_handler_get_num_cell_vectors
-        procedure, non_overridable, public :: get_fe_field                  => base_output_handler_get_fe_field
-        procedure, non_overridable, public :: get_field_generator          => base_output_handler_get_field_generator
-        procedure, non_overridable, public :: get_cell_vector               => base_output_handler_get_cell_vector
-        procedure, non_overridable, public :: get_fe_space                  => base_output_handler_get_fe_space
-        procedure, non_overridable         :: resize_fe_fields_if_needed    => base_output_handler_resize_fe_fields_if_needed
-        procedure, non_overridable         :: resize_field_generators_if_needed    => base_output_handler_resize_field_generators_if_needed
-        procedure, non_overridable         :: resize_cell_vectors_if_needed => base_output_handler_resize_cell_vectors_if_needed
-        procedure, non_overridable, public :: attach_fe_space               => base_output_handler_attach_fe_space
-        procedure, non_overridable, public :: set_create_fe_cell_iterator        => base_output_handler_set_create_fe_cell_iterator
-        procedure, non_overridable, public :: set_free_fe_cell_iterator          => base_output_handler_set_free_fe_cell_iterator
-        procedure, non_overridable, private:: create_fe_cell_iterator_wrapper    => base_output_handler_create_fe_cell_iterator_wrapper
-        procedure, non_overridable, private:: free_fe_cell_iterator_wrapper      => base_output_handler_free_fe_cell_iterator_wrapper
-        procedure, non_overridable, public :: add_fe_function               => base_output_handler_add_fe_function
-        procedure, non_overridable, public :: add_field_generator           => base_output_handler_add_field_generator
-        procedure, non_overridable, public :: add_cell_vector               => base_output_handler_add_cell_vector
-        procedure, non_overridable, public :: update_cell_vector            => base_output_handler_update_cell_vector
-        procedure, non_overridable, public :: fill_data                     => base_output_handler_fill_data
-        procedure, non_overridable, public :: fill_patch                    => base_output_handler_fill_patch
-        procedure, non_overridable, public :: open                          => base_output_handler_open
-        procedure, non_overridable, public :: close                         => base_output_handler_close
+        procedure, non_overridable, public :: free                              => base_output_handler_free
+        procedure, non_overridable, public :: get_num_nodes                     => base_output_handler_get_num_nodes
+        procedure, non_overridable, public :: get_num_cells                     => base_output_handler_get_num_cells
+        procedure, non_overridable, public :: has_mixed_cell_topologies         => base_output_handler_has_mixed_cell_topologies
+        procedure, non_overridable, public :: get_num_dims                      => base_output_handler_get_num_dims
+        procedure, non_overridable, public :: get_num_fields                    => base_output_handler_get_num_fields
+        procedure, non_overridable, public :: get_num_field_generators          => base_output_handler_get_num_field_generators
+        procedure, non_overridable, public :: get_num_cell_vectors              => base_output_handler_get_num_cell_vectors
+        procedure, non_overridable, public :: get_fe_field                      => base_output_handler_get_fe_field
+        procedure, non_overridable, public :: get_field_generator               => base_output_handler_get_field_generator
+        procedure, non_overridable, public :: get_cell_vector                   => base_output_handler_get_cell_vector
+        procedure, non_overridable, public :: get_fe_space                      => base_output_handler_get_fe_space
+        procedure, non_overridable         :: resize_fe_fields_if_needed        => base_output_handler_resize_fe_fields_if_needed
+        procedure, non_overridable         :: resize_field_generators_if_needed => base_output_handler_resize_field_generators_if_needed
+        procedure, non_overridable         :: resize_cell_vectors_if_needed     => base_output_handler_resize_cell_vectors_if_needed
+        procedure, non_overridable, public :: attach_fe_space                   => base_output_handler_attach_fe_space
+        procedure, non_overridable, public :: set_create_fe_cell_iterator       => base_output_handler_set_create_fe_cell_iterator
+        procedure, non_overridable, public :: set_free_fe_cell_iterator         => base_output_handler_set_free_fe_cell_iterator
+        procedure, non_overridable, private:: create_fe_cell_iterator_wrapper   => base_output_handler_create_fe_cell_iterator_wrapper
+        procedure, non_overridable, private:: free_fe_cell_iterator_wrapper     => base_output_handler_free_fe_cell_iterator_wrapper
+        procedure, non_overridable, public :: add_fe_function                   => base_output_handler_add_fe_function
+        procedure, non_overridable, public :: add_field_generator               => base_output_handler_add_field_generator
+        procedure, non_overridable, public :: add_cell_vector                   => base_output_handler_add_cell_vector
+        procedure, non_overridable, public :: update_cell_vector                => base_output_handler_update_cell_vector
+        procedure, non_overridable, public :: fill_data                         => base_output_handler_fill_data
+        procedure, non_overridable, public :: fill_patch                        => base_output_handler_fill_patch
+        procedure, non_overridable, public :: open                              => base_output_handler_open
+        procedure, non_overridable, public :: close                             => base_output_handler_close
         
         ! Strategy procedures to fill patch field data
-        procedure, non_overridable :: apply_fill_patch_field_strategy => &
-                                                            base_output_handler_apply_fill_patch_field_strategy
-        
+        procedure, non_overridable         :: configure_patch_field_strategy    => base_output_handler_configure_patch_field_strategy
+        procedure, non_overridable         :: apply_fill_patch_field_strategy   => base_output_handler_apply_fill_patch_field_strategy
+
         procedure(base_output_handler_open_body),                      public, deferred :: open_body
         procedure(base_output_handler_append_time_step),               public, deferred :: append_time_step
         procedure(base_output_handler_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
@@ -615,6 +615,27 @@ contains
           call this%cell_vectors(i)%set_cell_vector(cell_vector)
         end if
     end subroutine base_output_handler_update_cell_vector
+
+
+    subroutine base_output_handler_configure_patch_field_strategy(this)
+    !-----------------------------------------------------------------
+    !< Configure fill_patch_field strategy for each field
+    !-----------------------------------------------------------------
+        class(base_output_handler_t),    intent(inout) :: this
+        character(len=:), allocatable :: field_type, diff_operator
+        integer(ip) :: num_field
+    !-----------------------------------------------------------------
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
+
+        if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
+        allocate(this%fill_patch_field(this%num_fields))
+        do num_field = 1, this%num_fields
+            field_type    = this%fe_fields(num_field)%get_field_type()
+            diff_operator = this%fe_fields(num_field)%get_diff_operator()
+            call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(num_field)%p)
+        end do
+    end subroutine base_output_handler_configure_patch_field_strategy
+
     
     subroutine base_output_handler_open(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
@@ -631,16 +652,10 @@ contains
         character(len=:), allocatable :: field_type, diff_operator
         integer(ip) :: num_field
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
-        
-        ! Configure fill_patch_field strategy for each field
-        if(allocated(this%fill_patch_field)) deallocate(this%fill_patch_field)
-          allocate(this%fill_patch_field(this%num_fields))
-          do num_field = 1, this%num_fields
-              field_type    = this%fe_fields(num_field)%get_field_type()
-              diff_operator = this%fe_fields(num_field)%get_diff_operator()
-              call this%apply_fill_patch_field_strategy(field_type, diff_operator, this%fill_patch_field(num_field)%p)
-          end do
+
+        call this%configure_patch_field_strategy()
         call this%open_body(dir_path, prefix, parameter_list)
+
         this%state = BASE_OUTPUT_HANDLER_STATE_OPEN
     end subroutine base_output_handler_open
 

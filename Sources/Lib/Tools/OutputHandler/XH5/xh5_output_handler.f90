@@ -160,7 +160,7 @@ contains
 
     subroutine xh5_output_handler_open_body(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
-    !< Open xh5for_t derive dtype. Set parameters from parameter list
+    !< Open xh5for_t derive dtype. Set parameters from parameter list and args
     !-----------------------------------------------------------------
         class(xh5_output_handler_t),     intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
@@ -185,10 +185,10 @@ contains
 
             ! Set defaults
             this%StaticGrid = xh5_default_StaticGrid
-            this%Strategy   = xh5_default_Strategy
+            this%Strategy   = output_handler_xh5_strategy_default
             this%GridType   = xh5_default_GridType
             this%Action     = xh5_default_Action
-            mpi_info        = xh5_default_Info
+            mpi_info        = output_handler_xh5_Info_default
             mpi_comm        = xh5_default_Comm
 
             cntxt => environment%get_l1_context()
@@ -200,23 +200,23 @@ contains
 
             if(present(parameter_list)) then
                 ! Get StaticGrid value from parameter_list
-                if(parameter_list%isPresent(oh_staticgrid)) then
-                    assert(parameter_list%isAssignable(oh_StaticGrid, this%StaticGrid))
-                    FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
+                if(parameter_list%isPresent(output_handler_static_grid_key)) then
+                    assert(parameter_list%isAssignable(output_handler_static_grid_key, this%StaticGrid))
+                    FPLError   = parameter_list%Get(Key=output_handler_static_grid_key, Value=this%StaticGrid)
                     assert(FPLError == 0)
                 endif
 
                 ! Get Strategy value from parameter_list
-                if(parameter_list%isPresent(xh5_Strategy)) then
-                    assert(parameter_list%isAssignable(xh5_Strategy, this%Strategy))
-                    FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
+                if(parameter_list%isPresent(output_handler_xh5_strategy_key)) then
+                    assert(parameter_list%isAssignable(output_handler_xh5_strategy_key, this%Strategy))
+                    FPLError   = parameter_list%Get(Key=output_handler_xh5_strategy_key, Value=this%Strategy)
                     assert(FPLError == 0)
                 endif
 
                 ! Get Info value from parameter_list
-                if(parameter_list%isPresent(xh5_Info)) then
-                    assert(parameter_list%isAssignable(xh5_info, mpi_info))
-                    FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
+                if(parameter_list%isPresent(output_handler_xh5_info_key)) then
+                    assert(parameter_list%isAssignable(output_handler_xh5_info_key, mpi_info))
+                    FPLError   = parameter_list%Get(Key=output_handler_xh5_info_key, Value=mpi_info)
                     assert(FPLError == 0)
                 endif
             endif
