@@ -50,7 +50,7 @@ module test_transient_poisson_params_names
      procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_dir_path_out
+     procedure, non_overridable             :: get_output_handler_dir_path
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_triangulation_type
@@ -109,12 +109,13 @@ contains
     call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
   end function get_dir_path
 
-  function get_dir_path_out(this)
+  !==================================================================================================
+  function get_output_handler_dir_path(this)
     implicit none
     class(test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                  :: get_dir_path_out
-    call parameter_handler%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
-  end function get_dir_path_out
+    character(len=:),      allocatable                  :: get_output_handler_dir_path
+    call parameter_handler%GetAsString(key = output_handler_dir_path_key, string = get_output_handler_dir_path)
+  end function get_output_handler_dir_path
 
   !==================================================================================================
   function get_prefix(this)

@@ -900,7 +900,7 @@ contains
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
           call parameter_list%init()
           !istat = parameter_list%set(key=vtk_format, value='ascii');
-          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())!, parameter_list=parameter_list)
+          call oh%open(this%test_params%get_output_handler_dir_path(), this%test_params%get_prefix())!, parameter_list=parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()

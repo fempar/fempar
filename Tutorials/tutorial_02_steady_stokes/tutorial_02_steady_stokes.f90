@@ -196,13 +196,14 @@ program tutorial_02_steady_stokes
   call iterative_linear_solver%apply(-fe_affine_operator%get_translation(), &
                                      dof_values)   
   
-  error = parameter_list%set(key = dir_path_out_key      , Value= 'tutorial_02_steady_stokes_results')
+  error = parameter_list%set(key = output_handler_dir_path_key, Value= 'tutorial_02_steady_stokes_results')
   mcheck(error==0,'Failed parameter set')
+  
   call output_handler%create()
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'velocity')
   call output_handler%add_fe_function(solution, 2, 'pressure')
-  call output_handler%open(parameter_handler%get_dir_path_out(), parameter_handler%get_prefix())
+  call output_handler%open(parameter_handler%get_values())
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()

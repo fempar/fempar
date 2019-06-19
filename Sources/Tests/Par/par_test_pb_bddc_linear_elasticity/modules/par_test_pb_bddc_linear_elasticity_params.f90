@@ -19,6 +19,7 @@ module par_test_pb_bddc_linear_elasticity_params_names
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels'
   character(len=*), parameter :: is_a_beam_key              = 'is_a_beam'
   character(len=*), parameter :: size_sub_object_key        = 'size_sub_object_key'
+  character(len=*), parameter :: dir_path_out_key           = 'dir_path_out'
   
 
   type :: par_test_pb_bddc_linear_elasticity_params_t
@@ -54,6 +55,7 @@ contains
   subroutine par_test_pb_bddc_linear_elasticity_params_define_parameters()
     implicit none
     ! Common
+    call parameter_handler%add(dir_path_out_key, '--dir_path_out', '.', 'Default output directory', switch_ab='-dpo')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 

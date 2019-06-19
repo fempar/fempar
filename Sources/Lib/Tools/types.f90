@@ -78,10 +78,8 @@ module types_names
 
   character(len=*), parameter :: dir_path_key           = 'DIR_PATH'
   character(len=*), parameter :: prefix_key             = 'PREFIX'
-  character(len=*), parameter :: dir_path_out_key       = 'DIR_PATH_OUT'
   character(len=*), parameter :: dir_path_cla_name      = '--'//dir_path_key
   character(len=*), parameter :: prefix_cla_name        = '--'//prefix_key
-  character(len=*), parameter :: dir_path_out_cla_name  = '--'//dir_path_out_key
 
   integer(ip)  ,    parameter :: str_cla_len                = 512 ! String Command line argument lenght
 

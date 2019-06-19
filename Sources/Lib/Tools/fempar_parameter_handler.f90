@@ -111,7 +111,6 @@ module fempar_parameter_handler_names
         procedure                           :: process_parameters       => fph_process_parameters
         procedure                           :: free                     => fph_free
         procedure                           :: get_dir_path             => fph_get_dir_path
-        procedure                           :: get_dir_path_out         => fph_get_dir_path_out
         procedure                           :: get_prefix               => fph_get_prefix
         generic,   public                   :: get                      => fph_Get_0D, fph_Get_1D
     end type fempar_parameter_handler_t
@@ -1282,18 +1281,6 @@ contains
     !------------------------------------------------------------------
         call this%GetAsString(key=dir_path_key, String = fph_get_dir_path)
     end function fph_get_dir_path 
-
-
-    function fph_get_dir_path_out(this)
-    !------------------------------------------------------------------
-    !< Get dir_path_out
-    !------------------------------------------------------------------
-        implicit none
-        class(fempar_parameter_handler_t) , intent(in) :: this
-        character(len=:),      allocatable             :: fph_get_dir_path_out
-    !------------------------------------------------------------------
-        call this%GetAsString(key=dir_path_out_key, String = fph_get_dir_path_out)
-    end function fph_get_dir_path_out
 
 
     function fph_get_prefix(this)

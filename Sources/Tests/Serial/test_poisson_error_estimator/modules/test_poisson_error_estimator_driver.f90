@@ -381,7 +381,7 @@ contains
     type(parameterlist_t)              :: parameter_list
     integer(ip)                        :: error
     if(this%test_params%get_write_solution()) then
-      path = this%test_params%get_dir_path_out()
+      path = this%test_params%get_output_handler_dir_path()
       prefix = this%test_params%get_prefix()
       call this%output_handler%create()
       call this%output_handler%attach_fe_space(this%fe_space)

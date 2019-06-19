@@ -40,7 +40,6 @@ module mixed_laplacian_rt_params_names
      procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_reference_fe_order
   end type mixed_laplacian_rt_params_t
 
@@ -91,14 +90,6 @@ contains
     get_prefix = parameter_handler%get_prefix()
   end function get_prefix
 
-  !==================================================================================================
-  function get_dir_path_out(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=:), allocatable                   :: get_dir_path_out
-    get_dir_path_out = parameter_handler%get_dir_path_out()
-  end function get_dir_path_out
-  
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none

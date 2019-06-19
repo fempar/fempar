@@ -343,7 +343,7 @@ contains
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+        call oh%open(this%test_params%get_output_handler_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
         call oh%free()

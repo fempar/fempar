@@ -15,6 +15,7 @@ module par_test_pb_bddc_poisson_params_names
   character(len=*), parameter :: nchannel_x_direction_key   = 'nchannel_x_direction' 
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
   character(len=*), parameter :: size_sub_object_key        = 'size_sub_object_key' 
+  character(len=*), parameter :: dir_path_out_key           = 'dir_path_out' 
 
   type :: par_test_pb_bddc_poisson_params_t
      private
@@ -22,6 +23,7 @@ module par_test_pb_bddc_poisson_params_names
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
        procedure, non_overridable             :: get_dir_path_out
+       procedure, non_overridable             :: get_output_handler_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
@@ -46,6 +48,7 @@ contains
   subroutine par_test_pb_bddc_poisson_params_define_parameters()
     implicit none
     ! Common
+    call parameter_handler%add(dir_path_out_key, '--dir_path_out', '.', 'Default output directory', switch_ab='-dpo')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
@@ -85,6 +88,14 @@ contains
     character(len=:),      allocatable                    :: get_dir_path_out
     call parameter_handler%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
   end function get_dir_path_out
+  
+  !==================================================================================================
+  function get_output_handler_dir_path(this)
+    implicit none
+    class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
+    character(len=:),      allocatable                    :: get_output_handler_dir_path
+    call parameter_handler%GetAsString(key = output_handler_dir_path_key, string = get_output_handler_dir_path)
+  end function get_output_handler_dir_path
 
   !==================================================================================================
   function get_prefix(this)

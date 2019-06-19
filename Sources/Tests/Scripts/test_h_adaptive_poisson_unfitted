@@ -43,7 +43,7 @@ then
                   is_bconst=".false."
                 fi
         
-                COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag $idim -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst  $dir_path_out_flag $SCRIPT_NAME $prefix_flag $SCRIPT_NAME"
+                COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $p4est_triang_num_dims_flag $idim -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst  $output_handler_dir_path_flag $SCRIPT_NAME $prefix_flag $SCRIPT_NAME"
                 echo $COMMAND
                 eval $COMMAND
                 if [ $? -ne 0 ] 

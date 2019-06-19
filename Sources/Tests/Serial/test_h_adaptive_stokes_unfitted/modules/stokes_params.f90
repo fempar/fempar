@@ -52,6 +52,7 @@ module stokes_params_names
   character(len=*), parameter :: refinement_pattern_key        = 'refinement_pattern'
   character(len=*), parameter :: lin_solver_type_key           = 'lin_solver_type'
   character(len=*), parameter :: use_levelset_complement_key   = 'use_levelset_compoment'
+  character(len=*), parameter :: dir_path_out_key              = 'dir_path_out'
 
 
   type :: stokes_params_t  
@@ -60,6 +61,7 @@ module stokes_params_names
      procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
+     procedure, non_overridable             :: get_output_handler_dir_path
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_write_matrix
@@ -93,6 +95,7 @@ contains
     implicit none
 
     ! IO parameters
+    call parameter_handler%add(dir_path_out_key, '--dir_path_out', '.', 'Output directory',  switch_ab='-dpo') 
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
@@ -148,8 +151,16 @@ contains
     implicit none
     class(stokes_params_t) , intent(in) :: this
     character(len=:), allocatable       :: get_dir_path_out
-    get_dir_path_out = parameter_handler%get_dir_path_out()
+    call parameter_handler%getasstring(dir_path_out_key, get_dir_path_out)
   end function get_dir_path_out
+  
+  !==================================================================================================
+  function get_output_handler_dir_path(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    character(len=:), allocatable       :: get_output_handler_dir_path
+    call parameter_handler%getasstring(output_handler_dir_path_key, get_output_handler_dir_path)
+  end function get_output_handler_dir_path
   
   !==================================================================================================
   function get_reference_fe_order(this)
