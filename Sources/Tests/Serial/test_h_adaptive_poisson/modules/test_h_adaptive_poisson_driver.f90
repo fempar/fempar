@@ -27,14 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_h_adaptive_poisson_driver_names
   use fempar_names
-  use test_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_dG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
-  use vector_poisson_discrete_integration_names
-  use vector_poisson_conditions_names
-  use vector_poisson_analytical_functions_names
+  use test_h_adaptive_poisson_params_names
+  use test_h_adaptive_poisson_cG_discrete_integration_names
+  use test_h_adaptive_poisson_dG_discrete_integration_names
+  use test_h_adaptive_poisson_conditions_names
+  use test_h_adaptive_poisson_analytical_functions_names
+  use test_h_adaptive_vector_poisson_discrete_integration_names
+  use test_h_adaptive_vector_poisson_conditions_names
+  use test_h_adaptive_vector_poisson_analytical_functions_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
     

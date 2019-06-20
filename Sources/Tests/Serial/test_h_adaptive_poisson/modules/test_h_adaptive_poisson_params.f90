@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_params_names
+module test_h_adaptive_poisson_params_names
   use fempar_names
 # include "debug.i90"
 
@@ -166,4 +166,4 @@ contains
     call parameter_handler%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
   end function get_use_void_fes_case
 
-end module test_poisson_params_names
+end module test_h_adaptive_poisson_params_names

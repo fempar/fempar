@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_conditions_names
+module test_h_adaptive_vector_poisson_conditions_names
   use fempar_names
-  use vector_poisson_analytical_functions_names
+  use test_h_adaptive_vector_poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -85,4 +85,4 @@ contains
     end if  
   end subroutine vector_poisson_conditions_get_function 
 
-end module vector_poisson_conditions_names
+end module test_h_adaptive_vector_poisson_conditions_names

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_discrete_integration_names
+module test_h_adaptive_vector_poisson_discrete_integration_names
   use fempar_names
   
   implicit none
@@ -144,4 +144,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module vector_poisson_discrete_integration_names
+end module test_h_adaptive_vector_poisson_discrete_integration_names
