@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module analytical_functions_names
+module test_poisson_error_estimator_analytical_functions_names
   use fempar_names
   use test_poisson_error_estimator_params_names
   implicit none
@@ -433,5 +433,5 @@ contains
     end if
   end subroutine analytical_functions_free
 
-end module analytical_functions_names
+end module test_poisson_error_estimator_analytical_functions_names
 !***************************************************************************************************

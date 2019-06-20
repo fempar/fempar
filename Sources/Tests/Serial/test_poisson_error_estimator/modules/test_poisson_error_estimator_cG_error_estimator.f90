@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_cG_error_estimator_names
+module test_poisson_error_estimator_cG_error_estimator_names
   use fempar_names
-  use analytical_functions_names
+  use test_poisson_error_estimator_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -281,4 +281,4 @@ contains
    pcGee_get_error_norm_exponent = 0.5_rp
  end function pcGee_get_error_norm_exponent
 
-end module poisson_cG_error_estimator_names
+end module test_poisson_error_estimator_cG_error_estimator_names

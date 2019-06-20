@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_cG_discrete_integration_names
+module test_poisson_error_estimator_cG_discrete_integration_names
   use fempar_names
-  use analytical_functions_names
+  use test_poisson_error_estimator_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -139,4 +139,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module poisson_cG_discrete_integration_names
+end module test_poisson_error_estimator_cG_discrete_integration_names
