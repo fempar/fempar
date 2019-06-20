@@ -28,10 +28,10 @@
 module par_test_poisson_error_estimator_driver_names
   use fempar_names
   use par_test_poisson_error_estimator_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use analytical_functions_names
-  use poisson_cG_error_estimator_names
+  use par_test_poisson_error_estimator_cG_discrete_integration_names
+  use par_test_poisson_error_estimator_conditions_names
+  use par_test_poisson_error_estimator_analytical_functions_names
+  use par_test_poisson_error_estimator_cG_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
   
