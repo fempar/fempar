@@ -26,9 +26,9 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !* title: Discrete Integration
-module poisson_cG_discrete_integration_names
+module test_transient_poisson_cG_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use test_transient_poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -318,4 +318,4 @@ contains
     call u_h%free()
   end subroutine integrate_residual
   
-end module poisson_cG_discrete_integration_names
+end module test_transient_poisson_cG_discrete_integration_names

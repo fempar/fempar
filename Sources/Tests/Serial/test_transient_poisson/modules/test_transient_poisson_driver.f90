@@ -34,9 +34,9 @@ module test_transient_poisson_driver_names
 !* Which **`use`** the following modules on its scope
   use fempar_names
   use test_transient_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use test_transient_poisson_cG_discrete_integration_names
+  use test_transient_poisson_conditions_names
+  use test_transient_poisson_analytical_functions_names
   
 !* Debug info for message output is defined in `debug.i90` and included through:
 # include "debug.i90"
