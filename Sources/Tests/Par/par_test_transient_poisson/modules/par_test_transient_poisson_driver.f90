@@ -28,9 +28,9 @@
 module par_test_transient_poisson_driver_names
   use fempar_names
   use par_test_transient_poisson_params_names
-  use transient_poisson_discrete_integration_names
-  use transient_poisson_conditions_names
-  use transient_poisson_analytical_functions_names
+  use par_test_transient_poisson_discrete_integration_names
+  use par_test_transient_poisson_conditions_names
+  use par_test_transient_poisson_analytical_functions_names
 
 # include "debug.i90"
 

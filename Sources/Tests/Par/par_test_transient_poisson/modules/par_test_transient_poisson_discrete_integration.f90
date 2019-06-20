@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module transient_poisson_discrete_integration_names
+module par_test_transient_poisson_discrete_integration_names
   use fempar_names
-  use transient_poisson_analytical_functions_names
+  use par_test_transient_poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -182,4 +182,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module transient_poisson_discrete_integration_names
+end module par_test_transient_poisson_discrete_integration_names
