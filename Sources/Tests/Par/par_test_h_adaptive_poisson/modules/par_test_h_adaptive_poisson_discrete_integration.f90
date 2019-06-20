@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_discrete_integration_names
+module par_test_h_adaptive_poisson_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use par_test_h_adaptive_poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -223,4 +223,4 @@ contains
     call memfree ( facevec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module poisson_discrete_integration_names
+end module par_test_h_adaptive_poisson_discrete_integration_names
