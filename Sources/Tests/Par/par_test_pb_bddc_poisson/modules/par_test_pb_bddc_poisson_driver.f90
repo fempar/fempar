@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_test_pb_bddc_poisson_driver_names
   use fempar_names
-  use par_test_pb_bddc_poisson_params_names
+  use pb_bddc_poisson_params_names
   use pb_bddc_poisson_cG_discrete_integration_names
   use pb_bddc_poisson_conditions_names
   use pb_bddc_poisson_analytical_functions_names

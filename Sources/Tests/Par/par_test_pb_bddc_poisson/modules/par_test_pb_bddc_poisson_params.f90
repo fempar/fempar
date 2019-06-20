@@ -1,4 +1,4 @@
-module par_test_pb_bddc_poisson_params_names
+module pb_bddc_poisson_params_names
   use fempar_names
   implicit none
 #include "debug.i90" 
@@ -242,4 +242,4 @@ contains
   
   !==================================================================================================
 
-end module par_test_pb_bddc_poisson_params_names
+end module pb_bddc_poisson_params_names
