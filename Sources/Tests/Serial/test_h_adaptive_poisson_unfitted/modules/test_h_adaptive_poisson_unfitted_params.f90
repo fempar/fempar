@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_params_names
+module h_adaptive_poisson_unfitted_params_names
   use fempar_names
 # include "debug.i90"
 
@@ -331,4 +331,4 @@ contains
     call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_struct_hex_mesh_generator_num_dims_key)
   end function get_struct_hex_mesh_generator_num_dims_key
 
-end module test_poisson_params_names
+end module h_adaptive_poisson_unfitted_params_names

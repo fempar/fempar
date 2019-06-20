@@ -29,7 +29,7 @@
 !****************************************************************************************************
 program test_unfitted_h_adaptive_poisson
   use fempar_names
-  use test_unfitted_h_adaptive_poisson_driver_names  
+  use h_adaptive_poisson_unfitted_driver_names  
   implicit none
   type(test_unfitted_h_adaptive_poisson_driver_t) :: test_driver
   type(serial_context_t)      :: world_context

@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_analytical_functions_names
+module h_adaptive_poisson_unfitted_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -442,5 +442,5 @@ contains
     poisson_analytical_functions_get_degree = this%source_term%degree
   end function poisson_analytical_functions_get_degree
 
-end module poisson_analytical_functions_names
+end module h_adaptive_poisson_unfitted_analytical_functions_names
 !***************************************************************************************************

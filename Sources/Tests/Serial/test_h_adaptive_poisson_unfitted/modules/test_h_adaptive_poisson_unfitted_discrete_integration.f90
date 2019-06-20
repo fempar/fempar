@@ -25,10 +25,10 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_unfitted_cG_discrete_integration_names
+module h_adaptive_poisson_unfitted_cG_discrete_integration_names
   use fempar_names
   use unfitted_temporary_names
-  use poisson_analytical_functions_names
+  use h_adaptive_poisson_unfitted_analytical_functions_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use piecewise_cell_map_names
@@ -411,4 +411,4 @@ contains
     call fe_space%free_fe_cell_iterator(fe)
   end subroutine integrate_galerkin
 
-end module poisson_unfitted_cG_discrete_integration_names
+end module h_adaptive_poisson_unfitted_cG_discrete_integration_names

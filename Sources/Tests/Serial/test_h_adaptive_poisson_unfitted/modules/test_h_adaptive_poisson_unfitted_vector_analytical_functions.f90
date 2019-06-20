@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module vector_poisson_analytical_functions_names
+module h_adaptive_poisson_unfitted_vector_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -235,7 +235,7 @@ contains
     poisson_analytical_functions_get_solution_function => this%solution_function
   end function poisson_analytical_functions_get_solution_function
 
-end module vector_poisson_analytical_functions_names
+end module h_adaptive_poisson_unfitted_vector_analytical_functions_names
 !***************************************************************************************************
 
 
