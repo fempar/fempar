@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module poisson_analytical_functions_names
+module par_test_poisson_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -157,5 +157,5 @@ contains
     poisson_analytical_functions_get_solution_function => this%solution_function
   end function poisson_analytical_functions_get_solution_function
 
-end module poisson_analytical_functions_names
+end module par_test_poisson_analytical_functions_names
 !***************************************************************************************************
