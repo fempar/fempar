@@ -418,7 +418,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $mesh_prefix_flag circle $TEST_INPUT_DATA_PATH/circle.gid $output_handler_prefix_flag circle -order $order -gorder $gorder  -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $mesh_prefix_flag circle $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $output_handler_prefix_flag circle -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
