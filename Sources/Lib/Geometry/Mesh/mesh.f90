@@ -46,9 +46,6 @@ module mesh_names
 # include "debug.i90"
   private
 
-  integer(ip), parameter :: c_order = 0
-  integer(ip), parameter :: z_order = 1
-
   integer(ip), target :: permu_2DP1(3) = (/ 1, 2, 3/)
   integer(ip), target :: permu_2DQ1(4) = (/ 1, 2, 4, 3/)
   integer(ip), target :: permu_3DP1(4) = (/ 1, 2, 3, 4/)
@@ -120,7 +117,7 @@ module mesh_names
       procedure, non_overridable                   :: read_fempar_gid_problem_type_format_dir_path_prefix
       procedure, non_overridable                   :: read_fempar_gid_problem_type_format_pl
       procedure, non_overridable                   :: read_fempar_gid_problem_type_format_file_unit
-      procedure, non_overridable, private, nopass  :: get_dir_path_and_prefix_from_pl
+      procedure, non_overridable,          nopass  :: get_dir_path_and_prefix_from_pl
       procedure, non_overridable         , nopass  :: mesh_fempar_gid_problem_type_format_compose_name
       generic                                      :: read_fempar_gid_problem_type_format => read_fempar_gid_problem_type_format_dir_path_prefix, &
                                                                                              read_fempar_gid_problem_type_format_pl  , & 
@@ -147,9 +144,6 @@ module mesh_names
 
   ! Types
   public :: mesh_t
-
-  ! Constants
-  public :: c_order, z_order
 
 contains
 

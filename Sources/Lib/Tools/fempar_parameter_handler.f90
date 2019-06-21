@@ -788,18 +788,6 @@ contains
       call this%add(static_triang_geometric_interpolation_order_key, &
            static_triang_geometric_interpolation_order_cla_name, &
            1, 'Interpolation order static triangulation geometrical mapping (only partial/unstable support for order>1)' )
-      
-      call this%add(static_triang_mesh_data_files_dir_path_key, &
-           static_triang_mesh_data_files_dir_path_cla_name, &
-           '.', &
-           'The relative or full file system path to the folder where the mesh data files are located') !, &
-           ! choices = static_triang_generate_cla_choices)
-      
-      call this%add(static_triang_mesh_data_files_prefix_key, &
-           static_triang_mesh_data_files_prefix_cla_name, &
-           'mesh', &
-           'Token string which is used as a prefix to compose the names of the mesh data files as prefix.*') !, &
-           ! choices = static_triang_generate_cla_choices)
     end subroutine fph_static_triang_define_parameters
     
     
@@ -882,13 +870,13 @@ contains
 
       call this%add(mesh_dir_path_key, &
            mesh_dir_path_cla_name, &
-           mesh_default_dir_path_output, &
+           mesh_default_dir_path, &
            'The relative or full file system path to the & 
             folder where the mesh data files')
 
       call this%add(mesh_prefix_key, &
            mesh_prefix_cla_name, &
-           mesh_default_prefix_output, &
+           mesh_default_prefix, &
            'Token string which is used as a prefix to compose & 
             the names of the mesh data files')
     end subroutine fph_mesh_define_parameters

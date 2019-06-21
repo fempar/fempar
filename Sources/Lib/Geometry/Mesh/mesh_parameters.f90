@@ -29,13 +29,16 @@ module mesh_parameters_names
   use types_names
   implicit none
 
-  character(len=*), parameter :: mesh_dir_path_key          = 'MESH_DIR_PATH'
-  character(len=*), parameter :: mesh_prefix_key            = 'MESH_PREFIX'
+  character(len=*), parameter :: mesh_dir_path_key       = 'MESH_DIR_PATH'
+  character(len=*), parameter :: mesh_prefix_key         = 'MESH_PREFIX'
   
-  character(len=*), parameter :: mesh_dir_path_cla_name    = '--'//mesh_dir_path_key
-  character(len=*), parameter :: mesh_prefix_cla_name      = '--'//mesh_prefix_key
+  character(len=*), parameter :: mesh_dir_path_cla_name  = '--'//mesh_dir_path_key
+  character(len=*), parameter :: mesh_prefix_cla_name    = '--'//mesh_prefix_key
+  
+  character(len=*), parameter :: mesh_default_dir_path   = '.'  
+  character(len=*), parameter :: mesh_default_prefix     = 'mesh'
 
-  character(len=*), parameter :: mesh_default_dir_path_output = '.'  
-  character(len=*), parameter :: mesh_default_prefix_output   = 'mesh'
-
+  integer(ip), parameter :: c_order = 0
+  integer(ip), parameter :: z_order = 1
+  
 end module mesh_parameters_names

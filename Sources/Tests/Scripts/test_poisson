@@ -24,7 +24,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $static_triang_mesh_data_files_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $output_handler_prefix_flag square_quads -order $order -gorder $gorder "
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $output_handler_prefix_flag square_quads -order $order -gorder $gorder "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -46,7 +46,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $static_triang_mesh_data_files_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $output_handler_prefix_flag square_quads -order $order -gorder $gorder -f dG"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $output_handler_prefix_flag square_quads -order $order -gorder $gorder -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -156,7 +156,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $static_triang_mesh_data_files_prefix_flag circle $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $mesh_prefix_flag circle $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $output_handler_prefix_flag circle -order $order -gorder $gorder"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $mesh_prefix_flag circle $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $output_handler_prefix_flag circle -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -178,7 +178,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $static_triang_mesh_data_files_prefix_flag square_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $output_handler_prefix_flag square_tetrahedra -order $order -gorder $gorder"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $output_handler_prefix_flag square_tetrahedra -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -200,7 +200,7 @@ then
        do
          if [ $order -ge $gorder ]
          then
-           COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $static_triang_mesh_data_files_prefix_flag square_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $output_handler_prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG"
+           COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $output_handler_prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG"
            echo $COMMAND
            eval $COMMAND
            if [ $? -ne 0 ]
@@ -222,7 +222,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $static_triang_mesh_data_files_prefix_flag cube_hexas $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $output_handler_prefix_flag cube_hexas -order $order -gorder $gorder"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $output_handler_prefix_flag cube_hexas -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -244,7 +244,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $static_triang_mesh_data_files_prefix_flag cube_hexas $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $output_handler_prefix_flag cube_hexas -order $order -gorder $gorder -f dG"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $output_handler_prefix_flag cube_hexas -order $order -gorder $gorder -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -309,7 +309,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $static_triang_mesh_data_files_prefix_flag cube_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $output_handler_prefix_flag cube_tetrahedra -order $order -gorder $gorder"
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $output_handler_prefix_flag cube_tetrahedra -order $order -gorder $gorder"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -330,7 +330,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $static_triang_mesh_data_files_prefix_flag cube_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $output_handler_prefix_flag cube_tetrahedra -order $order -gorder $gorder -f dG"
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $output_handler_prefix_flag cube_tetrahedra -order $order -gorder $gorder -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -355,7 +355,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $static_triang_mesh_data_files_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $output_handler_prefix_flag square_quads -order $order -gorder $gorder  -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $output_handler_prefix_flag square_quads -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -418,7 +418,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $static_triang_mesh_data_files_prefix_flag circle $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $mesh_prefix_flag circle $dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $output_handler_prefix_flag circle -order $order -gorder $gorder  -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/circle.gid $mesh_prefix_flag circle $TEST_INPUT_DATA_PATH/circle.gid $output_handler_prefix_flag circle -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -439,7 +439,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $static_triang_mesh_data_files_prefix_flag square_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $output_handler_prefix_flag square_tetrahedra -order $order -gorder $gorder  -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $output_handler_prefix_flag square_tetrahedra -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -460,7 +460,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $static_triang_mesh_data_files_prefix_flag cube_hexas $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $output_handler_prefix_flag cube_hexas -order $order -gorder $gorder  -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid/ $output_handler_prefix_flag cube_hexas -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -502,7 +502,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $static_triang_mesh_data_files_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $static_triang_mesh_data_files_prefix_flag cube_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $output_handler_prefix_flag cube_tetrahedra -order $order -gorder $gorder  -lt vector"
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ $output_handler_prefix_flag cube_tetrahedra -order $order -gorder $gorder  -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]

@@ -60,12 +60,6 @@ module triangulation_parameters_names
   character(len=*), parameter :: static_triang_generate_cla_name                      = '--'//static_triang_generate_from_key
   character(len=*), parameter :: static_triang_generate_cla_choices                   = static_triang_generate_from_mesh_data_files // ' ' // &
                                                                                         static_triang_generate_from_struct_hex_mesh_generator
-                                                                                        
-  character(len=*), parameter :: static_triang_mesh_data_files_dir_path_key           = 'STATIC_TRIANG_MESH_DATA_FILES_DIR_PATH'
-  character(len=*), parameter :: static_triang_mesh_data_files_dir_path_cla_name      = '--'//static_triang_mesh_data_files_dir_path_key
-  character(len=*), parameter :: static_triang_mesh_data_files_prefix_key             = 'STATIC_TRIANG_MESH_DATA_FILES_PREFIX'
-  character(len=*), parameter :: static_triang_mesh_data_files_prefix_cla_name        = '--'//static_triang_mesh_data_files_prefix_key
-                                                                                        
     
   character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
   character(len=*), parameter :: all_coupled                    = 'all_coupled'
