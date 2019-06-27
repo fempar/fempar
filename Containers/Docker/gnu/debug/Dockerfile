@@ -97,7 +97,6 @@ ENV PATH $PATH:/opt/hdf5/1.8.21/bin
 ENV PATH $PATH:/opt/qhull/2015-src-7.2.0
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/qhull/2015-src-7.2.0/lib
 ENV PETSC_DIR /opt/petsc/3.9.2
-ENV PETSC_ARCH x86_64
 
 
 

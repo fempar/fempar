@@ -211,6 +211,7 @@ FEMPAR tags describe the environment and software installed within the Docker im
   - `gnu-release_p4est-parallel`    
 
 There are several key words to understand the meaning of this tags:
+
  - **debug**: Tags containing `debug` specify that all the included FEMPAR dependencies are compiled in `DEBUG` mode. 
  - **release**: Tags containing `release` specify that all the included FEMPAR dependencies are compiled in `RELEASE` mode. 
  - **p4est_serial**: Tags containing `p4est_serial` specify that `P4EST` library was compiled without MPI support. 
