@@ -45,7 +45,6 @@ module par_test_h_adaptive_lagrangian_fe_params_names
   
   ! Meshing parameters 
   character(len=*), parameter :: refinement_pattern_case_key   = 'refinement_pattern_case'
-  character(len=*), parameter :: domain_limits_key             = 'domain_limits'
   character(len=*), parameter :: inner_region_size_key         = 'inner_region_size '
   character(len=*), parameter :: num_refinements_key           = 'num_refinements'
   
@@ -92,7 +91,6 @@ contains
     call parameter_handler%add(refinement_pattern_case_key, '--refinement_pattern_case', inner_region, &
                 'Select refinement pattern. Possible values: even_cells, inner_region, inner_sphere, uniform, error_based', &
                 switch_ab='-refinement-pattern-case' )
-    call parameter_handler%add(domain_limits_key, '--domain_limits', [0.0,1.0,0.0,1.0,0.0,1.0], 'Domain limits of the mesh', switch_ab='-dl')
     call parameter_handler%add(inner_region_size_key, '--inner_region_size', [0.1,0.1,0.1], 'Concentric with the domain refined area length)', switch_ab='-ir_size')
     call parameter_handler%add(num_refinements_key, '--num_refinements', 3, 'Number of adaptive mesh refinements from a plain cell', switch_ab='-num_refs')
     call parameter_handler%add(coupling_criteria_key, '--subparts_coupling_criteria', loose_coupling, &
@@ -181,7 +179,7 @@ contains
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_params_t) , intent(in) :: this
     real(rp)                                                       :: get_domain_limits(6)
-    call parameter_handler%Get(key = domain_limits_key, Value = get_domain_limits)
+     call parameter_handler%Get(key=p4est_triang_domain_limits_key,Value=get_domain_limits)
   end function get_domain_limits
 
   !==================================================================================================

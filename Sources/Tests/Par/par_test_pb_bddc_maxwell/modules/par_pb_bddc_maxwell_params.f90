@@ -171,10 +171,8 @@ contains
     integer(ip), allocatable :: array_size(:)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_levels_key , Value = num_levels) 
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key , num_levels))
-    error = list%Get(key = struct_hex_mesh_generator_num_levels_key , Value = num_levels)
-    assert(error==0)       
     error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= num_levels*SPACE_DIM)
@@ -184,7 +182,6 @@ contains
     get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
     call memfree(num_parts_x_dir)
-
   end function get_nparts
    
   !==================================================================================================

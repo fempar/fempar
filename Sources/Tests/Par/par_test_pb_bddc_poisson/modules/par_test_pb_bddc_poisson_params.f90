@@ -53,9 +53,6 @@ contains
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
-    ! Overwritten value
-    call parameter_handler%update(static_triang_generate_from_key, static_triang_generate_from_mesh_data_files)
-
     ! Specific
     call parameter_handler%add(write_matrices_key, '--write-matrices', .false., 'Write local-to-subdomain sparse matrices  in matrix market format', switch_ab='-wmatrices') 
     call parameter_handler%add(jump_key, '--jump', 1, 'Jump of physical parameter in the inclusion', switch_ab='-j')
@@ -184,14 +181,12 @@ contains
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: num_levels
     integer(ip)                                   :: get_nparts(3)
-    integer(ip), allocatable                      :: num_parts_x_dir(:) ! 0:SPACE_DIM-1)
+    integer(ip), allocatable                      :: num_parts_x_dir(:)
     integer(ip), allocatable                      :: array_size(:)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_levels_key , Value = num_levels) 
     list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
-    error = list%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
-    assert(error==0)       
     error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= num_levels*SPACE_DIM)
@@ -200,7 +195,6 @@ contains
     get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
     call memfree(num_parts_x_dir)
-
   end function get_nparts
   
   !==================================================================================================

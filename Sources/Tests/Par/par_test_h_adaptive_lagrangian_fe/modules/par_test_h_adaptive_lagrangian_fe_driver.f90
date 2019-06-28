@@ -192,15 +192,12 @@ end subroutine free_timers
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment
-    real(rp)                      :: domain(6)
     character(len=:), allocatable :: subparts_coupling_criteria
     integer(ip) :: num_refs
     integer(ip) :: vef_set_id
 
     ! Create a p4est mesh with a custom domain 
-    domain = this%test_params%get_domain_limits() 
     subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
-    istat = this%parameter_list%set(key = struct_hex_mesh_generator_domain_limits_key , value = domain); check(istat==0)
     istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
     call this%triangulation%create(this%par_environment,this%parameter_list)
     

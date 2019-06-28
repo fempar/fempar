@@ -72,10 +72,6 @@ contains
                   'Which type of discrete integration to use? homogeneous or heterogeneous', &
                   switch_ab='-integration')
     call parameter_handler%add(is_a_beam_key, '--is_a_beam', .true., 'Is the studied object a beam', switch_ab='-is_a_beam')
-
-    ! Overwritten
-    call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp])
-
   end subroutine par_test_pb_bddc_linear_elasticity_params_define_parameters
 
   !==================================================================================================
@@ -216,10 +212,8 @@ contains
     integer(ip), allocatable                                        :: array_size(:)
     type(ParameterList_t), pointer                                  :: list
     integer(ip)                                                     :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(struct_hex_mesh_generator_num_levels_key, num_levels))
-    error = list%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
-    assert(error==0)       
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
+    list  => parameter_handler%get_values()    
     error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
     check(error==0)
     assert(array_size(1) >= num_levels*SPACE_DIM)
