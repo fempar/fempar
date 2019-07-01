@@ -93,7 +93,10 @@ module fempar_parameter_handler_names
     contains
         procedure, private, non_overridable :: fph_Get_0D
         procedure, private, non_overridable :: fph_Get_1D
-        procedure, public                   :: getasstring              => fph_GetAsString
+        procedure, private, non_overridable :: fph_Get_1D_ip
+        procedure, private, non_overridable :: fph_Get_1D_rp
+        procedure, private, non_overridable :: fph_Get_1D_logical
+        procedure, private, non_overridable :: fph_Get_1D_string
         
         procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
         procedure, private, non_overridable :: fph_mesh_define_parameters
@@ -112,7 +115,9 @@ module fempar_parameter_handler_names
         procedure                           :: free                     => fph_free
         procedure                           :: get_dir_path             => fph_get_dir_path
         procedure                           :: get_prefix               => fph_get_prefix
+        procedure, public                   :: getasstring              => fph_GetAsString
         generic,   public                   :: get                      => fph_Get_0D, fph_Get_1D
+        generic,   public                   :: GetAsArray               => fph_Get_1D_ip, fph_Get_1D_rp, fph_Get_1D_logical, fph_Get_1D_string
     end type fempar_parameter_handler_t
   
     interface
@@ -567,7 +572,6 @@ contains
         type(parameterlist_t), pointer            :: values_sublist
         integer(ip)                               :: istat, error
         character(len=str_cla_len)                :: switch ! , cvalue
-        integer(ip)                               :: ivalue
         character(len=:), allocatable             :: key
         type(ParameterListIterator_t)             :: Iterator
     !------------------------------------------------------------------
@@ -629,15 +633,16 @@ contains
         type(parameterlist_t),      intent(inout) :: switches
         type(parameterlist_t),      intent(inout) :: values
         character(*), optional,     intent(in)    :: group
-        integer(ip)                               :: istat, error
+        integer(ip)                               :: istat, error, i
         character(len=str_cla_len)                :: switch ! , cvalue
-        integer(ip)                               :: ivalue
         character(len=:), allocatable             :: key
         type(ParameterListIterator_t)             :: Iterator
         class(*), pointer                         :: val0
         class(*), pointer                         :: val1(:)
-        integer(ip), allocatable                  :: val_ip(:)
-        real(rp)   , allocatable                  :: val_rp(:)
+        integer(ip),  allocatable                 :: val_ip(:)
+        real(rp),     allocatable                 :: val_rp(:)
+        character(str_cla_len), allocatable       :: val_dlca(:)
+        type(string), allocatable                 :: val_str(:)
         character(str_cla_len)                    :: val_ch
     !------------------------------------------------------------------
         Iterator = switches%GetIterator()
@@ -654,7 +659,10 @@ contains
                     select type(val0)
                         type is(character(*))
                             call this%cli%get(group=group,switch=switch, val=val_ch, error=error)
-                            error = values%Set(key = key, value=val_ch); assert(error==0)
+                            error = values%Set(key = key, value=trim(adjustl(val_ch))); assert(error==0)
+                        type is(string)
+                            call this%cli%get(group=group,switch=switch, val=val_ch, error=error)
+                            error = values%Set(key = key, value=string(trim(adjustl(val_ch)))); assert(error==0)
                         class default
                             call this%cli%get(group=group,switch=switch, val=val0, error=error)
                     end select
@@ -667,6 +675,15 @@ contains
                         type is(real(rp))
                             call this%cli%get_varying(group=group,switch=switch, val=val_rp, error=error); assert(error==0)
                             error = values%set(key = key, value = val_rp); assert(error==0)
+                        type is(character(*))
+                            call this%cli%get_varying(group=group,switch=switch, val=val_dlca, error=error); assert(error==0)
+                            error = values%set(key = key, value = val_dlca); assert(error==0)
+                        type is(string)
+                            call this%cli%get_varying(group=group,switch=switch, val=val_dlca, error=error); assert(error==0)
+                            if(allocated(val_str)) deallocate(val_str)
+                            allocate(val_str(size(val_dlca,dim=1)))
+                            val_str = [(string(trim(adjustl(val_dlca(i)))),i=1,size(val_dlca,dim=1))]
+                            error = values%set(key = key, value = val_str); assert(error==0)
                         class default
                             assert(.false.)
                     end select
@@ -1226,7 +1243,6 @@ contains
         assert(error==0)
     end subroutine fph_Get_0D
 
-
     subroutine fph_Get_1D(this, key, value)
     !------------------------------------------------------------------
     !< Get 1D value given its key
@@ -1242,6 +1258,89 @@ contains
         assert(error==0)
     end subroutine fph_Get_1D
 
+    subroutine fph_Get_1D_ip(this, key, value)
+    !------------------------------------------------------------------
+    !< Allocate and get 1D IP value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        integer(ip), allocatable,           intent(inout) :: value(:)
+        integer(ip), allocatable                          :: shape(:)
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        if(.not. allocated(value)) then
+            error = this%values%GetShape(key, shape)
+            check(error==0)
+            allocate(value(shape(1)))
+        endif
+        assert(this%values%isAssignable(key, value))
+        error = this%values%Get(key=key, value=value)
+        assert(error==0)
+    end subroutine fph_Get_1D_ip
+
+    subroutine fph_Get_1D_rp(this, key, value)
+    !------------------------------------------------------------------
+    !< Allocate and get 1D RP value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        real(rp),    allocatable,           intent(inout) :: value(:)
+        integer(ip), allocatable                          :: shape(:)
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        if(.not. allocated(value)) then
+            error = this%values%GetShape(key, shape)
+            check(error==0)
+            allocate(value(shape(1)))
+        endif
+        assert(this%values%isAssignable(key, value))
+        error = this%values%Get(key=key, value=value)
+        assert(error==0)
+    end subroutine fph_Get_1D_rp
+
+    subroutine fph_Get_1D_logical(this, key, value)
+    !------------------------------------------------------------------
+    !< Allocate and get 1D IP value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        logical,     allocatable,           intent(inout) :: value(:)
+        integer(ip), allocatable                          :: shape(:)
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        if(.not. allocated(value)) then
+            error = this%values%GetShape(key, shape)
+            check(error==0)
+            allocate(value(shape(1)))
+        endif
+        assert(this%values%isAssignable(key, value))
+        error = this%values%Get(key=key, value=value)
+        assert(error==0)
+    end subroutine fph_Get_1D_logical
+
+    subroutine fph_Get_1D_string(this, key, value)
+    !------------------------------------------------------------------
+    !< Allocate and get 1D String value given its key
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t) , intent(in)    :: this
+        character(len=*),                   intent(in)    :: key
+        type(string),allocatable,           intent(inout) :: value(:)
+        integer(ip), allocatable                          :: shape(:)
+        integer(ip)                                       :: error
+    !------------------------------------------------------------------
+        if(.not. allocated(value)) then
+            error = this%values%GetShape(key, shape)
+            check(error==0)
+            allocate(value(shape(1)))
+        endif
+        assert(this%values%isAssignable(key, value))
+        error = this%values%Get(key=key, value=value)
+        assert(error==0)
+    end subroutine fph_Get_1D_string
 
     subroutine fph_GetAsString(this, key, string)
     !------------------------------------------------------------------
