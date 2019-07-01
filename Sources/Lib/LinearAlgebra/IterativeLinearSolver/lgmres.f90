@@ -73,7 +73,7 @@ contains
     type(vector_space_t), pointer :: range
     type(lvalue_operator_t), pointer :: A, M
     class(environment_t), pointer :: environment
-    integer(ip)                   :: stopping_criteria
+    character(len=:), allocatable :: stopping_criteria
 
     stopping_criteria = this%get_stopping_criteria()
     A => this%get_A()
@@ -162,7 +162,8 @@ contains
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
     class(vector_t)     , pointer :: initial_solution
-    integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
+    integer(ip)                   :: max_num_iterations, output_frequency, luout
+    character(len=:), allocatable :: stopping_criteria
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
 
@@ -476,8 +477,8 @@ contains
 
   function lgmres_supports_stopping_criteria(this,stopping_criteria)
     implicit none
-    class(lgmres_t), intent(in) :: this
-    integer(ip), intent(in) :: stopping_criteria
+    class(lgmres_t) , intent(in) :: this
+    character(len=*), intent(in) :: stopping_criteria
     logical :: lgmres_supports_stopping_criteria
     lgmres_supports_stopping_criteria = ( stopping_criteria == res_nrmgiven_rhs_nrmgiven .or. &
                                           stopping_criteria == res_nrmgiven_res_nrmgiven .or. &
@@ -488,7 +489,7 @@ contains
   function lgmres_get_default_stopping_criteria(this)
     implicit none
     class(lgmres_t), intent(in) :: this
-    integer(ip) :: lgmres_get_default_stopping_criteria
+    character(len=:), allocatable :: lgmres_get_default_stopping_criteria
     lgmres_get_default_stopping_criteria = default_lgmres_stopping_criteria
   end function lgmres_get_default_stopping_criteria
   

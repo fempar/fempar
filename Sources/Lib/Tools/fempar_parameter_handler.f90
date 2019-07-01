@@ -45,10 +45,7 @@ module fempar_parameter_handler_names
 # include "debug.i90"
     implicit none
     private
-
-    character(*), parameter :: FLAP_HELP_MESSAGE_TABULATOR = "    "
-    character(*), parameter :: BRK_LINE = NEW_LINE(FLAP_HELP_MESSAGE_TABULATOR) // FLAP_HELP_MESSAGE_TABULATOR
-
+    
     type, abstract :: parameter_handler_t 
     !------------------------------------------------------------------
     !< This type implements the coupling between FPL and the cli. From a user point
@@ -815,8 +812,8 @@ contains
       call this%add(struct_hex_mesh_generator_num_dims_key, &
            struct_hex_mesh_generator_num_dims_cla_name, &
            2, &
-           'Number of space dimensions') ! , &
-           ! choices = struct_hex_mesh_generator_num_dims_cla_choices )
+           'Number of space dimensions', &
+           choices = struct_hex_mesh_generator_num_dims_cla_choices )
 
       call this%add(struct_hex_mesh_generator_domain_limits_key, &
            struct_hex_mesh_generator_domain_limits_cla_name, &
@@ -851,7 +848,8 @@ contains
       call this%add(p4est_triang_num_dims_key, &
            p4est_triang_num_dims_cla_name, &
            default_p4est_triang_num_dims, &
-           'p4est triangulation number of space dimensions')
+           'p4est triangulation number of space dimensions', &
+           choices=p4est_triang_num_dims_cla_choices)
       
       call this%add(p4est_triang_num_levels_key, &
            p4est_triang_num_levels_cla_name, &
@@ -889,7 +887,7 @@ contains
            mesh_dir_path_cla_name, &
            mesh_default_dir_path, &
            'The relative or full file system path to the & 
-            folder where the mesh data files')
+            folder where the mesh data files are located')
 
       call this%add(mesh_prefix_key, &
            mesh_prefix_cla_name, &
@@ -1050,17 +1048,17 @@ contains
       call this%add(coarse_space_use_vertices_key, &
            coarse_space_use_vertices_cla_name, &
            .true., &
-           'Shape functions on vertices')
+           'Coarse-space shape functions on vertices')
 
       call this%add(coarse_space_use_edges_key, &
            coarse_space_use_edges_cla_name, &
            .true., &
-           'Shape functions on edges')
+           'Coarse-space shape functions on edges')
 
       call this%add(coarse_space_use_faces_key, &
            coarse_space_use_faces_cla_name, &
            .true., &
-           'Shape functions on faces')
+           'Coarse-space shape functions on faces')
 
       ! H-curl COARSE FE HANDLER BDDC
       call this%add(bddc_scaling_function_case_key, &
@@ -1077,7 +1075,8 @@ contains
       call this%add(ils_type_key, & 
            ils_type_cla_name, & 
            rgmres_name,  & 
-           'Iterative linear solver type')
+           'Iterative linear solver type', &
+           choices = ils_type_cla_choices)
 
       call this%add(ils_rtol_key, & 
            ils_rtol_cla_name, & 
@@ -1092,12 +1091,13 @@ contains
       call this%add(ils_stopping_criterium_key, & 
            ils_stopping_criterium_cla_name, & 
            default_rgmres_stopping_criteria, & 
-           help='Stopping criterium type')
+           help=ils_stopping_criterium_cla_help, & 
+           choices=ils_stopping_criterium_cla_choices)
 
       call this%add(ils_output_frequency_key, & 
            ils_output_frequency_cla_name, & 
            default_output_frequency, & 
-           'Frequency for output printing') 
+           'Frequency for output printing (=0 for no output at all)') 
 
       call this%add(ils_max_num_iterations_key, & 
            ils_max_num_iterations_cla_name, & 
@@ -1106,7 +1106,8 @@ contains
 
       call this%add(ils_track_convergence_history_key, & 
            ils_track_convergence_history_cla_name, & 
-           default_track_convergence_history,'Track convergence history')
+           default_track_convergence_history, &
+           &'Explicitly store convergence history within iterative linear solver instance so that it can be later consumed, e.g., to compute stats')
 
       call this%add(ils_max_dim_krylov_basis_key, & 
            ils_max_dim_krylov_basis_cla_name, & 
@@ -1219,7 +1220,7 @@ contains
            output_handler_xh5_strategy_cla_name, &
            output_handler_xh5_strategy_default, &
            'Parallel IO strategy (800: Contiguous hyperslabs, 801: Dataset per process). See XH5For docs.', &
-           choices = output_handler_xh5_strategy_choices)
+           choices = output_handler_xh5_strategy_cla_choices)
       
       call this%add(output_handler_xh5_info_key, &
            output_handler_xh5_info_cla_name, &

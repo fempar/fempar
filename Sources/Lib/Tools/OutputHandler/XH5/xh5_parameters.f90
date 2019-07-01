@@ -165,7 +165,7 @@ private
     integer(ip), parameter, public :: output_handler_xh5_strategy_default       = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
     integer(ip), parameter, public :: output_handler_xh5_Info_default           = 0
     
-    character(len=*), parameter, public :: output_handler_xh5_strategy_choices  = '800,801'
+    character(len=*), parameter, public :: output_handler_xh5_strategy_cla_choices  = '800,801'
 
 
 end module xh5_parameters_names

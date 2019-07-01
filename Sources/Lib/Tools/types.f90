@@ -81,7 +81,9 @@ module types_names
   character(len=*), parameter :: dir_path_cla_name      = '--'//dir_path_key
   character(len=*), parameter :: prefix_cla_name        = '--'//prefix_key
 
-  integer(ip)  ,    parameter :: str_cla_len                = 512 ! String Command line argument lenght
+  integer(ip) , parameter :: str_cla_len                 = 512 ! String Command line argument lenght
+  character(*), parameter :: FLAP_HELP_MESSAGE_TABULATOR = "    "
+  character(*), parameter :: BRK_LINE = NEW_LINE(FLAP_HELP_MESSAGE_TABULATOR) // FLAP_HELP_MESSAGE_TABULATOR
 
   interface
      subroutine runend

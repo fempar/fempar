@@ -67,7 +67,7 @@ use xh5_parameters_names, only: output_handler_xh5_strategy_key,      &
                                 output_handler_xh5_info_cla_name,     &
                                 output_handler_xh5_strategy_default,  &
                                 output_handler_xh5_Info_default,      &
-                                output_handler_xh5_strategy_choices
+                                output_handler_xh5_strategy_cla_choices
 
 implicit none
 private
@@ -100,6 +100,6 @@ private
               output_handler_xh5_info_cla_name,     &
               output_handler_xh5_strategy_default,  &
               output_handler_xh5_Info_default,      &
-              output_handler_xh5_strategy_choices
+              output_handler_xh5_strategy_cla_choices
               
 end module output_handler_parameters_names

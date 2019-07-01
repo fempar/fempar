@@ -34,19 +34,42 @@ module iterative_linear_solver_parameters_names
   !-------------------------------------------------------------------
   ! List of convergence criteria available for iterative solvers 
   !-------------------------------------------------------------------
-  integer(ip), parameter :: res_nrmgiven_rhs_nrmgiven  = 1  ! ||  r(i) ||g <= rtol*||  b    ||g + atol 
-  integer(ip), parameter :: res_nrmgiven_res_nrmgiven  = 2  ! ||  r(i) ||g <= rtol*||  r(0) ||g + atol   
-  integer(ip), parameter :: delta_rhs                  = 3  ! || dx(i) ||  <= rtol*||  b  || + atol
-  integer(ip), parameter :: delta_delta                = 4  ! || dx(i) ||  <= rtol*||dx(1)|| + atol
-  integer(ip), parameter :: res_res                    = 5  ! ||  r(i) ||  <= rtol*|| r(0)|| + atol
-  integer(ip), parameter :: res_rhs                    = 6  ! ||  r(i) ||  <= rtol*||  b  || + atol
-  integer(ip), parameter :: delta_rhs_and_res_res      = 7  ! delta_rhs    AND res_res
-  integer(ip), parameter :: delta_rhs_and_res_rhs      = 8  ! delta_rhs    AND res_rhs
-  integer(ip), parameter :: delta_delta_and_res_res    = 9  ! delta_delta  AND res_res
-  integer(ip), parameter :: delta_delta_and_res_rhs    = 10 ! delta_delta  AND res_rhs 
+  character(len=*), parameter :: res_nrmgiven_rhs_nrmgiven  = "RES_NRMGIVEN_RHS_NRMGIVEN"  ! ||  r(i) ||g <= rtol*||  b    ||g + atol 
+  character(len=*), parameter :: res_nrmgiven_res_nrmgiven  = "RES_NRMGIVEN_RES_NRMGIVEN"  ! ||  r(i) ||g <= rtol*||  r(0) ||g + atol   
+  character(len=*), parameter :: delta_rhs                  = "DELTA_RHS"                  ! || dx(i) ||  <= rtol*||  b  || + atol
+  character(len=*), parameter :: delta_delta                = "DELTA_DELTA"                ! || dx(i) ||  <= rtol*||dx(1)|| + atol
+  character(len=*), parameter :: res_res                    = "RES_RES"                    ! ||  r(i) ||  <= rtol*|| r(0)|| + atol
+  character(len=*), parameter :: res_rhs                    = "RES_RHS"                    ! ||  r(i) ||  <= rtol*||  b  || + atol
+  character(len=*), parameter :: delta_rhs_and_res_res      = "DELTA_RHS_AND_RES_RES"      ! delta_rhs    AND res_res
+  character(len=*), parameter :: delta_rhs_and_res_rhs      = "DELTA_RHS_AND_RES_RHS"      ! delta_rhs    AND res_rhs
+  character(len=*), parameter :: delta_delta_and_res_res    = "DELTA_DELTA_AND_RES_RES"    ! delta_delta  AND res_res
+  character(len=*), parameter :: delta_delta_and_res_rhs    = "DELTA_DELTA_AND_RES_RHS"    ! delta_delta  AND res_rhs 
                                                             ! ||.|| is the 2-norm, dx(i) = x(i) - x(i-1),
                                                             ! r(i) is the residual at the i-th iteration
 
+  character(len=*), parameter, public :: ils_stopping_criterium_cla_choices  = res_nrmgiven_rhs_nrmgiven // "," // &
+                                                                               res_nrmgiven_res_nrmgiven // "," // &
+                                                                               delta_rhs  // "," // &
+                                                                               delta_delta // "," // &
+                                                                               res_res // "," // &
+                                                                               res_rhs // "," // &
+                                                                               delta_rhs_and_res_res // "," // &
+                                                                               delta_rhs_and_res_rhs // "," // &
+                                                                               delta_delta_and_res_res // "," // &
+                                                                               delta_delta_and_res_rhs
+                                                                               
+   character(len=*), parameter, public :: ils_stopping_criterium_cla_help    = "stopping criterium type" // BRK_LINE // & 
+                                                                               res_nrmgiven_rhs_nrmgiven // ": ||r(i)||_g <= rtol*||b||_g + atol" // BRK_LINE // & 
+                                                                               res_nrmgiven_res_nrmgiven // ": ||r(i)||_g <= rtol*||r(0)||_g + atol" // BRK_LINE // &
+                                                                               delta_rhs  // ": ||dx(i)|| <= rtol*||b|| + atol" // BRK_LINE // &
+                                                                               delta_delta // ": ||dx(i)|| <= rtol*||dx(1)|| + atol" // BRK_LINE // &
+                                                                               res_res // ": ||r(i)|| <= rtol*||r(0)|| + atol" // BRK_LINE // &
+                                                                               res_rhs // ": ||r(i)||  <= rtol*||b|| + atol" // BRK_LINE // &
+                                                                               delta_rhs_and_res_res // ": delta_rhs AND res_res" // BRK_LINE // &
+                                                                               delta_rhs_and_res_rhs // ": delta_rhs AND res_rhs" // BRK_LINE // &
+                                                                               delta_delta_and_res_res // ": delta_delta AND res_res" // BRK_LINE // &
+                                                                               delta_delta_and_res_rhs // ": delta_delta AND res_rhs"
+                                                                               
   !-------------------------------------------------------------------
   ! String parameters with the names of the parameters for iterative linear solvers
   !-------------------------------------------------------------------
@@ -73,14 +96,21 @@ module iterative_linear_solver_parameters_names
   ! Iterative linear solver names
   !-----------------------------------------------------------------
   character(len=*), parameter :: cg_name         = 'CG'         ! CG iterative linear solver
-  character(len=*), parameter :: fgmres_name     = 'FGMRES'     ! FGMREs iterative linear solver
+  character(len=*), parameter :: fgmres_name     = 'FGMRES'     ! FGMRES iterative linear solver
   character(len=*), parameter :: icg_name        = 'ICG'        ! ICG iterative linear solver
   character(len=*), parameter :: lfom_name       = 'LFOM'       ! LFOM iterative linear solver
   character(len=*), parameter :: lgmres_name     = 'LGMRES'     ! LGMRES iterative linear solver
   character(len=*), parameter :: minres_name     = 'MINRES'     ! MINRES iterative linear solver
   character(len=*), parameter :: rgmres_name     = 'RGMRES'     ! RGMRES iterative linear solver
   character(len=*), parameter :: richardson_name = 'RICHARDSON' ! RICHARDSON iterative linear solver
-
+  
+  character(len=*), parameter, public :: ils_type_cla_choices  = cg_name         // "," // &
+                                                                 fgmres_name     // "," // &
+                                                                 icg_name        // "," // &
+                                                                 lfom_name       // "," // &
+                                                                 lgmres_name     // "," // &
+                                                                 minres_name     // "," // &
+                                                                 richardson_name
 
   !-----------------------------------------------------------------
   ! Some common parameters to FGMRES, LFOM, LGMRES and RGMRES iterative linear solvers
@@ -108,22 +138,22 @@ module iterative_linear_solver_parameters_names
   !------------------------------------------------------------------------------------
   ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
   !------------------------------------------------------------------------------------
-  integer (ip), parameter :: default_luout                        = 6
-  real    (rp), parameter :: default_rtol                         = 1.0e-06_rp
-  real    (rp), parameter :: default_atol                         = 0.0_rp
-  integer (ip), parameter :: default_output_frequency             = 1 
-  integer (ip), parameter :: default_max_num_iterations           = 1000
-  logical,      parameter :: default_track_convergence_history    = .false.
-  integer (ip), parameter :: default_fgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
-  integer (ip), parameter :: default_lfom_stopping_criteria       = res_res
-  integer (ip), parameter :: default_lgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
-  integer (ip), parameter :: default_rgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
-  integer (ip), parameter :: default_minres_stopping_criteria     = res_res
-  integer (ip), parameter :: default_cg_stopping_criteria         = res_res
-  integer (ip), parameter :: default_icg_stopping_criteria        = res_res
-  integer (ip), parameter :: default_richardson_stopping_criteria = res_res
-  real (rp),    parameter :: default_richardson_relaxation        = 1.0_rp
-  integer (ip), parameter :: default_dkrymax                      = 1000
-  integer (ip), parameter :: default_orthonorm_strat              = icgsro
+  integer (ip), parameter :: default_luout                            = 6
+  real    (rp), parameter :: default_rtol                             = 1.0e-06_rp
+  real    (rp), parameter :: default_atol                             = 0.0_rp
+  integer (ip), parameter :: default_output_frequency                 = 1 
+  integer (ip), parameter :: default_max_num_iterations               = 1000
+  logical,      parameter :: default_track_convergence_history        = .false.
+  character(len=*), parameter :: default_fgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
+  character(len=*), parameter :: default_lfom_stopping_criteria       = res_res
+  character(len=*), parameter :: default_lgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
+  character(len=*), parameter :: default_rgmres_stopping_criteria     = res_nrmgiven_res_nrmgiven
+  character(len=*), parameter :: default_minres_stopping_criteria     = res_res
+  character(len=*), parameter :: default_cg_stopping_criteria         = res_res
+  character(len=*), parameter :: default_icg_stopping_criteria        = res_res
+  character(len=*), parameter :: default_richardson_stopping_criteria = res_res
+  real (rp),    parameter :: default_richardson_relaxation            = 1.0_rp
+  integer (ip), parameter :: default_dkrymax                          = 1000
+  integer (ip), parameter :: default_orthonorm_strat                  = icgsro
   
 end module iterative_linear_solver_parameters_names

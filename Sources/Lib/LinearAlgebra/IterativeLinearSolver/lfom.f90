@@ -133,7 +133,8 @@ contains
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
     class(vector_t)     , pointer :: initial_solution
-    integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
+    integer(ip)                   :: max_num_iterations, output_frequency, luout
+    character(len=:), allocatable :: stopping_criteria
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
 
@@ -355,7 +356,7 @@ contains
   function lfom_supports_stopping_criteria(this,stopping_criteria)
     implicit none
     class(lfom_t), intent(in) :: this
-    integer(ip), intent(in) :: stopping_criteria
+    character(*), intent(in) :: stopping_criteria
     logical :: lfom_supports_stopping_criteria
     lfom_supports_stopping_criteria = ( stopping_criteria == res_res .or. &
                                           stopping_criteria == res_rhs )
@@ -364,7 +365,7 @@ contains
   function lfom_get_default_stopping_criteria(this)
     implicit none
     class(lfom_t), intent(in) :: this
-    integer(ip) :: lfom_get_default_stopping_criteria
+    character(len=:), allocatable :: lfom_get_default_stopping_criteria
     lfom_get_default_stopping_criteria = default_lfom_stopping_criteria
   end function lfom_get_default_stopping_criteria
   

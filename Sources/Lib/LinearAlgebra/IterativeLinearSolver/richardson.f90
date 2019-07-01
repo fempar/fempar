@@ -111,7 +111,8 @@ contains
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
     class(vector_t)     , pointer :: initial_solution
-    integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
+    integer(ip)                   :: max_num_iterations, output_frequency, luout
+    character(len=:), allocatable :: stopping_criteria
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
 
@@ -207,7 +208,7 @@ contains
   function richardson_supports_stopping_criteria(this,stopping_criteria)
     implicit none
     class(richardson_t), intent(in) :: this
-    integer(ip)        , intent(in) :: stopping_criteria
+    character(len=*)   , intent(in) :: stopping_criteria
     logical :: richardson_supports_stopping_criteria
     richardson_supports_stopping_criteria = (stopping_criteria == res_res .or. stopping_criteria == res_rhs)
   end function richardson_supports_stopping_criteria
@@ -215,7 +216,7 @@ contains
   function richardson_get_default_stopping_criteria(this)
     implicit none
     class(richardson_t), intent(in) :: this
-    integer(ip) :: richardson_get_default_stopping_criteria
+    character(len=:), allocatable :: richardson_get_default_stopping_criteria
     richardson_get_default_stopping_criteria = default_richardson_stopping_criteria
   end function richardson_get_default_stopping_criteria
   
