@@ -186,15 +186,8 @@ contains
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     call parameter_handler%Get(key = struct_hex_mesh_generator_num_levels_key , Value = num_levels) 
-    list  => parameter_handler%get_values()
-    error = list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); 
-    check(error==0)
-    assert(array_size(1) >= num_levels*SPACE_DIM)
-    call memalloc(array_size(1), num_parts_x_dir)
-    error = list%get(key = struct_hex_mesh_generator_num_parts_x_dim_key , value = num_parts_x_dir) 
+    call parameter_handler%GetAsArray(key = struct_hex_mesh_generator_num_parts_x_dim_key, Value = num_parts_x_dir)
     get_nparts=num_parts_x_dir(1:3)
-    if (allocated(array_size)) deallocate(array_size) 
-    call memfree(num_parts_x_dir)
   end function get_nparts
   
   !==================================================================================================
@@ -211,20 +204,10 @@ contains
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
     integer(ip)                                           :: num_levels
     integer(ip)                                           :: get_num_cells_x_dir(3)
-    integer(ip), allocatable                              :: num_cells_x_dir(:) ! 0:SPACE_DIM-1)
-    integer(ip), allocatable                              :: array_size(:)
-    type(ParameterList_t), pointer                        :: list
+    integer(ip), allocatable                              :: num_cells_x_dir(:)
     integer(ip)                                           :: error
-    list  => parameter_handler%get_values()
-    error = list%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key  , shape = array_size); 
-    check(error==0)
-    assert(array_size(1) >= SPACE_DIM)
-    call memalloc(array_size(1), num_cells_x_dir)
-    error = list%get(key = struct_hex_mesh_generator_num_cells_x_dim_key , value = num_cells_x_dir) 
-    check(error==0)
+    call parameter_handler%GetAsArray(key = struct_hex_mesh_generator_num_cells_x_dim_key, Value = num_cells_x_dir)
     get_num_cells_x_dir=num_cells_x_dir
-    if (allocated(array_size)) deallocate(array_size) 
-    call memfree(num_cells_x_dir)
   end function get_num_cells_x_dir
   !==================================================================================================
   function get_size_sub_object(this)

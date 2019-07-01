@@ -1078,19 +1078,6 @@ contains
     call this%triangulation%free()
   end subroutine free
 
-
-  !function get_icontxt(this)
-  !  implicit none
-  !  class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
-  !  integer(ip) :: get_icontxt
-  !  class(execution_context_t), pointer :: w_context
-  !  w_context => this%environment%get_w_context()
-  !  select type(w_context)
-  !  type is (mpi_context_t)
-  !     get_icontxt = w_context%get_icontxt()
-  !  end select
-  !end function get_icontxt
-
   subroutine setup_environment(this,world_context)
     implicit none
     class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
