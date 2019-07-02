@@ -81,13 +81,11 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
 
 
   istat = parameters%GetShape(Key=fes_field_types_key, Shape=Shape);assert(istat==0)
-write(*,*) '1 Shape:', Shape, 'Dimension:', size(shape, dim=1)
   massert( Shape(1) == num_fields, "FE_SPACE_FIELD_TYPES size is different from FE_SPACE_NUM_FIELDS" )
   allocate(fe_space_field_types_array(Shape(1)))
   istat = parameters%get(key = fes_field_types_key, value = fe_space_field_types_array);assert(istat==0)
 
   istat = parameters%GetShape(Key=fes_ref_fe_types_key, Shape=Shape);assert(istat==0)
-write(*,*) '2 Shape:', Shape, 'Dimension:', size(shape, dim=1)
   massert( Shape(1) == num_fields, "FE_SPACE_REFERENCE_FES size is different from FE_SPACE_NUM_FIELDS" )
   allocate(reference_fe_type_array(Shape(1)))
   istat = parameters%get(key = fes_ref_fe_types_key, value = reference_fe_type_array);assert(istat==0)
