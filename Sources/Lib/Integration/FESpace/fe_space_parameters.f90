@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fe_space_parameters_names
   use types_names
+  use reference_fe_names
   implicit none
   
   ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
@@ -68,7 +69,37 @@ module fe_space_parameters_names
   character(len=*), parameter, public :: fes_ref_fe_orders_cla_name          = '--'//fes_ref_fe_orders_key
   character(len=*), parameter, public :: fes_ref_fe_types_cla_name           = '--'//fes_ref_fe_types_key
   character(len=*), parameter, public :: fes_set_ids_ref_fes_cla_name        = '--'//fes_set_ids_ref_fes_key
-
+  
+  character(len=*), parameter, public :: fes_field_types_cla_choices = field_type_scalar // "," // &
+                                                                       field_type_vector // "," // &
+                                                                       field_type_tensor
+                                                                       
+  character(len=*), parameter, public :: fes_field_types_cla_help    = "Finite element space field types" // BRK_LINE // & 
+                                                                       BULLET_FLAP_HELP_MESSAGE // field_type_scalar // ": Scalar-Valued Reference FE" // BRK_LINE // & 
+                                                                       BULLET_FLAP_HELP_MESSAGE // field_type_vector // ": Vector-Valued Reference FE" // BRK_LINE // &
+                                                                       BULLET_FLAP_HELP_MESSAGE // field_type_tensor // ": Tensor-Valued Reference FE"
+                                                                       
+  character(len=*), parameter, public :: fes_ref_fe_types_cla_choices = fe_type_lagrangian // "," // &
+                                                                        fe_type_lagrangian_gp // "," // &
+                                                                        fe_type_raviart_thomas // "," // &
+                                                                        fe_type_nedelec // "," // &
+                                                                        fe_type_void
+                                                                       
+  character(len=*), parameter, public :: fes_ref_fe_types_cla_help    = "Reference finite element types" // BRK_LINE // & 
+                                                                       BULLET_FLAP_HELP_MESSAGE // fe_type_lagrangian // &
+                                                                        ": Grad-conforming Lagrangian Reference FE of arbitrary degree $k$ on top of n-cubes (i.e., $Q_k$)" // BRK_LINE // &
+                                                                        "  and n-simplices (i.e., $P_k$), for the discretization of either scalar-valued, vector-valued or tensor-valued fields." // BRK_LINE // & 
+                                                                       BULLET_FLAP_HELP_MESSAGE // fe_type_lagrangian_gp  // &
+                                                                       ": " // fe_type_lagrangian_gp // BRK_LINE // &
+                                                                       BULLET_FLAP_HELP_MESSAGE // fe_type_raviart_thomas // &
+                                                                       ": The vector-valued div-conforming Raviart-Thomas Reference FE of arbitrary degree $k$ on top of " // BRK_LINE // &
+                                                                       "  n-cubes (n-simplices not supported yet) suitable for the mixed Laplacian problem and some fluid flow problems" // BRK_LINE // &
+                                                                       BULLET_FLAP_HELP_MESSAGE // fe_type_nedelec // & 
+                                                                       ": The vector-valued curl-conforming Nèdèlec Reference FE (of first kind) of arbitrary degree $k$ on " // BRK_LINE // &
+                                                                       "  top of n-cubes and n-simplices suitable for electromagnetic problems" // BRK_LINE // &
+                                                                       BULLET_FLAP_HELP_MESSAGE // fe_type_void // & 
+                                                                       ": A software artifact that represents a Reference FE with no DOFs at all, neither at the cell interiors," // BRK_LINE // &
+                                                                       "  nor at their boundary n-faces."
   
   ! These parameter constants are used in order to generate a unique (non-consecutive) 
   ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.

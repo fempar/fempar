@@ -73,7 +73,7 @@ program tutorial_02_steady_stokes
 
   !* Local variables
   real(rp) :: viscosity
-  integer(ip) :: fe_order, istat, error, i, boundary_ids
+  integer(ip) :: fe_order, istat, i, boundary_ids
   class(vector_t), pointer :: dof_values
   class(vector_t), allocatable :: rhs
   real(rp) :: l2
@@ -129,8 +129,7 @@ program tutorial_02_steady_stokes
                                                    cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
-  error = 0
-  fes_ref_fe_types = [String('Lagrangian'), String('Lagrangian')]
+  fes_ref_fe_types = [String(fe_type_lagrangian), String(fe_type_lagrangian)]
   fes_field_types = [String(field_type_vector), String(field_type_scalar)]
   call parameter_handler%update(key = fes_num_fields_key, value = 2)
   call parameter_handler%update(key = fes_num_ref_fes_key, value = 2)
@@ -196,7 +195,6 @@ program tutorial_02_steady_stokes
                                      dof_values)   
   
   call parameter_handler%update(key = output_handler_dir_path_key, Value= 'tutorial_02_steady_stokes_results')
-  mcheck(error==0,'Failed parameter set')
   
   call output_handler%create()
   call output_handler%attach_fe_space(fe_space)
@@ -227,13 +225,10 @@ program tutorial_02_steady_stokes
   call triangulation%free()
   call serial_environment%free()
   call world_context%free(.true.)
-
   call fempar_finalize()
   contains
     subroutine tutorial_02_steady_stokes_define_user_parameters()
-    implicit none
-
-        call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
-
+      implicit none
+      call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
     end subroutine  tutorial_02_steady_stokes_define_user_parameters
 end program tutorial_02_steady_stokes

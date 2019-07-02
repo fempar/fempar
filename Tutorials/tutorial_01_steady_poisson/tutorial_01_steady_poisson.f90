@@ -105,7 +105,7 @@ program tutorial_01_steady_poisson
   call parameter_handler%process_parameters()
 
   !* Overwrite fempar default parameters for the integration
-  fes_ref_fe_types(1) = String('Lagrangian')
+  fes_ref_fe_types(1) = String(fe_type_lagrangian)
   call parameter_handler%update(struct_hex_mesh_generator_num_dims_key, value = 2 )                 ! Number of space dimensions
   call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10,10] ) ! Number of cells per each dimension
   call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                              ! Reference finite element orders

@@ -1004,7 +1004,8 @@ contains
       call this%add(fes_ref_fe_types_key, &
            fes_ref_fe_types_cla_name, &
            string_array, &
-           'Reference finite element types')
+           fes_ref_fe_types_cla_help, &
+           choices=fes_ref_fe_types_cla_choices)
 
       ! Reference FE order (0,1,2,...) fe_space_orders_key
       call this%add(fes_ref_fe_orders_key, &
@@ -1031,7 +1032,8 @@ contains
       call this%add(fes_field_types_key, &
            fes_field_types_cla_name, &
            string_array, &
-           'Finite element space field types')
+           fes_field_types_cla_help, &
+           choices=fes_field_types_cla_choices)
 
       ! FE field blocks (scalar, vector, tensor)
       call this%add(fes_field_blocks_key, &
@@ -1205,13 +1207,15 @@ contains
       ! General
       call this%add(output_handler_dir_path_key, &
            output_handler_dir_path_cla_name, &
-           '.', &
-           'Output Directory')
+           output_handler_default_dir_path, &
+           'The relative or full file system path to the & 
+            folder where the data files of the mesh partitioner are generated')
       
       call this%add(output_handler_prefix_key, &
            output_handler_prefix_cla_name, &
-           '.', &
-           'Prefix to generate the names of the generated files')
+           output_handler_default_prefix, &
+           'Token string which is used as a prefix to compose & 
+            the names of generated files as prefix.*')
       
       call this%add(output_handler_static_grid_key, &
            output_handler_static_grid_cla_name, &

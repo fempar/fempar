@@ -148,7 +148,6 @@ module iterative_linear_solver_parameters_names
   character(len=*), parameter :: ils_relaxation_key = 'ILS_RELAXATION'
   character(len=*), parameter :: ils_relaxation_cla_name = '--'//ils_relaxation_key
   
-  
   !------------------------------------------------------------------------------------
   ! Default values for implementors of class(base_iterative_linear_solver_t) parameters
   !------------------------------------------------------------------------------------

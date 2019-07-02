@@ -80,6 +80,9 @@ private
     character(len=*), parameter, public :: output_handler_prefix_cla_name       = '--'//output_handler_prefix_key
     character(len=*), parameter, public :: output_handler_static_grid_cla_name  = '--'//output_handler_static_grid_key
     
+    character(len=*), parameter, public :: output_handler_default_dir_path   = '.'  
+    character(len=*), parameter, public :: output_handler_default_prefix     = 'results'
+    
     logical,          parameter, public :: output_handler_static_grid_default   = .true.
     
 
