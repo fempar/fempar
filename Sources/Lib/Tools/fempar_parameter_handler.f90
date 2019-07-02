@@ -874,13 +874,15 @@ contains
            p4est_triang_2_1_k_balance_cla_name, &
            default_p4est_triang_2_1_k_balance,  &
            'value of k for 2:1 k-balanced forest-of-octrees &
-           (use with care, at present, only k={0,1} supported/tested)')
+           (use with care, at present, only k={0,1} supported/tested)', &
+           choices=p4est_triang_2_1_k_balance_cla_choices)
 
       call this%add(p4est_triang_k_ghost_cells_key, &
            p4est_triang_k_ghost_cells_cla_name, &
            default_p4est_triang_k_ghost_cells, &
            'value of k for the k-ghost cells set of each processor &
-           (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)')
+           (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)', &
+           choices=p4est_triang_k_ghost_cells_cla_choices)
     end subroutine fph_p4est_triang_define_parameters
 
     subroutine fph_mesh_define_parameters(this)

@@ -63,8 +63,8 @@ module iterative_linear_solver_parameters_names
                                                                                BULLET_FLAP_HELP_MESSAGE // res_nrmgiven_res_nrmgiven // ": ||r(i)||_g <= rtol*||r(0)||_g + atol; r(i)=b-A*x(i)" // BRK_LINE // &
                                                                                BULLET_FLAP_HELP_MESSAGE //  delta_rhs  // ": ||dx(i)|| <= rtol*||b|| + atol; dx(i)=x(i)-x(i-1)" // BRK_LINE // &
                                                                                BULLET_FLAP_HELP_MESSAGE // delta_delta // ": ||dx(i)|| <= rtol*||dx(1)|| + atol; dx(i)=x(i)-x(i-1)" // BRK_LINE // &
-                                                                               BULLET_FLAP_HELP_MESSAGE // res_res // ": ||r(i)|| <= rtol*||r(0)|| + atol" // BRK_LINE // &
-                                                                               BULLET_FLAP_HELP_MESSAGE // res_rhs // ": ||r(i)||  <= rtol*||b|| + atol" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // res_res // ": ||r(i)|| <= rtol*||r(0)|| + atol; r(i)=b-A*x(i)" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // res_rhs // ": ||r(i)|| <= rtol*||b|| + atol; r(i)=b-A*x(i)" // BRK_LINE // &
                                                                                BULLET_FLAP_HELP_MESSAGE // delta_rhs_and_res_res // ": delta_rhs AND res_res" // BRK_LINE // &
                                                                                BULLET_FLAP_HELP_MESSAGE // delta_rhs_and_res_rhs // ": delta_rhs AND res_rhs" // BRK_LINE // &
                                                                                BULLET_FLAP_HELP_MESSAGE // delta_delta_and_res_res // ": delta_delta AND res_res" // BRK_LINE // &

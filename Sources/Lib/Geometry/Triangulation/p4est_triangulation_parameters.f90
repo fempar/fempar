@@ -65,7 +65,9 @@ module p4est_triangulation_parameters_names
   character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_name = '--'//p4est_triang_2_1_k_balance_key
   character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_name = '--'//p4est_triang_k_ghost_cells_key
   
-  character(len=*), parameter :: p4est_triang_num_dims_cla_choices   = '2,3'
+  character(len=*), parameter :: p4est_triang_num_dims_cla_choices      = '2,3'
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_choices = '0,1,2'
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_choices = '0,1,2'
   
   ! Unit square/cube by default; all points on and in the domain have space coordinates >= 0.0_rp
   real(rp)   , parameter :: default_p4est_triang_domain_limits (*) = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]  
