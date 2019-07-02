@@ -638,6 +638,7 @@ contains
         class(*), pointer                         :: val1(:)
         integer(ip),  allocatable                 :: val_ip(:)
         real(rp),     allocatable                 :: val_rp(:)
+        logical,      allocatable                 :: val_l(:)
         character(str_cla_len), allocatable       :: val_dlca(:)
         type(string), allocatable                 :: val_str(:)
         character(str_cla_len)                    :: val_ch
@@ -672,6 +673,9 @@ contains
                         type is(real(rp))
                             call this%cli%get_varying(group=group,switch=switch, val=val_rp, error=error); assert(error==0)
                             error = values%set(key = key, value = val_rp); assert(error==0)
+                        type is(logical)
+                            call this%cli%get_varying(group=group,switch=switch, val=val_l, error=error); assert(error==0)
+                            error = values%set(key = key, value = val_l); assert(error==0)
                         type is(character(*))
                             call this%cli%get_varying(group=group,switch=switch, val=val_dlca, error=error); assert(error==0)
                             error = values%set(key = key, value = val_dlca); assert(error==0)
