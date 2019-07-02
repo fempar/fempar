@@ -48,8 +48,7 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
   class(reference_fe_t), pointer       :: reference_fe_geo
   
   integer(ip), allocatable :: shape(:)
-  character(100), allocatable :: fe_space_field_types_array(:), reference_fe_type_array(:)
-  character(:), allocatable :: fe_space_field_types, reference_fe_type
+  type(string), allocatable :: fe_space_field_types_array(:), reference_fe_type_array(:)
   
   call this%free()
   
@@ -67,7 +66,7 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
     call memrealloc(num_fields,reference_fe_conformity,__FILE__,__LINE__)
     reference_fe_conformity(1:num_fields) = .true.   
     istat = parameters%set(key = fes_ref_fe_conformities_key, value = reference_fe_conformity);assert(istat==0)
-    wassert( .false., "FE_SPACE_FIELD_CONFORMITIES size is different from FE_SPACE_NUM_FIELDS, assuming conformity for all fields")
+    massert( .false., fes_ref_fe_conformities_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name // ", assuming conformity for all fields" )
   end if
   
   istat = parameters%GetShape(Key=fes_ref_fe_continuities_key, Shape=Shape);assert(istat==0)
@@ -77,23 +76,22 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
     call memrealloc(num_fields,reference_fe_continuity,__FILE__,__LINE__)
     reference_fe_continuity(1:num_fields) = .true.   
     istat = parameters%set(key = fes_ref_fe_continuities_key, value = reference_fe_continuity);assert(istat==0)
-    wassert( .false., "FE_SPACE_FIELD_CONTINUITIES size is different from FE_SPACE_NUM_FIELDS, assuming continuous spaces for all fields")
+    massert( .false., fes_ref_fe_continuities_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name // ", assuming conformity for all fields" )
   end if
-   
-  istat = parameters%getasstring(key = fes_field_types_key, string = fe_space_field_types);assert(istat==0)
-  Nt    = count_tokens_cla_string_list(fe_space_field_types)
-  massert( Nt == num_fields, "FE_SPACE_FIELD_TYPES size is different from FE_SPACE_NUM_FIELDS" )
-  allocate ( fe_space_field_types_array(Nt) )
-  call process_tokens_cla_string_list(fe_space_field_types,fe_space_field_types_array)
-  
-  istat = parameters%getasstring(key = fes_ref_fe_types_key, string = reference_fe_type);assert(istat==0)
-  Nt    = count_tokens_cla_string_list(reference_fe_type)
-  massert( Nt == num_fields, "FE_SPACE_REFERENCE_FES size is different from FE_SPACE_NUM_FIELDS" )
-  allocate ( reference_fe_type_array(Nt) )
-  call process_tokens_cla_string_list(reference_fe_type,reference_fe_type_array)
+
+
+  istat = parameters%GetShape(Key=fes_field_types_key, Shape=Shape);assert(istat==0)
+  massert( Shape(1) == num_fields, fes_field_types_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name )
+  allocate(fe_space_field_types_array(Shape(1)))
+  istat = parameters%get(key = fes_field_types_key, value = fe_space_field_types_array);assert(istat==0)
+
+  istat = parameters%GetShape(Key=fes_ref_fe_types_key, Shape=Shape);assert(istat==0)
+  massert( Shape(1) == num_fields, fes_ref_fe_types_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name )
+  allocate(reference_fe_type_array(Shape(1)))
+  istat = parameters%get(key = fes_ref_fe_types_key, value = reference_fe_type_array);assert(istat==0)
   
   istat = parameters%GetShape(Key=fes_ref_fe_orders_key, Shape=Shape);assert(istat==0)
-  massert( Shape(1) == num_fields, "FE_SPACE_FIELD_ORDERS size is different from FE_SPACE_NUM_FIELDS" )
+  massert( Shape(1) == num_fields, fes_ref_fe_orders_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name )
   call memalloc( num_fields, reference_fe_order, __FILE__, __LINE__) 
   istat = parameters%get(key = fes_ref_fe_orders_key, value = reference_fe_order)
 
@@ -105,10 +103,10 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
     ! Create reference FEs
     do i = 1, num_fields
       this%reference_fes_internally_allocated(i) = make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                                       fe_type = trim(reference_fe_type_array(i)), &
+                                                                       fe_type = trim(reference_fe_type_array(i)%chars()), &
                                                                        num_dims = triangulation%get_num_dims(), &
                                                                        order =    reference_fe_order(i), &
-                                                                       field_type = trim(fe_space_field_types_array(i)), &
+                                                                       field_type = trim(fe_space_field_types_array(i)%chars()), &
                                                                        conformity = reference_fe_conformity(i) )
     end do
     call triangulation%free_cell_iterator(cell)
@@ -186,7 +184,7 @@ subroutine serial_fe_space_get_fe_space_field_blocks_from_pl ( this, &
      call memrealloc(num_fields,fe_space_field_blocks,__FILE__,__LINE__)
      fe_space_field_blocks(1:num_fields) = 1    
      istat = parameters%set(key = fes_field_blocks_key, value = fe_space_field_blocks); assert(istat==0)
-     wassert( .false., "FE_SPACE_FIELD_BLOCKS size is different from FE_SPACE_NUM_FIELDS, assuming monolithic storage")
+     massert( .false., fes_field_blocks_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name // ", assuming monolithic storage")
    end if
 end subroutine serial_fe_space_get_fe_space_field_blocks_from_pl 
                                                            
