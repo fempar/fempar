@@ -34,6 +34,7 @@ module reference_fe_names
   use memor_names
   use sort_names
   use polynomial_names
+  use FPL, only: string
   
 #ifdef ENABLE_BLAS
  use blas77_interfaces_names

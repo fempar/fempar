@@ -975,6 +975,7 @@ contains
     subroutine fph_fes_define_parameters(this)
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
+      type(string) :: string_array(1)
 
       ! Number of fields in the FE space
       call this%add(fes_num_fields_key, &
@@ -995,9 +996,10 @@ contains
            'Set IDs to reference FEs for every field')
 
       ! Reference FE IDs    
+      string_array(1) = fe_type_lagrangian 
       call this%add(fes_ref_fe_types_key, &
            fes_ref_fe_types_cla_name, &
-           fe_type_lagrangian, &
+           string_array, &
            'Reference finite element types')
 
       ! Reference FE order (0,1,2,...) fe_space_orders_key
@@ -1021,9 +1023,10 @@ contains
            'Finite element space continuities')
 
       ! FE field types (scalar, vector, tensor)
+      string_array(1) = field_type_scalar 
       call this%add(fes_field_types_key, &
            fes_field_types_cla_name, &
-           field_type_scalar, &
+           string_array, &
            'Finite element space field types')
 
       ! FE field blocks (scalar, vector, tensor)

@@ -88,6 +88,7 @@ program tutorial_01_steady_poisson
   character(len=16)            :: lin_solver_type
   class(vector_t), pointer     :: dof_values
   class(vector_t), allocatable :: rhs
+  type(string)                 :: fes_ref_fe_types(1)
   !* ### Environment initialization
   real(rp) :: l2
   !*
@@ -104,10 +105,11 @@ program tutorial_01_steady_poisson
   call parameter_handler%process_parameters()
 
   !* Overwrite fempar default parameters for the integration
-  call parameter_handler%update(struct_hex_mesh_generator_num_dims_key, value = 2 )                ! Number of space dimensions
-  call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10,10] )  ! Number of cells per each dimension
-  call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                             ! Reference finite element orders
-  call parameter_handler%update(fes_ref_fe_types_key, value = 'Lagrangian' )                       ! Reference finite element types
+  fes_ref_fe_types(1) = String('Lagrangian')
+  call parameter_handler%update(struct_hex_mesh_generator_num_dims_key, value = 2 )                 ! Number of space dimensions
+  call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10,10] ) ! Number of cells per each dimension
+  call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                              ! Reference finite element orders
+  call parameter_handler%update(fes_ref_fe_types_key, value = fes_ref_fe_types )                    ! Reference finite element types
 
   !* Obtain the list containing all fempar parameters
   parameter_list => parameter_handler%get_values()

@@ -35,7 +35,6 @@ module fe_space_names
   use allocatable_array_names
   use hash_table_names
   use std_vector_names
-  use token_utils_names
   use FPL
 
   use environment_names
