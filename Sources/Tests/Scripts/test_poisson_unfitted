@@ -20,7 +20,7 @@ then
     then
        for order in 1 2 3
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 0 -in_space .true. -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 0 -in_space .true. -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -36,7 +36,7 @@ then
     then       
        for order in 1
         do
-            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 4 -in_space .true. -order $order"
+            COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 4 -in_space .true. -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -54,7 +54,7 @@ then
         do
           for nelem in 3 5 10
           do
-              COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $mesh_prefix_flag square_tetrahedra_"$nelem"x"$nelem" $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" -in_space .true. -order $order"
+              COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $mesh_prefix_flag square_tetrahedra_"$nelem"x"$nelem" $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag square_tetrahedra_"$nelem"x"$nelem" -in_space .true. -order $order"
               echo $COMMAND
               eval $COMMAND
               if [ $? -ne 0 ] 
@@ -73,7 +73,7 @@ then
         do
           for nelem in 3 5 10
           do
-              COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $mesh_prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" -in_space .true. -order $order"
+              COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $mesh_prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" -in_space .true. -order $order"
               echo $COMMAND
               eval $COMMAND
               if [ $? -ne 0 ]
@@ -89,7 +89,7 @@ then
     then
         order=1
         nelem=3
-        COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $mesh_prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" -in_space .true. -order $order"
+        COMMAND="$TEST_BINARY_PATH  $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $mesh_prefix_flag cube_tetrahedra_"$nelem"x"$nelem" $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra_"$nelem"x"$nelem".gid $prefix_flag cube_tetrahedra_"$nelem"x"$nelem" -in_space .true. -order $order"
         echo $COMMAND
         eval $COMMAND
         if [ $? -ne 0 ]

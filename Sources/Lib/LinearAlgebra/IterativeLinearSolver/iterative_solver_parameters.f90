@@ -59,16 +59,16 @@ module iterative_linear_solver_parameters_names
                                                                                delta_delta_and_res_rhs
                                                                                
    character(len=*), parameter, public :: ils_stopping_criterium_cla_help    = "stopping criterium type" // BRK_LINE // & 
-                                                                               res_nrmgiven_rhs_nrmgiven // ": ||r(i)||_g <= rtol*||b||_g + atol" // BRK_LINE // & 
-                                                                               res_nrmgiven_res_nrmgiven // ": ||r(i)||_g <= rtol*||r(0)||_g + atol" // BRK_LINE // &
-                                                                               delta_rhs  // ": ||dx(i)|| <= rtol*||b|| + atol" // BRK_LINE // &
-                                                                               delta_delta // ": ||dx(i)|| <= rtol*||dx(1)|| + atol" // BRK_LINE // &
-                                                                               res_res // ": ||r(i)|| <= rtol*||r(0)|| + atol" // BRK_LINE // &
-                                                                               res_rhs // ": ||r(i)||  <= rtol*||b|| + atol" // BRK_LINE // &
-                                                                               delta_rhs_and_res_res // ": delta_rhs AND res_res" // BRK_LINE // &
-                                                                               delta_rhs_and_res_rhs // ": delta_rhs AND res_rhs" // BRK_LINE // &
-                                                                               delta_delta_and_res_res // ": delta_delta AND res_res" // BRK_LINE // &
-                                                                               delta_delta_and_res_rhs // ": delta_delta AND res_rhs"
+                                                                               BULLET_FLAP_HELP_MESSAGE // res_nrmgiven_rhs_nrmgiven // ": ||r(i)||_g <= rtol*||b||_g + atol; r(i)=b-A*x(i)" // BRK_LINE // & 
+                                                                               BULLET_FLAP_HELP_MESSAGE // res_nrmgiven_res_nrmgiven // ": ||r(i)||_g <= rtol*||r(0)||_g + atol; r(i)=b-A*x(i)" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE //  delta_rhs  // ": ||dx(i)|| <= rtol*||b|| + atol; dx(i)=x(i)-x(i-1)" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // delta_delta // ": ||dx(i)|| <= rtol*||dx(1)|| + atol; dx(i)=x(i)-x(i-1)" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // res_res // ": ||r(i)|| <= rtol*||r(0)|| + atol" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // res_rhs // ": ||r(i)||  <= rtol*||b|| + atol" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // delta_rhs_and_res_res // ": delta_rhs AND res_res" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // delta_rhs_and_res_rhs // ": delta_rhs AND res_rhs" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // delta_delta_and_res_res // ": delta_delta AND res_res" // BRK_LINE // &
+                                                                               BULLET_FLAP_HELP_MESSAGE // delta_delta_and_res_rhs // ": delta_delta AND res_rhs"
                                                                                
   !-------------------------------------------------------------------
   ! String parameters with the names of the parameters for iterative linear solvers
@@ -105,13 +105,24 @@ module iterative_linear_solver_parameters_names
   character(len=*), parameter :: richardson_name = 'RICHARDSON' ! RICHARDSON iterative linear solver
   
   character(len=*), parameter, public :: ils_type_cla_choices  = cg_name         // "," // &
-                                                                 fgmres_name     // "," // &
                                                                  icg_name        // "," // &
+                                                                 minres_name     // "," // &
                                                                  lfom_name       // "," // &
                                                                  lgmres_name     // "," // &
-                                                                 minres_name     // "," // &
+                                                                 rgmres_name     // "," // &
+                                                                 fgmres_name     // "," // &
                                                                  richardson_name
-
+ 
+  character(len=*), parameter, public :: ils_type_cla_help    = "Iterative linear solver type" // BRK_LINE // & 
+                                                               BULLET_FLAP_HELP_MESSAGE // cg_name // ": Preconditioned Conjugate Gradients Solver" // BRK_LINE // & 
+                                                               BULLET_FLAP_HELP_MESSAGE // icg_name // ": Preconditioned Inexact Conjugate Gradients Solver" // BRK_LINE // &
+                                                               BULLET_FLAP_HELP_MESSAGE // minres_name // ": Preconditioned Minimum Residual Solver" // BRK_LINE // &
+                                                               BULLET_FLAP_HELP_MESSAGE // lfom_name // ": Left-Preconditioned Full Orthogonalization Method Solver" // BRK_LINE // &
+                                                               BULLET_FLAP_HELP_MESSAGE // lgmres_name // ": Left-Preconditioned Generalized Minimum Residual Solver" // BRK_LINE // &
+                                                               BULLET_FLAP_HELP_MESSAGE // rgmres_name // ": Right-Preconditioned Generalized Minimum Residual Solver" // BRK_LINE // &
+                                                               BULLET_FLAP_HELP_MESSAGE // fgmres_name // ": Preconditioned Flexible Generalized Minimum Residual Solver" // BRK_LINE // &
+                                                               BULLET_FLAP_HELP_MESSAGE // richardson_name // ": (Relaxed) Preconditioned Richardson Fixed-Point Solver"
+                                                               
   !-----------------------------------------------------------------
   ! Some common parameters to FGMRES, LFOM, LGMRES and RGMRES iterative linear solvers
   !-----------------------------------------------------------------
@@ -121,13 +132,16 @@ module iterative_linear_solver_parameters_names
   character(len=*), parameter :: ils_max_dim_krylov_basis_cla_name = '--'//ils_max_dim_krylov_basis_key
   character(len=*), parameter :: ils_orthonorm_strategy_cla_name   = '--'//ils_orthonorm_strategy_key
 
-  character(len=*), parameter :: orthonorm_strat_icgsro  = 'ICGSRO' 
-  character(len=*), parameter :: orthonorm_strat_mgsro   = 'MGSRO'
+  character(len=*), parameter :: orthonorm_strat_icgsro  = 'ICGSRO'  ! icgs: Iterative Classical Gram-Schmidt (appropriate for distributed GMRES)
+  character(len=*), parameter :: orthonorm_strat_mgsro   = 'MGSRO'   ! mgs : Modified Gram-Schmidt (appropriate for serial GMRES)
   
-  integer (ip), parameter :: mgsro  = 1 ! mgs : Modified Gram-Schmidt (appropriate for serial GMRES)
-  integer (ip), parameter :: icgsro = 2 ! icgs: Iterative Classical Gram-Schmidt (appropriate for distributed GMRES)
-
-
+  character(len=*), parameter, public :: ils_orthonorm_strategy_cla_choices  = orthonorm_strat_icgsro // "," // &
+                                                                               orthonorm_strat_mgsro
+ 
+  character(len=*), parameter, public :: ils_orthonorm_strategy_cla_help    = "Orthonormalization strategy (for XGMRES/LFOM)" // BRK_LINE // & 
+                                                               BULLET_FLAP_HELP_MESSAGE // orthonorm_strat_icgsro // ": Iterative Classical Gram-Schmidt (appropriate for MPI-parallel variants)" // BRK_LINE // & 
+                                                               BULLET_FLAP_HELP_MESSAGE // orthonorm_strat_mgsro // ": Modified Gram-Schmidt (appropriate for serial variants)"
+  
   !-----------------------------------------------------------------
   ! Parameters used in RICHARDSON iterative linear solvers
   !-----------------------------------------------------------------
@@ -154,6 +168,6 @@ module iterative_linear_solver_parameters_names
   character(len=*), parameter :: default_richardson_stopping_criteria = res_res
   real (rp),    parameter :: default_richardson_relaxation            = 1.0_rp
   integer (ip), parameter :: default_dkrymax                          = 1000
-  integer (ip), parameter :: default_orthonorm_strat                  = icgsro
+  character(*), parameter :: default_orthonorm_strat                  = orthonorm_strat_icgsro
   
 end module iterative_linear_solver_parameters_names

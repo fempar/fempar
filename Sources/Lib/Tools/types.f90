@@ -84,6 +84,7 @@ module types_names
   integer(ip) , parameter :: str_cla_len                 = 512 ! String Command line argument lenght
   character(*), parameter :: FLAP_HELP_MESSAGE_TABULATOR = "    "
   character(*), parameter :: BRK_LINE = NEW_LINE(FLAP_HELP_MESSAGE_TABULATOR) // FLAP_HELP_MESSAGE_TABULATOR
+  character(*), parameter :: BULLET_FLAP_HELP_MESSAGE = "* " 
 
   interface
      subroutine runend

@@ -16,7 +16,7 @@ then
     then  
        for order in 4 # 1 2 5
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_cells_x_dim_flag 2 2 0 -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 2 2 0 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -32,7 +32,7 @@ then
     then          
        for order in 1
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag struct_hex_mesh_generator $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 2 2 2 -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 2 2 2 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 

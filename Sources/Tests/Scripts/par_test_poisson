@@ -30,7 +30,7 @@ then
             echo $COMMAND
             eval $COMMAND
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag 'square_quads' $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag 'square_quads'"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag 'square_quads' $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag 'square_quads'"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -57,7 +57,7 @@ then
              echo $COMMAND
              eval $COMMAND
 
-             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag 'square_tetrahedra' $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra'"
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag 'square_tetrahedra' $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra'"
              echo $COMMAND
              eval $COMMAND
              if [ $? -ne 0 ]
@@ -84,7 +84,7 @@ then
              echo $COMMAND
              eval $COMMAND
 
-             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag 'cube_hexas' $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag 'cube_hexas'"
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag 'cube_hexas' $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag 'cube_hexas'"
              echo $COMMAND
              eval $COMMAND
              if [ $? -ne 0 ] 
@@ -111,7 +111,7 @@ then
              echo $COMMAND
              eval $COMMAND
 
-             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag mesh_data_files $mesh_dir_path_flag  $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra' $dir_path_flag  $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra'"
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag  $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra' $dir_path_flag  $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra'"
              echo $COMMAND
              eval $COMMAND
              if [ $? -ne 0 ] 

@@ -796,8 +796,8 @@ contains
       call this%add(static_triang_generate_from_key, &
            static_triang_generate_cla_name, &
            static_triang_generate_from_struct_hex_mesh_generator, &
-           'Way to generate static triangulation') !, &
-           ! choices = static_triang_generate_cla_choices)
+           static_triang_generate_cla_help, &
+           choices = static_triang_generate_cla_choices)
       
       call this%add(static_triang_geometric_interpolation_order_key, &
            static_triang_geometric_interpolation_order_cla_name, &
@@ -1070,12 +1070,11 @@ contains
     subroutine fph_ils_define_parameters(this)
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
-
       ! Iterative linear solver keys
       call this%add(ils_type_key, & 
            ils_type_cla_name, & 
            rgmres_name,  & 
-           'Iterative linear solver type', &
+           ils_type_cla_help, &
            choices = ils_type_cla_choices)
 
       call this%add(ils_rtol_key, & 
@@ -1097,7 +1096,7 @@ contains
       call this%add(ils_output_frequency_key, & 
            ils_output_frequency_cla_name, & 
            default_output_frequency, & 
-           'Frequency for output printing (=0 for no output at all)') 
+           'Frequency for convergence history output printing (=0 for no output at all)') 
 
       call this%add(ils_max_num_iterations_key, & 
            ils_max_num_iterations_cla_name, & 
@@ -1112,12 +1111,13 @@ contains
       call this%add(ils_max_dim_krylov_basis_key, & 
            ils_max_dim_krylov_basis_cla_name, & 
            default_dkrymax, & 
-           'Maximum dimension of Krylov basis') 
+           'Maximum dimension of Krylov basis for XGMRES/LFOM (i.e., restart parameter)') 
 
       call this%add(ils_orthonorm_strategy_key, & 
            ils_orthonorm_strategy_cla_name, & 
            default_orthonorm_strat, & 
-           'Orthonormalization strategy (for GMRES)')
+           ils_orthonorm_strategy_cla_help, &
+           choices=ils_orthonorm_strategy_cla_choices)
 
       call this%add(ils_relaxation_key, & 
            ils_relaxation_cla_name, & 

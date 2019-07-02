@@ -48,7 +48,7 @@ module rgmres_names
   type, extends(base_iterative_linear_solver_t) :: rgmres_t
      ! Parameters
      integer(ip)                    :: dkrymax
-     integer(ip)                    :: orthonorm_strat
+     character(len=:), allocatable  :: orthonorm_strat
 
      ! Working space data members
      type(multivector_t)            :: bkry
@@ -245,9 +245,9 @@ contains
           if ( environment%am_i_l1_task() ) then
              ! Orthogonalize
              select case( this%orthonorm_strat )
-             case ( mgsro )
+             case ( orthonorm_strat_mgsro )
                 call modified_gs_reorthonorm  (luout, kloc+1, this%bkry, this%hh(1,kloc), ierrc )
-             case ( icgsro )
+             case ( orthonorm_strat_icgsro )
                 call iterative_gs_reorthonorm (luout, kloc+1, this%bkry, this%hh(1,kloc), ierrc )
              case default
                 check(.false.)
