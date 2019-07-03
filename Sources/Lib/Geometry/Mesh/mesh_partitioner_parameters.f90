@@ -127,7 +127,7 @@ module mesh_partitioner_parameters_names
                             "  by cells with consecutive cell identifiers (the mesh partition"  // BRK_LINE // &
                             "  thus depends on the numbering of mesh cells)"                    // BRK_LINE // &
                        BULLET_FLAP_HELP_MESSAGE // part_rcm_strip // &
-                            ": As part_strip, but the mesh cell identifiers (the dual"          // BRK_LINE // &
+                            ": As "//part_strip//", but the mesh cell identifiers (the dual"    // BRK_LINE // &
                             "  graph vertex identifiers) are re-ordered using the Reverse"      // BRK_LINE // &
                             "  Cuthill-McKee algorithm in advance"
 
