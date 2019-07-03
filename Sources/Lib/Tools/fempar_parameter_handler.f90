@@ -946,37 +946,41 @@ contains
       call this%add(mesh_partitioner_strategy_key, &
            mesh_partitioner_strategy_cla_name, &
            metis_part_kway, &
-           'Strategy key for partitioner') 
+           mesh_partitioner_strategy_cla_help) 
 
       call this%add(mesh_partitioner_metis_option_debug_key, &
            mesh_partitioner_metis_option_debug_cla_name, &
            2, &
-           'METIS option debug') 
+           "METIS_OPTION_DBGLVL (see METIS users' manual for additional details)") 
 
       call this%add(mesh_partitioner_metis_option_ufactor_key, &
            mesh_partitioner_metis_option_ufactor_cla_name, &
            30, &
-           'METIS option ufactor') 
+           "METIS_OPTION_UFACTOR, (see METIS users' manual for additional details)")
 
       call this%add(mesh_partitioner_metis_option_minconn_key, &
            mesh_partitioner_metis_option_minconn_cla_name, &
            0, &
-           'METIS option minconn') 
+           mesh_partitioner_metis_option_minconn_cla_help, &
+           choices = mesh_partitioner_metis_option_minconn_cla_choices)
 
       call this%add(mesh_partitioner_metis_option_contig_key, &
            mesh_partitioner_metis_option_contig_cla_name, &
            1, &
-           'METIS option config') 
+           mesh_partitioner_metis_option_contig_cla_help, &
+           choices = mesh_partitioner_metis_option_contig_cla_choices)
 
       call this%add(mesh_partitioner_metis_option_ctype_key, &
            mesh_partitioner_metis_option_ctype_cla_name, &
            METIS_CTYPE_SHEM, &
-           'METIS option ctype')
+           mesh_partitioner_metis_option_ctype_cla_help, &
+           choices = mesh_partitioner_metis_option_ctype_cla_choices)
 
       call this%add(metis_option_iptype_key, &
            mesh_partitioner_metis_option_iptype_cla_name, &
            METIS_IPTYPE_EDGE, &
-           'METIS option iptype')
+           mesh_partitioner_metis_option_iptype_cla_help, &
+           choices = mesh_partitioner_metis_option_iptype_cla_choices)
     end subroutine fph_mesh_partitioner_define_parameters
     
     subroutine fph_fes_define_parameters(this)

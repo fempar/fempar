@@ -30,6 +30,10 @@ module mesh_partitioner_parameters_names
   use metis_names
   implicit none
 
+  ! ---------------------------------------------------------------------------
+  ! CLI keys
+  ! ---------------------------------------------------------------------------
+
   character(len=*), parameter :: mesh_partitioner_num_levels_key        = 'MESH_PARTITIONER_NUM_LEVELS'
   character(len=*), parameter :: mesh_partitioner_num_parts_x_level_key = 'MESH_PARTITIONER_NUM_PARTS_X_LEVEL'
   character(len=*), parameter :: mesh_partitioner_strategy_key          = 'MESH_PARTITIONER_STRATEGY'
@@ -42,6 +46,10 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_metis_option_contig_key  = 'MESH_PARTITIONER_METIS_OPTION_CONFIG'
   character(len=*), parameter :: mesh_partitioner_metis_option_ctype_key   = 'MESH_PARTITIONER_METIS_OPTION_CTYPE'
   character(len=*), parameter :: metis_option_iptype_key                   = 'MESH_PARTITIONER_METIS_OPTION_IPTYPE'
+
+  ! ---------------------------------------------------------------------------
+  ! CLI arguments
+  ! ---------------------------------------------------------------------------
 
   character(len=*), parameter :: mesh_partitioner_num_levels_cla_name         = '--'//mesh_partitioner_num_levels_key
   character(len=*), parameter :: mesh_partitioner_num_parts_x_level_cla_name  = '--'//mesh_partitioner_num_parts_x_level_key
@@ -56,15 +64,33 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_metis_option_ctype_cla_name   = '--'//mesh_partitioner_metis_option_ctype_key
   character(len=*), parameter :: mesh_partitioner_metis_option_iptype_cla_name  = '--'//metis_option_iptype_key
 
-  character(len=*), parameter :: metis_part_kway      = 'metis_part_kway'
-  character(len=*), parameter :: metis_part_recursive = 'metis_part_recursive'
-  character(len=*), parameter :: part_strip           = 'part_strip'
-  character(len=*), parameter :: part_rcm_strip       = 'part_rcm_strip'
-  
-  character(len=*), parameter :: mesh_partitioner_default_dir_path_output = '.'  
-  character(len=*), parameter :: mesh_partitioner_default_prefix_output   = 'mesh_partition'
+  character(len=*), parameter :: metis_part_kway      = 'METIS_PART_KWAY'
+  character(len=*), parameter :: metis_part_recursive = 'METIS_PART_RECURSIVE'
+  character(len=*), parameter :: part_strip           = 'PART_STRIP'
+  character(len=*), parameter :: part_rcm_strip       = 'PART_RCM_STRIP'
+
+  ! ---------------------------------------------------------------------------
+  ! CLI choices
+  ! ---------------------------------------------------------------------------
+
+  character(len=*), parameter :: mesh_partitioner_strategy_cla_choices = metis_part_kway      // ',' // &
+                                                                         metis_part_recursive // ',' // &
+                                                                         part_strip           // ',' // &
+                                                                         part_rcm_strip 
+
+  character(len=*), parameter :: mesh_partitioner_metis_option_iptype_cla_choices = '0,1,2,3,4'
+  character(len=*), parameter :: mesh_partitioner_metis_option_ctype_cla_choices   = '0,1'
+  character(len=*), parameter :: mesh_partitioner_metis_option_minconn_cla_choices = '0,1'
+  character(len=*), parameter :: mesh_partitioner_metis_option_contig_cla_choices  = '0,1'
+
+  ! ---------------------------------------------------------------------------
+  ! Default values
+  ! ---------------------------------------------------------------------------
   
   character(len=*), parameter :: mesh_partitioner_default_strat = metis_part_kway
+
+  character(len=*), parameter :: mesh_partitioner_default_dir_path_output = '.'  
+  character(len=*), parameter :: mesh_partitioner_default_prefix_output   = 'mesh_partition'
   
   ! Use METIS defaults (i.e., == -1) 30 for part_kway, and 1 for part_recursive
   integer(ip), parameter :: mesh_partitioner_default_metis_option_ufactor = -1
@@ -82,5 +108,51 @@ module mesh_partitioner_parameters_names
   integer(ip), parameter :: mesh_partitioner_default_metis_option_iptype = METIS_IPTYPE_GROW
   
   integer(ip), parameter :: mesh_partitioner_default_metis_option_debug = 0
+
+  ! ---------------------------------------------------------------------------
+  ! CLI help messages
+  ! ---------------------------------------------------------------------------
+
+  character(len=*), parameter :: mesh_partitioner_strategy_cla_help = &
+                       'Mesh partitioning strategy/algorithm'                                   // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // metis_part_kway // &
+                            ": Partitions the mesh (dual graph) into $k$ parts using"           // BRK_LINE // &
+                            "  multilevel k-way partitioning as implemented in METIS"           // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // metis_part_recursive // &
+                            ": Partitions the mesh (dual graph) into $k$ parts"                 // BRK_LINE // &
+                            "  using multilevel recursive bisection as implemented in METIS"    // BRK_LINE // &
+                       BULLET_FLAP_HELP_MESSAGE // part_strip // &
+                            ": Uses a trivial algorithm to partition the mesh (dual graph)"     // BRK_LINE // &
+                            "  cells into equally-sized blocks, where each block is composed"   // BRK_LINE // &
+                            "  by cells with consecutive cell identifiers (the mesh partition"  // BRK_LINE // &
+                            "  thus depends on the numbering of mesh cells)"                    // BRK_LINE // &
+                       BULLET_FLAP_HELP_MESSAGE // part_rcm_strip // &
+                            ": As part_strip, but the mesh cell identifiers (the dual"          // BRK_LINE // &
+                            "  graph vertex identifiers) are re-ordered using the Reverse"      // BRK_LINE // &
+                            "  Cuthill-McKee algorithm in advance"
+
+  character(len=*), parameter :: mesh_partitioner_metis_option_iptype_cla_help = &
+                       "METIS_OPTION_IPTYPE (see METIS users' manual for additional details)"                                         // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "0: METIS_IPTYPE_GROW (Grows a bisection using a greedy strategy)"                 // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "1: METIS_IPTYPE_RANDOM (Computes a bisection at random followed by a refinement)" // BRK_LINE // &
+                       BULLET_FLAP_HELP_MESSAGE // "2: METIS_IPTYPE_EDGE (Derives a separator from an edge cut)"                      // BRK_LINE // &
+                       BULLET_FLAP_HELP_MESSAGE // "3: METIS_IPTYPE_NODE (Grow a bisection using a greedy node-based strategy)"       // BRK_LINE // &
+                       BULLET_FLAP_HELP_MESSAGE // "4: METIS_IPTYPE_METISRB"
+
+  character(len=*), parameter :: mesh_partitioner_metis_option_ctype_cla_help = &
+                       "METIS_OPTION_CTYPE (see METIS users' manual for additional details)" // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "0: METIS_CTYPE_RM (Random matching)"                       // BRK_LINE // &
+                       BULLET_FLAP_HELP_MESSAGE // "1: METIS_CTYPE_SHEM (Sorted heavy-edge matching)" 
+
+  character(len=*), parameter :: mesh_partitioner_metis_option_minconn_cla_help = &
+                       "METIS_OPTION_MINCONN (see METIS users' manual for additional details)"                  // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "0: Does not explicitly minimize the maximum connectivity"   // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "1: Explicitly minimize the maximum connectivity"
+
+
+  character(len=*), parameter :: mesh_partitioner_metis_option_contig_cla_help = &
+                       "METIS_OPTION_CONTIG (see METIS users' manual for additional details)"  // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "0: Does not force contiguous partitions"   // BRK_LINE // & 
+                       BULLET_FLAP_HELP_MESSAGE // "1: Forces contiguous partitions"
 
 end module mesh_partitioner_parameters_names
