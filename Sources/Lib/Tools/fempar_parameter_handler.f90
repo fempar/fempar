@@ -656,25 +656,25 @@ contains
                     error = values%GetPointer(key = key, value=val0); assert(error==0)
                     select type(val0)
                         type is(character(*))
-                            call this%cli%get(group=group,switch=switch, val=val_ch, error=error)
-                            error = values%Set(key = key, value=trim(adjustl(val_ch))); assert(error==0)
+                            call this%cli%get(group=group,switch=switch, val=val_ch, error=error); assert(error==0)
+                            error = values%Set(key = key, value=trim(adjustl(val_ch)));            assert(error==0)
                         type is(string)
-                            call this%cli%get(group=group,switch=switch, val=val_ch, error=error)
-                            error = values%Set(key = key, value=string(trim(adjustl(val_ch)))); assert(error==0)
+                            call this%cli%get(group=group,switch=switch, val=val_ch, error=error); assert(error==0)
+                            error = values%Set(key = key, value=string(trim(adjustl(val_ch))));    assert(error==0)
                         class default
-                            call this%cli%get(group=group,switch=switch, val=val0, error=error)
+                            call this%cli%get(group=group,switch=switch, val=val0, error=error);   assert(error==0)
                     end select
                 else if(values%GetDimensions(key = key)==1) then
                     error = values%GetPointer(key = key, value=val1); assert(error==0)
                     select type(val1)
                         type is(integer(ip))
-                            call this%cli%get_varying(group=group,switch=switch, val=val_ip, error=error); assert(error==0)
+                            call this%cli%get_varying(group=group,switch=switch, val=val_ip, error=error);   assert(error==0)
                             error = values%set(key = key, value = val_ip); assert(error==0)
                         type is(real(rp))
-                            call this%cli%get_varying(group=group,switch=switch, val=val_rp, error=error); assert(error==0)
+                            call this%cli%get_varying(group=group,switch=switch, val=val_rp, error=error);   assert(error==0)
                             error = values%set(key = key, value = val_rp); assert(error==0)
                         type is(logical)
-                            call this%cli%get_varying(group=group,switch=switch, val=val_l, error=error); assert(error==0)
+                            call this%cli%get_varying(group=group,switch=switch, val=val_l, error=error);    assert(error==0)
                             error = values%set(key = key, value = val_l); assert(error==0)
                         type is(character(*))
                             call this%cli%get_varying(group=group,switch=switch, val=val_dlca, error=error); assert(error==0)
@@ -684,7 +684,7 @@ contains
                             if(allocated(val_str)) deallocate(val_str)
                             allocate(val_str(size(val_dlca,dim=1)))
                             val_str = [(string(trim(adjustl(val_dlca(i)))),i=1,size(val_dlca,dim=1))]
-                            error = values%set(key = key, value = val_str); assert(error==0)
+                            error = values%set(key = key, value = val_str);                                  assert(error==0)
                         class default
                             assert(.false.)
                     end select
@@ -869,7 +869,7 @@ contains
            p4est_triang_log_level_cla_name, &
            default_p4est_triang_log_level, &
            p4est_triang_log_level_help, &
-           p4est_triang_log_level_choices)
+           choices = p4est_triang_log_level_choices)
 
       call this%add(p4est_triang_2_1_k_balance_key, &
            p4est_triang_2_1_k_balance_cla_name, &
@@ -946,37 +946,41 @@ contains
       call this%add(mesh_partitioner_strategy_key, &
            mesh_partitioner_strategy_cla_name, &
            metis_part_kway, &
-           'Strategy key for partitioner') 
+           mesh_partitioner_strategy_cla_help) 
 
       call this%add(mesh_partitioner_metis_option_debug_key, &
            mesh_partitioner_metis_option_debug_cla_name, &
            2, &
-           'METIS option debug') 
+           "METIS_OPTION_DBGLVL (see METIS users' manual for additional details)") 
 
       call this%add(mesh_partitioner_metis_option_ufactor_key, &
            mesh_partitioner_metis_option_ufactor_cla_name, &
            30, &
-           'METIS option ufactor') 
+           "METIS_OPTION_UFACTOR, (see METIS users' manual for additional details)")
 
       call this%add(mesh_partitioner_metis_option_minconn_key, &
            mesh_partitioner_metis_option_minconn_cla_name, &
            0, &
-           'METIS option minconn') 
+           mesh_partitioner_metis_option_minconn_cla_help, &
+           choices = mesh_partitioner_metis_option_minconn_cla_choices)
 
       call this%add(mesh_partitioner_metis_option_contig_key, &
            mesh_partitioner_metis_option_contig_cla_name, &
            1, &
-           'METIS option config') 
+           mesh_partitioner_metis_option_contig_cla_help, &
+           choices = mesh_partitioner_metis_option_contig_cla_choices)
 
       call this%add(mesh_partitioner_metis_option_ctype_key, &
            mesh_partitioner_metis_option_ctype_cla_name, &
            METIS_CTYPE_SHEM, &
-           'METIS option ctype')
+           mesh_partitioner_metis_option_ctype_cla_help, &
+           choices = mesh_partitioner_metis_option_ctype_cla_choices)
 
       call this%add(metis_option_iptype_key, &
            mesh_partitioner_metis_option_iptype_cla_name, &
            METIS_IPTYPE_EDGE, &
-           'METIS option iptype')
+           mesh_partitioner_metis_option_iptype_cla_help, &
+           choices = mesh_partitioner_metis_option_iptype_cla_choices)
     end subroutine fph_mesh_partitioner_define_parameters
     
     subroutine fph_fes_define_parameters(this)

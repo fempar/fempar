@@ -70,7 +70,7 @@ module p4est_triangulation_parameters_names
   character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_choices = '0,1,2'
   character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_choices = '0,1,2'
 
-  character(len=*), parameter, public :: p4est_triang_log_level_help    = "Iterative linear solver type"      // BRK_LINE // & 
+  character(len=*), parameter, public :: p4est_triang_log_level_help    = "P4EST library level of logging output"      // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // "-1: SC_LP_DEFAULT    (this selects the SC default threshold)" // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // " 0: SC_LP_ALWAYS     (this will log everything)"              // BRK_LINE // &
                    BULLET_FLAP_HELP_MESSAGE // " 1: SC_LP_TRACE      (this will prefix file and line number)" // BRK_LINE // &
