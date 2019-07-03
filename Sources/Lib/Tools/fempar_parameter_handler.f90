@@ -868,7 +868,8 @@ contains
       call this%add(p4est_triang_log_level_key, &
            p4est_triang_log_level_cla_name, &
            default_p4est_triang_log_level, &
-           'p4est library level of logging output')
+           p4est_triang_log_level_help, &
+           p4est_triang_log_level_choices)
 
       call this%add(p4est_triang_2_1_k_balance_key, &
            p4est_triang_2_1_k_balance_cla_name, &
@@ -1227,12 +1228,13 @@ contains
       call this%add(output_handler_vtk_format_key, &
            output_handler_vtk_format_cla_name, &
            output_handler_vtk_format_default, &
-           'Prefix to generate the names of the generated files')
+           output_handler_vtk_format_cla_help, &
+           choices = output_handler_vtk_format_cla_choices)
       
       call this%add(output_handler_xh5_strategy_key, &
            output_handler_xh5_strategy_cla_name, &
            output_handler_xh5_strategy_default, &
-           'Parallel IO strategy (800: Contiguous hyperslabs, 801: Dataset per process). See XH5For docs.', &
+           output_handler_xh5_strategy_cla_help, &
            choices = output_handler_xh5_strategy_cla_choices)
       
       call this%add(output_handler_xh5_info_key, &

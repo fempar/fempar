@@ -65,9 +65,23 @@ module p4est_triangulation_parameters_names
   character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_name = '--'//p4est_triang_2_1_k_balance_key
   character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_name = '--'//p4est_triang_k_ghost_cells_key
   
+  character(len=*), parameter :: p4est_triang_log_level_choices         = '-1,0,1,2,3,4,5,6,7,8,9'
   character(len=*), parameter :: p4est_triang_num_dims_cla_choices      = '2,3'
   character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_choices = '0,1,2'
   character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_choices = '0,1,2'
+
+  character(len=*), parameter, public :: p4est_triang_log_level_help    = "Iterative linear solver type"      // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // "-1: SC_LP_DEFAULT    (this selects the SC default threshold)" // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // " 0: SC_LP_ALWAYS     (this will log everything)"              // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 1: SC_LP_TRACE      (this will prefix file and line number)" // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 2: SC_LP_DEBUG      (any information on the internal state)" // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 3: SC_LP_VERBOSE    (information on conditions, decisions)"  // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 4: SC_LP_INFO       (the main things a function is doing)"   // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 5: SC_LP_STATISTICS (important for consistency/performance)" // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 6: SC_LP_PRODUCTION (a few lines for a major api function)"  // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 7: SC_LP_ESSENTIAL  (this logs a few lines max per program)" // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 8: SC_LP_ERROR      (this logs errors only)"                 // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 9: SC_LP_SILENT     (this never logs anything)"
   
   ! Unit square/cube by default; all points on and in the domain have space coordinates >= 0.0_rp
   real(rp)   , parameter :: default_p4est_triang_domain_limits (*) = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]  
