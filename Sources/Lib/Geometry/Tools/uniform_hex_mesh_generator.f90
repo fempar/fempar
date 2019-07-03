@@ -111,11 +111,11 @@ contains
     istat = parameter_list%get(key = struct_hex_mesh_generator_is_dir_periodic_key     , value = this%is_dir_periodic)       ; check(istat==0)
 
     ! Optional (array)
-    if( parameter_list%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_key) ) then
-       istat = parameter_list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_key   , shape = array_size); check(istat==0)
+    if( parameter_list%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) ) then
+       istat = parameter_list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key   , shape = array_size); check(istat==0)
        assert(array_size(1) >= this%num_levels*SPACE_DIM)
        call memalloc(array_size(1), this%num_parts_x_dir,__FILE__,__LINE__, lb1=0)
-       istat = parameter_list%get(key = struct_hex_mesh_generator_num_parts_x_dim_key , value = this%num_parts_x_dir); check(istat==0)
+       istat = parameter_list%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = this%num_parts_x_dir); check(istat==0)
     else
        assert(this%num_levels==1) ! It is mandatory for num_levels>1!
        call memalloc(SPACE_DIM, this%num_parts_x_dir,__FILE__,__LINE__, lb1=0)

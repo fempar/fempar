@@ -839,8 +839,8 @@ contains
            [10,10,10], &
            'Number of cells per dimension per level')  
 
-      call this%add(struct_hex_mesh_generator_num_parts_x_dim_key, &
-           struct_hex_mesh_generator_num_parts_x_dim_cla_name, &
+      call this%add(struct_hex_mesh_generator_num_parts_x_dim_x_level_key, &
+           struct_hex_mesh_generator_num_parts_x_dim_x_level_cla_name, &
            [1,1,1], &
            'Number of parts per dimension per level')
 
