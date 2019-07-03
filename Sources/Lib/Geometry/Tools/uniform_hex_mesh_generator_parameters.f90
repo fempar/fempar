@@ -27,20 +27,20 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module uniform_hex_mesh_generator_parameters_names
   implicit none  
-  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_key        = 'STRUCT_HEX_MESH_GENERATOR_NUM_DIMS'
-  character(len=*), parameter :: struct_hex_mesh_generator_num_levels_key      = 'STRUCT_HEX_MESH_GENERATOR_NUM_LEVELS'
-  character(len=*), parameter :: struct_hex_mesh_generator_num_cells_x_dim_key = 'STRUCT_HEX_MESH_GENERATOR_NUM_CELLS_X_DIM'
-  character(len=*), parameter :: struct_hex_mesh_generator_num_parts_x_dim_key = 'STRUCT_HEX_MESH_GENERATOR_NUM_PARTS_X_DIM'
-  character(len=*), parameter :: struct_hex_mesh_generator_is_dir_periodic_key = 'STRUCT_HEX_MESH_GENERATOR_IS_DIR_PERIODIC'
-  character(len=*), parameter :: struct_hex_mesh_generator_domain_limits_key   = 'STRUCT_HEX_MESH_GENERATOR_DOMAIN_LIMITS'
+  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_key                = 'STRUCT_HEX_MESH_GENERATOR_NUM_DIMS'
+  character(len=*), parameter :: struct_hex_mesh_generator_num_levels_key              = 'STRUCT_HEX_MESH_GENERATOR_NUM_LEVELS'
+  character(len=*), parameter :: struct_hex_mesh_generator_num_cells_x_dim_key         = 'STRUCT_HEX_MESH_GENERATOR_NUM_CELLS_X_DIM'
+  character(len=*), parameter :: struct_hex_mesh_generator_num_parts_x_dim_x_level_key = 'STRUCT_HEX_MESH_GENERATOR_NUM_PARTS_X_DIM_AND_X_LEVEL'
+  character(len=*), parameter :: struct_hex_mesh_generator_is_dir_periodic_key         = 'STRUCT_HEX_MESH_GENERATOR_IS_DIR_PERIODIC'
+  character(len=*), parameter :: struct_hex_mesh_generator_domain_limits_key           = 'STRUCT_HEX_MESH_GENERATOR_DOMAIN_LIMITS'
   
-  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_cla_name        = '--'//struct_hex_mesh_generator_num_dims_key
-  character(len=*), parameter :: struct_hex_mesh_generator_num_levels_cla_name      = '--'//struct_hex_mesh_generator_num_levels_key
-  character(len=*), parameter :: struct_hex_mesh_generator_num_cells_x_dim_cla_name = '--'//struct_hex_mesh_generator_num_cells_x_dim_key
-  character(len=*), parameter :: struct_hex_mesh_generator_num_parts_x_dim_cla_name = '--'//struct_hex_mesh_generator_num_parts_x_dim_key
-  character(len=*), parameter :: struct_hex_mesh_generator_is_dir_periodic_cla_name = '--'//struct_hex_mesh_generator_is_dir_periodic_key
-  character(len=*), parameter :: struct_hex_mesh_generator_domain_limits_cla_name   = '--'//struct_hex_mesh_generator_domain_limits_key
+  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_cla_name                = '--'//struct_hex_mesh_generator_num_dims_key
+  character(len=*), parameter :: struct_hex_mesh_generator_num_levels_cla_name              = '--'//struct_hex_mesh_generator_num_levels_key
+  character(len=*), parameter :: struct_hex_mesh_generator_num_cells_x_dim_cla_name         = '--'//struct_hex_mesh_generator_num_cells_x_dim_key
+  character(len=*), parameter :: struct_hex_mesh_generator_num_parts_x_dim_x_level_cla_name = '--'//struct_hex_mesh_generator_num_parts_x_dim_x_level_key
+  character(len=*), parameter :: struct_hex_mesh_generator_is_dir_periodic_cla_name         = '--'//struct_hex_mesh_generator_is_dir_periodic_key
+  character(len=*), parameter :: struct_hex_mesh_generator_domain_limits_cla_name           = '--'//struct_hex_mesh_generator_domain_limits_key
   
-  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_cla_choices     = '2,3'  
+  character(len=*), parameter :: struct_hex_mesh_generator_num_dims_cla_choices = '2,3'  
   
 end module uniform_hex_mesh_generator_parameters_names
