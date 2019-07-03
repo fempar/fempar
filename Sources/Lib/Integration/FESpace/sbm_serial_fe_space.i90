@@ -66,7 +66,7 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
     call memrealloc(num_fields,reference_fe_conformity,__FILE__,__LINE__)
     reference_fe_conformity(1:num_fields) = .true.   
     istat = parameters%set(key = fes_ref_fe_conformities_key, value = reference_fe_conformity);assert(istat==0)
-    wassert( .false., fes_ref_fe_conformities_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name // ", assuming conformity for all fields" )
+    wassert( .false., fes_ref_fe_conformities_key // " size is different from the value provided to " // fes_num_fields_key // ", assuming conformity for all fields" )
   end if
   
   istat = parameters%GetShape(Key=fes_ref_fe_continuities_key, Shape=Shape);assert(istat==0)
@@ -76,22 +76,22 @@ subroutine serial_fe_space_create_with_parameter_list( this,          &
     call memrealloc(num_fields,reference_fe_continuity,__FILE__,__LINE__)
     reference_fe_continuity(1:num_fields) = .true.   
     istat = parameters%set(key = fes_ref_fe_continuities_key, value = reference_fe_continuity);assert(istat==0)
-    wassert( .false., fes_ref_fe_continuities_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name // ", assuming conformity for all fields" )
+    wassert( .false., fes_ref_fe_continuities_key // " size is different from the value provided to " // fes_num_fields_key // ", assuming conformity for all fields" )
   end if
 
 
   istat = parameters%GetShape(Key=fes_field_types_key, Shape=Shape);assert(istat==0)
-  massert( Shape(1) == num_fields, fes_field_types_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name )
+  massert( Shape(1) == num_fields, fes_field_types_key // " size is different from the value provided to " // fes_num_fields_key )
   allocate(fe_space_field_types_array(Shape(1)))
   istat = parameters%get(key = fes_field_types_key, value = fe_space_field_types_array);assert(istat==0)
 
   istat = parameters%GetShape(Key=fes_ref_fe_types_key, Shape=Shape);assert(istat==0)
-  massert( Shape(1) == num_fields, fes_ref_fe_types_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name )
+  massert( Shape(1) == num_fields, fes_ref_fe_types_key // " size is different from the value provided to " // fes_num_fields_key )
   allocate(reference_fe_type_array(Shape(1)))
   istat = parameters%get(key = fes_ref_fe_types_key, value = reference_fe_type_array);assert(istat==0)
   
   istat = parameters%GetShape(Key=fes_ref_fe_orders_key, Shape=Shape);assert(istat==0)
-  massert( Shape(1) == num_fields, fes_ref_fe_orders_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name )
+  massert( Shape(1) == num_fields, fes_ref_fe_orders_key // " size is different from the value provided to " // fes_num_fields_key )
   call memalloc( num_fields, reference_fe_order, __FILE__, __LINE__) 
   istat = parameters%get(key = fes_ref_fe_orders_key, value = reference_fe_order)
 
@@ -184,7 +184,7 @@ subroutine serial_fe_space_get_fe_space_field_blocks_from_pl ( this, &
      call memrealloc(num_fields,fe_space_field_blocks,__FILE__,__LINE__)
      fe_space_field_blocks(1:num_fields) = 1    
      istat = parameters%set(key = fes_field_blocks_key, value = fe_space_field_blocks); assert(istat==0)
-     wassert( .false., fes_field_blocks_cla_name // " size is different from the value provided to " // fes_num_fields_cla_name // ", assuming monolithic storage")
+     wassert( .false., fes_field_blocks_key // " size is different from the value provided to " // fes_num_fields_key // ", assuming monolithic storage")
    end if
 end subroutine serial_fe_space_get_fe_space_field_blocks_from_pl 
                                                            
