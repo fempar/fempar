@@ -1095,7 +1095,7 @@ contains
        
        ! Explicitly minimize the maximum degree of the part graph
        options(METIS_OPTION_MINCONN)   = this%metis_option_minconn
-       options(METIS_OPTION_UFACTOR)   = this%metis_option_ufactor
+       if ( this%metis_option_ufactor /= -1 ) options(METIS_OPTION_UFACTOR) = this%metis_option_ufactor
 
        ! Select random (default) or sorted heavy edge matching
        options(METIS_OPTION_CTYPE)     = this%metis_option_ctype
@@ -1118,7 +1118,7 @@ contains
     else if ( this%strat == metis_part_recursive ) then
        options(METIS_OPTION_NUMBERING) = 1
        options(METIS_OPTION_DBGLVL)    = this%metis_option_debug
-       options(METIS_OPTION_UFACTOR)   = this%metis_option_ufactor
+       if ( this%metis_option_ufactor /= -1 ) options(METIS_OPTION_UFACTOR) = this%metis_option_ufactor
 
        ncon = 1 
        ierr = metis_partgraphrecursive( graph%get_num_pointers_c_loc(), c_loc(ncon), graph%get_pointers_c_loc(), graph%get_list_c_loc() , & 

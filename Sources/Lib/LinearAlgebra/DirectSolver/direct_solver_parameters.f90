@@ -68,13 +68,15 @@ implicit none
     ! Parameter choices
     character(len=*), parameter :: dls_type_cla_choices  = pardiso_mkl//','//umfpack
     character(len=*), parameter :: pardiso_mkl_message_level_cla_choices  = '0,1'
-    character(len=*), parameter :: pardiso_mkl_matrix_type_cla_choices   = '1,2,-2,3,4,-4,6,11,13'
+    character(len=*), parameter :: pardiso_mkl_matrix_type_cla_choices = '0,1,2,-2,11'
 
     ! Parameter help
+
     character(len=*), parameter :: dls_type_cla_help = "Direct solver type" // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // pardiso_mkl // ": Intel MKL PARDISO - Parallel Direct Sparse Solver Interface" // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // umfpack // ": UMFPACK - Unsymmetric MultiFrontal PACKage"
 
+    character(len=*), parameter :: pardiso_mkl_iparm_cla_help         = "PARDISO iparm array parameter (see PARDISO users' manual for additional details)"
     character(len=*), parameter :: pardiso_mkl_message_level_cla_help = "PARDISO Message level (see PARDISO users' manual for additional details)" // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // "0: No output is generated" // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // "1: Prints statistical information"
@@ -94,5 +96,6 @@ implicit none
     ! Parameter strings to be used in the Parameter List
     character(len=*), parameter :: umfpack_control_params            = 'UMFPACK_CONTROL_PARAMS' ! UMFPACK real array of 20 UMFPACK parameters
     character(len=*), parameter :: umfpack_control_params_cla_name   = '--'//umfpack_control_params
+    character(len=*), parameter :: umfpack_control_params_cla_help   = "UMFPACK control array parameter (see UMFPACK users' manual for additional details)"
 
 end module direct_solver_parameters_names

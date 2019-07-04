@@ -167,10 +167,11 @@ private
     
     character(len=*), parameter, public :: output_handler_xh5_strategy_cla_choices  = '800,801'
 
-    character(len=*), parameter, public :: output_handler_xh5_strategy_cla_help  = &
-                                    "Parallel IO strategy (see XH5For docs)" // BRK_LINE // & 
+    character(len=*), parameter, public :: output_handler_xh5_strategy_cla_help  = "Parallel IO strategy (see XH5For docs)" // BRK_LINE // & 
                     BULLET_FLAP_HELP_MESSAGE // "800: Contiguous hyperslabs" // BRK_LINE // & 
                     BULLET_FLAP_HELP_MESSAGE // "801: Dataset per process)"
+
+    character(len=*), parameter, public :: output_handler_xh5_info_cla_help = 'HDF5 I/O low level configuration based on MPI info'
 
 
 end module xh5_parameters_names

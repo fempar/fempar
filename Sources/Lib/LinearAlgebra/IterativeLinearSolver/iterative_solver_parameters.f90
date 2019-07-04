@@ -92,6 +92,16 @@ module iterative_linear_solver_parameters_names
   character(len=*), parameter :: ils_luout_cla_name                     = '--'//ils_luout_key
 
 
+  character(len=*), parameter :: ils_rtol_cla_help                      = 'Relative tolerance for the stopping criteria'
+  character(len=*), parameter :: ils_atol_cla_help                      = 'Absolute tolerance for the stopping criteria'
+  character(len=*), parameter :: ils_output_frequency_cla_help          = 'Frequency for convergence history output printing (=0 for no output at all)'
+  character(len=*), parameter :: ils_max_num_iterations_cla_help        = 'Maximum number of iterations'
+  character(len=*), parameter :: ils_track_convergence_history_cla_help = 'Explicitly store convergence history within iterative linear solver instance' // BRK_LINE // &
+                                                                          'so that it can be later consumed, e.g., to compute stats'
+
+  character(len=*), parameter :: ils_luout_cla_help                     = 'Maximum dimension of Krylov basis for XGMRES/LFOM (i.e., restart parameter)'
+
+
   !-----------------------------------------------------------------
   ! Iterative linear solver names
   !-----------------------------------------------------------------
@@ -138,15 +148,18 @@ module iterative_linear_solver_parameters_names
   character(len=*), parameter, public :: ils_orthonorm_strategy_cla_choices  = orthonorm_strat_icgsro // "," // &
                                                                                orthonorm_strat_mgsro
  
-  character(len=*), parameter, public :: ils_orthonorm_strategy_cla_help    = "Orthonormalization strategy (for XGMRES/LFOM)" // BRK_LINE // & 
+  character(len=*), parameter, public :: ils_orthonorm_strategy_cla_help = "Orthonormalization strategy (for XGMRES/LFOM)" // BRK_LINE // & 
                                                                BULLET_FLAP_HELP_MESSAGE // orthonorm_strat_icgsro // ": Iterative Classical Gram-Schmidt (appropriate for MPI-parallel variants)" // BRK_LINE // & 
                                                                BULLET_FLAP_HELP_MESSAGE // orthonorm_strat_mgsro // ": Modified Gram-Schmidt (appropriate for serial variants)"
+
+  character(len=*), parameter :: ils_max_dim_krylov_basis_cla_help = 'Maximum dimension of Krylov basis for XGMRES/LFOM (i.e., restart parameter)'
   
   !-----------------------------------------------------------------
   ! Parameters used in RICHARDSON iterative linear solvers
   !-----------------------------------------------------------------
   character(len=*), parameter :: ils_relaxation_key = 'ILS_RELAXATION'
   character(len=*), parameter :: ils_relaxation_cla_name = '--'//ils_relaxation_key
+  character(len=*), parameter :: ils_relaxation_cla_help = 'Relaxation value (for Richardson)'
   
   !------------------------------------------------------------------------------------
   ! Default values for implementors of class(base_iterative_linear_solver_t) parameters

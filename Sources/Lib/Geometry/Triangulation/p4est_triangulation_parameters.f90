@@ -70,6 +70,15 @@ module p4est_triangulation_parameters_names
   character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_choices = '0,1,2'
   character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_choices = '0,1,2'
 
+  character(len=*), parameter, public ::p4est_triang_num_dims_cla_help      = 'p4est triangulation number of space dimensions'
+  character(len=*), parameter, public ::p4est_triang_num_levels_cla_help    = 'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner'
+  character(len=*), parameter, public ::p4est_triang_domain_limits_cla_help = 'p4est triangulation domain interval per dimension'
+  character(len=*), parameter, public ::p4est_triang_2_1_k_balance_cla_help = 'Value of k for 2:1 k-balanced forest-of-octrees (use with care, at present,' // BRK_LINE // &
+                                                                              'only k={0,1} supported/tested)'
+  character(len=*), parameter, public ::p4est_triang_k_ghost_cells_cla_help = 'Value of k for the k-ghost cells set of each processor'                   //BRK_LINE // &
+                                                                              '(k=0 works for any FE space; k>0 should work depending on the FE space,' // BRK_LINE // &
+                                                                              'although NOT tested, use with care)'
+
   character(len=*), parameter, public :: p4est_triang_log_level_help    = "P4EST library level of logging output"      // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // "-1: SC_LP_DEFAULT    (this selects the SC default threshold)" // BRK_LINE // & 
                    BULLET_FLAP_HELP_MESSAGE // " 0: SC_LP_ALWAYS     (this will log everything)"              // BRK_LINE // &

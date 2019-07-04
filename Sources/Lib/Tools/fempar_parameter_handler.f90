@@ -805,7 +805,8 @@ contains
       
       call this%add(static_triang_geometric_interpolation_order_key, &
            static_triang_geometric_interpolation_order_cla_name, &
-           1, 'Interpolation order static triangulation geometrical mapping (only partial/unstable support for order>1)' )
+           default_static_triang_geometric_interpolation_order, &
+           static_triang_geometric_interpolation_order_cla_help)
     end subroutine fph_static_triang_define_parameters
     
     
@@ -815,34 +816,34 @@ contains
       
       call this%add(struct_hex_mesh_generator_num_dims_key, &
            struct_hex_mesh_generator_num_dims_cla_name, &
-           2, &
-           'Number of space dimensions', &
+           default_struct_hex_mesh_generator_num_dims, &
+           struct_hex_mesh_generator_num_dims_cla_help, &
            choices = struct_hex_mesh_generator_num_dims_cla_choices )
 
       call this%add(struct_hex_mesh_generator_domain_limits_key, &
            struct_hex_mesh_generator_domain_limits_cla_name, &
-           [0.0,1.0,0.0,1.0,0.0,1.0], &
-           'Domain interval per dimension')
+           default_struct_hex_mesh_generator_domain_limits, &
+           struct_hex_mesh_generator_domain_limits_cla_help)
 
       call this%add(struct_hex_mesh_generator_is_dir_periodic_key, &
            struct_hex_mesh_generator_is_dir_periodic_cla_name, &
-           [0,0,0], &
-           'Is the mesh periodic per dimension')
+           default_struct_hex_mesh_generator_is_dir_periodic, &
+           struct_hex_mesh_generator_is_dir_periodic_cla_help)
 
       call this%add(struct_hex_mesh_generator_num_levels_key, &
            struct_hex_mesh_generator_num_levels_cla_name, &
-           1, &
-           'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
+           default_struct_hex_mesh_generator_num_levels, &
+           struct_hex_mesh_generator_num_levels_cla_help)
 
       call this%add(struct_hex_mesh_generator_num_cells_x_dim_key, &
            struct_hex_mesh_generator_num_cells_x_dim_cla_name, &
-           [10,10,10], &
-           'Number of cells per dimension per level')  
+           default_struct_hex_mesh_generator_num_cells_x_dim, &
+           struct_hex_mesh_generator_num_cells_x_dim_cla_help)  
 
       call this%add(struct_hex_mesh_generator_num_parts_x_dim_x_level_key, &
            struct_hex_mesh_generator_num_parts_x_dim_x_level_cla_name, &
-           [1,1,1], &
-           'Number of parts per dimension per level')
+           default_struct_hex_mesh_generator_num_parts_x_dim_x_level, &
+           struct_hex_mesh_generator_num_parts_x_dim_x_level_cla_help)
 
     end subroutine fph_struct_hex_mesh_generator_define_parameters
 
@@ -852,18 +853,18 @@ contains
       call this%add(p4est_triang_num_dims_key, &
            p4est_triang_num_dims_cla_name, &
            default_p4est_triang_num_dims, &
-           'p4est triangulation number of space dimensions', &
+           p4est_triang_num_dims_cla_help, &
            choices=p4est_triang_num_dims_cla_choices)
       
       call this%add(p4est_triang_num_levels_key, &
            p4est_triang_num_levels_cla_name, &
            default_p4est_triang_num_levels, &
-           'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
+           p4est_triang_num_levels_cla_help)
 
       call this%add(p4est_triang_domain_limits_key, &
            p4est_triang_domain_limits_cla_name, &
            default_p4est_triang_domain_limits, &
-           'p4est triangulation domain interval per dimension')
+           p4est_triang_domain_limits_cla_help)
 
       call this%add(p4est_triang_log_level_key, &
            p4est_triang_log_level_cla_name, &
@@ -874,15 +875,13 @@ contains
       call this%add(p4est_triang_2_1_k_balance_key, &
            p4est_triang_2_1_k_balance_cla_name, &
            default_p4est_triang_2_1_k_balance,  &
-           'value of k for 2:1 k-balanced forest-of-octrees &
-           (use with care, at present, only k={0,1} supported/tested)', &
+           p4est_triang_2_1_k_balance_cla_help, &
            choices=p4est_triang_2_1_k_balance_cla_choices)
 
       call this%add(p4est_triang_k_ghost_cells_key, &
            p4est_triang_k_ghost_cells_cla_name, &
            default_p4est_triang_k_ghost_cells, &
-           'value of k for the k-ghost cells set of each processor &
-           (k=0 works for any FE space; k>0 should work depending on the FE space, although NOT tested, use with care)', &
+           p4est_triang_k_ghost_cells_cla_help, &
            choices=p4est_triang_k_ghost_cells_cla_choices)
     end subroutine fph_p4est_triang_define_parameters
 
@@ -893,55 +892,47 @@ contains
       call this%add(mesh_dir_path_key, &
            mesh_dir_path_cla_name, &
            mesh_default_dir_path, &
-           'The relative or full file system path to the & 
-            folder where the mesh data files are located')
+           mesh_dir_path_cla_help)
 
       call this%add(mesh_prefix_key, &
            mesh_prefix_cla_name, &
            mesh_default_prefix, &
-           'Token string which is used as a prefix to compose & 
-            the names of the mesh data files')
+           mesh_prefix_cla_help)
     end subroutine fph_mesh_define_parameters
     
     subroutine fph_mesh_partitioner_define_parameters(this)
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
-      character(len=:), allocatable                    :: help_string
-      help_string = "Directory of the source files" // BRK_LINE // & 
-           "To read from GiD mesh" // BRK_LINE // &
-           "To read from GiD mesh" 
 
       call this%add(mesh_partitioner_dir_path_key, &
            mesh_partitioner_dir_path_cla_name, &
            mesh_partitioner_default_dir_path_output, &
-           'The relative or full file system path to the & 
-            folder where the data files of the mesh partitioner are generated')
+           mesh_partitioner_dir_path_cla_help)
 
       call this%add(mesh_partitioner_prefix_key, &
            mesh_partitioner_prefix_cla_name, &
            mesh_partitioner_default_prefix_output, &
-           'Token string which is used as a prefix to compose & 
-            the names of the data files generated by the mesh partitioner as prefix.*')
+           mesh_partitioner_prefix_cla_help)
       
       call this%add(dir_path_key, &
            dir_path_cla_name, &
-           '.', &
-           help_string)
+           default_dir_path, &
+           dir_path_cla_help)
             
       call this%add(prefix_key, &
            prefix_cla_name, &
-           'A', &
-           'Name of the GiD files')
+           default_prefix, &
+           prefix_cla_help)
 
       call this%add(mesh_partitioner_num_levels_key, &
            mesh_partitioner_num_levels_cla_name, &
-           1, &
-           'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner')
+           default_mesh_partitioner_num_levels, &
+           mesh_partitioner_num_levels_cla_help)
 
       call this%add(mesh_partitioner_num_parts_x_level_key, &
            mesh_partitioner_num_parts_x_level_cla_name, &
-           [1], &
-           'Number of parts per level') 
+           default_mesh_partitioner_num_parts_x_level, &
+           mesh_partitioner_num_parts_x_level_cla_help) 
 
       call this%add(mesh_partitioner_strategy_key, &
            mesh_partitioner_strategy_cla_name, &
@@ -950,23 +941,23 @@ contains
 
       call this%add(mesh_partitioner_metis_option_debug_key, &
            mesh_partitioner_metis_option_debug_cla_name, &
-           2, &
-           "METIS_OPTION_DBGLVL (see METIS users' manual for additional details)") 
+           mesh_partitioner_default_metis_option_debug, &
+           mesh_partitioner_metis_option_debug_cla_help) 
 
       call this%add(mesh_partitioner_metis_option_ufactor_key, &
            mesh_partitioner_metis_option_ufactor_cla_name, &
-           30, &
-           "METIS_OPTION_UFACTOR, (see METIS users' manual for additional details)")
+           mesh_partitioner_default_metis_option_ufactor, &
+           mesh_partitioner_metis_option_ufactor_cla_help)
 
       call this%add(mesh_partitioner_metis_option_minconn_key, &
            mesh_partitioner_metis_option_minconn_cla_name, &
-           0, &
+           mesh_partitioner_default_metis_option_minconn, &
            mesh_partitioner_metis_option_minconn_cla_help, &
            choices = mesh_partitioner_metis_option_minconn_cla_choices)
 
       call this%add(mesh_partitioner_metis_option_contig_key, &
            mesh_partitioner_metis_option_contig_cla_name, &
-           1, &
+           mesh_partitioner_default_metis_option_contig, &
            mesh_partitioner_metis_option_contig_cla_help, &
            choices = mesh_partitioner_metis_option_contig_cla_choices)
 
@@ -990,21 +981,22 @@ contains
 
       ! Number of fields in the FE space
       call this%add(fes_num_fields_key, &
-           fes_num_fields_cla_name, 1, &
-           'Finite element space number of fields')
+           fes_num_fields_cla_name, &
+           default_fes_num_fields, &
+           fes_num_fields_cla_help)
 
       ! Number of reference FEs
       call this%add(fes_num_ref_fes_key, &
            fes_num_ref_fes_cla_name, &
-           1, &
-           'Finite element space number of fields')
+           default_fes_num_ref_fes, &
+           fes_num_ref_fes_cla_help)
 
       ! set_ids_to_reference_fes: Given a field ID and cell set ID, 
       ! returns the desired reference FE ID
       call this%add(fes_set_ids_ref_fes_key, &
            fes_set_ids_ref_fes_cla_name, &
-           [ 1 ], &
-           'Set IDs to reference FEs for every field')
+           default_fes_set_ids_ref_fes, &
+           fes_set_ids_ref_fes_cla_help)
 
       ! Reference FE IDs    
       string_array(1) = fe_type_lagrangian 
@@ -1017,22 +1009,22 @@ contains
       ! Reference FE order (0,1,2,...) fe_space_orders_key
       call this%add(fes_ref_fe_orders_key, &
            fes_ref_fe_orders_cla_name, &
-           [ 1 ], &
-           'Reference finite element orders')
+           default_fes_ref_fe_orders, &
+           fes_ref_fe_orders_cla_help)
 
       ! FE space conformities 
       ! ( true = no face integration needed, false = face integration required )
       call this%add(fes_ref_fe_conformities_key, &
            fes_ref_fe_conformities_cla_name, &
-           [ .true. ], &
-           'Finite element space conformities')
+           default_fes_ref_fe_conformities, &
+           fes_ref_fe_conformities_cla_help)
 
       ! FE space continuities 
       ! ( true = continuous FE space, false = otherwise )
       call this%add(fes_ref_fe_continuities_key, &
            fes_ref_fe_continuities_cla_name, &
-           [ .true. ], &
-           'Finite element space continuities')
+           default_fes_ref_fe_continuities, &
+           fes_ref_fe_continuities_cla_help)
 
       ! FE field types (scalar, vector, tensor)
       string_array(1) = field_type_scalar 
@@ -1045,15 +1037,15 @@ contains
       ! FE field blocks (scalar, vector, tensor)
       call this%add(fes_field_blocks_key, &
            fes_field_blocks_cla_name, &
-           [ 1 ], &
-           'Finite element space map field_id to block_id')
+           default_fes_field_blocks, &
+           fes_field_blocks_cla_help)
 
       ! FE space construction type homogeneous/heterogeneous 
       ! ( .true. = all cells same reference fe, .false. = otherwise ) 
       call this%add(fes_same_ref_fes_all_cells_key, &
            fes_same_ref_fes_all_cells_cla_name, &
-           .true., &
-           'Finite element space fixed reference fe logical')
+           default_fes_same_ref_fes_all_cells, &
+           fes_same_ref_fes_all_cells_cla_help)
 
     end subroutine fph_fes_define_parameters
      
@@ -1063,24 +1055,24 @@ contains
 
       call this%add(coarse_space_use_vertices_key, &
            coarse_space_use_vertices_cla_name, &
-           .true., &
-           'Coarse-space shape functions on vertices')
+           default_coarse_space_use_vertices, &
+           coarse_space_use_vertices_cla_help)
 
       call this%add(coarse_space_use_edges_key, &
            coarse_space_use_edges_cla_name, &
-           .true., &
-           'Coarse-space shape functions on edges')
+           default_coarse_space_use_edges, &
+           coarse_space_use_edges_cla_help)
 
       call this%add(coarse_space_use_faces_key, &
            coarse_space_use_faces_cla_name, &
-           .true., &
-           'Coarse-space shape functions on faces')
+           default_coarse_space_use_faces, &
+           coarse_space_use_faces_cla_help)
 
       ! H-curl COARSE FE HANDLER BDDC
       call this%add(bddc_scaling_function_case_key, &
-           '--BDDC_SCALING_FUNCTION_CASE', &
+           bddc_scaling_function_case_cla_name, &
            cardinality, &
-           'Scaling type for the BDDC weighting operator')
+           bddc_scaling_function_case_cla_help)
     end subroutine fph_coarse_fe_handler_define_parameters
 
     subroutine fph_ils_define_parameters(this)
@@ -1096,12 +1088,12 @@ contains
       call this%add(ils_rtol_key, & 
            ils_rtol_cla_name, & 
            default_rtol, & 
-           'Relative tolerance for the stopping criteria')
+           ils_rtol_cla_help)
 
       call this%add(ils_atol_key, & 
            ils_atol_cla_name, & 
            default_atol, & 
-           'Absolute tolerance for the stopping criteria')
+           ils_atol_cla_help)
 
       call this%add(ils_stopping_criterium_key, & 
            ils_stopping_criterium_cla_name, & 
@@ -1112,22 +1104,22 @@ contains
       call this%add(ils_output_frequency_key, & 
            ils_output_frequency_cla_name, & 
            default_output_frequency, & 
-           'Frequency for convergence history output printing (=0 for no output at all)') 
+           ils_output_frequency_cla_help) 
 
       call this%add(ils_max_num_iterations_key, & 
            ils_max_num_iterations_cla_name, & 
            default_max_num_iterations, & 
-           'Maximum number of iterations')
+           ils_max_num_iterations_cla_help)
 
       call this%add(ils_track_convergence_history_key, & 
            ils_track_convergence_history_cla_name, & 
            default_track_convergence_history, &
-           &'Explicitly store convergence history within iterative linear solver instance so that it can be later consumed, e.g., to compute stats')
+           ils_track_convergence_history_cla_help)
 
       call this%add(ils_max_dim_krylov_basis_key, & 
            ils_max_dim_krylov_basis_cla_name, & 
            default_dkrymax, & 
-           'Maximum dimension of Krylov basis for XGMRES/LFOM (i.e., restart parameter)') 
+           ils_max_dim_krylov_basis_cla_help) 
 
       call this%add(ils_orthonorm_strategy_key, & 
            ils_orthonorm_strategy_cla_name, & 
@@ -1138,7 +1130,7 @@ contains
       call this%add(ils_relaxation_key, & 
            ils_relaxation_cla_name, & 
            default_richardson_relaxation, & 
-           'Relaxation value (for Richardson)')
+           ils_relaxation_cla_help)
     end subroutine fph_ils_define_parameters
      
 
@@ -1165,7 +1157,7 @@ contains
       call this%add(pardiso_mkl_iparm, & 
            pardiso_mkl_iparm_cla_name, & 
            [ (pardiso_mkl_default_iparm, i=1,64) ], & 
-           "PARDISO iparm array parameter (see PARDISO users' manual for additional details)")     
+           pardiso_mkl_iparm_cla_help)     
 
       call this%add(pardiso_mkl_matrix_type, &
            pardiso_mkl_matrix_type_cla_name, & 
@@ -1178,7 +1170,7 @@ contains
       call this%add(umfpack_control_params, &
            umfpack_control_params_cla_name, &
            umfpack_control, &
-           "UMFPACK control array parameter (see UMFPACK users' manual for additional details)")
+           umfpack_control_params_cla_help)
 #endif  
     end subroutine fph_dls_define_parameters
 
@@ -1188,27 +1180,27 @@ contains
       call this%add(nls_rtol_key, &
            nls_rtol_cla_name, &
            default_nls_rtol, &
-           'Relative tolerance for the nonlinear solvers stopping criteria')
+           nls_rtol_cla_help)
 
       call this%add(nls_atol_key, &
            nls_atol_cla_name, &
            default_nls_atol, &
-           'Absolute tolerance for the nonlinear solvers stopping criteria')
+           nls_atol_cla_help)
 
       call this%add(nls_stopping_criterium_key, &
            nls_stopping_criterium_cla_name, &
            default_nls_stopping_criterium, &
-           'Nonlinear solvers stopping criterium type')
+           nls_stopping_criterium_cla_help)
 
       call this%add(nls_max_num_iterations_key, &
            nls_max_num_iterations_cla_name, &
            default_nls_max_iter, &
-           'Nonlinear solvers maximum number of iterations')
+           nls_max_num_iterations_cla_help)
 
       call this%add(nls_print_iteration_output_key, &
            nls_print_iteration_output_cla_name, &
            default_nls_print_iteration_output, &
-           'Print output per nonlinear solver iteration')
+           nls_print_iteration_output_cla_help)
     end subroutine fph_nls_define_parameters
      
     subroutine fph_output_handler_define_parameters(this)
@@ -1218,19 +1210,17 @@ contains
       call this%add(output_handler_dir_path_key, &
            output_handler_dir_path_cla_name, &
            output_handler_default_dir_path, &
-           'The relative or full file system path to the & 
-            folder where the output handler data files are generated')
+           output_handler_dir_path_cla_help)
       
       call this%add(output_handler_prefix_key, &
            output_handler_prefix_cla_name, &
            output_handler_default_prefix, &
-           'Token string which is used as a prefix to compose & 
-            the names of the files generated by output handler as prefix.*')
+           output_handler_prefix_cla_help)
       
       call this%add(output_handler_static_grid_key, &
            output_handler_static_grid_cla_name, &
            output_handler_static_grid_default, &
-           'Grid does not change along all time steps')
+           output_handler_static_grid_cla_help)
       
       call this%add(output_handler_vtk_format_key, &
            output_handler_vtk_format_cla_name, &
@@ -1247,7 +1237,7 @@ contains
       call this%add(output_handler_xh5_info_key, &
            output_handler_xh5_info_cla_name, &
            output_handler_xh5_info_default, &
-           'HDF5 I/O low level configuration based on MPI info')
+           output_handler_xh5_info_cla_help)
       
     end subroutine fph_output_handler_define_parameters
      
