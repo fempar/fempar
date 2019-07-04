@@ -38,6 +38,9 @@ module mesh_parameters_names
   character(len=*), parameter :: mesh_default_dir_path   = '.'  
   character(len=*), parameter :: mesh_default_prefix     = 'mesh'
 
+  character(len=*), parameter :: mesh_dir_path_cla_help  = 'The relative or full file system path to the folder where the mesh data files are located'
+  character(len=*), parameter :: mesh_prefix_cla_help    = 'Token string which is used as a prefix to compose the names of the mesh data files'
+
   integer(ip), parameter :: c_order = 0
   integer(ip), parameter :: z_order = 1
   

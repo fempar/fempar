@@ -55,9 +55,9 @@ module fe_space_parameters_names
 
   ! These three parameter constants are thought be used as CLA names. 
 
-  character(len=*), parameter :: coarse_space_use_vertices_cla_name          = '--'//coarse_space_use_vertices_key
-  character(len=*), parameter :: coarse_space_use_edges_cla_name             = '--'//coarse_space_use_edges_key
-  character(len=*), parameter :: coarse_space_use_faces_cla_name             = '--'//coarse_space_use_faces_key
+  character(len=*), parameter, public :: coarse_space_use_vertices_cla_name          = '--'//coarse_space_use_vertices_key
+  character(len=*), parameter, public :: coarse_space_use_edges_cla_name             = '--'//coarse_space_use_edges_key
+  character(len=*), parameter, public :: coarse_space_use_faces_cla_name             = '--'//coarse_space_use_faces_key
   character(len=*), parameter, public :: fes_num_fields_cla_name             = '--'//fes_num_fields_key
   character(len=*), parameter, public :: fes_num_ref_fes_cla_name            = '--'//fes_num_ref_fes_key
   character(len=*), parameter, public :: fes_field_types_cla_name            = '--'//fes_field_types_key
@@ -69,10 +69,40 @@ module fe_space_parameters_names
   character(len=*), parameter, public :: fes_ref_fe_orders_cla_name          = '--'//fes_ref_fe_orders_key
   character(len=*), parameter, public :: fes_ref_fe_types_cla_name           = '--'//fes_ref_fe_types_key
   character(len=*), parameter, public :: fes_set_ids_ref_fes_cla_name        = '--'//fes_set_ids_ref_fes_key
+
+  ! CLA defaults
+
+  logical,                   parameter, public :: default_coarse_space_use_vertices  = .true.
+  logical,                   parameter, public :: default_coarse_space_use_edges     = .true.
+  logical,                   parameter, public :: default_coarse_space_use_faces     = .true.
+  integer(ip),               parameter, public :: default_fes_num_fields             = 1
+  integer(ip),               parameter, public :: default_fes_num_ref_fes            = 1
+  integer(ip), dimension(*), parameter, public :: default_fes_set_ids_ref_fes        = [1]
+  integer(ip), dimension(*), parameter, public :: default_fes_ref_fe_orders          = [1]
+  logical,     dimension(*), parameter, public :: default_fes_ref_fe_conformities    = [ .true. ]
+  logical,     dimension(*), parameter, public :: default_fes_ref_fe_continuities    = [ .true. ]
+  integer(ip), dimension(*), parameter, public :: default_fes_field_blocks           = [1]
+  logical,                   parameter, public :: default_fes_same_ref_fes_all_cells = .true.
+
+  ! CLA choices
   
   character(len=*), parameter, public :: fes_field_types_cla_choices = field_type_scalar // "," // &
                                                                        field_type_vector // "," // &
                                                                        field_type_tensor
+
+  ! CLA help  
+
+  character(len=*), parameter, public :: coarse_space_use_vertices_cla_help  = 'Coarse-space shape functions on vertices'
+  character(len=*), parameter, public :: coarse_space_use_edges_cla_help     = 'Coarse-space shape functions on edges'
+  character(len=*), parameter, public :: coarse_space_use_faces_cla_help     = 'Coarse-space shape functions on faces'
+  character(len=*), parameter, public :: fes_num_fields_cla_help             = 'Finite element space number of fields'
+  character(len=*), parameter, public :: fes_num_ref_fes_cla_help            = 'Finite element space number of fields'
+  character(len=*), parameter, public :: fes_set_ids_ref_fes_cla_help        = 'Set IDs to reference FEs for every field'
+  character(len=*), parameter, public :: fes_ref_fe_orders_cla_help          = 'Reference finite element orders'
+  character(len=*), parameter, public :: fes_ref_fe_conformities_cla_help    = 'Finite element space conformities'
+  character(len=*), parameter, public :: fes_ref_fe_continuities_cla_help    = 'Finite element space continuities'
+  character(len=*), parameter, public :: fes_field_blocks_cla_help           = 'Finite element space map field_id to block_id'
+  character(len=*), parameter, public :: fes_same_ref_fes_all_cells_cla_help = 'Finite element space fixed reference fe logical'
                                                                        
   character(len=*), parameter, public :: fes_field_types_cla_help    = "Finite element space field types" // BRK_LINE // & 
                                                                        BULLET_FLAP_HELP_MESSAGE // field_type_scalar // ": Scalar-Valued Reference FE" // BRK_LINE // & 
@@ -128,6 +158,7 @@ module fe_space_parameters_names
   ! BDDC Scaling function 
   character(len=*), parameter :: bddc_scaling_function_case_key      = 'BDDC_SCALING_FUNCTION_CASE'
   character(len=*), parameter :: bddc_scaling_function_case_cla_name = '--'//bddc_scaling_function_case_key
+  character(len=*), parameter :: bddc_scaling_function_case_cla_help = 'Scaling type for the BDDC weighting operator'
 
   character(len=*), parameter :: average_mass_coeff_key         = 'average_mass_coeff' 
   character(len=*), parameter :: average_curl_curl_coeff_key    = 'average_curl_curl_coeff'

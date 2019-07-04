@@ -62,5 +62,14 @@ module nonlinear_solver_parameters_names
   integer (ip), parameter :: default_nls_max_iter                 = 10 
   logical     , parameter :: default_nls_print_iteration_output   = .true. 
 
+  !-------------------------------------------------------------------
+  ! Parameter handler CLA help messages
+  !-------------------------------------------------------------------
+  character(len=*), parameter :: nls_rtol_cla_help                   = 'Relative tolerance for the nonlinear solvers stopping criteria'
+  character(len=*), parameter :: nls_atol_cla_help                   = 'Absolute tolerance for the nonlinear solvers stopping criteria'
+  character(len=*), parameter :: nls_stopping_criterium_cla_help     = 'Nonlinear solvers stopping criterium type'
+  character(len=*), parameter :: nls_max_num_iterations_cla_help     = 'Nonlinear solvers maximum number of iterations'
+  character(len=*), parameter :: nls_print_iteration_output_cla_help = 'Print output per nonlinear solver iteration'
+
 
 end module nonlinear_solver_parameters_names
