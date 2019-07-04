@@ -1153,29 +1153,32 @@ contains
       call this%add(dls_type_key, & 
            dls_type_cla_name, & 
            pardiso_mkl, & 
-           'Direct solver type')
+           dls_type_cla_help, &
+           choices =  dls_type_cla_choices)
 
       call this%add(pardiso_mkl_message_level, & 
            pardiso_mkl_message_level_cla_name, & 
            pardiso_mkl_default_message_level, & 
-           'PARDISO message level')
+           pardiso_mkl_message_level_cla_help, &
+           choices = pardiso_mkl_message_level_cla_choices)
 
       call this%add(pardiso_mkl_iparm, & 
            pardiso_mkl_iparm_cla_name, & 
            [ (pardiso_mkl_default_iparm, i=1,64) ], & 
-           'PARDISO parameters')     
+           "PARDISO iparm array parameter (see PARDISO users' manual for additional details)")     
 
       call this%add(pardiso_mkl_matrix_type, &
            pardiso_mkl_matrix_type_cla_name, & 
            pardiso_mkl_default_matrix_type, & 
-           'PARDISO matrix type')
+           pardiso_mkl_matrix_type_cla_help, &
+           choices = pardiso_mkl_matrix_type_cla_choices)
 
 #ifdef UMFPACK
       call umfpack_di_defaults(umfpack_control)
       call this%add(umfpack_control_params, &
            umfpack_control_params_cla_name, &
            umfpack_control, &
-           'UMFPACK control parameters')
+           "UMFPACK control array parameter (see UMFPACK users' manual for additional details)")
 #endif  
     end subroutine fph_dls_define_parameters
 

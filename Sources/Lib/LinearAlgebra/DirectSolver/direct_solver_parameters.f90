@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module direct_solver_parameters_names
+  use types_names
 implicit none
 
     !-----------------------------------------------------------------
@@ -35,8 +36,8 @@ implicit none
     ! Parameter strings to be used in the Parameter List
     character(len=*), parameter :: dls_type_key       = 'DLS_TYPE'
     character(len=*), parameter :: dls_type_cla_name  = '--'//dls_type_key
-    character(len=*), parameter :: pardiso_mkl        = 'pardiso_mkl'                      ! Name of the PARDISO MKL direct solver type
-    character(len=*), parameter :: umfpack            = 'umfpack'                          ! Name of the UMFPACK direct solver type
+    character(len=*), parameter :: pardiso_mkl        = 'PARDISO_MKL'                      ! Name of the PARDISO MKL direct solver type
+    character(len=*), parameter :: umfpack            = 'UMFPACK'                          ! Name of the UMFPACK direct solver type
 
     !-----------------------------------------------------------------
     ! Parameters used in PARDISO_MKL direct solver
@@ -62,6 +63,29 @@ implicit none
     character(len=*), parameter :: pardiso_mkl_iparm_cla_name         = '--'//pardiso_mkl_iparm
     character(len=*), parameter :: pardiso_mkl_matrix_type_cla_name   = '--'//pardiso_mkl_matrix_type
     character(len=*), parameter :: pardiso_mkl_message_level_cla_name = '--'//pardiso_mkl_message_level
+
+
+    ! Parameter choices
+    character(len=*), parameter :: dls_type_cla_choices  = pardiso_mkl//','//umfpack
+    character(len=*), parameter :: pardiso_mkl_message_level_cla_choices  = '0,1'
+    character(len=*), parameter :: pardiso_mkl_matrix_type_cla_choices   = '1,2,-2,3,4,-4,6,11,13'
+
+    ! Parameter help
+    character(len=*), parameter :: dls_type_cla_help = "Direct solver type" // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // pardiso_mkl // ": Intel MKL PARDISO - Parallel Direct Sparse Solver Interface" // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // umfpack // ": UMFPACK - Unsymmetric MultiFrontal PACKage"
+
+    character(len=*), parameter :: pardiso_mkl_message_level_cla_help = "PARDISO Message level (see PARDISO users' manual for additional details)" // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // "0: No output is generated" // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // "1: Prints statistical information"
+
+    character(len=*), parameter :: pardiso_mkl_matrix_type_cla_help = "PARDISO mtype parameter (see PARDISO users' manual for additional details)" // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // " 0: Guess matrix type from matrix properties" // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 1: Real and structurally symmetric"          // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // " 2: Real and symmetric positive definite"     // BRK_LINE // &
+                   BULLET_FLAP_HELP_MESSAGE // "-2: Real and symmetric indefinite"            // BRK_LINE // & 
+                   BULLET_FLAP_HELP_MESSAGE // "11: Real and unsymmetric matrix"
+
 
     !-----------------------------------------------------------------
     ! Parameters used in UMFPACK direct solver
