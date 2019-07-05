@@ -45,6 +45,11 @@ module fempar_parameter_handler_names
 # include "debug.i90"
     implicit none
     private
+
+    character(len=*), parameter :: fph_print_values_key = 'PARAMETER_HANDLER_PRINT_VALUES'
+    character(len=*), parameter :: fph_print_values_cla_name = '--'//fph_print_values_key
+    logical,          parameter :: default_fph_print_values = .false.
+    character(len=*), parameter :: fph_print_values_cla_help = 'Print parameter handler values after parsing the command line interface'
     
     type, abstract :: parameter_handler_t 
     !------------------------------------------------------------------
@@ -96,6 +101,7 @@ module fempar_parameter_handler_names
         procedure, private, non_overridable :: fph_Get_1D_string
         
         procedure, private, non_overridable :: define_fempar_parameters => fph_define_fempar_parameters
+        procedure, private, non_overridable :: fph_define_parameters
         procedure, private, non_overridable :: fph_mesh_define_parameters
         procedure, private, non_overridable :: fph_mesh_partitioner_define_parameters
         procedure, private, non_overridable :: fph_static_triang_define_parameters
@@ -108,13 +114,14 @@ module fempar_parameter_handler_names
         procedure, private, non_overridable :: fph_dls_define_parameters
         procedure, private, non_overridable :: fph_output_handler_define_parameters
         
-        procedure                           :: process_parameters       => fph_process_parameters
-        procedure                           :: free                     => fph_free
-        procedure                           :: get_dir_path             => fph_get_dir_path
-        procedure                           :: get_prefix               => fph_get_prefix
-        procedure, public                   :: getasstring              => fph_GetAsString
-        generic,   public                   :: get                      => fph_Get_0D, fph_Get_1D
-        generic,   public                   :: GetAsArray               => fph_Get_1D_ip, fph_Get_1D_rp, fph_Get_1D_logical, fph_Get_1D_string
+        procedure         :: process_parameters => fph_process_parameters
+        procedure         :: print_values       => fph_print_values
+        procedure         :: free               => fph_free
+        procedure         :: get_dir_path       => fph_get_dir_path
+        procedure         :: get_prefix         => fph_get_prefix
+        procedure, public :: getasstring        => fph_GetAsString
+        generic,   public :: get                => fph_Get_0D, fph_Get_1D
+        generic,   public :: GetAsArray         => fph_Get_1D_ip, fph_Get_1D_rp, fph_Get_1D_logical, fph_Get_1D_string
     end type fempar_parameter_handler_t
   
     interface
@@ -709,9 +716,31 @@ contains
         call this%choices%init()
     end subroutine parameter_handler_initialize_lists
 
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! FEMPAR_PARAMETER_HANDLER_T PROCEDURES
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    subroutine fph_print_values(this, prefix)
+    !------------------------------------------------------------------
+    !< Print parameter list values
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t), intent(in) :: this
+        character(len=*), optional,        intent(in) :: prefix
+        type(ParameterList_t), pointer                :: values
+        values => this%get_values()
+        write(*,*) ''
+        write(*,*) '-------------------------------------------------------------------------------'
+        write(*,*) 'PARAMETER HANDLER VALUES'
+        write(*,*) '-------------------------------------------------------------------------------'
+        write(*,*) ''
+        call values%print(prefix=prefix)
+        write(*,*) ''
+        write(*,*) '-------------------------------------------------------------------------------'
+        write(*,*) ''
+    end subroutine fph_print_values
 
 
     subroutine fph_process_parameters(this,define_user_parameters_procedure,parse_cla, &
@@ -737,9 +766,11 @@ contains
         integer(ip),                       optional, intent(in)    :: usage_lun         !< Unit number to print usage/help
         integer(ip),                       optional, intent(in)    :: version_lun       !< Unit number to print version/license info
         integer(ip),                       optional, intent(in)    :: error_lun         !< Unit number to print error info
-        logical :: parse_cla_
+        logical                                                    :: print_values
+        logical                                                    :: parse_cla_
     !------------------------------------------------------------------
         call this%free()
+        print_values = .false.
         parse_cla_ = .true.; if ( present(parse_cla) ) parse_cla_ = parse_cla
         if ( parse_cla_ ) call this%init_cli(progname, version, help, description,     &
                                       license, authors, examples, epilog, disable_hv,  &
@@ -757,6 +788,8 @@ contains
             call this%add_to_cli()
             call this%parse()
         end if
+        call this%Get(key=fph_print_values_key, value = print_values)
+        if(print_values) call this%print_values()
     end subroutine fph_process_parameters
 
 
@@ -781,6 +814,7 @@ contains
         ! Environment
         call this%add(environment_type_key, environment_type_cla_name, structured, 'Type of environment')
 
+        call this%fph_define_parameters()
         call this%fph_static_triang_define_parameters()
         call this%fph_struct_hex_mesh_generator_define_parameters()
         call this%fph_p4est_triang_define_parameters()
@@ -793,6 +827,16 @@ contains
         call this%fph_coarse_fe_handler_define_parameters()
         call this%fph_output_handler_define_parameters()        
     end subroutine fph_define_fempar_parameters
+
+    subroutine fph_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      call this%add(fph_print_values_key, &
+           fph_print_values_cla_name, &
+           default_fph_print_values, &
+           fph_print_values_cla_help)
+      
+    end subroutine fph_define_parameters
     
     subroutine fph_static_triang_define_parameters(this)
       implicit none
