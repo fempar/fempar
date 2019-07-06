@@ -175,8 +175,6 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
-    integer(ip) :: istat
-    istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
  
@@ -205,17 +203,17 @@ end subroutine free_timers
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment  
     real(rp)    :: domain(6)
-    character(len=:), allocatable :: subparts_coupling_criteria
 
     ! Create a structured mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
-    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria() 
     istat = this%parameter_list%set(key = p4est_triang_domain_limits_cla_name, value = domain); check(istat==0)
-    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0) 
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_key, &
+                                    value = .true.); assert(istat==0)
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_dgraph_coupling_key, & 
+                                    value = vertex_coupling); assert(istat==0)
     call this%triangulation%create(this%par_environment, this%parameter_list)
 
     environment => this%triangulation%get_environment()
-
     do i = 1, this%test_params%get_min_num_refinements() 
        call this%set_cells_for_uniform_refinement()
        call this%triangulation%refine_and_coarsen()

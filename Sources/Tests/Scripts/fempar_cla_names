@@ -10,6 +10,9 @@ export mesh_partitioner_program='mesh_partitioner'
 # CLA names
 ############################################
 
+export environment_num_levels_flag="--ENVIRONMENT_NUM_LEVELS"
+export environment_num_tasks_x_level_flag="--ENVIRONMENT_NUM_TASKS_X_LEVEL"
+
 export dir_path_flag='--DIR_PATH'
 export prefix_flag='--PREFIX'
 export ils_type_flag='--ILS_TYPE'
@@ -71,11 +74,9 @@ export static_triang_geometric_interpolation_order_flag='--STATIC_TRIANG_GEOMETR
 export struct_hex_mesh_generator_num_dims_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_DIMS'
 export struct_hex_mesh_generator_num_cells_x_dim_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_CELLS_X_DIM'
 export struct_hex_mesh_generator_is_dir_periodic_flag='--STRUCT_HEX_MESH_GENERATOR_IS_DIR_PERIODIC'
-export struct_hex_mesh_generator_num_levels_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_LEVELS'
 export struct_hex_mesh_generator_num_parts_x_dim_x_level_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_PARTS_X_DIM_AND_X_LEVEL'
 export struct_hex_mesh_generator_domain_limits_flag='--STRUCT_HEX_MESH_GENERATOR_DOMAIN_LIMITS'
 export p4est_triang_log_level_flag='--P4EST_TRIANG_LOG_LEVEL'
-export p4est_triang_num_levels_flag='--P4EST_TRIANG_NUM_LEVELS'
 export p4est_triang_num_dims_flag='--P4EST_TRIANG_NUM_DIMS'
 export p4est_triang_domains_limits_flag='--P4EST_TRIANG_DOMAIN_LIMITS'
 export p4est_triang_log_level_flag='--P4EST_TRIANG_LOG_LEVEL'

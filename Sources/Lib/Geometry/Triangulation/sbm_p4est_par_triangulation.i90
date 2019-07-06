@@ -31,78 +31,26 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
   class(p4est_par_triangulation_t), target, intent(inout) :: this
   type(environment_t)             , target, intent(in)    :: environment
   type(ParameterList_t)                   , intent(inout) :: parameters
+  
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t)      , pointer :: p_environment
   class(execution_context_t), pointer :: context
   type(mpi_context_t)       , pointer :: mpi_context
-  integer(ip) :: num_dims, idime  
-  logical                  :: is_present
-  integer(ip), allocatable :: array_size(:)
-  real(rp)   , allocatable :: bounding_box_limits(:)
-  character(len=:), allocatable :: subparts_coupling_criteria 
-  character(1) :: dummy_string
-  integer(ip) :: p4est_log_level
   
 #ifdef ENABLE_P4EST
   call this%free()
   
   call this%set_single_octree_mesh(.true.)
-
+  
   call this%set_environment(environment)
   p_environment => this%get_environment()
   
-  if( parameters%isPresent(subparts_coupling_criteria_key) ) then
-     massert(parameters%isAssignable(subparts_coupling_criteria_key, dummy_string), 'Subparts coupling criteria not found or un-usable')
-     istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria); assert(istat==0) 
-     call this%set_subparts_coupling_criteria( subparts_coupling_criteria ) 
-  else 
-     call this%set_subparts_coupling_criteria(loose_coupling) 
-  end if
+  call this%process_parameters(parameters)
+  
+  call this%environment_aggregate_tasks()
      
-  if ( p_environment%am_i_l1_task() ) then  
-     ! Get num_dims from FPL
-     massert(parameters%isAssignable(p4est_triang_num_dims_key, num_dims), 'num_dims not found or un-usable')
-     istat = parameters%get(key = p4est_triang_num_dims_key, value = num_dims); assert(istat==0)
-     call this%set_num_dims(num_dims)
-     if( parameters%isPresent(key = p4est_triang_domain_limits_cla_name) ) then
-       istat = parameters%GetShape(key = p4est_triang_domain_limits_cla_name, shape = array_size); check(istat==0)
-       assert(array_size(1) >= 2*this%get_num_dims())
-       call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)
-       assert(parameters%isAssignable(p4est_triang_domain_limits_cla_name, bounding_box_limits))
-       istat = parameters%get(key = p4est_triang_domain_limits_cla_name , value = bounding_box_limits); check(istat==0)
-       do idime = 1,this%get_num_dims()
-         this%bounding_box_limits(idime,1) = bounding_box_limits(2*idime-1)
-         this%bounding_box_limits(idime,2) = bounding_box_limits(2*idime)
-         assert(this%bounding_box_limits(idime,2)>this%bounding_box_limits(idime,1))
-       end do
-       call memfree(bounding_box_limits,__FILE__,__LINE__)
-     else
-       this%bounding_box_limits(:,1) = 0.0_rp
-       this%bounding_box_limits(:,2) = 1.0_rp
-     end if
-     
-     if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
-       assert(parameters%isAssignable(p4est_triang_log_level_key, p4est_log_level))
-       istat = parameters%get(key = p4est_triang_log_level_key, value = p4est_log_level); check(istat==0)
-     else
-       p4est_log_level = p4est_triang_log_level_cla_name
-     end if
-     
-     if( parameters%isPresent(key = p4est_triang_2_1_k_balance_key ) ) then
-       assert(parameters%isAssignable(p4est_triang_2_1_k_balance_key, this%k_2_1_balance))
-       istat = parameters%get(key = p4est_triang_2_1_k_balance_key, value = this%k_2_1_balance); check(istat==0)
-     else
-       this%k_2_1_balance = default_p4est_triang_2_1_k_balance
-     end if
-
-     if( parameters%isPresent(key = p4est_triang_k_ghost_cells_key ) ) then
-       assert(parameters%isAssignable(p4est_triang_k_ghost_cells_key, this%k_ghost_cells))
-       istat = parameters%get(key = p4est_triang_k_ghost_cells_key, value = this%k_ghost_cells); check(istat==0)
-     else
-       this%k_ghost_cells = default_p4est_triang_k_ghost_cells
-     end if
-
+  if ( p_environment%am_i_l1_task() ) then
      call this%reference_fe_geo%create( topology_hex, &
                                         this%get_num_dims(), &
                                         1, &
@@ -118,7 +66,7 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
      class default
        mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
      end select
-     call F90_p4est_init(mpi_context%get_icontxt(),p4est_log_level)
+     call F90_p4est_init(mpi_context%get_icontxt(),this%p4est_log_level)
      
      if ( this%get_num_dims() == 2 ) then
         call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
@@ -169,6 +117,36 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_create  
+
+subroutine p4est_triangulation_environment_aggregate_tasks(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  integer(ip), allocatable :: part_aggregation_among_levels(:)
+  class(environment_t), pointer :: environment
+  class(execution_context_t), pointer :: w_context 
+  character(len=:), allocatable :: error_message
+  integer(ip) :: num_levels
+  
+  environment => this%get_environment()
+  w_context => environment%get_w_context()
+  num_levels = environment%get_num_levels()
+  
+  error_message = "At present, p4est_par_triangulation_t &  
+                   CANNOT be used with " // environment_num_levels_key_name // &
+                   ' (' // ch(num_levels) // ') ' // &
+                   " > 2"
+  
+  massert ( num_levels == 1 .or. num_levels == 2, error_message )
+  
+  call memalloc( num_levels, part_aggregation_among_levels, __FILE__, __LINE__ )
+  part_aggregation_among_levels(1) = w_context%get_current_task()+1
+  if ( num_levels == 2 ) then
+     part_aggregation_among_levels(2) = 1
+  end if
+  call environment%setup_l1_to_l2_context_all_levels(part_aggregation_among_levels)
+  call memfree( part_aggregation_among_levels, __FILE__, __LINE__ )
+end subroutine p4est_triangulation_environment_aggregate_tasks
+
 
 subroutine p4est_par_triangulation_free ( this)
   implicit none
@@ -256,6 +234,7 @@ subroutine p4est_par_triangulation_free ( this)
         
         this%k_2_1_balance  = -1
         this%k_ghost_cells = -1
+        this%p4est_log_level = -1
         this%num_proper_vefs = -1
         this%num_improper_vefs = -1
         this%previous_num_local_cells = -1
@@ -393,7 +372,6 @@ subroutine p4est_par_triangulation_redistribute ( this )
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_redistribute
-
 
 subroutine p4est_par_triangulation_update_migration_control_data(this, p4est_old)
   implicit none

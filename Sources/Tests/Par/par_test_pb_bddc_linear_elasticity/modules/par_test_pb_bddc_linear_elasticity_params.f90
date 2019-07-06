@@ -206,13 +206,8 @@ contains
   function get_nparts(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    integer(ip)                                                     :: num_levels
     integer(ip)                                                     :: get_nparts(3)
     integer(ip), allocatable                                        :: num_parts_x_dir(:)
-    integer(ip), allocatable                                        :: array_size(:)
-    type(ParameterList_t), pointer                                  :: list
-    integer(ip)                                                     :: error
-    call parameter_handler%Get(key = struct_hex_mesh_generator_num_levels_key, Value = num_levels)
     call parameter_handler%GetAsArray(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key, Value = num_parts_x_dir)
     get_nparts=num_parts_x_dir(1:3)
   end function get_nparts

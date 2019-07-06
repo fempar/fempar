@@ -161,19 +161,6 @@ contains
         check(.false.)
     end select
 
-    ! Uncommenting the following lines and calling the driver with these flags,
-    ! generates a case of a single cut hex that leads to a
-    ! broken sub-triangulation computed with marching cubes
-    ! Flags: -tt structured -dim 3 -nx 1 -ny 1 -nz 1 -in_space .true. -order 1 -gorder 1 -wsolution .true. 
-    !
-    !dom3d(1) = 0.25
-    !dom3d(2) = 0.5
-    !dom3d(3) = 0.25
-    !dom3d(4) = 0.5
-    !dom3d(5) = 0.5
-    !dom3d(6) = 0.75
-    !call this%level_set_function%set_domain(dom3d)
-
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dims)
     call this%level_set_function%set_tolerance(1.0e-6)
@@ -219,7 +206,6 @@ contains
     call this%triangulation%fill_cells_set(this%cell_set_ids)
     call this%triangulation%free_cell_iterator(cell)
     
-    !if ( this%test_params%get_triangulation_type() == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then

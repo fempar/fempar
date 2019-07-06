@@ -29,6 +29,7 @@ module uniform_hex_mesh_generator_names
   ! Serial modules
   use types_names
   use memor_names
+  use stdio_names
   use reference_fe_names
   use uniform_hex_mesh_generator_parameters_names
   use FPL
@@ -36,48 +37,62 @@ module uniform_hex_mesh_generator_names
 # include "debug.i90"
   private 
 
-  integer(ip) , parameter :: not_described = 0
-  integer(ip) , parameter :: described = 1
-
   type uniform_hex_mesh_t 
      private 
-     integer(ip) :: state = not_described
-     integer(ip) :: num_dims
-     integer(ip) :: num_levels
-     integer(ip) :: interpolation_order
-     integer(ip), allocatable :: num_cells_x_dir(:) ! 0:SPACE_DIM-1)
-     integer(ip), allocatable :: num_parts_x_dir(:) ! 0:SPACE_DIM-1)
-     integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
-     real(rp) :: domain_limits(1:SPACE_DIM,2)
+     integer(ip)              :: num_dims
+     integer(ip)              :: interpolation_order
+     integer(ip), allocatable :: num_cells_x_dim(:)
+     integer(ip), allocatable :: num_parts_x_dim_x_level(:)
+     integer(ip)              :: is_dir_periodic(0:SPACE_DIM-1)
+     real(rp)                 :: domain_limits(1:SPACE_DIM,2)
    contains   
-     procedure, non_overridable :: get_data_from_parameter_list => uniform_hex_mesh_get_data_from_parameter_list
-     procedure, non_overridable :: generate_levels_and_parts    => uniform_hex_mesh_generate_levels_and_parts
-     procedure, non_overridable :: generate_connectivities      => uniform_hex_mesh_generate_connectivities
-     procedure, non_overridable :: free                         => uniform_hex_mesh_free
+     procedure         , non_overridable :: create                                         => uhm_create
+     procedure, private, non_overridable :: process_parameters                             => uhm_process_parameters
+     procedure         , non_overridable :: generate_part_local_mesh                       => uhm_generate_part_local_mesh
+     procedure, private, non_overridable :: check_part_local_mesh_parameters               => uhm_check_part_local_mesh_parameters
+     procedure         , non_overridable :: generate_part_aggregation_among_levels         => uhm_generate_part_aggregation_among_levels
+     procedure, private, non_overridable :: check_part_aggregation_among_levels_parameters => uhm_check_part_aggregation_among_levels_parameters 
+     procedure         , non_overridable :: free                                           => uhm_free
+     procedure         , non_overridable :: get_num_dims                                   => uhm_get_num_dims
   end type uniform_hex_mesh_t
   
   interface ijk_to_spatial_numbering
-     module procedure ijk_to_spatial_numbering_ip !, ijk_to_spatial_numbering_igp
+     module procedure ijk_to_spatial_numbering_ip
   end interface ijk_to_spatial_numbering
 
   public :: uniform_hex_mesh_t
 
 contains
 
-  subroutine uniform_hex_mesh_free(this)
+  subroutine uhm_create(this, parameters)
     implicit none
     class(uniform_hex_mesh_t), intent(inout) :: this
-    if(allocated(this%num_cells_x_dir)) call memfree(this%num_cells_x_dir,__FILE__,__LINE__)
-    if(allocated(this%num_parts_x_dir)) call memfree(this%num_parts_x_dir,__FILE__,__LINE__)
-  end subroutine uniform_hex_mesh_free
+    type(ParameterList_t)    , intent(in)    :: parameters
+    call this%free()
+    call this%process_parameters(parameters)
+  end subroutine uhm_create
 
-  subroutine uniform_hex_mesh_get_data_from_parameter_list(this,parameter_list)
+  subroutine uhm_free(this)
+    implicit none
+    class(uniform_hex_mesh_t), intent(inout) :: this
+    if(allocated(this%num_cells_x_dim)) call memfree(this%num_cells_x_dim,__FILE__,__LINE__)
+    if(allocated(this%num_parts_x_dim_x_level)) call memfree(this%num_parts_x_dim_x_level,__FILE__,__LINE__)
+  end subroutine uhm_free
+  
+  pure function uhm_get_num_dims(this)
+    implicit none
+    class(uniform_hex_mesh_t), intent(in) :: this
+    integer(ip) :: uhm_get_num_dims
+    uhm_get_num_dims = this%num_dims
+  end function uhm_get_num_dims
+
+  subroutine uhm_process_parameters(this,parameters)
     !-----------------------------------------------------------------------------------------------!
     !   This subroutine generates geometry data to construct a structured mesh                      !
     !-----------------------------------------------------------------------------------------------!
     implicit none
     class(uniform_hex_mesh_t), intent(inout) :: this
-    type(ParameterList_t)    , intent(in)    :: parameter_list
+    type(ParameterList_t)    , intent(in)    :: parameters
     ! Locals
     integer(ip) :: istat, idime
     logical     :: is_present
@@ -85,148 +100,67 @@ contains
     real(rp), allocatable :: domain_limits(:)
     
     ! Mandatory
-    assert(parameter_list%isAssignable(struct_hex_mesh_generator_num_dims_key, this%num_dims))
-    istat = parameter_list%get(key = struct_hex_mesh_generator_num_dims_key, value = this%num_dims)
-    assert(istat==0)
-
-    ! Optional
-    if( parameter_list%isPresent(struct_hex_mesh_generator_num_levels_key) ) then
-       assert(parameter_list%isAssignable(struct_hex_mesh_generator_num_levels_key, this%num_levels))
-       istat = parameter_list%get(key = struct_hex_mesh_generator_num_levels_key , value = this%num_levels)
-       assert(istat==0)
-    else
-       this%num_levels = 1
-    end if
+    assert(parameters%isPresent(struct_hex_mesh_generator_num_dims_key))
+    assert(parameters%isAssignable(struct_hex_mesh_generator_num_dims_key, this%num_dims))
+    istat = parameters%get(key = struct_hex_mesh_generator_num_dims_key, value = this%num_dims); check(istat==0)
+    
+    ! Mandatory (array)
+    assert ( parameters%isPresent(key = struct_hex_mesh_generator_num_cells_x_dim_key ) )
+    istat = parameters%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key, shape = array_size); check(istat==0)
+    call memalloc(array_size(1), this%num_cells_x_dim,__FILE__,__LINE__, lb1=0)
+    istat = parameters%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = this%num_cells_x_dim); check(istat==0)
 
     ! Mandatory (array)
-    is_present =  parameter_list%isPresent(key = struct_hex_mesh_generator_num_cells_x_dim_key ); assert(is_present)
-    istat = parameter_list%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key, shape = array_size); check(istat==0)
-    assert(array_size(1) >= SPACE_DIM)
-    call memalloc(array_size(1), this%num_cells_x_dir,__FILE__,__LINE__, lb1=0)
-    istat = parameter_list%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = this%num_cells_x_dir); check(istat==0)
+    assert (parameters%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key ) )
+    istat = parameters%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0);
+    istat = parameters%get(key = struct_hex_mesh_generator_is_dir_periodic_key, value = this%is_dir_periodic); check(istat==0)
 
     ! Mandatory (array)
-    is_present =  parameter_list%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key )                             ; assert(is_present)
-    istat = parameter_list%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0); assert(array_size(1) == SPACE_DIM)
-    istat = parameter_list%get(key = struct_hex_mesh_generator_is_dir_periodic_key     , value = this%is_dir_periodic)       ; check(istat==0)
-
-    ! Optional (array)
-    if( parameter_list%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) ) then
-       istat = parameter_list%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key   , shape = array_size); check(istat==0)
-       assert(array_size(1) >= this%num_levels*SPACE_DIM)
-       call memalloc(array_size(1), this%num_parts_x_dir,__FILE__,__LINE__, lb1=0)
-       istat = parameter_list%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = this%num_parts_x_dir); check(istat==0)
-    else
-       assert(this%num_levels==1) ! It is mandatory for num_levels>1!
-       call memalloc(SPACE_DIM, this%num_parts_x_dir,__FILE__,__LINE__, lb1=0)
-       this%num_parts_x_dir = 1
-    end if
+    assert( parameters%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) )
+    istat = parameters%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key   , shape = array_size); check(istat==0)
+    call memalloc(array_size(1), this%num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
+    istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = this%num_parts_x_dim_x_level); check(istat==0)
     
-    ! Optional (array)
-    if( parameter_list%isPresent(key = struct_hex_mesh_generator_domain_limits_key) ) then
-      istat = parameter_list%GetShape(key = struct_hex_mesh_generator_domain_limits_key   , shape = array_size); check(istat==0)
-      assert(array_size(1) >= 2*this%num_dims)
-      call memalloc(array_size(1), domain_limits,__FILE__,__LINE__)
-      assert(parameter_list%isAssignable(struct_hex_mesh_generator_domain_limits_key, domain_limits))
-      istat = parameter_list%get(key = struct_hex_mesh_generator_domain_limits_key , value = domain_limits); check(istat==0)
-      do idime = 1,this%num_dims
-        this%domain_limits(idime,1) = domain_limits(2*idime-1)
-        this%domain_limits(idime,2) = domain_limits(2*idime)
-        assert(this%domain_limits(idime,2)>this%domain_limits(idime,1))
-      end do
-      call memfree(domain_limits,__FILE__,__LINE__)
-    else
-      ! Default value for domain
-      this%domain_limits(:,1) = 0.0
-      this%domain_limits(:,2) = 1.0
-    end if
+    ! Mandatory (array)
+    assert( parameters%isPresent(key = struct_hex_mesh_generator_domain_limits_key) )
+    istat = parameters%GetShape(key = struct_hex_mesh_generator_domain_limits_key   , shape = array_size); check(istat==0)
+    call memalloc(array_size(1), domain_limits,__FILE__,__LINE__)
+    assert(parameters%isAssignable(struct_hex_mesh_generator_domain_limits_key, domain_limits))
+    istat = parameters%get(key = struct_hex_mesh_generator_domain_limits_key , value = domain_limits); check(istat==0)
+    do idime = 1,this%num_dims
+      this%domain_limits(idime,1) = domain_limits(2*idime-1)
+      this%domain_limits(idime,2) = domain_limits(2*idime)
+      assert(this%domain_limits(idime,2)>this%domain_limits(idime,1))
+    end do
     
-
+    call memfree(domain_limits,__FILE__,__LINE__)
     ! Here we do not use our memfree because array_size was allocated inside FPL 
     ! (without calling memalloc)
     if(allocated(array_size)) deallocate(array_size)
-
-    this%state = described
-
-  end subroutine uniform_hex_mesh_get_data_from_parameter_list
-
-
-  subroutine uniform_hex_mesh_generate_levels_and_parts(this, task_id, num_levels, num_parts_x_level, parts_mapping)
-
+  end subroutine uhm_process_parameters
+    
+  subroutine uhm_generate_part_local_mesh(this, &
+                                          num_local_cells, &
+                                          num_local_vefs, &
+                                          num_vertices, &
+                                          num_edges, &
+                                          num_faces, &
+                                          ptr_vefs_x_cell, &
+                                          lst_vefs_lids, &
+                                          boundary_id, &
+                                          coordinates, &
+                                          num_ghost_cells, &
+                                          cells_gids, &
+                                          cells_mypart, &
+                                          vefs_gids, &
+                                          num_itfc_cells, &
+                                          lst_itfc_cells, &
+                                          ptr_ext_neighs_x_itfc_cell, &
+                                          lst_ext_neighs_gids, &
+                                          lst_ext_neighs_part_ids, &
+                                          part_id)
     implicit none
-    class(uniform_hex_mesh_t) , intent(inout) :: this
-    integer(ip)               , intent(in)    :: task_id
-    integer(ip)               , intent(inout) :: num_levels
-    integer(ip)  , allocatable, intent(inout) :: num_parts_x_level(:)
-    integer(ip)  , allocatable, intent(inout) :: parts_mapping(:)
-    integer(ip) :: ilevel,idime,ipart,num_parts,num_tasks,first,last
-    integer(ip) :: part_ijk(0:SPACE_DIM-1)
-
-    assert(this%state==described)
-
-    num_levels = this%num_levels
-    call memalloc(num_levels, num_parts_x_level, __FILE__,__LINE__)
-    call memalloc(num_levels, parts_mapping, __FILE__,__LINE__)
-    num_tasks = 0
-    do ilevel=1,num_levels
-       num_parts = 1
-       do idime = 0, this%num_dims - 1 
-          num_parts = num_parts * this%num_parts_x_dir((ilevel-1)*SPACE_DIM+idime)
-       end do
-       num_parts_x_level(ilevel) = num_parts
-       num_tasks = num_tasks + num_parts
-    end do
-    assert(task_id<num_tasks)
-
-    parts_mapping = -1
-    ilevel=1
-    ipart = task_id + 1 
-    num_parts = 0
-    do while(ipart>num_parts_x_level(ilevel))
-       ipart  = ipart - num_parts_x_level(ilevel)
-       num_parts = num_parts + num_parts_x_level(ilevel)
-       ilevel = ilevel + 1
-    end do
-    parts_mapping(ilevel) = ipart
-    do while(ilevel<=num_levels-1)
-       first = (ilevel-1)*SPACE_DIM
-       last  = first + this%num_dims-1
-       call spatial_to_ijk_numbering(this%num_dims, this%num_parts_x_dir(first:last), ipart, part_ijk)
-       do idime = 0, this%num_dims - 1 
-          part_ijk(idime) = part_ijk(idime)*this%num_parts_x_dir(ilevel*SPACE_DIM+idime)/this%num_parts_x_dir((ilevel-1)*SPACE_DIM+idime)
-       end do
-       first = ilevel*SPACE_DIM
-       last  = first + this%num_dims-1
-       ipart = ijk_to_spatial_numbering(this%num_dims,this%num_parts_x_dir(first:last), part_ijk)+1
-       ilevel = ilevel +1
-       parts_mapping(ilevel) = ipart
-    end do
-
-  end subroutine uniform_hex_mesh_generate_levels_and_parts
-
-
-  subroutine uniform_hex_mesh_generate_connectivities(this,                  &
-                                                      num_local_cells,       &
-                                                      num_local_vefs,        &
-                                                      num_vertices,          &
-                                                      num_edges,             &
-                                                      num_faces,             &
-                                                      ptr_vefs_x_cell,     &
-                                                      lst_vefs_lids,         &
-                                                      boundary_id,           &
-                                                      coordinates,           &
-                                                      num_ghost_cells,       &
-                                                      cells_gids,            &
-                                                      cells_mypart,          &
-                                                      vefs_gids,             &
-                                                      num_itfc_cells,        &
-                                                      lst_itfc_cells,        &
-                                                      ptr_ext_neighs_x_itfc_cell, &
-                                                      lst_ext_neighs_gids,          &
-                                                      lst_ext_neighs_part_ids,      &
-                                                      part_id)
-    implicit none
-    class(uniform_hex_mesh_t) , intent(inout) :: this
+    class(uniform_hex_mesh_t) , intent(in)    :: this
     integer(ip)               , intent(out)   :: num_local_cells
     integer(ip)               , intent(out)   :: num_local_vefs
     integer(ip)               , intent(out)   :: num_vertices
@@ -279,39 +213,44 @@ contains
     !type(node_array_t)        :: node_array
     integer(ip)               :: ones(SPACE_DIM)
     logical                   :: count_it
-
-    check(this%state==described)
+    integer(ip), allocatable  :: num_parts_x_dim_x_level(:)
 
     if(present(num_ghost_cells)) then
        assert(present(num_itfc_cells))
        assert(present(cells_gids))
+       assert(present(cells_mypart))
        assert(present(vefs_gids))
        assert(present(lst_itfc_cells))
        assert(present(ptr_ext_neighs_x_itfc_cell))
        assert(present(lst_ext_neighs_gids))  
        assert(present(lst_ext_neighs_part_ids))
     end if
+    
+    call this%check_part_local_mesh_parameters()
 
     ones = 1
     topology = 2**this%num_dims-1  ! Hexahedral
     call polytope%create( this%num_dims, topology ) 
     !call node_array%create ( polytope, ones*this%interpolation_order )
 
+    call memalloc(size(this%num_parts_x_dim_x_level), num_parts_x_dim_x_level, __FILE__, __LINE__, lb1=0 )
+    num_parts_x_dim_x_level(:) = this%num_parts_x_dim_x_level
+    
     ! PARTS
     ! =====
     ! Get my part coordinates (make it 0-based, assuming part_id is 1-based) and the number of parts I have around (if any)
     if(present(part_id)) then
-       call spatial_to_ijk_numbering(this%num_dims, this%num_parts_x_dir, part_id, part_ijk)
+       call spatial_to_ijk_numbering(this%num_dims, num_parts_x_dim_x_level, part_id, part_ijk)
     else
        part_ijk = 0
-       this%num_parts_x_dir = 1
+       num_parts_x_dim_x_level = 1
     end if
     num_left_parts_x_dir=1
     num_right_parts_x_dir=1
     do idime = 0, this%num_dims - 1 
-       if(this%is_dir_periodic(idime)==0.or.this%num_parts_x_dir(idime)==1) then ! Not periodic
+       if(this%is_dir_periodic(idime)==0 .or. num_parts_x_dim_x_level(idime)==1) then ! Not periodic
           if(part_ijk(idime)==0) num_left_parts_x_dir(idime)=0 
-          if(part_ijk(idime)==this%num_parts_x_dir(idime)-1) num_right_parts_x_dir(idime)=0 
+          if(part_ijk(idime)==num_parts_x_dim_x_level(idime)-1) num_right_parts_x_dir(idime)=0 
        end if
     end do
 
@@ -319,7 +258,7 @@ contains
     ! =====
     ! Global and local number of cells (per direction and total; local, ghost and global)
     do idime = 0, this%num_dims - 1 
-       num_local_cells_x_dir(idime) = this%num_cells_x_dir(idime) / this%num_parts_x_dir(idime) 
+       num_local_cells_x_dir(idime) = this%num_cells_x_dim(idime) / num_parts_x_dim_x_level(idime) 
        first_cell_ijk(idime) =  part_ijk(idime) * num_local_cells_x_dir(idime)
     end do
     num_local_cells = 1
@@ -444,11 +383,11 @@ contains
           !itype = polytope%n_face_type(iface)
           do idime = 0, this%num_dims - 1
              num_global_nfaces_x_dir(idime,itype) = &
-                  & this%num_cells_x_dir(idime)  + &
+                  & this%num_cells_x_dim(idime)  + &
                   & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),this%is_dir_periodic(idime))
              num_total_nfaces_x_dir(idime,itype) =  &
                   & num_total_cells_x_dir(idime) + &
-                  & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),this%is_dir_periodic(idime)/this%num_parts_x_dir(idime))
+                  & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),this%is_dir_periodic(idime)/num_parts_x_dim_x_level(idime))
           end do
           num_global_n_faces(itype+1) = 1
           num_total_n_faces(itype+1) = 1
@@ -522,9 +461,9 @@ contains
           end do
           cells_mypart(cell_permutation(icell)) = 1 + &
                &   ijk_to_spatial_numbering( this%num_dims, &
-               &                             this%num_parts_x_dir, mypart_ijk)
+               &                             num_parts_x_dim_x_level, mypart_ijk)
           cell_ijk = first_cell_ijk + cell_ijk
-          cells_gids(cell_permutation(icell)) = 1 + ijk_to_spatial_numbering(this%num_dims, this%num_cells_x_dir, cell_ijk)
+          cells_gids(cell_permutation(icell)) = 1 + ijk_to_spatial_numbering(this%num_dims, this%num_cells_x_dim, cell_ijk)
        end do
 
        ! List ghost cells and compute interface cells pointers
@@ -609,7 +548,7 @@ contains
 
                       lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_cell(itfc_cells)+index)= 1 + &
                            &   ijk_to_spatial_numbering( this%num_dims, &
-                           &                             this%num_parts_x_dir, neighbor_part_ijk)
+                           &                             num_parts_x_dim_x_level, neighbor_part_ijk)
                       index = index + 1
                    end if
                 end if
@@ -648,7 +587,7 @@ contains
                   &                                                nface_ijk )
              if(itype==0) then
                 do idime = 0, this%num_dims - 1 
-                   coordinates(idime+1,iface_of_itype) = real(nface_ijk(idime),rp) / real(this%num_cells_x_dir(idime),rp)
+                   coordinates(idime+1,iface_of_itype) = real(nface_ijk(idime),rp) / real(this%num_cells_x_dim(idime),rp)
                 end do
              end if
              index = 0
@@ -679,14 +618,89 @@ contains
     call memfree( num_total_n_faces, __FILE__,__LINE__)
     call memfree( num_global_nfaces_x_dir, __FILE__,__LINE__)
     call memfree( num_total_nfaces_x_dir, __FILE__,__LINE__)
+    call memfree( num_parts_x_dim_x_level, __FILE__, __LINE__ )
 
     call memfree(cell_permutation, __FILE__,__LINE__)
 
     !call node_array%free()
     call polytope%free()
 
-  end subroutine uniform_hex_mesh_generate_connectivities
+  end subroutine uhm_generate_part_local_mesh
 
+  
+  subroutine uhm_check_part_local_mesh_parameters(this)
+    implicit none
+    class(uniform_hex_mesh_t) , intent(in) :: this
+    character(len=:), allocatable :: error_message
+#ifdef DEBUG
+    error_message = struct_hex_mesh_generator_num_dims_key //  & 
+                    ' (' // ch(this%num_dims) // ') ' //  & 
+                    ' must be either 2 or 3'
+    massert ( this%num_dims == 2 .or. this%num_dims == 3, error_message ) 
+    
+    error_message = struct_hex_mesh_generator_num_dims_key //  & 
+                    ' (' // ch(this%num_dims) // ') ' //  & 
+                    ' must be smaller or equal than the SPACE_DIM' // &
+                    ' (' // ch(SPACE_DIM) // ') ' //  & 
+                    'FEMPAR library-level constant parameter'
+    massert ( this%num_dims <= SPACE_DIM, error_message )
+   
+#endif
+  end subroutine uhm_check_part_local_mesh_parameters
+  
+  subroutine uhm_generate_part_aggregation_among_levels(this, &
+                                                        task_id, & 
+                                                        num_levels, &
+                                                        num_parts_x_level, &
+                                                        part_aggregation_among_levels)
+
+    implicit none
+    class(uniform_hex_mesh_t) , intent(in)    :: this
+    integer(ip)               , intent(in)    :: task_id
+    integer(ip)               , intent(in)    :: num_levels
+    integer(ip)               , intent(in)    :: num_parts_x_level(num_levels)
+    integer(ip)  , allocatable, intent(inout) :: part_aggregation_among_levels(:)
+    
+    integer(ip) :: ilevel,idime,ipart,first,last
+    integer(ip) :: part_ijk(0:SPACE_DIM-1)
+
+    assert(task_id<sum(num_parts_x_level))
+    
+    if ( allocated(part_aggregation_among_levels) ) & 
+        call memfree(part_aggregation_among_levels, __FILE__,__LINE__)
+        
+    call memalloc(num_levels, part_aggregation_among_levels, __FILE__,__LINE__)
+    part_aggregation_among_levels = -1
+    ilevel=1
+    ipart=task_id + 1 
+    do while(ipart>num_parts_x_level(ilevel))
+       ipart  = ipart - num_parts_x_level(ilevel)
+       ilevel = ilevel + 1
+    end do
+    part_aggregation_among_levels(ilevel) = ipart
+    do while(ilevel<=num_levels-1)
+       first = (ilevel-1)*SPACE_DIM
+       last  = first + this%num_dims-1
+       call spatial_to_ijk_numbering(this%num_dims, this%num_parts_x_dim_x_level(first:last), ipart, part_ijk)
+       do idime = 0, this%num_dims - 1 
+          part_ijk(idime) = part_ijk(idime)*this%num_parts_x_dim_x_level(ilevel*SPACE_DIM+idime)/this%num_parts_x_dim_x_level((ilevel-1)*SPACE_DIM+idime)
+       end do
+       first = ilevel*SPACE_DIM
+       last  = first + this%num_dims-1
+       ipart = ijk_to_spatial_numbering(this%num_dims,this%num_parts_x_dim_x_level(first:last), part_ijk)+1
+       ilevel = ilevel +1
+       part_aggregation_among_levels(ilevel) = ipart
+    end do
+  end subroutine uhm_generate_part_aggregation_among_levels
+
+  subroutine uhm_check_part_aggregation_among_levels_parameters(this,num_levels, num_tasks_x_level)
+    implicit none
+    class(uniform_hex_mesh_t) , intent(inout) :: this
+    integer(ip)               , intent(in)    :: num_levels
+    integer(ip)               , intent(in)    :: num_tasks_x_level(num_levels)
+  end subroutine uhm_check_part_aggregation_among_levels_parameters
+  
+  
   pure function ijk_to_spatial_numbering_ip(num_dims, num_x_dim, ijk)
     implicit none
     integer(ip)           , intent(in) :: num_dims
@@ -704,24 +718,6 @@ contains
        ijk_to_spatial_numbering_ip = ijk_to_spatial_numbering_ip + previous*ijk(idime)
     end do
   end function ijk_to_spatial_numbering_ip
-
-  pure function ijk_to_spatial_numbering_igp(num_dims, num_x_dim, ijk)
-    implicit none
-    integer(ip)           , intent(in) :: num_dims
-    integer(igp)          , intent(in) :: num_x_dim(0:SPACE_DIM-1) 
-    integer(ip)           , intent(in) :: ijk(0:SPACE_DIM-1) 
-    integer(igp) :: ijk_to_spatial_numbering_igp
-    integer(ip)  :: idime, jdime
-    integer(igp) :: previous
-    ijk_to_spatial_numbering_igp = 0
-    do idime = 0, num_dims - 1
-       previous = 1
-       do jdime = 0, idime - 1 
-          previous = previous * num_x_dim(jdime)
-       end do
-       ijk_to_spatial_numbering_igp = ijk_to_spatial_numbering_igp + previous*ijk(idime)
-    end do
-  end function ijk_to_spatial_numbering_igp
 
   pure subroutine spatial_to_ijk_numbering(num_dims, num_x_dim, spatial_numbering, ijk)
     implicit none

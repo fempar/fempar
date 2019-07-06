@@ -30,7 +30,7 @@ then
              #test 1 2D - Analytical 3D known function test with unit constant coefficients --------------------
             for order in 1 2 3; do 
                 source $TEST_INPUT_DATA_PATH/test1_params.sh 
-                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 0 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 0 1 1 0 $struct_hex_mesh_generator_num_levels_flag 2  $coarse_space_use_faces_flag .false. -order $order -wsolution .false. -edge_cont tangential_average -materials_case homogeneous $bddc_scaling_function_case_flag cardinality -bmass_trick .false. -coefficient_case unit_constant"
+                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 0 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 0 1 1 0 $coarse_space_use_faces_flag .false. -order $order -wsolution .false. -edge_cont tangential_average -materials_case homogeneous $bddc_scaling_function_case_flag cardinality -bmass_trick .false. -coefficient_case unit_constant"
                 echo $COMMAND
                 eval $COMMAND
             done 
@@ -39,13 +39,13 @@ then
              #test 1 3D - Analytical 3D known function test with unit constant coefficients --------------------
             for order in 1 2; do 
                 source $TEST_INPUT_DATA_PATH/test1_params.sh 
-                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 10 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $struct_hex_mesh_generator_num_levels_flag 2  $coarse_space_use_faces_flag .false. -order $order -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case homogeneous $bddc_scaling_function_case_flag cardinality -bmass_trick .false. -coefficient_case unit_constant"
+                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 10 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $coarse_space_use_faces_flag .false. -order $order -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case homogeneous $bddc_scaling_function_case_flag cardinality -bmass_trick .false. -coefficient_case unit_constant"
                 echo $COMMAND
                 eval $COMMAND
             done 
 
             #test 2 - Unknown solution w/ checkerboard distrib. of materials ------------------------------
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square'  $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 8 8 8 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $struct_hex_mesh_generator_num_levels_flag 2  $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee $TMP_OUTPUT"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square'  $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 8 8 8 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee $TMP_OUTPUT"
             echo $COMMAND
             eval $COMMAND
 
@@ -61,7 +61,7 @@ then
 
 
             #test 3 - Unknown solution w/ channel inclusions -----------------------------------------------
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 12 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $struct_hex_mesh_generator_num_levels_flag 2  $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case channels -channels_ratio 0.5 $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4  | tee $TMP_OUTPUT"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 12 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case channels -channels_ratio 0.5 $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4  | tee $TMP_OUTPUT"
             echo $COMMAND
             eval $COMMAND
 
@@ -78,7 +78,7 @@ then
 
 
             #test 4 - Unknown solution w/ analytical functions describing coeffs ---------------------------------
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 12 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $struct_hex_mesh_generator_num_levels_flag 2 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case heterogeneous $bddc_scaling_function_case_flag weighted_coefficients -bmass_trick .false. -rpb_bddc_threshold 1e3 -coefficient_case sinusoidal -mass_coeff_white 3 -curl_curl_coeff_white 3 -num_peaks_curl_curl_coeff 2 -num_peaks_mass_coeff 2  | tee $TMP_OUTPUT"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $prefix_flag 'square' $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 12 12 12 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -materials_case heterogeneous $bddc_scaling_function_case_flag weighted_coefficients -bmass_trick .false. -rpb_bddc_threshold 1e3 -coefficient_case sinusoidal -mass_coeff_white 3 -curl_curl_coeff_white 3 -num_peaks_curl_curl_coeff 2 -num_peaks_mass_coeff 2  | tee $TMP_OUTPUT"
             echo $COMMAND
             eval $COMMAND
 
@@ -100,7 +100,7 @@ then
             eval $COMMAND
 
             for order in 1 2; do
-                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $static_triang_generate_from_flag MESH_DATA_FILES $coarse_space_use_faces_flag .false. -edge_cont tangential_average_and_first_order_moment -order $order $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra' $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' -wsolution .false. | tee $TMP_OUTPUT "
+                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag MESH_DATA_FILES $coarse_space_use_faces_flag .false. -edge_cont tangential_average_and_first_order_moment -order $order $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra' $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra' -wsolution .false. | tee $TMP_OUTPUT "
                 echo $COMMAND
                 eval $COMMAND
 

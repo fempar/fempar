@@ -218,22 +218,14 @@ subroutine free_timers(this)
     call this%timer_solver_run%free()
 end subroutine free_timers
 
-  
   !========================================================================================
   subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    class(execution_context_t)                    , intent(in)    :: world_context
-    integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
+    class(execution_context_t)     , intent(in)    :: world_context
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
-
 !========================================================================================
   subroutine setup_triangulation(this)
     implicit none

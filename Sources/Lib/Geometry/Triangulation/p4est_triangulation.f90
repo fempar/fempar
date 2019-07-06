@@ -33,6 +33,7 @@ module p4est_triangulation_names
   use stdio_names
   use memor_names
   use environment_names
+  use environment_parameters_names
   use execution_context_names
   use mpi_context_names
   use serial_context_names
@@ -161,6 +162,7 @@ module p4est_triangulation_names
     private
     integer(ip) :: k_2_1_balance            = -1
     integer(ip) :: k_ghost_cells            = -1
+    integer(ip) :: p4est_log_level          = -1
     
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
@@ -232,6 +234,8 @@ module p4est_triangulation_names
      integer(ip), allocatable              :: lst_dofs_n_face(:)
     
   contains
+    procedure                                   :: process_parameters                            =>  p4est_base_triangulation_process_parameters
+  
     procedure                                   :: is_conforming                                 =>  p4est_base_triangulation_is_conforming
   
     ! Getters
@@ -344,6 +348,7 @@ module p4est_triangulation_names
   contains
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                           => p4est_par_triangulation_create
+    procedure, private, non_overridable         :: environment_aggregate_tasks                      => p4est_triangulation_environment_aggregate_tasks
     procedure                                   :: free                                             => p4est_par_triangulation_free 
     procedure                                   :: clear_disconnected_cells_set_ids                 => p4est_par_triangulation_clear_disconnected_cells_set_ids
     procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute

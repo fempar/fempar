@@ -36,6 +36,7 @@ module triangulation_names
   use list_types_names
   use field_names
   use environment_names
+  use execution_context_names
   use std_vector_integer_ip_names
   
   ! Modules required by triangulation_t implementors
@@ -650,6 +651,9 @@ module triangulation_names
      ! (It is required, e.g., for nearest neighbour comms on this graph)
      type(cell_import_t)                   :: cell_import   
      
+     logical                               :: identify_disconn_components
+     character(len=:), allocatable         :: identify_disconn_components_dgraph_coupling
+     
      ! Data structures to create objects (coarse cell info)
      logical                               :: coarse_triangulation_set_up = .false.
      integer(ip)                           :: num_global_objects = 0
@@ -661,7 +665,6 @@ module triangulation_names
      type(list_t)                          :: parts_object
      integer(ip)                           :: max_cell_set_id = 0        ! Max cell_set_id among parts   
      integer(ip)                           :: num_subparts = 0           ! num of subparts around part (including those subparts which are local)
-     character(len=:), allocatable         :: subparts_coupling_criteria 
      type(list_t)                          :: subparts_object            ! num and list of subparts GIDs around each coarse n_face
      type(hash_table_ip_ip_t)              :: g2l_subparts               ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer :: coarse_triangulation => NULL()
@@ -677,6 +680,9 @@ module triangulation_names
      type(std_vector_integer_ip_t)              :: rcv_lst_subparts_vefs_cell_wise
      type(std_vector_integer_ip_t)              :: ptrs_to_rcv_lst_subparts_vefs_cell_wise
  contains  
+ 
+     procedure                                  :: process_parameters => triangulation_process_parameters
+ 
      ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
      ! whether it is transformed, refined, coarsened, etc.)
      procedure(is_conforming_interface)         , deferred :: is_conforming
@@ -714,9 +720,6 @@ module triangulation_names
      procedure, non_overridable :: coarse_triangulation_is_set_up => triangulation_coarse_triangulation_is_set_up
      
      procedure, non_overridable :: set_environment          => triangulation_set_environment
-     !procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
-     !procedure, non_overridable :: free_environment         => triangulation_free_environment
-     
      procedure                  :: free                     => triangulation_free
      
      ! Cell traversals-related TBPs
@@ -782,7 +785,6 @@ module triangulation_names
      
      ! Methods for disconnected parts identification 
      procedure                           :: get_max_cell_set_id                         => triangulation_get_max_cell_set_id
-     procedure, non_overridable          :: set_subparts_coupling_criteria              => triangulation_set_subparts_coupling_criteria 
      procedure, non_overridable, private :: allocate_and_fill_disconnected_cells_set_id => triangulation_allocate_and_fill_disconnected_cells_set_id 
      procedure, non_overridable, private :: compute_disconnected_cells_set_id           => triangulation_compute_disconnected_cells_set_id
      procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph  
@@ -1096,7 +1098,6 @@ module triangulation_names
      integer(ip) , allocatable             :: lst_cells_around(:)  ! ptrs_cells_around(num_itfc_vefs+1)-1
 
      ! Data structures that should be defined in fine_triangulation_t (which requires extensive refactoring)     
-     type(geometry_t)                      :: geometry
      type(p_lagrangian_reference_fe_t)     :: reference_fe_geo_list(max_num_reference_fes_geo)
      type(hash_table_ip_ip_t)              :: reference_fe_geo_index
      
@@ -1197,7 +1198,14 @@ module triangulation_names
   
   type, extends(base_static_triangulation_t) :: fine_triangulation_t
      private
+     ! Parameters read from parameter_list
+     character(len=:), allocatable :: generate_from
+     integer(ip)                   :: geometric_interpolation_order
+     character(len=:), allocatable :: dir_path
+     character(len=:), allocatable :: prefix
+     type(geometry_t)              :: geometry
   contains
+     procedure                           :: process_parameters                  => fine_triangulation_process_parameters
      ! Private methods to create vefs (these functions make use of the reference fe and therefore are not bounded
      ! to the mother class)
      procedure, non_overridable, private :: fill_reference_fe_geo_list          => fine_triangulation_fill_reference_fe_geo_list
@@ -1218,13 +1226,21 @@ module triangulation_names
   contains
      procedure                 , private :: serial_triangulation_create
      generic                             :: create                              => serial_triangulation_create
+     procedure                 , private :: create_uniform_hex_mesh_itinerary   => serial_triangulation_create_uniform_hex_mesh_itinerary
+     procedure                 , private :: create_mesh_data_files_itinerary    => serial_triangulation_create_mesh_data_files_itinerary
+     procedure                 , private :: create_common_itinerary             => serial_triangulation_create_common_itinerary
   end type serial_triangulation_t
   
   type, extends(fine_triangulation_t) :: par_triangulation_t
   contains
      generic                             :: create                              => par_triangulation_create
      procedure, private                  :: par_triangulation_create
-     procedure, non_overridable, private :: allocate_and_fill_lst_vefs_gids     => par_triangulation_allocate_and_fill_lst_vefs_gids 
+     procedure, private, non_overridable :: environment_read_file               => par_triangulation_environment_read_file
+     procedure, private, non_overridable :: environment_aggregate_tasks         => par_triangulation_environment_aggregate_tasks
+     procedure, private, non_overridable :: create_uniform_hex_mesh_itinerary   => par_triangulation_create_uniform_hex_mesh_itinerary
+     procedure, private, non_overridable :: create_mesh_data_files_itinerary    => par_triangulation_create_mesh_data_files_itinerary
+     procedure, private, non_overridable :: create_common_itinerary             => par_triangulation_create_common_itinerary
+     procedure, private, non_overridable :: allocate_and_fill_lst_vefs_gids     => par_triangulation_allocate_and_fill_lst_vefs_gids 
      procedure, nopass, non_overridable  :: generate_non_consecutive_vef_ggid   => par_triangulation_generate_non_consecutive_vef_ggid
   end type par_triangulation_t
     
@@ -1244,7 +1260,7 @@ module triangulation_names
   end type coarse_triangulation_t
   
   public :: triangulation_t, serial_triangulation_t, par_triangulation_t, coarse_triangulation_t
-  public :: triangulation_free
+  public :: triangulation_free, triangulation_process_parameters
   public :: cell_iterator_t
   public :: vef_iterator_t
   public :: itfc_vef_iterator_t, object_iterator_t

@@ -70,10 +70,21 @@ module triangulation_parameters_names
   character(len=*), parameter :: static_triang_geometric_interpolation_order_cla_help = 'Interpolation order static triangulation geometrical mapping' // BRK_LINE // &
                                                                                         '(only partial/unstable support for order>1)'
                                                                                
-  character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
-  character(len=*), parameter :: all_coupled                    = 'all_coupled'
-  character(len=*), parameter :: loose_coupling                 = 'loose_coupling' 
-  character(len=*), parameter :: strong_coupling                = 'strong_coupling' 
+  character(len=*), parameter :: triang_identify_disconn_components_key = 'TRIANG_IDENTIFY_DISCONNECTED_COMPONENTS'
+  character(len=*), parameter :: triang_identify_disconn_components_cla_name = '--'// triang_identify_disconn_components_key
+  character(len=*), parameter :: triang_identify_disconn_components_cla_help = 'Activate/deactivate set up of a cell-wise data array within triangulation. In this array, ' // BRK_LINE // &
+                                                                                   'referred to as disconnected_cells_set_id, cells that belong to the same disconnected component' // BRK_LINE // & 
+                                                                                   'are labelled with the same ID, starting from 0. If deactivated, all cells are labelled with ID 0.'
+
+  character(len=*), parameter :: vertex_coupling = 'VERTEX_COUPLING' 
+  character(len=*), parameter :: face_coupling   = 'FACE_COUPLING' 
+  character(len=*), parameter :: triang_identify_disconn_components_dgraph_coupling_key = 'TRIANG_IDENTIFY_DISCONNECTED_COMPONENTS_DGRAPH_COUPLING'
+  character(len=*), parameter :: triang_identify_disconn_components_dgraph_coupling_cla_name = '--'// triang_identify_disconn_components_dgraph_coupling_key
+  character(len=*), parameter :: triang_identify_disconn_components_dgraph_coupling_cla_help = 'Criterion to decide cell neighbors in the dual graph built by triangulation' // BRK_LINE // &
+                        BULLET_FLAP_HELP_MESSAGE // vertex_coupling // ": cells are neighbors if they share at least one vertex" // BRK_LINE // &
+                        BULLET_FLAP_HELP_MESSAGE // face_coupling // ": cells are neighbors if they share a face"
+  character(len=*), parameter :: triang_identify_disconn_components_dgraph_coupling_cla_choices = vertex_coupling // ',' // face_coupling
+
   
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 

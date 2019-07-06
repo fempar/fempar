@@ -40,7 +40,6 @@ module par_test_h_adaptive_lagrangian_fe_params_names
   character(len=*), parameter :: write_solution_key             = 'write_solution'        
   character(len=*), parameter :: use_void_fes_key               = 'use_void_fes'
   character(len=*), parameter :: use_void_fes_case_key          = 'use_void_fes_case'
-  character(len=*), parameter :: coupling_criteria_key          = 'coupling_criteria'
   character(len=*), parameter :: fe_type_key                    = 'reference_fe_type'
   
   ! Meshing parameters 
@@ -64,7 +63,6 @@ module par_test_h_adaptive_lagrangian_fe_params_names
        procedure, non_overridable             :: get_domain_limits
        procedure, non_overridable             :: get_inner_region_size 
        procedure, non_overridable             :: get_num_refinements 
-       procedure, non_overridable             :: get_subparts_coupling_criteria
        procedure, non_overridable             :: get_fe_type
   end type par_test_h_adaptive_lagrangian_fe_params_t
 
@@ -93,12 +91,7 @@ contains
                 switch_ab='-refinement-pattern-case' )
     call parameter_handler%add(inner_region_size_key, '--inner_region_size', [0.1,0.1,0.1], 'Concentric with the domain refined area length)', switch_ab='-ir_size')
     call parameter_handler%add(num_refinements_key, '--num_refinements', 3, 'Number of adaptive mesh refinements from a plain cell', switch_ab='-num_refs')
-    call parameter_handler%add(coupling_criteria_key, '--subparts_coupling_criteria', loose_coupling, &
-                  'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly', &
-                  switch_ab='-subparts_coupling')    
-
     call parameter_handler%add(fe_type_key, '--reference_fe_type', fe_type_lagrangian, 'Type of reference fe to be used in the test', switch_ab='-rftype')
-
   end subroutine par_test_h_adaptive_lagrangian_fe_params_define_parameters
 
   !==================================================================================================
@@ -197,14 +190,6 @@ contains
     integer(ip)                                                    :: get_num_refinements
     call parameter_handler%Get(key = num_refinements_key, Value = get_num_refinements)
   end function get_num_refinements
-  
-  !==================================================================================================
-  function get_subparts_coupling_criteria(this)
-    implicit none
-    class(par_test_h_adaptive_lagrangian_fe_params_t) , intent(in) :: this
-    character(len=:), allocatable                                  :: get_subparts_coupling_criteria
-    call parameter_handler%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
-  end function get_subparts_coupling_criteria
   
   !==================================================================================================
   function get_fe_type(this)

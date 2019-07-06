@@ -161,8 +161,6 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(execution_context_t)                    , intent(in)    :: world_context
-    integer(ip) :: istat
-    istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
    
@@ -189,12 +187,13 @@ end subroutine free_timers
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment
-    character(len=:), allocatable :: subparts_coupling_criteria
     integer(ip) :: num_refs
     integer(ip) :: vef_set_id
 
-    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
-    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_key, &
+                                    value = .true.); assert(istat==0)
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_dgraph_coupling_key, & 
+                                    value = vertex_coupling); assert(istat==0)
     call this%triangulation%create(this%par_environment,this%parameter_list)
     
     ! Generate initial uniform mesh and set the cell ids to use void fes

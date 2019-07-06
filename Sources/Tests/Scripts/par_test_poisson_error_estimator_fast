@@ -22,7 +22,7 @@ then
       # Square + Quads + Uniform refinement     
        for order in 1 2
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2 $p4est_triang_num_levels_flag 2"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 

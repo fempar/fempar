@@ -104,6 +104,8 @@ module fempar_parameter_handler_names
         procedure, private, non_overridable :: fph_define_parameters
         procedure, private, non_overridable :: fph_mesh_define_parameters
         procedure, private, non_overridable :: fph_mesh_partitioner_define_parameters
+        procedure, private, non_overridable :: fph_environment_define_parameters
+        procedure, private, non_overridable :: fph_triang_define_parameters
         procedure, private, non_overridable :: fph_static_triang_define_parameters
         procedure, private, non_overridable :: fph_struct_hex_mesh_generator_define_parameters
         procedure, private, non_overridable :: fph_p4est_triang_define_parameters
@@ -810,11 +812,9 @@ contains
     !------------------------------------------------------------------
         implicit none
         class(fempar_parameter_handler_t), intent(inout) :: this
-       
-        ! Environment
-        call this%add(environment_type_key, environment_type_cla_name, structured, 'Type of environment')
-
         call this%fph_define_parameters()
+        call this%fph_environment_define_parameters()
+        call this%fph_triang_define_parameters()
         call this%fph_static_triang_define_parameters()
         call this%fph_struct_hex_mesh_generator_define_parameters()
         call this%fph_p4est_triang_define_parameters()
@@ -837,6 +837,35 @@ contains
            fph_print_values_cla_help)
       
     end subroutine fph_define_parameters
+    
+    subroutine fph_environment_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this      
+      call this%add(environment_num_levels_key_name, &
+                    environment_num_levels_cla_name, &
+                    default_environment_num_levels, &
+                    environment_num_levels_cla_help)
+      
+      call this%add(environment_num_tasks_x_level_key_name, &
+                    environment_num_tasks_x_level_cla_name, &
+                    default_num_tasks_x_level, &
+                    environment_num_tasks_x_level_cla_help)
+    end subroutine  fph_environment_define_parameters
+    
+    subroutine fph_triang_define_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+      call this%add(triang_identify_disconn_components_key, &
+           triang_identify_disconn_components_cla_name, &
+           .false., &
+           triang_identify_disconn_components_cla_help)
+      
+      call this%add(triang_identify_disconn_components_dgraph_coupling_key, &
+           triang_identify_disconn_components_dgraph_coupling_cla_name, &
+           vertex_coupling, &
+           triang_identify_disconn_components_dgraph_coupling_cla_help, &
+           choices=triang_identify_disconn_components_dgraph_coupling_cla_choices)
+    end subroutine fph_triang_define_parameters
     
     subroutine fph_static_triang_define_parameters(this)
       implicit none
@@ -874,11 +903,6 @@ contains
            default_struct_hex_mesh_generator_is_dir_periodic, &
            struct_hex_mesh_generator_is_dir_periodic_cla_help)
 
-      call this%add(struct_hex_mesh_generator_num_levels_key, &
-           struct_hex_mesh_generator_num_levels_cla_name, &
-           default_struct_hex_mesh_generator_num_levels, &
-           struct_hex_mesh_generator_num_levels_cla_help)
-
       call this%add(struct_hex_mesh_generator_num_cells_x_dim_key, &
            struct_hex_mesh_generator_num_cells_x_dim_cla_name, &
            default_struct_hex_mesh_generator_num_cells_x_dim, &
@@ -900,11 +924,6 @@ contains
            p4est_triang_num_dims_cla_help, &
            choices=p4est_triang_num_dims_cla_choices)
       
-      call this%add(p4est_triang_num_levels_key, &
-           p4est_triang_num_levels_cla_name, &
-           default_p4est_triang_num_levels, &
-           p4est_triang_num_levels_cla_help)
-
       call this%add(p4est_triang_domain_limits_key, &
            p4est_triang_domain_limits_cla_name, &
            default_p4est_triang_domain_limits, &

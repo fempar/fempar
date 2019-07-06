@@ -14,7 +14,6 @@ module par_test_h_adaptive_maxwell_params_names
   character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key         = 'write_solution'        
   character(len=*), parameter :: use_void_fes_key           = 'use_void_fes'
-  character(len=*), parameter :: coupling_criteria_key      = 'coupling_criteria'
     ! Meshing parameters 
   character(len=*), parameter :: refinement_pattern_case_key   = 'refinement_pattern_case'
   character(len=*), parameter :: domain_limits_key             = 'domain_limits'
@@ -41,7 +40,6 @@ module par_test_h_adaptive_maxwell_params_names
        procedure, non_overridable             :: get_refinement_radius
        procedure, non_overridable             :: get_num_refinements 
        procedure, non_overridable             :: get_min_num_refinements
-       procedure, non_overridable             :: get_subparts_coupling_criteria
        procedure, non_overridable             :: get_analytical_function_case
   end type par_test_h_adaptive_maxwell_params_t
 
@@ -69,19 +67,13 @@ contains
     call parameter_handler%add(inner_region_size_key, '--inner_region_size', [0.1,0.1,0.1], 'Concentric with the domain refined area length)', switch_ab='-ir_size')
     call parameter_handler%add(num_refinements_key, '--num_refinements', 2, 'Number of adaptive mesh refinements from a plain cell', switch_ab='-num_refs')
     call parameter_handler%add(min_num_refinements_key, '--min_num_refinements', 2, 'Minimum number of adaptive mesh refinements for any cell', switch_ab='-min_num_refs')
-    call parameter_handler%add(coupling_criteria_key, '--subparts_coupling_criteria', loose_coupling, &
-                  'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly', &
-                  switch_ab='-subparts_coupling')    
-
     call parameter_handler%add(refinement_radius_key, '--refinement_radius', 0.1, 'Concentric with the domain refined area Radius)', switch_ab='-R_ref')
     call parameter_handler%add(analytical_function_case_key, '--analytical_function_case', 'in_fe_space', &
                   'Select analytical solution case. Possible values: in_fe_space, fichera_2D, fichera_3D', &
                   switch_ab='-function-case')
-
   end subroutine par_test_h_adaptive_maxwell_params_define_parameters
 
   !==================================================================================================
-
   subroutine process_parameters(this)
     implicit none
     class(par_test_h_adaptive_maxwell_params_t) , intent(in)  :: this
@@ -184,16 +176,8 @@ contains
     integer(ip)                                              :: get_min_num_refinements
     call parameter_handler%Get(key = min_num_refinements_key, Value = get_min_num_refinements)
   end function get_min_num_refinements
-  
+    
   !==================================================================================================
-  function get_subparts_coupling_criteria(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this
-    character(len=:), allocatable                            :: get_subparts_coupling_criteria
-    call parameter_handler%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
-  end function get_subparts_coupling_criteria
-  
-        !==================================================================================================
   function get_analytical_function_case(this)
     implicit none
     class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this

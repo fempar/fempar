@@ -217,8 +217,6 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     class(execution_context_t)     , intent(in)    :: world_context
-    integer(ip) :: istat
-    istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
     call this%par_environment%create(world_context, this%parameter_list)
     call this%test_params%print(this%par_environment)
   end subroutine setup_environment

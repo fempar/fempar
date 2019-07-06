@@ -14,7 +14,6 @@ module par_test_h_adaptive_poisson_params_names
   character(len=*), parameter :: triangulation_type_key         = 'triangulation_type'
   character(len=*), parameter :: use_void_fes_key               = 'use_void_fes'
   character(len=*), parameter :: use_void_fes_case_key          = 'use_void_fes_case'
-  character(len=*), parameter :: coupling_criteria_key          = 'coupling_criteria'
   character(len=*), parameter :: preconditioner_type_key        = 'preconditioner_type'
   
   ! Meshing parameters 
@@ -38,7 +37,6 @@ module par_test_h_adaptive_poisson_params_names
        procedure, non_overridable             :: get_domain_limits
        procedure, non_overridable             :: get_inner_region_size 
        procedure, non_overridable             :: get_num_refinements 
-       procedure, non_overridable             :: get_subparts_coupling_criteria 
        procedure, non_overridable             :: get_preconditioner_type
   end type par_test_h_adaptive_poisson_params_t
 
@@ -71,10 +69,6 @@ contains
                 switch_ab='-refinement-pattern-case' )
     call parameter_handler%add(inner_region_size_key, '--inner_region_size', [0.1,0.1,0.1], 'Concentric with the domain refined area length)', switch_ab='-ir_size')
     call parameter_handler%add(num_refinements_key, '--num_refinements', 3, 'Number of adaptive mesh refinements from a plain cell', switch_ab='-num_refs')
-    call parameter_handler%add(coupling_criteria_key, '--subparts_coupling_criteria', loose_coupling, &
-                  'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly', &
-                  switch_ab='-subparts_coupling')    
-
   end subroutine par_test_h_adaptive_poisson_params_define_parameters
 
   !==================================================================================================
@@ -174,14 +168,6 @@ contains
     call parameter_handler%Get(key = num_refinements_key, Value = get_num_refinements)
   end function get_num_refinements
   
-  !==================================================================================================
-  function get_subparts_coupling_criteria(this)
-    implicit none
-    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable                            :: get_subparts_coupling_criteria
-    call parameter_handler%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
-  end function get_subparts_coupling_criteria
-
   !==================================================================================================
   function get_preconditioner_type(this)
     implicit none

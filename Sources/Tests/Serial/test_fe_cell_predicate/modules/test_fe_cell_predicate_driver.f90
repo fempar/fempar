@@ -44,6 +44,7 @@ module test_fe_cell_predicate_driver_names
    contains
 
      procedure                     :: run_simulation
+     procedure                     :: parse_command_line_parameters
      procedure                     :: setup_environment
      procedure                     :: free_environment
      procedure, private            :: setup_triangulation
@@ -59,11 +60,17 @@ module test_fe_cell_predicate_driver_names
 
 contains
 
-  subroutine run_simulation(this)
+  subroutine parse_command_line_parameters(this)
     implicit none
     class(test_fe_cell_predicate_driver_t), intent(inout) :: this
     call parameter_handler%process_parameters()
     this%parameter_list => parameter_handler%get_values()
+  end subroutine parse_command_line_parameters
+
+
+  subroutine run_simulation(this)
+    implicit none
+    class(test_fe_cell_predicate_driver_t), intent(inout) :: this
     call this%setup_triangulation()
     call this%setup_reference_fe()
     call this%setup_fe_cell_predicate()
@@ -76,14 +83,7 @@ contains
     implicit none
     class(test_fe_cell_predicate_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
-    type(ParameterList_t)  :: parameter_list
-    integer(ip) :: istat
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = environment_type_key, value = structured)
-    check(istat==0)
-    call this%serial_environment%create(world_context, parameter_list)
-    call parameter_list%free()
+    call this%serial_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
   
   subroutine free_environment(this)

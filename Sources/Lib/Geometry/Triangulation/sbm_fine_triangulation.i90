@@ -26,6 +26,34 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine fine_triangulation_process_parameters ( this, parameters ) 
+  implicit none
+  class(fine_triangulation_t), intent(inout) :: this 
+  type(parameterlist_t)     , intent(in)    :: parameters
+  integer(ip) :: istat
+  type(mesh_t) :: dummy_mesh
+  
+  call triangulation_process_parameters(this, parameters)
+  
+  assert (parameters%isPresent(static_triang_generate_from_key) )
+  assert(parameters%isAssignable(static_triang_generate_from_key, this%generate_from))
+  istat = parameters%GetAsString(key = static_triang_generate_from_key, string = this%generate_from)
+  assert(istat==0)
+  
+  if( this%generate_from == static_triang_generate_from_mesh_data_files ) then
+    ! Mandatory if static_triang_generate_from_mesh_data_files 
+    call dummy_mesh%get_dir_path_and_prefix_from_pl(parameters, this%dir_path, this%prefix)
+  end if
+
+  assert( parameters%isPresent(static_triang_geometric_interpolation_order_key) )
+  assert( parameters%isAssignable(static_triang_geometric_interpolation_order_key, this%geometric_interpolation_order) )
+  istat = parameters%Get(key = static_triang_geometric_interpolation_order_key, Value = this%geometric_interpolation_order)
+  assert(istat==0)
+  
+  if(this%geometric_interpolation_order>1) & 
+    call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
+end subroutine fine_triangulation_process_parameters 
+
 subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
   implicit none
   ! This routine assumes a triangulation with vertices and ghost elements
@@ -757,8 +785,13 @@ subroutine fine_triangulation_free ( this )
         call this%reference_fe_geo_list(icell)%p%free()
         nullify(this%reference_fe_geo_list(icell)%p)
      endif
-  enddo
-  call this%base_static_triangulation_t%free()  
+  end do
+  if (allocated(this%generate_from)) deallocate(this%generate_from)
+  if (allocated(this%dir_path)) deallocate(this%dir_path)
+  if (allocated(this%prefix)) deallocate(this%prefix)
+  this%geometric_interpolation_order = 0
+  call this%geometry%free()
+  call this%base_static_triangulation_t%free() 
 end subroutine fine_triangulation_free
 
 
