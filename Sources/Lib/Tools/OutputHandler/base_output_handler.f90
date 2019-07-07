@@ -997,36 +997,28 @@ contains
 
         ! Calculate gradients
         call cell_integrator%evaluate_gradient_fe_function(nodal_values, tensor_function_values)
+        
+        call patch_field%set_field_type(field_type_vector)
+        patch_field_vector_function_values => patch_field%get_vector_function_values()
+        call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
+        ! Allocate vector function values
+        if ( allocated(vector_function_values) ) then
+          if ( size(vector_function_values) < quadrature%get_num_quadrature_points() ) then
+            deallocate(vector_function_values, stat=istat); check(istat==0)
+            allocate(vector_function_values(quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
+          endif
+        else
+            allocate(vector_function_values(quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
+        end if
 
         if(ohcff%get_num_dims() == 2) then
-            call patch_field%set_field_type(field_type_scalar)
-            patch_field_scalar_function_values => patch_field%get_scalar_function_values()
-            call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
-            ! Allocate scalar function values
-            if ( allocated(scalar_function_values) ) then
-               call memrealloc(quadrature%get_num_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
-            else
-               call memalloc(quadrature%get_num_quadrature_points(), scalar_function_values, __FILE__, __LINE__)
-            end if
             ! Calculate curl
             do qpoint = 1, quadrature%get_num_quadrature_points()
-                scalar_function_values(qpoint) = tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1)
+                call vector_function_values(qpoint)%init(0.0_rp)
+                call vector_function_values(qpoint)%set(SPACE_DIM, &
+                        tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1))
             enddo
-            call patch_field_scalar_function_values%move_alloc_in(scalar_function_values)     
-
         elseif(ohcff%get_num_dims() == 3) then
-            call patch_field%set_field_type(field_type_vector)
-            patch_field_vector_function_values => patch_field%get_vector_function_values()
-            call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
-            ! Allocate vector function values
-            if ( allocated(vector_function_values) ) then
-               if ( size(vector_function_values) < quadrature%get_num_quadrature_points() ) then
-                  deallocate(vector_function_values, stat=istat); check(istat==0)
-                  allocate(vector_function_values(quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
-               endif
-            else
-               allocate(vector_function_values(quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
-            end if
             ! Calculate curl
             do qpoint = 1, quadrature%get_num_quadrature_points()
                 call vector_function_values(qpoint)%set(1, &
@@ -1036,8 +1028,10 @@ contains
                 call vector_function_values(qpoint)%set(3, &
                         tensor_function_values(qpoint)%get(1,2)-tensor_function_values(qpoint)%get(2,1))
             enddo
-            call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
         endif
+
+        ! return vector function values
+        call patch_field_vector_function_values%move_alloc_in(vector_function_values)
 
         ! return tensor function values
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values)

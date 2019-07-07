@@ -71,10 +71,11 @@ module refinement_strategy_names
       type(parameterlist_t)        , intent(in)    :: parameter_list
     end subroutine set_parameters_interface
   
-    subroutine update_refinement_flags_interface(this,triangulation)
-      import :: refinement_strategy_t, triangulation_t
-      class(refinement_strategy_t) , intent(inout) :: this
-      class(triangulation_t)       , intent(inout) :: triangulation
+    subroutine update_refinement_flags_interface(this,triangulation,cell_mask)
+       import :: refinement_strategy_t, triangulation_t
+       class(refinement_strategy_t), intent(inout) :: this
+       class(triangulation_t)      , intent(inout) :: triangulation
+       logical           , optional, intent(in)    :: cell_mask(:)
     end subroutine update_refinement_flags_interface
   
     function has_finished_refinement_interface(this)
@@ -121,6 +122,7 @@ module refinement_strategy_names
     integer(ip)                       :: max_num_mesh_iterations
    contains
     procedure :: set_parameters             => ffrs_set_parameters
+    procedure :: compute_thresholds         => ffrs_compute_thresholds
     procedure :: update_refinement_flags    => ffrs_update_refinement_flags
     procedure :: has_finished_refinement    => ffrs_has_finished_refinement
   end type fixed_fraction_refinement_strategy_t
@@ -173,9 +175,10 @@ contains
     assert(FPLerror==0)
   end subroutine urs_set_parameters
   
-  subroutine urs_update_refinement_flags(this,triangulation)
+  subroutine urs_update_refinement_flags(this,triangulation,cell_mask)
     class(uniform_refinement_strategy_t), intent(inout) :: this
     class(triangulation_t)              , intent(inout) :: triangulation
+    logical    , optional               , intent(in)    :: cell_mask(:)
     class(cell_iterator_t), allocatable :: cell
     call triangulation%create_cell_iterator(cell)
     do while ( .not. cell%has_finished() )
@@ -214,9 +217,10 @@ contains
     end if
   end subroutine eors_set_parameters
   
-  subroutine eors_update_refinement_flags(this,triangulation)
+  subroutine eors_update_refinement_flags(this,triangulation,cell_mask)
     class(error_objective_refinement_strategy_t), intent(inout) :: this
     class(triangulation_t)                      , intent(inout) :: triangulation
+    logical            , optional               , intent(in)    :: cell_mask(:)
     integer(ip)          :: i
     real(rp)   , pointer :: sq_local_estimate_entries(:)
     real(rp)             :: sq_error_upper_bound, sq_error_lower_bound
@@ -287,10 +291,11 @@ contains
     
   end subroutine ffrs_set_parameters
   
-  subroutine ffrs_update_refinement_flags(this,triangulation)
+  subroutine ffrs_compute_thresholds(this,triangulation,cell_mask)
     implicit none
     class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
     class(triangulation_t)                     , intent(inout) :: triangulation
+    logical                           ,optional, intent(in)    :: cell_mask(:)
     integer(ip)          :: i, num_local_cells
     integer(igp)         :: num_global_cells
     integer(igp)         :: target_num_cells_to_be_refined_coarsened(2)
@@ -307,28 +312,54 @@ contains
     real(rp) :: aux(2)
     logical :: ref_converged
     logical :: coarsening_converged
-    class(cell_iterator_t), allocatable :: cell
+    logical :: cell_mask_present
 
     assert ( associated(this%error_estimator) )
     
     fe_space      => this%error_estimator%get_fe_space()
     environment   => triangulation%get_environment()
     
+    cell_mask_present = .false.
+    if ( present(cell_mask) ) then 
+      assert ( size(cell_mask) == triangulation%get_num_local_cells() )
+      cell_mask_present = .true.
+    end if
+    
     if ( environment%am_i_l1_task() ) then
       sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
-    
-      num_local_cells  = triangulation%get_num_local_cells()
-      num_global_cells = triangulation%get_num_global_cells()
+      if ( cell_mask_present ) then 
+       num_local_cells  = count(cell_mask)
+       num_global_cells = num_local_cells
+       call environment%l1_sum(num_global_cells)
+       target_num_cells_to_be_refined_coarsened(1) = int(real(num_global_cells,rp)*this%refinement_fraction)
+       target_num_cells_to_be_refined_coarsened(2) = int(real(num_global_cells,rp)*this%coarsening_fraction)
+       if ( num_local_cells /= 0 ) then 
+         ref_sq_min_estimate = 0.0_rp
+         ref_sq_max_estimate = 0.0_rp
+         do i=1, size(sq_local_estimate_entries)
+           if ( cell_mask(i) ) then
+             ref_sq_min_estimate = min(ref_sq_min_estimate,sq_local_estimate_entries(i))
+             ref_sq_max_estimate = max(ref_sq_max_estimate,sq_local_estimate_entries(i))
+           end if 
+         end do
+       else
+         ref_sq_min_estimate = 0.0_rp
+         ref_sq_max_estimate = 0.0_rp
+       end if
+      else 
+        num_local_cells  = triangulation%get_num_local_cells()
+        num_global_cells = triangulation%get_num_global_cells()
       
-      target_num_cells_to_be_refined_coarsened(1) = int(real(num_global_cells,rp)*this%refinement_fraction)
-      target_num_cells_to_be_refined_coarsened(2) = int(real(num_global_cells,rp)*this%coarsening_fraction)
+        target_num_cells_to_be_refined_coarsened(1) = int(real(num_global_cells,rp)*this%refinement_fraction)
+        target_num_cells_to_be_refined_coarsened(2) = int(real(num_global_cells,rp)*this%coarsening_fraction)
         
-      if ( num_local_cells /= 0 ) then 
-        ref_sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
-        ref_sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
-      else
-        ref_sq_min_estimate = 0.0_rp
-        ref_sq_max_estimate = 0.0_rp
+        if ( num_local_cells /= 0 ) then 
+          ref_sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
+          ref_sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
+         else
+          ref_sq_min_estimate = 0.0_rp
+          ref_sq_max_estimate = 0.0_rp
+        end if
       end if
       
       aux(1) = -sqrt(ref_sq_min_estimate)
@@ -393,7 +424,10 @@ contains
         ! count = #{ i: e_i >= avg_estimate }
         if ( .not. ref_converged ) current_num_cells_to_be_refined_coarsened(1) = 0 
         if ( .not. coarsening_converged ) current_num_cells_to_be_refined_coarsened(2) = 0 
-        do i=1, num_local_cells
+        do i=1, size(sq_local_estimate_entries) ! num_local_cells
+          if ( cell_mask_present ) then
+            if ( .not. cell_mask(i)) cycle
+          end if 
           if ( .not. ref_converged ) then
             if ( sq_local_estimate_entries(i) > ref_split_estimate*ref_split_estimate ) then
              current_num_cells_to_be_refined_coarsened(1) = current_num_cells_to_be_refined_coarsened(1) + 1 
@@ -458,9 +492,45 @@ contains
         write(*,*) "Computed coarsening threshold squared = ", this%sq_coarsening_threshold
         write(*,*) "% cells to be coarsened = ", real(current_num_cells_to_be_refined_coarsened(2),rp)/real(num_global_cells,rp)
       end if
+    end if
+  end subroutine ffrs_compute_thresholds
+  
+  subroutine ffrs_update_refinement_flags(this,triangulation,cell_mask)
+    implicit none
+    class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
+    class(triangulation_t)                     , intent(inout) :: triangulation
+    logical                          , optional, intent(in)    :: cell_mask(:)
+    real(rp)   , pointer :: sq_local_estimate_entries(:)
+    class(serial_fe_space_t), pointer :: fe_space
+    class(environment_t), pointer :: environment
+    class(cell_iterator_t), allocatable :: cell
+    logical :: cell_mask_present
+    
+    cell_mask_present = .false.
+    if ( present(cell_mask) ) then 
+      assert ( size(cell_mask) == triangulation%get_num_local_cells() )
+      cell_mask_present = .true.
+    end if
+    
+    call this%compute_thresholds(triangulation,cell_mask)
+
+    assert ( associated(this%error_estimator) )
+    
+    fe_space      => this%error_estimator%get_fe_space()
+    environment   => triangulation%get_environment()
+    
+    if ( environment%am_i_l1_task() ) then
+      sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
       call triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
+          if ( cell_mask_present ) then
+             if ( .not. cell_mask(cell%get_gid()) ) then
+               call cell%set_for_do_nothing()
+               call cell%next()
+               cycle
+             end if 
+          end if 
           if ( sq_local_estimate_entries(cell%get_gid()) > this%sq_refinement_threshold ) then
             call cell%set_for_refinement()
           else if ( sq_local_estimate_entries(cell%get_gid()) < this%sq_coarsening_threshold ) then
