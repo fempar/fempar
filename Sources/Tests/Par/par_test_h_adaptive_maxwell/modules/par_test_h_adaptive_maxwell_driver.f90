@@ -62,7 +62,9 @@ module par_test_h_adaptive_maxwell_driver_names
      type(fixed_fraction_refinement_strategy_t)  :: refinement_strategy
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)                  :: fe_affine_operator
+     
+     type(std_vector_logical_t)                  :: cell_mask
      
 #ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
@@ -117,6 +119,7 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure                  :: set_cells_for_uniform_refinement 
      procedure                  :: set_geom_based_cells_for_refinement 
      procedure                  :: set_error_based_cells_for_refinement 
+     procedure                  :: update_cell_mask
      procedure                  :: set_cells_set_ids
      procedure                  :: print_info 
   end type par_test_h_adaptive_maxwell_fe_driver_t
@@ -923,6 +926,7 @@ end subroutine check_solution
       check(istat==0)
     end if
     call this%triangulation%free()
+    call this%cell_mask%free()
   end subroutine free  
 
   !========================================================================================
@@ -1049,8 +1053,30 @@ end subroutine check_solution
   subroutine set_error_based_cells_for_refinement(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    call this%refinement_strategy%update_refinement_flags(this%triangulation)
+    call this%update_cell_mask()
+    call this%refinement_strategy%update_refinement_flags(this%triangulation, this%cell_mask%get_pointer())
   end subroutine set_error_based_cells_for_refinement
+  
+  subroutine update_cell_mask(this)
+     implicit none
+     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
+     class(cell_iterator_t), allocatable :: cell
+     call this%cell_mask%resize(this%triangulation%get_num_local_cells())
+     if ( this%par_environment%am_i_l1_task() ) then
+       call this%triangulation%create_cell_iterator(cell)
+       do while ( .not. cell%has_finished() )
+         if ( cell%is_local() ) then
+           if ( cell%get_set_id() == PAR_TEST_MAXWELL_FULL ) then
+             call this%cell_mask%set(cell%get_gid(), .true.)
+           else if ( cell%get_set_id() == PAR_TEST_MAXWELL_VOID ) then
+             call this%cell_mask%set(cell%get_gid(), .false.)
+           end if
+         end if 
+         call cell%next()
+       end do 
+       call this%triangulation%free_cell_iterator(cell)
+     end if 
+  end subroutine update_cell_mask
   
   subroutine set_cells_set_ids(this)
     implicit none
