@@ -853,7 +853,8 @@ end subroutine check_solution
       end if 
       call this%timer_error_estimate%stop()
       
-      call this%output_current_mesh_and_solution(this%refinement_strategy%get_current_mesh_iteration())
+      ! call this%output_current_mesh_and_solution(this%refinement_strategy%get_current_mesh_iteration())
+      call this%output_current_mesh_and_solution(step +1)
       call this%timer_triangulation%start()
       call this%triangulation%refine_and_coarsen()
       call this%timer_triangulation%stop()
