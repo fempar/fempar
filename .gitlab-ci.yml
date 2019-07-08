@@ -26,7 +26,6 @@ variables:
     - cd $ROOT_DIR
     - git submodule sync --recursive
     - git submodule update --init --recursive
-    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
 
 .base_intel:
@@ -40,7 +39,6 @@ variables:
     - cd $ROOT_DIR
     - git submodule sync --recursive
     - git submodule update --init --recursive
-    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
 
 
 .script_template:
