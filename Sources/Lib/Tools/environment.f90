@@ -30,9 +30,6 @@ module environment_names
   use memor_names
   use stdio_names
   use FPL
-  use uniform_hex_mesh_generator_names
-  use uniform_hex_mesh_generator_parameters_names
-  use p4est_triangulation_parameters_names
   use timer_names
   ! Parallel modules
   use execution_context_names

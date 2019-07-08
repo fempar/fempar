@@ -94,10 +94,11 @@ contains
     class(uniform_hex_mesh_t), intent(inout) :: this
     type(ParameterList_t)    , intent(in)    :: parameters
     ! Locals
-    integer(ip) :: istat, idime
+    integer(ip) :: istat, idime, i, new_array_size
     logical     :: is_present
     integer(ip), allocatable :: array_size(:)
     real(rp), allocatable :: domain_limits(:)
+    integer(ip), allocatable :: num_parts_x_dim_x_level(:)
     
     ! Mandatory
     assert(parameters%isPresent(struct_hex_mesh_generator_num_dims_key))
@@ -118,8 +119,11 @@ contains
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key   , shape = array_size); check(istat==0)
-    call memalloc(array_size(1), this%num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
-    istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = this%num_parts_x_dim_x_level); check(istat==0)
+    call memalloc(array_size(1), num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
+    istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = num_parts_x_dim_x_level); check(istat==0)
+    new_array_size = array_size(1)/this%num_dims*SPACE_DIM
+    call memalloc(new_array_size, this%num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
+    this%num_parts_x_dim_x_level = unpack(num_parts_x_dim_x_level, mask=[(mod(i,SPACE_DIM)<this%num_dims, i=0, new_array_size-1)], field=0)
     
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_domain_limits_key) )
@@ -665,7 +669,9 @@ contains
     integer(ip) :: part_ijk(0:SPACE_DIM-1)
 
     assert(task_id<sum(num_parts_x_level))
-    
+
+    call this%check_part_aggregation_among_levels_parameters(num_levels, num_parts_x_level)
+
     if ( allocated(part_aggregation_among_levels) ) & 
         call memfree(part_aggregation_among_levels, __FILE__,__LINE__)
         
@@ -693,11 +699,29 @@ contains
     end do
   end subroutine uhm_generate_part_aggregation_among_levels
 
-  subroutine uhm_check_part_aggregation_among_levels_parameters(this,num_levels, num_tasks_x_level)
+  subroutine uhm_check_part_aggregation_among_levels_parameters(this, num_levels, num_parts_x_level)
     implicit none
-    class(uniform_hex_mesh_t) , intent(inout) :: this
-    integer(ip)               , intent(in)    :: num_levels
-    integer(ip)               , intent(in)    :: num_tasks_x_level(num_levels)
+    class(uniform_hex_mesh_t) , intent(in) :: this
+    integer(ip)               , intent(in) :: num_levels
+    integer(ip)               , intent(in) :: num_parts_x_level(0:num_levels-1)
+    integer(ip)                            :: dims, i
+    character(len=:), allocatable          :: error_message
+#ifdef DEBUG
+
+    error_message = 'size('//struct_hex_mesh_generator_num_parts_x_dim_x_level_key//')'//  & 
+                    ' (' // ch(size(this%num_parts_x_dim_x_level)) // ') ' //  & 
+                    ' must be ' // ch(SPACE_DIM*num_levels)
+    massert( size(this%num_parts_x_dim_x_level) == SPACE_DIM*num_levels, error_message )
+
+
+    do i = 0, num_levels-1
+        error_message = struct_hex_mesh_generator_num_parts_x_dim_x_level_key//  & 
+                        ' parts at level (' // ch(num_levels-i) // ') ' //  & 
+                        ' must be ' // ch(num_parts_x_level(i))
+        massert(product(this%num_parts_x_dim_x_level(SPACE_DIM*i:SPACE_DIM*i+this%num_dims-1)) == num_parts_x_level(i), error_message)
+    enddo
+    
+#endif
   end subroutine uhm_check_part_aggregation_among_levels_parameters
   
   
