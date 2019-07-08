@@ -111,7 +111,6 @@ contains
     istat = parameters%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key, shape = array_size); check(istat==0)
     call memalloc(array_size(1), num_cells_x_dim,__FILE__,__LINE__, lb1=0)
     istat = parameters%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = num_cells_x_dim); check(istat==0)
-    assert(array_size(1) == this%num_dims)
     call memalloc(SPACE_DIM, this%num_cells_x_dim,__FILE__,__LINE__, valin=0, lb1=0)
     this%num_cells_x_dim(0:this%num_dims-1) = num_cells_x_dim(0:this%num_dims-1)
     call memfree(num_cells_x_dim,__FILE__,__LINE__)
@@ -123,10 +122,9 @@ contains
 
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) )
-    istat = parameters%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key   , shape = array_size); check(istat==0)
+    istat = parameters%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key, shape = array_size); check(istat==0)
     call memalloc(array_size(1), num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
     istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = num_parts_x_dim_x_level); check(istat==0)
-    assert(mod(array_size(1),this%num_dims)==0)
     new_array_size = array_size(1)/this%num_dims*SPACE_DIM
     call memalloc(new_array_size, this%num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
     this%num_parts_x_dim_x_level = unpack(num_parts_x_dim_x_level, mask=[(mod(i,SPACE_DIM)<this%num_dims, i=0, new_array_size-1)], field=0)
