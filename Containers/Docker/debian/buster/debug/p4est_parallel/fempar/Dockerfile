@@ -16,7 +16,6 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && THIRDPARTY_BUILD_DIR=$INSTALL_ROOT/$PACKAGE-thirdparty \
     && FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none" \
     && git clone --single-branch --branch $VERSION --recursive $URL $SOURCES_DIR \
-    && ln -sf $SOURCES_DIR/CMake/CTestConfig_CIMNE.cmake $SOURCES_DIR/CTestConfig.cmake \
     && mkdir -p $BUILD_DIR $THIRDPARTY_BUILD_DIR \
 ################################################ \
 # Build fempar thirdparty libraries \
