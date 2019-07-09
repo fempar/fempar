@@ -68,7 +68,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR -order $order -gorder $gorder -use-voids T -use-voids-case half "
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order -gorder $gorder -use-voids T -use-voids-case half "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -90,7 +90,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR -order $order -gorder $gorder -use-voids T -use-voids-case half -f dG"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order -gorder $gorder -use-voids T -use-voids-case half -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -112,7 +112,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR -order $order -gorder $gorder -use-voids T -use-voids-case quarter "
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order -gorder $gorder -use-voids T -use-voids-case quarter "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -134,7 +134,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -376,7 +376,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR -order $order -gorder $gorder -use-voids T -use-voids-case half -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order -gorder $gorder -use-voids T -use-voids-case half -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -397,7 +397,7 @@ then
         do
           if [ $order -ge $gorder ]
           then
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR -order $order -gorder $gorder -use-voids T -use-voids-case quarter -lt vector"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_cells_x_dim_flag 10 10 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -lt vector"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
