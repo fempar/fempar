@@ -228,7 +228,7 @@ end subroutine free_timers
 
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: istat
-    integer(ip) :: set_id
+    integer(ip) :: set_id, num_dims
 
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
@@ -244,7 +244,8 @@ end subroutine free_timers
     real(rp)                       :: num_blocked_vertex
 
     ! Create a structured mesh with a custom domain
-    istat = this%parameter_list%set(key = struct_hex_mesh_generator_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%get(key = struct_hex_mesh_generator_num_dims_key , value = num_dims); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_mesh_generator_domain_limits_key , value = domain(1:2*num_dims)); check(istat==0)
 
     ! Create the unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function,this%par_environment)

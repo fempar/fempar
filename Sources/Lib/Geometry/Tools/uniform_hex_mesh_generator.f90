@@ -234,11 +234,20 @@ contains
     call this%check_part_local_mesh_parameters()
 
     ! Copy member to local variables with lowerbound 0
+    num_cells_x_dim(0:SPACE_DIM-1)         = 0
+    is_dir_periodic(0:SPACE_DIM-1)         = 0
+    domain_limits(1:SPACE_DIM-1,:)         = 0
+    num_parts_x_dim_x_level(0:SPACE_DIM-1) = 0
+
     num_dims                               = this%num_dims
-    num_cells_x_dim(0:SPACE_DIM-1)         = this%num_cells_x_dim(1:SPACE_DIM)
-    is_dir_periodic(0:SPACE_DIM-1)         = this%is_dir_periodic(1:SPACE_DIM)
-    domain_limits(0:SPACE_DIM-1)           = this%domain_limits(1:SPACE_DIM)
-    num_parts_x_dim_x_level(0:SPACE_DIM-1) = this%num_parts_x_dim_x_level(1:SPACE_DIM)
+    num_cells_x_dim(0:num_dims-1)          = this%num_cells_x_dim(1:num_dims)
+    is_dir_periodic(0:num_dims-1)          = this%is_dir_periodic(1:num_dims)
+    num_parts_x_dim_x_level(0:num_dims-1)  = this%num_parts_x_dim_x_level(1:num_dims)
+
+    do idime = 1,num_dims
+      domain_limits(idime,1) = this%domain_limits(2*idime-1)
+      domain_limits(idime,2) = this%domain_limits(2*idime)
+    end do
 
     ones = 1
     topology = 2**num_dims-1  ! Hexahedral
@@ -626,11 +635,6 @@ contains
     call memfree( num_total_n_faces, __FILE__,__LINE__)
     call memfree( num_global_nfaces_x_dir, __FILE__,__LINE__)
     call memfree( num_total_nfaces_x_dir, __FILE__,__LINE__)
-    call memfree( num_parts_x_dim_x_level, __FILE__, __LINE__ )
-    call memfree( num_cells_x_dim, __FILE__, __LINE__)
-    call memfree( is_dir_periodic, __FILE__, __LINE__)
-    call memfree( domain_limits, __FILE__, __LINE__)
-
 
     call memfree(cell_permutation, __FILE__,__LINE__)
 
@@ -643,7 +647,8 @@ contains
   subroutine uhm_check_part_local_mesh_parameters(this)
     implicit none
     class(uniform_hex_mesh_t) , intent(in) :: this
-    character(len=:), allocatable :: error_message
+    character(len=:), allocatable          :: error_message
+    integer(ip)                            :: idime
 #ifdef DEBUG
     error_message = struct_hex_mesh_generator_num_dims_key //  & 
                     ' (' // ch(this%num_dims) // ') ' //  & 
@@ -652,15 +657,44 @@ contains
     
     error_message = struct_hex_mesh_generator_num_dims_key //  & 
                     ' (' // ch(this%num_dims) // ') ' //  & 
-                    ' must be smaller or equal than the SPACE_DIM' // &
+                    ' must be smaller than or equal to the SPACE_DIM' // &
                     ' (' // ch(SPACE_DIM) // ') ' //  & 
                     'FEMPAR library-level constant parameter'
     massert ( this%num_dims <= SPACE_DIM, error_message )
 
+    error_message = struct_hex_mesh_generator_num_cells_x_dim_key //  & 
+                    ' array dimension (' // ch(size(this%num_cells_x_dim, dim=1)) // ') ' //  & 
+                    ' must be equal to ' // struct_hex_mesh_generator_num_dims_key // &
+                    ' (' // ch(this%num_dims) // ') ' 
     massert ( size(this%num_cells_x_dim, dim=1) == this%num_dims, error_message )
-    massert ( size(this%is_periodic, dim=1) == this%num_dims, error_message )
+
+
+    error_message = struct_hex_mesh_generator_is_dir_periodic_key //  & 
+                    ' array dimension (' // ch(size(this%is_dir_periodic, dim=1)) // ') ' //  & 
+                    ' must be equal to ' // struct_hex_mesh_generator_num_dims_key // &
+                    ' (' // ch(this%num_dims) // ') ' 
+    massert ( size(this%is_dir_periodic, dim=1) == this%num_dims, error_message )
+
+    error_message = struct_hex_mesh_generator_num_parts_x_dim_x_level_key //  & 
+                    ' array dimension (' // ch(size(this%num_parts_x_dim_x_level, dim=1)) // ') ' //  & 
+                    ' must be bigger than of equal to ' // struct_hex_mesh_generator_num_dims_key // &
+                    ' (' // ch(this%num_dims) // ') ' 
     massert ( size(this%num_parts_x_dim_x_level, dim=1) >= this%num_dims, error_message )
+
+    error_message = struct_hex_mesh_generator_domain_limits_key //  & 
+                    ' array dimension (' // ch(size(this%domain_limits, dim=1)) // ') ' //  & 
+                    ' must be equal to two times ' // struct_hex_mesh_generator_num_dims_key // &
+                    ' (' // ch(2*this%num_dims) // ') ' 
     massert ( size(this%domain_limits, dim=1) == 2*this%num_dims, error_message )
+
+    do idime = 1,this%num_dims
+        error_message = struct_hex_mesh_generator_domain_limits_key //  & 
+                        ' value (' // ch(this%domain_limits(2*idime)) // ') ' // &
+                        ' at index (' // ch(2*idime) // ') ' // & 
+                        ' must be bigger than value (' // ch(this%domain_limits(2*idime-1)) // ') ' // &
+                        ' at index (' // ch(2*idime-1) // ') '
+        massert(this%domain_limits(2*idime)>this%domain_limits(2*idime-1), error_message)
+    end do
    
 #endif
   end subroutine uhm_check_part_local_mesh_parameters
@@ -672,18 +706,22 @@ contains
                                                         part_aggregation_among_levels)
 
     implicit none
-    class(uniform_hex_mesh_t) , intent(in)    :: this
-    integer(ip)               , intent(in)    :: task_id
-    integer(ip)               , intent(in)    :: num_levels
-    integer(ip)               , intent(in)    :: num_parts_x_level(num_levels)
-    integer(ip)  , allocatable, intent(inout) :: part_aggregation_among_levels(:)
-    
-    integer(ip) :: ilevel,idime,ipart,first,last
-    integer(ip) :: part_ijk(0:SPACE_DIM-1)
+    class(uniform_hex_mesh_t), intent(in)    :: this
+    integer(ip),               intent(in)    :: task_id
+    integer(ip),               intent(in)    :: num_levels
+    integer(ip),               intent(in)    :: num_parts_x_level(num_levels)
+    integer(ip), allocatable,  intent(inout) :: part_aggregation_among_levels(:)
+    integer(ip), allocatable                 :: num_parts_x_dim_x_level(:)
+    integer(ip)                              :: i,ilevel,idime,ipart,first,last
+    integer(ip)                              :: part_ijk(0:SPACE_DIM-1)
+
 
     assert(task_id<sum(num_parts_x_level))
 
     call this%check_part_aggregation_among_levels_parameters(num_levels, num_parts_x_level)
+
+    call memalloc(num_levels*SPACE_DIM, num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
+    num_parts_x_dim_x_level = unpack(this%num_parts_x_dim_x_level, mask=[(mod(i,SPACE_DIM)<this%num_dims, i=0, num_levels*SPACE_DIM-1)], field=0)
 
     if ( allocated(part_aggregation_among_levels) ) & 
         call memfree(part_aggregation_among_levels, __FILE__,__LINE__)
@@ -700,38 +738,39 @@ contains
     do while(ilevel<=num_levels-1)
        first = (ilevel-1)*SPACE_DIM
        last  = first + this%num_dims-1
-       call spatial_to_ijk_numbering(this%num_dims, this%num_parts_x_dim_x_level(first:last), ipart, part_ijk)
+       call spatial_to_ijk_numbering(this%num_dims, num_parts_x_dim_x_level(first:last), ipart, part_ijk)
        do idime = 0, this%num_dims - 1 
-          part_ijk(idime) = part_ijk(idime)*this%num_parts_x_dim_x_level(ilevel*SPACE_DIM+idime)/this%num_parts_x_dim_x_level((ilevel-1)*SPACE_DIM+idime)
+          part_ijk(idime) = part_ijk(idime)*num_parts_x_dim_x_level(ilevel*SPACE_DIM+idime)/num_parts_x_dim_x_level((ilevel-1)*SPACE_DIM+idime)
        end do
        first = ilevel*SPACE_DIM
        last  = first + this%num_dims-1
-       ipart = ijk_to_spatial_numbering(this%num_dims,this%num_parts_x_dim_x_level(first:last), part_ijk)+1
+       ipart = ijk_to_spatial_numbering(this%num_dims,num_parts_x_dim_x_level(first:last), part_ijk)+1
        ilevel = ilevel +1
        part_aggregation_among_levels(ilevel) = ipart
     end do
+
+    call memfree(num_parts_x_dim_x_level,__FILE__,__LINE__)
   end subroutine uhm_generate_part_aggregation_among_levels
 
   subroutine uhm_check_part_aggregation_among_levels_parameters(this, num_levels, num_parts_x_level)
     implicit none
     class(uniform_hex_mesh_t) , intent(in) :: this
     integer(ip)               , intent(in) :: num_levels
-    integer(ip)               , intent(in) :: num_parts_x_level(0:num_levels-1)
+    integer(ip)               , intent(in) :: num_parts_x_level(num_levels)
     integer(ip)                            :: dims, i
     character(len=:), allocatable          :: error_message
 #ifdef DEBUG
 
     error_message = 'size('//struct_hex_mesh_generator_num_parts_x_dim_x_level_key//')'//  & 
-                    ' (' // ch(size(this%num_parts_x_dim_x_level)) // ') ' //  & 
-                    ' must be ' // ch(SPACE_DIM*num_levels)
-    massert( size(this%num_parts_x_dim_x_level) == SPACE_DIM*num_levels, error_message )
+                    ' array dimension (' // ch(size(this%num_parts_x_dim_x_level)) // ') ' //  & 
+                    ' must be equal to' // ch(SPACE_DIM*num_levels)
+    massert( size(this%num_parts_x_dim_x_level) == this%num_dims*num_levels, error_message )
 
-
-    do i = 0, num_levels-1
+    do i = 1, num_levels
         error_message = struct_hex_mesh_generator_num_parts_x_dim_x_level_key//  & 
-                        ' parts at level (' // ch(num_levels-i) // ') ' //  & 
-                        ' must be ' // ch(num_parts_x_level(i))
-        massert(product(this%num_parts_x_dim_x_level(SPACE_DIM*i:SPACE_DIM*i+this%num_dims-1)) == num_parts_x_level(i), error_message)
+                        ' product of the parts at level (' // ch(num_levels) // ') ' //  & 
+                        ' must be equal to ' // ch(num_parts_x_level(i))
+        massert(product(this%num_parts_x_dim_x_level(this%num_dims*(i-1)+1:this%num_dims*i)) == num_parts_x_level(i), error_message)
     enddo
     
 #endif

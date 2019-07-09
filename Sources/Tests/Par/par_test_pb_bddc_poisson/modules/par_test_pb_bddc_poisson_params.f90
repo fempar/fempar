@@ -192,8 +192,14 @@ contains
   function get_hex_mesh_domain_limits(this)
     implicit none
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    real(rp)                                              :: get_hex_mesh_domain_limits(6)
-    call parameter_handler%Get(key = struct_hex_mesh_generator_domain_limits_key, Value = get_hex_mesh_domain_limits)
+    real(rp),    allocatable                              :: get_hex_mesh_domain_limits(:)
+    integer(ip), allocatable                              :: array_size(:)
+    type(ParameterList_t), pointer                        :: parameters
+    integer(ip)                                           :: error
+    parameters =>  parameter_handler%get_values()
+    error =  parameters%GetShape(key = struct_hex_mesh_generator_domain_limits_key, Shape = array_size); check(error==0)
+    allocate(get_hex_mesh_domain_limits(array_size(1)))
+    error = parameters%Get(key = struct_hex_mesh_generator_domain_limits_key, Value = get_hex_mesh_domain_limits); check(error==0)
   end function get_hex_mesh_domain_limits
   
   !==================================================================================================
