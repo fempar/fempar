@@ -870,8 +870,8 @@ contains
         num_components =  patch_field%get_num_components()
         subcells_connectivity => this%patch%get_subcells_connectivity()
         
-       ! assert(size(field,1)==num_components)
-       ! assert(size(field,2)==num_vertices)
+        assert(size(field,1)==num_components)
+        assert(size(field,2)==num_vertices)
         
         select case(patch_field%get_field_type())
             case (field_type_scalar)

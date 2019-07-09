@@ -89,7 +89,7 @@ module reference_fe_names
   !   physical space
 
   type quadrature_t
-     !private
+     private
      integer(ip)           ::   &
           num_dims,    &
           num_quadrature_points
@@ -102,8 +102,8 @@ module reference_fe_names
      procedure, non_overridable :: print                          => quadrature_print
      procedure, non_overridable :: get_num_dims                   => quadrature_get_num_dims
      procedure, non_overridable :: get_num_quadrature_points      => quadrature_get_num_quadrature_points
+     procedure, non_overridable :: get_pointer_coordinates        => quadrature_get_pointer_coordinates
      procedure, non_overridable :: get_coordinates                => quadrature_get_coordinates
-     procedure, non_overridable :: get_coordinates_as_points      => quadrature_get_coordinates_as_points
      procedure, non_overridable :: get_weight                     => quadrature_get_weight
      procedure, non_overridable :: get_weights                    => quadrature_get_weights
      procedure, non_overridable :: get_pointer_weights            => quadrature_get_pointer_weights

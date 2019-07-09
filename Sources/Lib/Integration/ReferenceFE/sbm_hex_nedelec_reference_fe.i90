@@ -205,7 +205,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
      ! tensor product of the basis of 1D polynomials
      call tensor_product_polynomial_space%create(interpolation%num_dims,&
                                                  polynomial_1D_basis)
-     call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
+     call tensor_product_polynomial_space%fill( quadrature%get_pointer_coordinates() )
 
      call memalloc(tensor_product_polynomial_space%get_num_polynomials(),&
                    tensor_product_values,__FILE__,__LINE__)
@@ -303,7 +303,7 @@ subroutine hex_nedelec_rf_fill_interpolation_pre_basis_quadrature_array( this, q
      ! tensor product of the basis of 1D polynomials
      call tensor_product_polynomial_space%create(interpolation%num_dims,&
                                                  polynomial_1D_basis)
-     call tensor_product_polynomial_space%fill( quadrature(idime)%get_coordinates() )
+     call tensor_product_polynomial_space%fill( quadrature(idime)%get_pointer_coordinates() )
 
      call memalloc(tensor_product_polynomial_space%get_num_polynomials(),&
                    tensor_product_values,__FILE__,__LINE__)

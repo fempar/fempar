@@ -141,7 +141,7 @@ subroutine bst_cell_iterator_get_nodes_coordinates_ref_space (this, cell_coordin
   nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
   assert( size(cell_coordinates) == nodal_quadrature%get_num_quadrature_points() )
   
-  call nodal_quadrature%get_coordinates_as_points( cell_coordinates ) 
+  call nodal_quadrature%get_coordinates( cell_coordinates ) 
 
  end subroutine bst_cell_iterator_get_nodes_coordinates_ref_space
 

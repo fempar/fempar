@@ -217,7 +217,7 @@ contains
 
   function vector_field_nrm2(this)
     implicit none
-    class(vector_field_t), intent(inout) :: this
+    class(vector_field_t), intent(in) :: this
     real(rp) :: vector_field_nrm2
     vector_field_nrm2 = this * this
     vector_field_nrm2 = sqrt(vector_field_nrm2)

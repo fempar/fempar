@@ -17,8 +17,8 @@ SET(${TARGET_NAME}_INCLUDE_DIRS @FEMPAR_INCLUDE_DIRS@)
 # FLAGS
 #################################################################
 
-SET(${TARGET_NAME}_ENABLE_MPI  @XH5For_ENABLE_MPI@ CACHE STRING "${TARGET_NAME} use MPI library" FORCE)
-SET(${TARGET_NAME}_ENABLE_HDF5 @XH5For_ENABLE_HDF5@ CACHE STRING "${TARGET_NAME} use with HDF5 library" FORCE)
+SET(${TARGET_NAME}_ENABLE_MPI  @FEMPAR_ENABLE_MPI@ CACHE STRING "${TARGET_NAME} use MPI library" FORCE)
+SET(${TARGET_NAME}_ENABLE_HDF5 @FEMPAR_ENABLE_HDF5@ CACHE STRING "${TARGET_NAME} use HDF5 library" FORCE)
 
 #################################################################
 # TARGETS

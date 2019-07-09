@@ -62,7 +62,9 @@ module par_test_h_adaptive_maxwell_driver_names
      type(fixed_fraction_refinement_strategy_t)  :: refinement_strategy
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)                  :: fe_affine_operator
+     
+     type(std_vector_logical_t)                  :: cell_mask
      
 #ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
@@ -117,6 +119,7 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure                  :: set_cells_for_uniform_refinement 
      procedure                  :: set_geom_based_cells_for_refinement 
      procedure                  :: set_error_based_cells_for_refinement 
+     procedure                  :: update_cell_mask
      procedure                  :: set_cells_set_ids
      procedure                  :: print_info 
   end type par_test_h_adaptive_maxwell_fe_driver_t
@@ -399,12 +402,10 @@ end subroutine free_timers
       call this%fe_space%create( triangulation            = this%triangulation,       &
                                  reference_fes            = this%reference_fes,       &
                                  set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                                 coarse_fe_handlers       = this%coarse_fe_handlers,  &
                                  conditions               = this%maxwell_conditions )
     else
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
-                                 coarse_fe_handlers  = this%coarse_fe_handlers, &
                                  conditions          = this%maxwell_conditions )
      end if 
     
@@ -505,7 +506,7 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space(this%coarse_fe_handlers)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
@@ -816,21 +817,13 @@ end subroutine check_solution
 
     call this%setup_triangulation()
     
-#ifdef ENABLE_MKL    
-    call this%triangulation%setup_coarse_triangulation()
-#endif      
-
     call this%setup_reference_fes()
     call this%setup_coarse_fe_handlers()
     
     call this%timer_fe_space%start()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
-    
-#ifdef ENABLE_MKL    
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-#endif      
-    
+        
     call this%timer_assemply%start()
     call this%setup_system()
     call this%assemble_system()
@@ -863,7 +856,8 @@ end subroutine check_solution
       end if 
       call this%timer_error_estimate%stop()
       
-      call this%output_current_mesh_and_solution(this%refinement_strategy%get_current_mesh_iteration())
+      ! call this%output_current_mesh_and_solution(this%refinement_strategy%get_current_mesh_iteration())
+      call this%output_current_mesh_and_solution(step +1)
       call this%timer_triangulation%start()
       call this%triangulation%refine_and_coarsen()
       call this%timer_triangulation%stop()
@@ -876,19 +870,11 @@ end subroutine check_solution
       call this%timer_triangulation%start()
       call this%triangulation%redistribute()
       call this%timer_triangulation%stop()
-      
-#ifdef ENABLE_MKL    
-      call this%triangulation%setup_coarse_triangulation()
-#endif
-      
+            
       call this%timer_fe_space%start()
       call this%fe_space%redistribute(this%solution)
       call this%timer_fe_space%stop()
-      
-#ifdef ENABLE_MKL    
-      call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-#endif        
-      
+            
       ! If not called BUG 
       call this%fe_space%set_up_cell_integration()
       
@@ -940,6 +926,7 @@ end subroutine check_solution
       check(istat==0)
     end if
     call this%triangulation%free()
+    call this%cell_mask%free()
   end subroutine free  
 
   !========================================================================================
@@ -1066,8 +1053,30 @@ end subroutine check_solution
   subroutine set_error_based_cells_for_refinement(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    call this%refinement_strategy%update_refinement_flags(this%triangulation)
+    call this%update_cell_mask()
+    call this%refinement_strategy%update_refinement_flags(this%triangulation, this%cell_mask%get_pointer())
   end subroutine set_error_based_cells_for_refinement
+  
+  subroutine update_cell_mask(this)
+     implicit none
+     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
+     class(cell_iterator_t), allocatable :: cell
+     call this%cell_mask%resize(this%triangulation%get_num_local_cells())
+     if ( this%par_environment%am_i_l1_task() ) then
+       call this%triangulation%create_cell_iterator(cell)
+       do while ( .not. cell%has_finished() )
+         if ( cell%is_local() ) then
+           if ( cell%get_set_id() == PAR_TEST_MAXWELL_FULL ) then
+             call this%cell_mask%set(cell%get_gid(), .true.)
+           else if ( cell%get_set_id() == PAR_TEST_MAXWELL_VOID ) then
+             call this%cell_mask%set(cell%get_gid(), .false.)
+           end if
+         end if 
+         call cell%next()
+       end do 
+       call this%triangulation%free_cell_iterator(cell)
+     end if 
+  end subroutine update_cell_mask
   
   subroutine set_cells_set_ids(this)
     implicit none

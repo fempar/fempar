@@ -214,10 +214,9 @@ contains
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%create( triangulation      = this%triangulation,       &
                                reference_fes      = this%reference_fes,       &
-                               coarse_fe_handlers = this%coarse_fe_handlers,  &
                                conditions         = this%poisson_conditions )
     call this%fe_space%set_up_cell_integration()
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space(this%coarse_fe_handlers)
   end subroutine setup_fe_space
   
   subroutine generate_adapted_mesh(this)

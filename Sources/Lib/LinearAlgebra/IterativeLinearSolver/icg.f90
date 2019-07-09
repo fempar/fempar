@@ -119,7 +119,6 @@ contains
     class(vector_t)     , pointer :: initial_solution
     integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
     real(rp)                      :: atol, rtol
-    logical                       :: track_convergence_history
 
     ! Pointers to freely modify/read private member variables of base class
     integer(ip), pointer :: num_iterations
@@ -137,7 +136,6 @@ contains
     atol                      =  this%get_atol()
     rtol                      =  this%get_rtol()
     output_frequency          =  this%get_output_frequency()
-    track_convergence_history =  this%get_track_convergence_history()
      
     num_iterations                          => this%get_pointer_num_iterations()
     did_converge                            => this%get_pointer_did_converge()
@@ -390,7 +388,7 @@ contains
           error_estimate_convergence_test = nrm_r_given
        end select
 
-       if ( track_convergence_history ) then
+       if ( environment%am_i_l1_root() .and. track_convergence_history ) then
           error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
        end if
        did_converge = (error_estimate_convergence_test <= rhs_convergence_test)
@@ -403,7 +401,7 @@ contains
              ! Compute || r(i) ||
              error_estimate_extra_convergence_test = r%nrm2()
              did_converge = (error_estimate_extra_convergence_test <= rhs_extra_convergence_test )
-             if ( track_convergence_history ) then
+             if ( environment%am_i_l1_root() .and. track_convergence_history ) then
                 error_estimate_history_extra_convergence_test(num_iterations) = error_estimate_extra_convergence_test
              end if
           end if

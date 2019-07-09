@@ -316,7 +316,7 @@ contains
                 error_estimate_convergence_test = res_2_norm
             end if
 
-            if (track_convergence_history) then  
+            if (environment%am_i_l1_root() .and. track_convergence_history) then  
             error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
             end if 
             exit_loop = (error_estimate_convergence_test <= rhs_convergence_test)

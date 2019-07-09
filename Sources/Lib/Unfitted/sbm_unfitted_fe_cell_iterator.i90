@@ -313,7 +313,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
 
   ! Recover info about the quadrature of the current element
   quadrature => this%get_quadrature()
-  quadrature_points_coordinates => quadrature%get_coordinates()
+  quadrature_points_coordinates => quadrature%get_pointer_coordinates()
   quadrature_weights     => quadrature%get_pointer_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
   num_dim                =  quadrature%get_num_dims()
@@ -437,7 +437,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_quadratures( this )
 
   ! Extract the coordinates and store them inside the quadrature
   quad_coords => pw_cell_map%get_quadrature_points_coordinates()
-  quad_coords_aux => quad%get_coordinates()
+  quad_coords_aux => quad%get_pointer_coordinates()
   ! TODO its a nightmare that the quadrature does not work with point_t!
   do idi = 1, quad%get_num_dims()
     do igp = 1, quad%get_num_quadrature_points()

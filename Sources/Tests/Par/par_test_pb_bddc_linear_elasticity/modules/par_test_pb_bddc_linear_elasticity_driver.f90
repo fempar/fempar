@@ -851,7 +851,6 @@ contains
     end if
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
-                               coarse_fe_handlers  = this%coarse_fe_handlers, &
                                conditions          = this%linear_elasticity_conditions, &
                                field_blocks        = this%linear_elasticity_integration%get_field_blocks(), &
                                field_coupling      = this%linear_elasticity_integration%get_field_coupling() )
@@ -912,7 +911,7 @@ contains
           write(*,*) "si_solver:: 0"
        end if
     end if
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space(this%coarse_fe_handlers)
 
 
     ! Prepare the internal parameter list of pardiso

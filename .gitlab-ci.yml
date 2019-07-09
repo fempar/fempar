@@ -1,220 +1,291 @@
 stages:
-  - build
+    - debug
+    - release
+    - deploy
+
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+
+#cache:
+#  key: "$CI_COMMIT_REF_SLUG"
+#  untracked: true
+#  paths:
+#    - $CI_PROJECT_DIR/cache
+
 
 .base_gnu:
   before_script: 
-    - source /usr/local/Modules/init/bash
+    - source /opt/intel/mkl/bin/mklvars.sh intel64 
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
     - ROOT_DIR=$CI_PROJECT_DIR
-    - BUILD_DIR=$ROOT_DIR/BUILD
-    - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
+    - BUILD_DIR=/data/BUILD
     - FEMPAR_DIR=$BUILD_DIR/FEMPAR
-    - mkdir -p $THIRDPARTY_DIR
     - mkdir -p $FEMPAR_DIR
     - cd $ROOT_DIR
     - git submodule sync --recursive
     - git submodule update --init --recursive
-    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
-
-
-GNU_DEBUG_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
-
-  extends: .base_gnu
- 
-  script:
-    - module load GNU_SERIAL
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - cmake --build . -- -j8
-    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
-    - serial_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log  
-    - set -e
-    - echo $serial_test_passed
-    - test $serial_test_passed -eq 0
-
-  except:
-    - experimental@fempar/fempar-beta
-
-GNU_DEBUG_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
-
-  extends: .base_gnu
- 
-  script:
-    - module load GNU_PARALLEL
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=DEBUG $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=DEBUG -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - cmake --build . -- -j8
-    - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
-    - par_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log
-    - set -e
-    - echo $par_test_passed
-    - test $par_test_passed -eq 0
-
-  except:
-    - experimental@fempar/fempar-beta
-
-GNU_RELEASE_P4EST_SERIAL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
- 
-  extends: .base_gnu
-
-  script:
-    - module load GNU_SERIAL
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - cmake --build . -- -j8
-    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
-    - serial_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log  
-    - set -e
-    - echo $serial_test_passed
-    - test $serial_test_passed -eq 0
-
-  except:
-    - experimental@fempar/fempar-beta
-
-GNU_RELEASE_P4EST_PARALLEL:
-  image: registry.gitlab.com/fempar/fempar-beta:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
- 
-  extends: .base_gnu
-
-  script:
-    - module load GNU_PARALLEL
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - cmake --build . -- -j8
-    - ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
-    - par_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log
-    - set -e
-    - echo $par_test_passed
-    - test $par_test_passed -eq 0
-
-  except:
-    - experimental@fempar/fempar-beta
 
 
 .base_intel:
    before_script: 
-    - source /usr/local/Modules/init/bash
+    - source /usr/local/Modules/init/bash 
     - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-implicitnone"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
-    - THIRDPARTY_DIR=$BUILD_DIR/THIRDPARTY
     - FEMPAR_DIR=$BUILD_DIR/FEMPAR
-    - mkdir -p $THIRDPARTY_DIR
     - mkdir -p $FEMPAR_DIR
     - cd $ROOT_DIR
     - git submodule sync --recursive
     - git submodule update --init --recursive
-    - ln -sf CMake/CTestConfig_CIMNE.cmake CTestConfig.cmake
+
+
+.script_template:
+  script: &script_template
+    - $CLEAN_ENV_COMMAND
+    - $LOAD_ENV_COMMAND
+    - mkdir -p $THIRDPARTY_DIR
+    - cd $THIRDPARTY_DIR
+    - for library in FPL F3PHT FLAP VTKIO SISL XH5For FortranParser;
+      do
+        mkdir -p $THIRDPARTY_DIR/$library;
+        cd $THIRDPARTY_DIR/$library;
+        cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty/$library;
+        cmake --build . -- -j8;
+      done
+    - cd $FEMPAR_DIR
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
+    - set +e
+    - cmake --build . -- -j8
+    - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
+    - tests_passed=0
+    - test -f $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log && tests_passed=1
+    - ls -l $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log
+    - cat $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log  
+    - set -e
+    - echo $tests_passed
+    - test $tests_passed -eq 0
+
+
+GNU_DEBUG_P4EST_SERIAL:
+  image: fempar/fempar-env:gnu-debug_p4est-serial
+  stage: debug
+  only:
+    - merge_requests
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: SERIAL
+  script: *script_template
+  
+  
+GNU_DEBUG_P4EST_SERIAL_MEM_COV:
+  image: fempar/fempar-env:gnu-debug_p4est-serial
+  stage: debug
+  only:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: SERIAL
+    EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
+  script: *script_template
+
+
+GNU_DEBUG_P4EST_SERIAL_FAST:
+  image: fempar/fempar-env:gnu-debug_p4est-serial
+  stage: debug
+  except:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: SERIAL_FAST
+  script: *script_template
+
+
+GNU_DEBUG_P4EST_PARALLEL:
+  image: fempar/fempar-env:gnu-debug_p4est-parallel
+  stage: debug
+  only:
+    - merge_requests
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: PARALLEL
+  script: *script_template
+  
+
+GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
+  image: fempar/fempar-env:gnu-debug_p4est-parallel
+  stage: debug
+  only:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: PARALLEL
+    EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
+  script: *script_template
+
+
+GNU_DEBUG_P4EST_PARALLEL_FAST:
+  image: fempar/fempar-env:gnu-debug_p4est-parallel
+  stage: debug
+  except:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
+    BUILD_MODE: DEBUG
+    TEST_LABEL: PARALLEL_FAST
+  script: *script_template
+
+
+GNU_RELEASE_P4EST_SERIAL:
+  image: fempar/fempar-env:gnu-release_p4est-serial
+  stage: release
+  only:
+    - experimental
+    - merge_requests
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: SERIAL
+  script: *script_template
+
+
+GNU_RELEASE_P4EST_SERIAL_FAST:
+  image: fempar/fempar-env:gnu-release_p4est-serial
+  stage: release
+  except:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: SERIAL_FAST
+  script: *script_template
+
+
+GNU_RELEASE_P4EST_PARALLEL:
+  image: fempar/fempar-env:gnu-release_p4est-parallel
+  stage: release
+  only:
+    - experimental
+    - merge_requests
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: PARALLEL
+  script: *script_template
+
+
+GNU_RELEASE_P4EST_PARALLEL_FAST:
+  image: fempar/fempar-env:gnu-release_p4est-parallel
+  stage: release
+  except:
+    - experimental
+  extends: .base_gnu
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: PARALLEL_FAST
+  script: *script_template
+
 
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
-  
+  stage: release
+  when: always
+  only:
+    - experimental
+    - merge_requests
   extends: .base_intel
- 
-  script:
-    - module load INTEL_SERIAL
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - cmake --build . -- -j8
-    - ctest -j8 -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
-    - serial_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log  
-    - set -e
-    - echo $serial_test_passed
-    - test $serial_test_passed -eq 0
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: SERIAL
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_SERIAL
+  script: *script_template
 
+
+INTEL_RELEASE_P4EST_SERIAL_FAST:
+  image: registry.gitlab.com/fempar/fempar-beta:latest
+  stage: release
+  when: always
   except:
-    - experimental@fempar/fempar-beta
+    - experimental
+  extends: .base_intel
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: SERIAL_FAST
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_SERIAL
+  script: *script_template
+
 
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
-
-  stage: build
-  
-  tags:
-    - test-ci
-  
+  stage: release
+  when: always
+  only:
+    - experimental
+    - merge_requests
   extends: .base_intel
- 
-  script:
-    - module load INTEL_PARALLEL
-    - cd $THIRDPARTY_DIR
-    - cmake -DCMAKE_BUILD_TYPE=RELEASE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty
-    - cmake --build . -- -j8
-    - cd $FEMPAR_DIR
-    - cmake -DPETSC_ARCH=$PETSC_ARCH -DPETSC_DIR=$PETSC_DIR $FORTRAN_EXTRA_FLAGS -DCMAKE_BUILD_TYPE=RELEASE -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe" $ROOT_DIR
-    - set +e
-    - cmake --build . -- -j8
-    - ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalSubmit
-    - par_test_passed=0
-    - test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
-    - ls -l ./Testing/Temporary/LastTestsFailed*.log
-    - cat ./Testing/Temporary/LastTestsFailed*.log
-    - set -e
-    - echo $par_test_passed
-    - test $par_test_passed -eq 0
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: PARALLEL
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_PARALLEL
+  script: *script_template
 
+
+INTEL_RELEASE_P4EST_PARALLEL_FAST:
+  image: registry.gitlab.com/fempar/fempar-beta:latest
+  stage: release
+  when: always
   except:
-    - experimental@fempar/fempar-beta
+    - experimental
+  extends: .base_intel
+  variables:
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    BUILD_MODE: RELEASE
+    TEST_LABEL: PARALLEL_FAST
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_PARALLEL
+  script: *script_template
+
+
+DOCUMENTATION:
+  image: appropriate/curl:latest
+  stage: deploy
+  script: 
+    - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
+  only:
+    - experimental@fempar/fempar
+
+SINGULARITY:
+  image: fempar/fempar-env:golang_stretch-singularity
+  stage: deploy
+  script: 
+    - echo $SYLABS_TOKEN > $CI_PROJECT_DIR/sylabs-token
+    - singularity remote login SylabsCloud --tokenfile $CI_PROJECT_DIR/sylabs-token
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:gnu-release_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
+    - rm $CI_PROJECT_DIR/sylabs-token
+  only:
+    - experimental@fempar/fempar

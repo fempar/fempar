@@ -26,11 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!* ### Module loading
 !* The `[[tutorial_01_steady_poisson]]`,
 program tutorial_01_steady_poisson
 !* uses the `fempar_names` and `poisson_discrete_integration_names`:
   use fempar_names
   use poisson_discrete_integration_names  
+  !* ### Variable definition
   !* First, declare the `test_driver` and the `world_context`.
   implicit none  
 # include "debug.i90"
@@ -49,11 +51,11 @@ program tutorial_01_steady_poisson
   !* The fe_space_t is the global finite element space to be used.
   type(serial_fe_space_t)              :: fe_space
   !* String containing the analytical expression of the source term
-  character(len=:), allocatable        :: source_term_expression
+  type(string)                         :: source_term_expression
   !* String containing the analytical expression of the boundary function
-  character(len=:), allocatable        :: boundary_function_expression
+  type(string)                         :: boundary_function_expression
   !* String containing the analytical expression of the exact solution
-  character(len=:), allocatable        :: exact_solution_expression  
+  type(string)                         :: exact_solution_expression  
   !* It is an extension of conditions_t that defines the Dirichlet boundary conditions using analytical functions.
   type(strong_boundary_conditions_t)   :: poisson_conditions
   !* A scalar_function_parser_t with the expression of the desired source term, which is just 0 in this case.
@@ -89,6 +91,7 @@ program tutorial_01_steady_poisson
   character(len=16)            :: lin_solver_type
   class(vector_t), pointer     :: dof_values
   class(vector_t), allocatable :: rhs
+  !* ### Environment initialization
   real(rp) :: l2
   !*
   !* Initialize properly the FEMPAR library 
@@ -113,6 +116,7 @@ program tutorial_01_steady_poisson
   !    call parameter_list%print()
   !* Determine a serial execution mode (default case)
   call serial_environment%create(world_context, parameter_list)
+  !* ### Triangulation
   !* Create triangulation.  
   !* The structure mesh generator creates a domain that has:
   !*   8 boundary objects (corners+edges) in 2D
@@ -128,20 +132,18 @@ program tutorial_01_steady_poisson
   !*           5     
   call triangulation%create(serial_environment, parameter_list)
 
-  !* User-defined functions for the source term, boundary function and exact solution in 2D case
-  source_term_expression       = '0'
-  boundary_function_expression = 'x+y'
-  exact_solution_expression    = 'x+y' 
-  if(triangulation%get_num_dims() == 3) then
-    !* User-defined functions for the source term, boundary function and exact solution in 3D case
-    source_term_expression       = '0'
-    boundary_function_expression = 'x+y+z' 
-    exact_solution_expression    = "x+y+z" 
-  end if 
+  !* ### Analytical expressions
+  !* User-defined functions for the source term, boundary function and exact solution.
+  !* The ternary operator `merge` assigns the analytical expression depending on the dimensions of the triangulation
+  source_term_expression       = String('0')
+  boundary_function_expression = merge(String('x+y'), String('x+y+z'), triangulation%get_num_dims() == 2) 
+  exact_solution_expression    = merge(String('x+y'), String('x+y+z'), triangulation%get_num_dims() == 2) 
+
+  !* ### Setup system
   !* Create source term, boundary and exact solution objects given its analytical expressions.  
-  call source_term%create(expression=source_term_expression, num_dims=triangulation%get_num_dims()) 
-  call boundary_function%create(expression=boundary_function_expression, num_dims=triangulation%get_num_dims()) 
-  call exact_solution%create(expression=exact_solution_expression, num_dims=triangulation%get_num_dims())
+  call source_term%create(expression=source_term_expression%chars(), num_dims=triangulation%get_num_dims()) 
+  call boundary_function%create(expression=boundary_function_expression%chars(), num_dims=triangulation%get_num_dims()) 
+  call exact_solution%create(expression=exact_solution_expression%chars(), num_dims=triangulation%get_num_dims())
 
   call boundary_function%set_num_dims(triangulation%get_num_dims())
   boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
@@ -177,6 +179,8 @@ program tutorial_01_steady_poisson
   call poisson_integration%set_fe_function(solution)
   !* Now, the discrete integration has all the information needed. We can fill the affine operator b - Ax.
   call fe_affine_operator%compute()
+
+  !* ### Solve system
   !* After, we select the linear solver type. Then we set the solver parameters and solve the problem.
   lin_solver_type='pardiso'
   !*
@@ -219,6 +223,8 @@ program tutorial_01_steady_poisson
     !* putting the result in dof_values.
     call iterative_linear_solver%apply(fe_affine_operator%get_translation(),dof_values)    
   end if 
+
+  !* ### Compute error
   !* Now, we want to compute error wrt an exact solution. It needs the FE space above to be constructed.                                       
   call error_norm%create(fe_space,1)  
   call exact_solution%set_num_dims(triangulation%get_num_dims())
@@ -226,6 +232,8 @@ program tutorial_01_steady_poisson
   l2 = error_norm%compute(exact_solution, solution, l2_norm) 
   !* We finally plot the result and check we have solved the problem "exactly", since the exact solution belongs to the FE space.
   write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
+
+  !* ### Plot results
   !* Last, we plot the results.
   !* We can set the file system path where the results files are created using
   error = 0
@@ -238,6 +246,8 @@ program tutorial_01_steady_poisson
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()
+
+!*  ### Free all the created objects
 !*
 !* Free all the created objects
   call parameter_handler%free()

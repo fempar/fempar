@@ -285,7 +285,7 @@ contains
              ! Error norm
              res_norm = abs(alpha)
              error_estimate_convergence_test  = res_norm
-             if (track_convergence_history) then 
+             if (environment%am_i_l1_root() .and. track_convergence_history) then 
                 error_estimate_history_convergence_test(num_iterations) = error_estimate_convergence_test
              end if
           end if

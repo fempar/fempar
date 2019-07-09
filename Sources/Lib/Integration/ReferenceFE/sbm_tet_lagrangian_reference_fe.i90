@@ -678,7 +678,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quad
   end do
 
   call tet_polynomial_prebase%create(interpolation%num_dims,monomial_1D_basis)
-  call tet_polynomial_prebase%fill( quadrature%get_coordinates() )
+  call tet_polynomial_prebase%fill( quadrature%get_pointer_coordinates() )
 
   call memalloc(tet_polynomial_prebase%get_num_polynomials(),values,__FILE__,__LINE__)
   do q_point=1, quadrature%get_num_quadrature_points()

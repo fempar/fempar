@@ -55,7 +55,7 @@ subroutine evaluate_monomials(points, degree, topology, monomials)
   integer(ip) :: imo, px, py, pz, p
 
   assert(size(monomials,1)==points%get_num_quadrature_points())
-  quad_coords => points%get_coordinates()
+  quad_coords => points%get_pointer_coordinates()
   select case(points%get_num_dims())
     case(1)
       assert(size(monomials,2)==(degree+1))

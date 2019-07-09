@@ -408,7 +408,6 @@ end subroutine free_timers
     call this%fe_space%create( triangulation            = this%triangulation, &
                                reference_fes            = this%reference_fes, &
                                set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                               coarse_fe_handlers       = this%l1_coarse_fe_handlers, &
                                conditions               = this%poisson_unfitted_conditions )
     
     !call this%fe_space%generate_global_dof_numbering() 
@@ -491,7 +490,7 @@ end subroutine free_timers
     end select
 
     ! At this point we can create the coarse fe space
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%fe_space%setup_coarse_fe_space(this%l1_coarse_fe_handlers)
 
     ! Set-up MLBDDC preconditioner
     if (this%test_params%get_use_preconditioner()) then
