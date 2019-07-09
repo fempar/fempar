@@ -2156,33 +2156,18 @@ subroutine p4est_bt_setup_workspace_to_compute_nodal_coordinates(this)
   end if
 
   ! Create nodal coordinates fe space  
-  fe_space => this%nodal_coordinates_fe_space  
-  select type(fe_space)
+  select type(fe_space => this%nodal_coordinates_fe_space)
    class is(serial_fe_space_t)
      call fe_space%create( triangulation      = this, &
                            reference_fes      = this%nodal_coordinates_reference_fes)
 
    class is(par_fe_space_t)
-     ! Create coarse fe handler array
-     allocate(this%nodal_coordinates_coarse_fe_handlers(1), stat=istat)  
-    
-     call parameter_list%init()
-     istat = parameter_list%set(key = coarse_space_use_vertices_key, value = .true.) ; check(istat==0)
-     istat = parameter_list%set(key = coarse_space_use_edges_key, value = .true.) ; check(istat==0)
-     istat = parameter_list%set(key = coarse_space_use_faces_key, value = .true.) ; check(istat==0)
-     call this%nodal_coordinates_coarse_fe_handler%create(parameter_list)
-     this%nodal_coordinates_coarse_fe_handlers(1)%p => this%nodal_coordinates_coarse_fe_handler
-    
      call fe_space%create( triangulation      = this, &
-                           reference_fes      = this%nodal_coordinates_reference_fes, &
-                           coarse_fe_handlers = this%nodal_coordinates_coarse_fe_handlers)
-
-     call parameter_list%free()     
+                           reference_fes      = this%nodal_coordinates_reference_fes )
   end select  
 
   ! Create fe function to store nodal coordinates
   call this%nodal_coordinates_fe_function%create(this%nodal_coordinates_fe_space)
-
 end subroutine p4est_bt_setup_workspace_to_compute_nodal_coordinates
 
 subroutine p4est_bt_refine_and_coarsen_coordinates_fe_function(this)
@@ -2332,11 +2317,6 @@ subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates(this)
      mcheck(istat==0,'Error deallocating')
   end if
   call this%nodal_coordinates_fe_function%free()
-  call this%nodal_coordinates_coarse_fe_handler%free()
-  if ( allocated(this%nodal_coordinates_coarse_fe_handlers) ) then
-     deallocate(this%nodal_coordinates_coarse_fe_handlers, stat=istat)
-     mcheck(istat==0,'Error deallocating')
-  end if
 
   call this%serial_fe_space%free()
   call this%par_fe_space%free()

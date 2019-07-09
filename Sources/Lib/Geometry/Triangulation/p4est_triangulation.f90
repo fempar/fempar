@@ -540,8 +540,6 @@ module p4est_triangulation_names
      integer(ip), allocatable              :: lst_dofs_n_face(:)
 
      ! Auxiliar workspace required to compute the nodal coordinates
-     type(h_adaptive_algebraic_l1_coarse_fe_handler_t) :: nodal_coordinates_coarse_fe_handler
-     type(p_l1_coarse_fe_handler_t),      allocatable  :: nodal_coordinates_coarse_fe_handlers(:)
      type(hex_lagrangian_reference_fe_t)               :: nodal_coordinates_reference_fe
      type(p_reference_fe_t),              allocatable  :: nodal_coordinates_reference_fes(:)
      class(serial_fe_space_t),            pointer      :: nodal_coordinates_fe_space
