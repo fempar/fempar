@@ -43,8 +43,8 @@ module uniform_hex_mesh_generator_names
      integer(ip)              :: interpolation_order
      integer(ip), allocatable :: num_cells_x_dim(:)
      integer(ip), allocatable :: num_parts_x_dim_x_level(:)
-     integer(ip)              :: is_dir_periodic(0:SPACE_DIM-1)
-     real(rp)                 :: domain_limits(1:SPACE_DIM,2)
+     integer(ip), allocatable :: is_dir_periodic(:)
+     real(rp),    allocatable :: domain_limits(:)
    contains   
      procedure         , non_overridable :: create                                         => uhm_create
      procedure, private, non_overridable :: process_parameters                             => uhm_process_parameters
@@ -107,34 +107,31 @@ contains
     ! Mandatory (array)
     assert ( parameters%isPresent(key = struct_hex_mesh_generator_num_cells_x_dim_key ) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key, shape = array_size); check(istat==0)
-    call memalloc(array_size(1), this%num_cells_x_dim,__FILE__,__LINE__
+    call memalloc(array_size(1), this%num_cells_x_dim,__FILE__,__LINE__)
+    assert(parameters%isAssignable(struct_hex_mesh_generator_num_cells_x_dim_key, this%num_cells_x_dim))
     istat = parameters%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = this%num_cells_x_dim); check(istat==0)
 
     ! Mandatory (array)
     assert (parameters%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key ) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0);
     call memalloc(array_size(1), this%is_dir_periodic,__FILE__,__LINE__)
+    assert(parameters%isAssignable(struct_hex_mesh_generator_is_dir_periodic_key, this%is_dir_periodic))
     istat = parameters%get(key = struct_hex_mesh_generator_is_dir_periodic_key, value = this%is_dir_periodic); check(istat==0)
 
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key, shape = array_size); check(istat==0)
     call memalloc(array_size(1), this%num_parts_x_dim_x_level,__FILE__,__LINE__)
+    assert(parameters%isAssignable(struct_hex_mesh_generator_num_parts_x_dim_x_level_key, this%num_parts_x_dim_x_level))
     istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = this%num_parts_x_dim_x_level); check(istat==0)
     
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_domain_limits_key) )
-    istat = parameters%GetShape(key = struct_hex_mesh_generator_domain_limits_key   , shape = array_size); check(istat==0)
-    call memalloc(array_size(1), domain_limits,__FILE__,__LINE__)
-    assert(parameters%isAssignable(struct_hex_mesh_generator_domain_limits_key, domain_limits))
-    istat = parameters%get(key = struct_hex_mesh_generator_domain_limits_key , value = domain_limits); check(istat==0)
-    do idime = 1,this%num_dims
-      this%domain_limits(idime,1) = domain_limits(2*idime-1)
-      this%domain_limits(idime,2) = domain_limits(2*idime)
-      assert(this%domain_limits(idime,2)>this%domain_limits(idime,1))
-    end do
-    
-    call memfree(domain_limits,__FILE__,__LINE__)
+    istat = parameters%GetShape(key = struct_hex_mesh_generator_domain_limits_key, shape = array_size); check(istat==0)
+    call memalloc(array_size(1), this%domain_limits,__FILE__,__LINE__)
+    assert(parameters%isAssignable(struct_hex_mesh_generator_domain_limits_key, this%domain_limits))
+    istat = parameters%get(key = struct_hex_mesh_generator_domain_limits_key , value = this%domain_limits); check(istat==0)
+
     ! Here we do not use our memfree because array_size was allocated inside FPL 
     ! (without calling memalloc)
     if(allocated(array_size)) deallocate(array_size)
