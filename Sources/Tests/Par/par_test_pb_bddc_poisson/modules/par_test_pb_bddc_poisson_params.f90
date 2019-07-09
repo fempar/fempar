@@ -205,7 +205,8 @@ contains
     integer(ip), allocatable                              :: num_cells_x_dir(:)
     integer(ip)                                           :: error
     call parameter_handler%GetAsArray(key = struct_hex_mesh_generator_num_cells_x_dim_key, Value = num_cells_x_dir)
-    get_num_cells_x_dir=num_cells_x_dir
+    get_num_cells_x_dir = 0
+    get_num_cells_x_dir(1:size(num_cells_x_dir))=num_cells_x_dir(:)
   end function get_num_cells_x_dir
   !==================================================================================================
   function get_size_sub_object(this)
