@@ -73,7 +73,7 @@ program tutorial_02_steady_stokes
 
   !* Local variables
   real(rp) :: viscosity
-  integer(ip) :: fe_order, istat, i, boundary_ids
+  integer(ip) :: fe_order, istat, i, boundary_ids, num_dims
   class(vector_t), pointer :: dof_values
   class(vector_t), allocatable :: rhs
   real(rp) :: l2
@@ -93,6 +93,15 @@ program tutorial_02_steady_stokes
 
   !* Determine a serial execution mode (default case)
   call serial_environment%create(world_context,parameter_list)
+
+
+  ! Update mesh generator parameters in 2D
+  call parameter_handler%get(key = struct_hex_mesh_generator_num_dims_key, value = num_dims)
+  if(num_dims == 2) then
+      call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10] )       ! Number of cells per each dimension
+      call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, value = [0.0,1.0,0.0,1.0])! Domain limits of the mesh
+      call parameter_handler%update(struct_hex_mesh_generator_is_dir_periodic_key, value = [0,0] )         ! Mesh is not periodic in any direction
+  endif
 
   !* Create triangulation (we are not changing the default parameters from FEMPAR. Thus, we are solving in a serial
   !* triangulation of hex, structured, 10x10, 2D.
@@ -129,6 +138,7 @@ program tutorial_02_steady_stokes
                                                    cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
+
   fes_ref_fe_types = [String(fe_type_lagrangian), String(fe_type_lagrangian)]
   fes_field_types = [String(field_type_vector), String(field_type_scalar)]
   call parameter_handler%update(key = fes_num_fields_key, value = 2)

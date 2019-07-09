@@ -106,10 +106,12 @@ program tutorial_01_steady_poisson
 
   !* Overwrite fempar default parameters for the integration
   fes_ref_fe_types(1) = String(fe_type_lagrangian)
-  call parameter_handler%update(struct_hex_mesh_generator_num_dims_key, value = 2 )                 ! Number of space dimensions
-  call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10,10] ) ! Number of cells per each dimension
-  call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                              ! Reference finite element orders
-  call parameter_handler%update(fes_ref_fe_types_key, value = fes_ref_fe_types )                    ! Reference finite element types
+  call parameter_handler%update(struct_hex_mesh_generator_num_dims_key, value = 2 )                    ! Number of space dimensions
+  call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10] )       ! Number of cells per each dimension
+  call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, value = [0.0,1.0,0.0,1.0])! Domain limits of the mesh
+  call parameter_handler%update(struct_hex_mesh_generator_is_dir_periodic_key, value = [0,0] )         ! Mesh is not periodic in any direction
+  call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                                 ! Reference finite element orders
+  call parameter_handler%update(fes_ref_fe_types_key, value = fes_ref_fe_types )                       ! Reference finite element types
 
   !* Obtain the list containing all fempar parameters
   parameter_list => parameter_handler%get_values()
