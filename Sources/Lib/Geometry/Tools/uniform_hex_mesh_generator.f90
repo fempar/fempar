@@ -94,12 +94,10 @@ contains
     class(uniform_hex_mesh_t), intent(inout) :: this
     type(ParameterList_t)    , intent(in)    :: parameters
     ! Locals
-    integer(ip) :: istat, idime, i, new_array_size
+    integer(ip) :: istat, idime
     logical     :: is_present
     integer(ip), allocatable :: array_size(:)
     real(rp), allocatable :: domain_limits(:)
-    integer(ip), allocatable :: num_parts_x_dim_x_level(:)
-    integer(ip), allocatable :: num_cells_x_dim(:)
     
     ! Mandatory
     assert(parameters%isPresent(struct_hex_mesh_generator_num_dims_key))
@@ -109,26 +107,20 @@ contains
     ! Mandatory (array)
     assert ( parameters%isPresent(key = struct_hex_mesh_generator_num_cells_x_dim_key ) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_num_cells_x_dim_key, shape = array_size); check(istat==0)
-    call memalloc(array_size(1), num_cells_x_dim,__FILE__,__LINE__, lb1=0)
-    istat = parameters%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = num_cells_x_dim); check(istat==0)
-    call memalloc(SPACE_DIM, this%num_cells_x_dim,__FILE__,__LINE__, valin=0, lb1=0)
-    this%num_cells_x_dim(0:this%num_dims-1) = num_cells_x_dim(0:this%num_dims-1)
-    call memfree(num_cells_x_dim,__FILE__,__LINE__)
+    call memalloc(array_size(1), this%num_cells_x_dim,__FILE__,__LINE__
+    istat = parameters%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = this%num_cells_x_dim); check(istat==0)
 
     ! Mandatory (array)
     assert (parameters%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key ) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0);
+    call memalloc(array_size(1), this%is_dir_periodic,__FILE__,__LINE__)
     istat = parameters%get(key = struct_hex_mesh_generator_is_dir_periodic_key, value = this%is_dir_periodic); check(istat==0)
 
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) )
     istat = parameters%GetShape(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key, shape = array_size); check(istat==0)
-    call memalloc(array_size(1), num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
-    istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = num_parts_x_dim_x_level); check(istat==0)
-    new_array_size = array_size(1)/this%num_dims*SPACE_DIM
-    call memalloc(new_array_size, this%num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
-    this%num_parts_x_dim_x_level = unpack(num_parts_x_dim_x_level, mask=[(mod(i,SPACE_DIM)<this%num_dims, i=0, new_array_size-1)], field=0)
-    call memfree(num_parts_x_dim_x_level,__FILE__,__LINE__)
+    call memalloc(array_size(1), this%num_parts_x_dim_x_level,__FILE__,__LINE__)
+    istat = parameters%get(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key , value = this%num_parts_x_dim_x_level); check(istat==0)
     
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_domain_limits_key) )
