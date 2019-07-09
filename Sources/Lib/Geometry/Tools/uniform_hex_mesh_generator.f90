@@ -77,6 +77,8 @@ contains
     class(uniform_hex_mesh_t), intent(inout) :: this
     if(allocated(this%num_cells_x_dim)) call memfree(this%num_cells_x_dim,__FILE__,__LINE__)
     if(allocated(this%num_parts_x_dim_x_level)) call memfree(this%num_parts_x_dim_x_level,__FILE__,__LINE__)
+    if(allocated(this%is_dir_periodic)) call memfree(this%is_dir_periodic,__FILE__,__LINE__)
+    if(allocated(this%domain_limits)) call memfree(this%domain_limits,__FILE__,__LINE__)
   end subroutine uhm_free
   
   pure function uhm_get_num_dims(this)
@@ -211,7 +213,12 @@ contains
     !type(node_array_t)        :: node_array
     integer(ip)               :: ones(SPACE_DIM)
     logical                   :: count_it
-    integer(ip), allocatable  :: num_parts_x_dim_x_level(:)
+
+    integer(ip)               :: num_dims
+    integer(ip)               :: num_cells_x_dim(0:SPACE_DIM-1)
+    integer(ip)               :: is_dir_periodic(0:SPACE_DIM-1)
+    real(rp)                  :: domain_limits(1:SPACE_DIM,2)
+    integer(ip)               :: num_parts_x_dim_x_level(0:SPACE_DIM-1)
 
     if(present(num_ghost_cells)) then
        assert(present(num_itfc_cells))
@@ -226,27 +233,31 @@ contains
     
     call this%check_part_local_mesh_parameters()
 
-    ones = 1
-    topology = 2**this%num_dims-1  ! Hexahedral
-    call polytope%create( this%num_dims, topology ) 
-    !call node_array%create ( polytope, ones*this%interpolation_order )
+    ! Copy member to local variables with lowerbound 0
+    num_dims                               = this%num_dims
+    num_cells_x_dim(0:SPACE_DIM-1)         = this%num_cells_x_dim(1:SPACE_DIM)
+    is_dir_periodic(0:SPACE_DIM-1)         = this%is_dir_periodic(1:SPACE_DIM)
+    domain_limits(0:SPACE_DIM-1)           = this%domain_limits(1:SPACE_DIM)
+    num_parts_x_dim_x_level(0:SPACE_DIM-1) = this%num_parts_x_dim_x_level(1:SPACE_DIM)
 
-    call memalloc(size(this%num_parts_x_dim_x_level), num_parts_x_dim_x_level, __FILE__, __LINE__, lb1=0 )
-    num_parts_x_dim_x_level(:) = this%num_parts_x_dim_x_level
+    ones = 1
+    topology = 2**num_dims-1  ! Hexahedral
+    call polytope%create( num_dims, topology ) 
+    !call node_array%create ( polytope, ones*this%interpolation_order )
     
     ! PARTS
     ! =====
     ! Get my part coordinates (make it 0-based, assuming part_id is 1-based) and the number of parts I have around (if any)
     if(present(part_id)) then
-       call spatial_to_ijk_numbering(this%num_dims, num_parts_x_dim_x_level, part_id, part_ijk)
+       call spatial_to_ijk_numbering(num_dims, num_parts_x_dim_x_level, part_id, part_ijk)
     else
        part_ijk = 0
        num_parts_x_dim_x_level = 1
     end if
     num_left_parts_x_dir=1
     num_right_parts_x_dir=1
-    do idime = 0, this%num_dims - 1 
-       if(this%is_dir_periodic(idime)==0 .or. num_parts_x_dim_x_level(idime)==1) then ! Not periodic
+    do idime = 0, num_dims - 1 
+       if(is_dir_periodic(idime)==0 .or. num_parts_x_dim_x_level(idime)==1) then ! Not periodic
           if(part_ijk(idime)==0) num_left_parts_x_dir(idime)=0 
           if(part_ijk(idime)==num_parts_x_dim_x_level(idime)-1) num_right_parts_x_dir(idime)=0 
        end if
@@ -255,12 +266,12 @@ contains
     ! CELLS
     ! =====
     ! Global and local number of cells (per direction and total; local, ghost and global)
-    do idime = 0, this%num_dims - 1 
-       num_local_cells_x_dir(idime) = this%num_cells_x_dim(idime) / num_parts_x_dim_x_level(idime) 
+    do idime = 0, num_dims - 1 
+       num_local_cells_x_dir(idime) = num_cells_x_dim(idime) / num_parts_x_dim_x_level(idime) 
        first_cell_ijk(idime) =  part_ijk(idime) * num_local_cells_x_dir(idime)
     end do
     num_local_cells = 1
-    do idime = 0, this%num_dims - 1
+    do idime = 0, num_dims - 1
        num_local_cells = num_local_cells * num_local_cells_x_dir(idime)
     end do
     num_total_cells_x_dir = num_local_cells_x_dir + num_left_parts_x_dir + num_right_parts_x_dir
@@ -270,7 +281,7 @@ contains
 
        ! Count ghost cells
        num_ghost_cells_ = 1
-       do idime = 0, this%num_dims - 1
+       do idime = 0, num_dims - 1
           num_ghost_cells_ = num_ghost_cells_ * num_total_cells_x_dir(idime)
        end do
        num_ghost_cells_ = num_ghost_cells_ - num_local_cells
@@ -278,7 +289,7 @@ contains
 
        ! Number of interface cells (=local-interior)
        num_itfc_cells = 1
-       do idime = 0, this%num_dims - 1
+       do idime = 0, num_dims - 1
           if(num_local_cells_x_dir(idime) > &
                & num_left_parts_x_dir(idime) + num_right_parts_x_dir(idime)) then
              num_itfc_cells = num_itfc_cells * &
@@ -298,9 +309,9 @@ contains
        ilocal_cell = 0
        itfc_cells = 0
        do icell = 1, num_local_cells+num_ghost_cells_
-          call spatial_to_ijk_numbering(this%num_dims, num_total_cells_x_dir, icell, cell_ijk)
-          do idime = 0, this%num_dims - 1
-             if(this%is_dir_periodic(idime)==0) then
+          call spatial_to_ijk_numbering(num_dims, num_total_cells_x_dir, icell, cell_ijk)
+          do idime = 0, num_dims - 1
+             if(is_dir_periodic(idime)==0) then
                 if(    (num_left_parts_x_dir(idime)==1 .and.cell_ijk(idime)==0).or. &
                      & (num_right_parts_x_dir(idime)==1.and.cell_ijk(idime)==num_total_cells_x_dir(idime)-1) ) then ! cell is ghost
                    cell_permutation(icell) = num_local_cells + num_ghost_cells_- ighost_cell
@@ -310,8 +321,8 @@ contains
              end if
           end do
           if(cell_permutation(icell)==0) then
-             do idime = 0, this%num_dims - 1
-                if(this%is_dir_periodic(idime)==0) then
+             do idime = 0, num_dims - 1
+                if(is_dir_periodic(idime)==0) then
                    if((num_left_parts_x_dir(idime)==1 .and.cell_ijk(idime)==1).or. &
                         &  (num_right_parts_x_dir(idime)==1.and.cell_ijk(idime)==num_total_cells_x_dir(idime)-2) ) then ! cell is interface
                       cell_permutation(icell) = num_local_cells - itfc_cells
@@ -363,7 +374,7 @@ contains
     ! Global and local number of n_faces (per direction and total)
     num_nface_types = 0
     do iface=1,polytope%get_num_n_faces()
-       if(polytope%get_n_face_dim(iface)<this%num_dims.and. &
+       if(polytope%get_n_face_dim(iface)<num_dims.and. &
             & polytope%n_face_coordinate(iface)==0) num_nface_types = num_nface_types + 1
     end do
 
@@ -371,29 +382,29 @@ contains
     num_faces = 0
     call memalloc( num_nface_types+1, num_global_n_faces, __FILE__,__LINE__,lb1=0)
     call memalloc( num_nface_types+1, num_total_n_faces, __FILE__,__LINE__,lb1=0)
-    call memalloc( this%num_dims, num_nface_types, num_global_nfaces_x_dir, __FILE__,__LINE__,lb1=0,lb2=0)
-    call memalloc( this%num_dims, num_nface_types, num_total_nfaces_x_dir, __FILE__,__LINE__,lb1=0,lb2=0)
+    call memalloc( num_dims, num_nface_types, num_global_nfaces_x_dir, __FILE__,__LINE__,lb1=0,lb2=0)
+    call memalloc( num_dims, num_nface_types, num_total_nfaces_x_dir, __FILE__,__LINE__,lb1=0,lb2=0)
     itype = -1
     do iface=1,polytope%get_num_n_faces()
-       if(polytope%get_n_face_dim(iface)<this%num_dims.and. &
+       if(polytope%get_n_face_dim(iface)<num_dims.and. &
             & polytope%n_face_coordinate(iface)==0) then
           itype = itype + 1 
           !itype = polytope%n_face_type(iface)
-          do idime = 0, this%num_dims - 1
+          do idime = 0, num_dims - 1
              num_global_nfaces_x_dir(idime,itype) = &
-                  & this%num_cells_x_dim(idime)  + &
-                  & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),this%is_dir_periodic(idime))
+                  & num_cells_x_dim(idime)  + &
+                  & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),is_dir_periodic(idime))
              num_total_nfaces_x_dir(idime,itype) =  &
                   & num_total_cells_x_dir(idime) + &
-                  & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),this%is_dir_periodic(idime)/num_parts_x_dim_x_level(idime))
+                  & 1 - max(polytope%n_face_dir_is_fixed(iface,idime),is_dir_periodic(idime)/num_parts_x_dim_x_level(idime))
           end do
           num_global_n_faces(itype+1) = 1
           num_total_n_faces(itype+1) = 1
-          do idime = 0, this%num_dims - 1
+          do idime = 0, num_dims - 1
              num_global_n_faces(itype+1) = num_global_n_faces(itype+1) * num_global_nfaces_x_dir(idime,itype)
              num_total_n_faces(itype+1) = num_total_n_faces(itype+1) * num_total_nfaces_x_dir(idime,itype)
           end do
-          if(polytope%get_n_face_dim(iface)==this%num_dims-1) then
+          if(polytope%get_n_face_dim(iface)==num_dims-1) then
              num_faces = num_faces + num_total_n_faces(itype+1)
           else if(polytope%get_n_face_dim(iface)>0) then
              num_edges = num_edges + num_total_n_faces(itype+1)
@@ -404,7 +415,7 @@ contains
     num_total_n_faces(0) = 1
     itype = -1
     do iface=1,polytope%get_num_n_faces()
-       if(polytope%get_n_face_dim(iface)<this%num_dims.and. &
+       if(polytope%get_n_face_dim(iface)<num_dims.and. &
             & polytope%n_face_coordinate(iface)==0) then
           !itype = polytope%n_face_type(iface)
           itype = itype + 1 
@@ -427,17 +438,17 @@ contains
     call memalloc( ptr_vefs_x_cell(num_local_cells+num_ghost_cells_+1)-1, lst_vefs_lids, __FILE__,__LINE__)
 
     do icell = 1, num_local_cells+num_ghost_cells_
-       call spatial_to_ijk_numbering(this%num_dims, num_total_cells_x_dir, icell, cell_ijk)
+       call spatial_to_ijk_numbering(num_dims, num_total_cells_x_dir, icell, cell_ijk)
        itype = -1
        do iface=1,polytope%get_num_n_faces()
-          if(polytope%get_n_face_dim(iface)<this%num_dims) then ! do not include the polytope itself
+          if(polytope%get_n_face_dim(iface)<num_dims) then ! do not include the polytope itself
              if(polytope%n_face_coordinate(iface)==0) itype = itype + 1 
-             do idime = 0, this%num_dims - 1
+             do idime = 0, num_dims - 1
                 nface_ijk(idime) = mod(cell_ijk(idime) + polytope%n_face_dir_coordinate(iface,idime),num_total_nfaces_x_dir(idime,itype))
              end do
              !itype = polytope%n_face_type(iface)
              lst_vefs_lids(ptr_vefs_x_cell(cell_permutation(icell))+iface-1) = num_total_n_faces(itype) + &
-                  &  ijk_to_spatial_numbering(this%num_dims, num_total_nfaces_x_dir(:,itype), nface_ijk)
+                  &  ijk_to_spatial_numbering(num_dims, num_total_nfaces_x_dir(:,itype), nface_ijk)
           end if
        end do
     end do
@@ -447,8 +458,8 @@ contains
        call memalloc(num_local_cells+num_ghost_cells_,cells_gids,__FILE__,__LINE__)
        call memalloc(num_local_cells+num_ghost_cells_,cells_mypart,__FILE__,__LINE__)
        do icell = 1, num_local_cells+num_ghost_cells_
-          call spatial_to_ijk_numbering(this%num_dims, num_total_cells_x_dir, icell, cell_ijk)
-          do idime = 0, this%num_dims - 1
+          call spatial_to_ijk_numbering(num_dims, num_total_cells_x_dir, icell, cell_ijk)
+          do idime = 0, num_dims - 1
              if( (num_left_parts_x_dir(idime)==1.and.cell_ijk(idime)==0)) then
                 mypart_ijk(idime)=part_ijk(idime)-1
              else if( (num_right_parts_x_dir(idime)==1.and.cell_ijk(idime)==num_total_cells_x_dir(idime)-1)) then
@@ -458,10 +469,10 @@ contains
              end if
           end do
           cells_mypart(cell_permutation(icell)) = 1 + &
-               &   ijk_to_spatial_numbering( this%num_dims, &
+               &   ijk_to_spatial_numbering( num_dims, &
                &                             num_parts_x_dim_x_level, mypart_ijk)
           cell_ijk = first_cell_ijk + cell_ijk
-          cells_gids(cell_permutation(icell)) = 1 + ijk_to_spatial_numbering(this%num_dims, this%num_cells_x_dim, cell_ijk)
+          cells_gids(cell_permutation(icell)) = 1 + ijk_to_spatial_numbering(num_dims, num_cells_x_dim, cell_ijk)
        end do
 
        ! List ghost cells and compute interface cells pointers
@@ -470,12 +481,12 @@ contains
        itfc_cells = 0
        do icell = 1, num_local_cells+num_ghost_cells_
           if(cell_permutation(icell)>(num_local_cells-num_itfc_cells).and.cell_permutation(icell)<=num_local_cells) then ! cell is interface
-             call spatial_to_ijk_numbering(this%num_dims, num_total_cells_x_dir, icell, cell_ijk)
+             call spatial_to_ijk_numbering(num_dims, num_total_cells_x_dir, icell, cell_ijk)
              index = 0
              do iface=1,polytope%get_num_n_faces()
-                if(polytope%get_n_face_dim(iface)<this%num_dims) then
+                if(polytope%get_n_face_dim(iface)<num_dims) then
                    count_it = .false.
-                   do idime = 0, this%num_dims - 1
+                   do idime = 0, num_dims - 1
                       neighbor_ijk(idime) = cell_ijk(idime) - 1 + &
                            & 2 * polytope%n_face_dir_coordinate(iface,idime) + &
                            & polytope%n_face_dir_is_fixed(iface,idime)
@@ -511,12 +522,12 @@ contains
        itfc_cells = 1
        do icell = 1, num_local_cells+num_ghost_cells_
           if(cell_permutation(icell)>(num_local_cells-num_itfc_cells).and.cell_permutation(icell)<=num_local_cells) then ! cell is interface
-             call spatial_to_ijk_numbering(this%num_dims, num_total_cells_x_dir, icell, cell_ijk)
+             call spatial_to_ijk_numbering(num_dims, num_total_cells_x_dir, icell, cell_ijk)
              index = 0
              do iface=1,polytope%get_num_n_faces()
-                if(polytope%get_n_face_dim(iface)<this%num_dims) then
+                if(polytope%get_n_face_dim(iface)<num_dims) then
                    count_it = .false.
-                   do idime = 0, this%num_dims - 1
+                   do idime = 0, num_dims - 1
                       neighbor_ijk(idime) = cell_ijk(idime) - 1 + &
                            & 2 * polytope%n_face_dir_coordinate(iface,idime) + &
                            & polytope%n_face_dir_is_fixed(iface,idime)
@@ -535,17 +546,16 @@ contains
                    end do
                    if(count_it) then
                       lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_cell(itfc_cells)+index)= cells_gids(cell_permutation(1 + &
-                           &   ijk_to_spatial_numbering( this%num_dims, &
-                           &                             num_total_cells_x_dir, neighbor_ijk)))
+                           &   ijk_to_spatial_numbering( num_dims, num_total_cells_x_dir, neighbor_ijk)))
 
                       ! This should work too (test it!):
                       ! neighbor_ijk = first_cell_ijk + neighbor_ijk
                       ! lst_ext_neighs_gids(ptr_ext_neighs_x_itfc_cell(itfc_cells)+index)= 1 + &
-                      !      &   ijk_to_spatial_numbering( this%num_dims, &
-                      !      &                             this%num_cells_x_dir, neighbor_ijk)
+                      !      &   ijk_to_spatial_numbering( num_dims, &
+                      !      &                             num_cells_x_dir, neighbor_ijk)
 
                       lst_ext_neighs_part_ids(ptr_ext_neighs_x_itfc_cell(itfc_cells)+index)= 1 + &
-                           &   ijk_to_spatial_numbering( this%num_dims, &
+                           &   ijk_to_spatial_numbering( num_dims, &
                            &                             num_parts_x_dim_x_level, neighbor_part_ijk)
                       index = index + 1
                    end if
@@ -570,36 +580,36 @@ contains
     boundary_id=-1
     itype = -1
     do iface=1,polytope%get_num_n_faces()
-       if(polytope%get_n_face_dim(iface)<this%num_dims.and. &
+       if(polytope%get_n_face_dim(iface)<num_dims.and. &
             & polytope%n_face_coordinate(iface)==0) then
           itype = itype + 1 
           !itype = polytope%n_face_type(iface)
           do iface_of_itype = num_total_n_faces(itype), num_total_n_faces(itype+1) - 1
-             call spatial_to_ijk_numbering(this%num_dims, num_total_nfaces_x_dir(:,itype), &
+             call spatial_to_ijk_numbering(num_dims, num_total_nfaces_x_dir(:,itype), &
                   &                        iface_of_itype + 1 - num_total_n_faces(itype), nface_ijk)
              nface_ijk = first_cell_ijk + nface_ijk
              if(present(num_ghost_cells)) &
              vefs_gids(iface_of_itype) = num_global_n_faces(itype) + &
-                  &                      ijk_to_spatial_numbering( this%num_dims, &
+                  &                      ijk_to_spatial_numbering( num_dims, &
                   &                                                num_global_nfaces_x_dir(:,itype), &
                   &                                                nface_ijk )
              if(itype==0) then
-                do idime = 0, this%num_dims - 1 
-                   coordinates(idime+1,iface_of_itype) = real(nface_ijk(idime),rp) / real(this%num_cells_x_dim(idime),rp)
+                do idime = 0, num_dims - 1 
+                   coordinates(idime+1,iface_of_itype) = real(nface_ijk(idime),rp) / real(num_cells_x_dim(idime),rp)
                 end do
              end if
              index = 0
-             do idime = 0, this%num_dims - 1 
-                if(this%is_dir_periodic(idime)==0) then ! Not periodic
+             do idime = 0, num_dims - 1 
+                if(is_dir_periodic(idime)==0) then ! Not periodic
                    if(  polytope%n_face_dir_is_fixed(iface,idime)==0.and.nface_ijk(idime)==0) then 
                       ! idime bit is already 0
                    else if(polytope%n_face_dir_is_fixed(iface,idime)==0.and.nface_ijk(idime)==num_global_nfaces_x_dir(idime,itype)-1) then 
                       index = ibset( index, idime )
                    else
-                      index = ibset( index, this%num_dims + idime ) ! Fix this coordinate
+                      index = ibset( index, num_dims + idime ) ! Fix this coordinate
                    end if
                 else
-                   index = ibset( index, this%num_dims + idime ) ! Fix this coordinate
+                   index = ibset( index, num_dims + idime ) ! Fix this coordinate
                 end if
              end do
              boundary_id(iface_of_itype) = polytope%get_ijk_to_index(index)
@@ -608,8 +618,8 @@ contains
     end do
     
     ! Map coordinates from [0,1]x[0,1]x[0,1] to [xi,xe]x[yi,ye]x[zi,ze]
-    do idime = 1, this%num_dims
-      coordinates(idime,:) = (this%domain_limits(idime,2)-this%domain_limits(idime,1))*coordinates(idime,:) + this%domain_limits(idime,1)
+    do idime = 1, num_dims
+      coordinates(idime,:) = (domain_limits(idime,2)-domain_limits(idime,1))*coordinates(idime,:) + domain_limits(idime,1)
     end do
 
     call memfree( num_global_n_faces, __FILE__,__LINE__)
@@ -617,6 +627,10 @@ contains
     call memfree( num_global_nfaces_x_dir, __FILE__,__LINE__)
     call memfree( num_total_nfaces_x_dir, __FILE__,__LINE__)
     call memfree( num_parts_x_dim_x_level, __FILE__, __LINE__ )
+    call memfree( num_cells_x_dim, __FILE__, __LINE__)
+    call memfree( is_dir_periodic, __FILE__, __LINE__)
+    call memfree( domain_limits, __FILE__, __LINE__)
+
 
     call memfree(cell_permutation, __FILE__,__LINE__)
 
@@ -642,6 +656,11 @@ contains
                     ' (' // ch(SPACE_DIM) // ') ' //  & 
                     'FEMPAR library-level constant parameter'
     massert ( this%num_dims <= SPACE_DIM, error_message )
+
+    massert ( size(this%num_cells_x_dim, dim=1) == this%num_dims, error_message )
+    massert ( size(this%is_periodic, dim=1) == this%num_dims, error_message )
+    massert ( size(this%num_parts_x_dim_x_level, dim=1) >= this%num_dims, error_message )
+    massert ( size(this%domain_limits, dim=1) == 2*this%num_dims, error_message )
    
 #endif
   end subroutine uhm_check_part_local_mesh_parameters
