@@ -2138,22 +2138,17 @@ subroutine p4est_bt_setup_workspace_to_compute_nodal_coordinates(this)
   implicit none
   class(p4est_base_triangulation_t), target, intent(inout)   :: this
   type(ParameterList_t)              :: parameter_list  
-  class(environment_t),  pointer     :: environment
-  class(serial_fe_space_t),  pointer :: fe_space  
   integer(ip) :: istat
-
-  environment => this%get_environment()
-  if (environment%am_i_l1_task()) then
-    ! Create reference fe
-    call this%nodal_coordinates_reference_fe%create( topology_hex, &
+  
+  ! Create reference fe
+  call this%nodal_coordinates_reference_fe%create( topology_hex, &
                                                this%get_num_dims(), &
                                                this%geometric_interpolation_order, &
                                                field_type_vector, & 
                                                conformity=.true.)
     
-    allocate(this%nodal_coordinates_reference_fes(1), stat=istat)    
-    this%nodal_coordinates_reference_fes(1)%p => this%nodal_coordinates_reference_fe
-  end if
+  allocate(this%nodal_coordinates_reference_fes(1), stat=istat)    
+  this%nodal_coordinates_reference_fes(1)%p => this%nodal_coordinates_reference_fe
 
   ! Create nodal coordinates fe space  
   select type(fe_space => this%nodal_coordinates_fe_space)
