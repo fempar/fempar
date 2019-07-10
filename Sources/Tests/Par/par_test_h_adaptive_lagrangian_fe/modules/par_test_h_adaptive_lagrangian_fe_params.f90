@@ -172,7 +172,18 @@ contains
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_params_t) , intent(in) :: this
     real(rp)                                                       :: get_domain_limits(6)
-     call parameter_handler%Get(key=p4est_triang_domain_limits_key,Value=get_domain_limits)
+    real(rp),    allocatable                                       :: tmp_domain_limits(:)
+    integer(ip), allocatable                                       :: array_size(:)
+    integer(ip)                                                    :: error
+    type(ParameterList_t), pointer                                 :: parameter_values
+    parameter_values => parameter_handler%get_values()
+    error = parameter_values%GetShape(key = p4est_triang_domain_limits_key, Shape = array_size); assert(error==0)
+    allocate(tmp_domain_limits(array_size(1)))
+    call parameter_handler%Get(key = p4est_triang_domain_limits_key, Value = tmp_domain_limits)
+    get_domain_limits = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0] 
+    get_domain_limits(1:array_size(1)) = tmp_domain_limits
+    if(allocated(array_size)) deallocate(array_size)
+    if(allocated(tmp_domain_limits)) deallocate(tmp_domain_limits)
   end function get_domain_limits
 
   !==================================================================================================
