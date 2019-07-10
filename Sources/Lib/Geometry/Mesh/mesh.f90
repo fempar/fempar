@@ -514,11 +514,11 @@ contains
      integer(ip)                                  :: error
 
      ! Mandatory parameters
-     assert(parameter_list%isAssignable(dir_path_key, 'string'))
+     assert(parameter_list%isAssignable(mesh_dir_path_key, 'string'))
      error = parameter_list%GetAsString(key = mesh_dir_path_key, string = dir_path)
      assert(error==0)
 
-     assert(parameter_list%isAssignable(prefix_key, 'string'))
+     assert(parameter_list%isAssignable(mesh_prefix_key, 'string'))
      error = parameter_list%GetAsString(key = mesh_prefix_key, string = prefix)
      assert(error==0)
   end subroutine get_dir_path_and_prefix_from_pl
