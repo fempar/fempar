@@ -51,6 +51,23 @@ then
           fi
         done
       done
+      
+      # Square + Quads + Li and Bettess refinement
+      for gorder in 1
+      do
+       for order in 1
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -gorder $gorder -af shock -rs error_objective -dim 2"
+            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order -gorder $gorder -af shock -rs error_objective -dim 2
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
 
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."

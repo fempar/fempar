@@ -184,21 +184,18 @@ contains
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     type(poisson_cG_error_estimator_t)              :: poisson_cG_error_estimator
     class(refinement_strategy_t)      , allocatable :: refinement_strategy
-    !type(error_objective_refinement_strategy_t) :: refinement_strategy
     real(rp)              :: global_estimate(2), global_true_error(2), global_effectivity
     type(ParameterList_t) :: parameter_list
     integer(ip)           :: FPLError, istat, max_num_mesh_iterations
     logical               :: test
     real(rp)              :: theoretical_rate, tol_rate = 0.1_rp
     
-    global_estimate = 1.0_rp; global_true_error = 1.0_rp
-    
     call poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
     call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions%get_analytical_functions())
     call poisson_cG_error_estimator%set_fe_function(this%solution)
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = error_objective_key                   , value = 0.01_rp)
+    FPLError = parameter_list%set(key = error_objective_key                   , value = 2.0_rp)
     FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
     max_num_mesh_iterations = 10
     FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
@@ -206,10 +203,10 @@ contains
     assert(FPLError == 0)
     
     if ( this%test_params%get_refinement_strategy() == 'uniform' ) then
-      theoretical_rate = 1.0_rp/(2.0_rp ** real(this%reference_fes(1)%p%get_order(),rp))
+      theoretical_rate = 1.0_rp/(2.0_rp ** real(this%test_params%get_reference_fe_order(),rp))
       allocate ( uniform_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
     else if ( this%test_params%get_refinement_strategy() == 'error_objective' ) then
-      allocate ( error_objective_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
+      allocate ( li_bettess_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
     else
       mcheck(.false.,'test_poisson_error_estimator: Refinement strategy not supported.')
     end if
@@ -218,8 +215,33 @@ contains
     
     call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
     
+    call poisson_cG_error_estimator%compute_local_estimates()
+    call poisson_cG_error_estimator%compute_global_estimate()
+    
+    call poisson_cG_error_estimator%compute_local_true_errors()
+    call poisson_cG_error_estimator%compute_global_true_error()
+    
+    global_estimate(1)   = poisson_cG_error_estimator%get_global_estimate()
+    global_true_error(1) = poisson_cG_error_estimator%get_global_true_error()
+    
     do while ( .not. refinement_strategy%has_finished_refinement() )
       
+      call refinement_strategy%update_refinement_flags(this%triangulation)
+      call this%triangulation%refine_and_coarsen()
+      call this%fe_space%refine_and_coarsen( this%solution )
+      call this%fe_space%set_up_cell_integration()
+      call this%fe_space%interpolate_dirichlet_values(this%solution)
+      call this%fe_affine_operator%reallocate_after_remesh()
+      call this%assemble_system()
+#ifdef ENABLE_MKL
+      call this%direct_solver%reallocate_after_remesh()
+#else
+      call this%iterative_linear_solver%reallocate_after_remesh()
+#endif
+      call this%solve_system()
+      !call this%check_solution()
+      call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
+    
       call poisson_cG_error_estimator%compute_local_estimates()
       call poisson_cG_error_estimator%compute_global_estimate()
       
@@ -241,8 +263,7 @@ contains
       write(*,'(a20,e32.25)') 'global_effectivity:', global_effectivity
       
       ! Some checks for the tests
-      if ( this%test_params%get_refinement_strategy() == 'uniform' .and. &
-           refinement_strategy%get_current_mesh_iteration() > 0 ) then
+      if ( this%test_params%get_refinement_strategy() == 'uniform' ) then
         test = abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate) < tol_rate
         write(*,*) abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate), tol_rate
         mcheck( test, 'Uniform refinement: Theoretical rate of convergence is not verified' )
@@ -253,22 +274,6 @@ contains
       
       global_estimate(1)   = global_estimate(2)
       global_true_error(1) = global_true_error(2)
-      
-      call refinement_strategy%update_refinement_flags(this%triangulation)
-      call this%triangulation%refine_and_coarsen()
-      call this%fe_space%refine_and_coarsen( this%solution )
-      call this%fe_space%set_up_cell_integration()
-      call this%fe_space%interpolate_dirichlet_values(this%solution)
-      call this%fe_affine_operator%reallocate_after_remesh()
-      call this%assemble_system()
-#ifdef ENABLE_MKL
-      call this%direct_solver%reallocate_after_remesh()
-#else
-      call this%iterative_linear_solver%reallocate_after_remesh()
-#endif
-      call this%solve_system()
-      !call this%check_solution()
-      call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
       
     end do
     
@@ -318,7 +323,8 @@ contains
     call this%direct_solver%set_parameters_from_pl(parameter_list)
     
     matrix => this%fe_affine_operator%get_matrix()
-    select type(matrix)
+    select type(matrix)    FPLError = parameter_list%set(key = error_objective_key                   , value = 2.0_rp)
+    FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
     class is (sparse_matrix_t)
        call this%direct_solver%set_matrix(matrix)
     class DEFAULT
