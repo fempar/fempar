@@ -46,9 +46,10 @@ module fempar_parameter_handler_names
     implicit none
     private
 
-    character(len=*), parameter :: fph_print_values_key = 'PARAMETER_HANDLER_PRINT_VALUES'
+    integer(ip),      parameter :: str_cla_len               = 512 ! String Command line argument length
+    character(len=*), parameter :: fph_print_values_key      = 'PARAMETER_HANDLER_PRINT_VALUES'
     character(len=*), parameter :: fph_print_values_cla_name = '--'//fph_print_values_key
-    logical,          parameter :: default_fph_print_values = .false.
+    logical,          parameter :: default_fph_print_values  = .false.
     character(len=*), parameter :: fph_print_values_cla_help = 'Print parameter handler values after parsing the command line interface'
     
     type, abstract :: parameter_handler_t 
