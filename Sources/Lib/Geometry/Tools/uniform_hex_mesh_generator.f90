@@ -721,7 +721,7 @@ contains
     call this%check_part_aggregation_among_levels_parameters(num_levels, num_parts_x_level)
 
     call memalloc(num_levels*SPACE_DIM, num_parts_x_dim_x_level,__FILE__,__LINE__, lb1=0)
-    num_parts_x_dim_x_level = unpack(this%num_parts_x_dim_x_level, mask=[(mod(i,SPACE_DIM)<this%num_dims, i=0, num_levels*SPACE_DIM-1)], field=0)
+    num_parts_x_dim_x_level(:) = unpack(this%num_parts_x_dim_x_level, mask=[(mod(i,SPACE_DIM)<this%num_dims, i=0, num_levels*SPACE_DIM-1)], field=0)
 
     if ( allocated(part_aggregation_among_levels) ) & 
         call memfree(part_aggregation_among_levels, __FILE__,__LINE__)
