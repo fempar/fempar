@@ -53,23 +53,24 @@ module error_estimator_names
     procedure (compute_local_estimates_interface)  , deferred :: compute_local_estimates
     procedure (compute_local_true_errors_interface), deferred :: compute_local_true_errors
     procedure (get_error_norm_exponent_interface)  , deferred :: get_error_norm_exponent
-    procedure                           :: create                           => ee_create
-    procedure                           :: free                             => ee_free
-    procedure, non_overridable          :: compute_global_estimate          => ee_compute_global_estimate
-    procedure, non_overridable          :: compute_global_true_error        => ee_compute_global_true_error
-    procedure, non_overridable          :: compute_local_effectivities      => ee_compute_local_effectivities
-    procedure, non_overridable          :: compute_global_effectivity       => ee_compute_global_effectivity
-    procedure, non_overridable          :: get_fe_space                     => ee_get_fe_space
-    procedure, non_overridable          :: get_environment                  => ee_get_environment
-    procedure, non_overridable          :: get_sq_local_estimates           => ee_get_sq_local_estimates
-    procedure, non_overridable          :: get_sq_local_estimate_entries    => ee_get_sq_local_estimate_entries
-    procedure, non_overridable          :: get_global_estimate              => ee_get_global_estimate
-    procedure, non_overridable          :: get_sq_local_true_errors         => ee_get_sq_local_true_errors
-    procedure, non_overridable          :: get_sq_local_true_error_entries  => ee_get_sq_local_true_error_entries
-    procedure, non_overridable          :: get_global_true_error            => ee_get_global_true_error
-    procedure, non_overridable          :: get_local_effectivities          => ee_get_local_effectivities
-    procedure, non_overridable          :: get_local_effectivity_entries    => ee_get_local_effectivity_entries
-    procedure, non_overridable          :: get_global_effectivity           => ee_get_global_effectivity
+    procedure                           :: create                                => ee_create
+    procedure                           :: free                                  => ee_free
+    procedure, non_overridable, private :: l1_sum_square_and_to_lgt1_transfer_rp => ee_l1_sum_square_and_to_lgt1_transfer_rp
+    procedure, non_overridable          :: compute_global_estimate               => ee_compute_global_estimate
+    procedure, non_overridable          :: compute_global_true_error             => ee_compute_global_true_error
+    procedure, non_overridable          :: compute_local_effectivities           => ee_compute_local_effectivities
+    procedure, non_overridable          :: compute_global_effectivity            => ee_compute_global_effectivity
+    procedure, non_overridable          :: get_fe_space                          => ee_get_fe_space
+    procedure, non_overridable          :: get_environment                       => ee_get_environment
+    procedure, non_overridable          :: get_sq_local_estimates                => ee_get_sq_local_estimates
+    procedure, non_overridable          :: get_sq_local_estimate_entries         => ee_get_sq_local_estimate_entries
+    procedure, non_overridable          :: get_global_estimate                   => ee_get_global_estimate
+    procedure, non_overridable          :: get_sq_local_true_errors              => ee_get_sq_local_true_errors
+    procedure, non_overridable          :: get_sq_local_true_error_entries       => ee_get_sq_local_true_error_entries
+    procedure, non_overridable          :: get_global_true_error                 => ee_get_global_true_error
+    procedure, non_overridable          :: get_local_effectivities               => ee_get_local_effectivities
+    procedure, non_overridable          :: get_local_effectivity_entries         => ee_get_local_effectivity_entries
+    procedure, non_overridable          :: get_global_effectivity                => ee_get_global_effectivity
     !procedure, non_overridable          :: print_estimator_history_header   => ee_print_estimator_history_header
     !procedure, non_overridable          :: print_estimator_history_new_line => ee_print_estimator_history_new_line
     !procedure, non_overridable          :: print_estimator_history_footer   => ee_print_estimator_history_footer
@@ -122,28 +123,40 @@ contains
    call this%local_effectivities%free()
  end subroutine ee_free
  
+ subroutine ee_l1_sum_square_and_to_lgt1_transfer_rp ( this, value )
+   implicit none
+   class(error_estimator_t), intent(inout) :: this
+   real(rp)                , intent(inout) :: value
+   class(environment_t), pointer :: environment
+   real(rp)                      :: dummy_real_rp
+   environment => this%get_environment()
+   if ( environment%get_l1_size() > 1 ) then
+     call environment%l1_sum(value)
+   end if
+   value = value ** this%get_error_norm_exponent()
+   if ( environment%am_i_l1_to_l2_task() ) then
+     if ( environment%am_i_l1_to_l2_root() ) then
+       call environment%l1_to_l2_transfer( input_data  = dummy_real_rp, &
+                                           output_data = value )
+     else
+       call environment%l1_to_l2_transfer( input_data  = value,         &
+                                           output_data = dummy_real_rp )
+     end if
+   end if
+ end subroutine ee_l1_sum_square_and_to_lgt1_transfer_rp
+ 
  subroutine ee_compute_global_estimate ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   class(environment_t), pointer :: environment
    this%global_estimate = sum(this%sq_local_estimates%get_pointer())
-   environment => this%get_environment()
-   if ( environment%get_l1_size() > 1 ) then
-     call environment%l1_sum(this%global_estimate)
-   end if
-   this%global_estimate = this%global_estimate ** this%get_error_norm_exponent()
+   call this%l1_sum_square_and_to_lgt1_transfer_rp(this%global_estimate)
  end subroutine ee_compute_global_estimate
  
  subroutine ee_compute_global_true_error ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   class(environment_t), pointer :: environment
    this%global_true_error = sum(this%sq_local_true_errors%get_pointer())
-   environment => this%get_environment()
-   if ( environment%get_l1_size() > 1 ) then
-     call environment%l1_sum(this%global_true_error)
-   end if
-   this%global_true_error = this%global_true_error ** this%get_error_norm_exponent()
+   call this%l1_sum_square_and_to_lgt1_transfer_rp(this%global_true_error)
  end subroutine ee_compute_global_true_error
  
  subroutine ee_compute_local_effectivities ( this )
@@ -180,10 +193,7 @@ contains
    implicit none
    class(error_estimator_t), intent(inout) :: this
    class(environment_t), pointer :: environment
-   environment => this%get_environment()
-   if ( environment%am_i_l1_task() ) then
-     this%global_effectivity = this%global_estimate / this%global_true_error
-   end if
+   this%global_effectivity = this%global_estimate / this%global_true_error
  end subroutine ee_compute_global_effectivity
  
  function ee_get_fe_space ( this )
