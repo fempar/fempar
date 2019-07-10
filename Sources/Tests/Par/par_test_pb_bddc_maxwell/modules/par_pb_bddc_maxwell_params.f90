@@ -34,8 +34,6 @@ module par_pb_bddc_maxwell_params_names
      contains
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
-       procedure, non_overridable             :: get_dir_path
-       procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
@@ -132,34 +130,6 @@ contains
     type(ParameterList_t),      pointer            :: values
     values => parameter_handler%get_values()
   end function get_values
-
-
-
-  ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_dir_path
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(dir_path_key, 'string'))
-    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
-    assert(error==0)
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
-    character(len=:),      allocatable            :: get_prefix
-    type(ParameterList_t), pointer                :: list
-    integer(ip)                                   :: error
-    list  => parameter_handler%get_values()
-    assert(list%isAssignable(prefix_key, 'string'))
-    error = list%GetAsString(key = prefix_key, string = get_prefix)
-    assert(error==0)
-  end function get_prefix
   
   ! =======================================================================================
    function get_nparts(this)

@@ -554,7 +554,7 @@ contains
 
     ! Write some info
     if (this%test_params%get_write_aggr_info()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_aggr_info.csv',action='write')
       check(iounit>0)
       call this%fe_space%print_debug_info(iounit)
       call io_close(iounit)
@@ -619,7 +619,7 @@ contains
     select type(matrix)
     class is (sparse_matrix_t)  
        if (this%test_params%get_write_matrix()) then
-       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_matrix.mm',action='write')
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_matrix.mm',action='write')
        check(iounit>0)
        call matrix%print_matrix_market(iounit) 
        call io_close(iounit)
@@ -631,7 +631,7 @@ contains
     select type(rhs)
     class is (serial_scalar_array_t)  
        if (this%test_params%get_write_matrix()) then
-       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vector.mm',action='write')
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_vector.mm',action='write')
        check(iounit>0)
        call rhs%print(iounit) 
        call io_close(iounit)
@@ -717,7 +717,7 @@ contains
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_error_norms.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'h1_semi_norm           ;', h1_semi_norm
@@ -828,7 +828,7 @@ contains
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_error_norms.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'h1_semi_norm           ;', h1_semi_norm
@@ -902,26 +902,22 @@ contains
   subroutine write_solution(this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(in) :: this
-    type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
+    type(output_handler_t) :: oh
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: cell_vector_set_ids(:)
     real(rp), allocatable :: cell_rel_pos(:)
     real(rp), allocatable :: cell_in_aggregate(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
-    
     real(rp),allocatable :: aggrs_ids(:)
     real(rp),allocatable :: aggrs_ids_color(:)
     integer(ip), pointer :: aggregate_ids(:)
     integer(ip), allocatable :: aggregate_ids_color(:)
     
     type(unfitted_vtk_writer_t) :: vtk_writer
+    type(parameterlist_t), pointer :: parameter_list
 
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_output_handler_dir_path()
-        prefix = this%test_params%get_output_handler_prefix()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
@@ -995,8 +991,8 @@ contains
           call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
         end if
-
-        call oh%open(path, prefix)
+        parameter_list => this%test_params%get_parameter_list()
+        call oh%open(parameter_list)
         call oh%write()
         call oh%close()
         call oh%free()
@@ -1080,7 +1076,7 @@ contains
     call this%fe_space%free_fe_cell_iterator(fe)
 
     if (this%test_params%get_write_aggr_info()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_min_vol.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_min_vol.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'volume_min ;', Vmin
       call io_close(iounit)

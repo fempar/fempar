@@ -15,17 +15,16 @@ module pb_bddc_poisson_params_names
   character(len=*), parameter :: nchannel_x_direction_key   = 'nchannel_x_direction' 
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
   character(len=*), parameter :: size_sub_object_key        = 'size_sub_object_key' 
-  character(len=*), parameter :: dir_path_out_key           = 'dir_path_out' 
+  character(len=*), parameter :: write_matrices_dir_path_key = 'write_matrices_dir_path'
+  character(len=*), parameter :: write_matrices_prefix_key   = 'write_matrices_prefix'
 
   type :: par_test_pb_bddc_poisson_params_t
      private
      contains
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
-       procedure, non_overridable             :: get_dir_path_out
-       procedure, non_overridable             :: get_prefix
-       procedure, non_overridable             :: get_output_handler_dir_path
-       procedure, non_overridable             :: get_output_handler_prefix
+       procedure, non_overridable             :: get_write_matrices_dir_path
+       procedure, non_overridable             :: get_write_matrices_prefix
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_write_matrices
@@ -49,12 +48,14 @@ contains
   subroutine par_test_pb_bddc_poisson_params_define_parameters()
     implicit none
     ! Common
-    call parameter_handler%add(dir_path_out_key, '--dir_path_out', '.', 'Default output directory', switch_ab='-dpo')
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order')
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution')
 
     ! Specific
     call parameter_handler%add(write_matrices_key, '--write-matrices', .false., 'Write local-to-subdomain sparse matrices  in matrix market format', switch_ab='-wmatrices') 
+    call parameter_handler%add(write_matrices_dir_path_key, '--write-matrices-dir-path', '.', 'Directory where to store the matrices in matrix market format', switch_ab='-wmdp') 
+    call parameter_handler%add(write_matrices_prefix_key, '--write-matrices-prefix', 'mat', 'Prefix to generate the name of the matrices', switch_ab='-wmp') 
+       
     call parameter_handler%add(jump_key, '--jump', 1, 'Jump of physical parameter in the inclusion', switch_ab='-j')
     call parameter_handler%add(inclusion_key, '--inclusion', 1, 'Inclusion type', switch_ab='-i')
     call parameter_handler%add(coarse_fe_handler_type_key, '--coarse-fe-handler', pb_bddc, 'Which coarse fe handler to use?', switch_ab='-coarse-handler')
@@ -79,38 +80,20 @@ contains
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
 
-  !==================================================================================================
-  function get_dir_path_out(this)
+  function get_write_matrices_dir_path(this)
     implicit none
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                    :: get_dir_path_out
-    call parameter_handler%GetAsString(key = dir_path_out_key, string = get_dir_path_out)
-  end function get_dir_path_out
+    character(len=:),      allocatable                              :: get_write_matrices_dir_path
+    call parameter_handler%GetAsString(key = write_matrices_dir_path_key, string = get_write_matrices_dir_path)
+  end function get_write_matrices_dir_path
   
-  !==================================================================================================
-  function get_prefix(this)
+  function get_write_matrices_prefix(this)
     implicit none
     class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                    :: get_prefix
-    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
-  end function get_prefix
- 
-  !==================================================================================================
-  function get_output_handler_dir_path(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                    :: get_output_handler_dir_path
-    call parameter_handler%GetAsString(key = output_handler_dir_path_key, string = get_output_handler_dir_path)
-  end function get_output_handler_dir_path
-
-  !==================================================================================================
-  function get_output_handler_prefix(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                    :: get_output_handler_prefix
-    call parameter_handler%GetAsString(key = output_handler_prefix_key, string = get_output_handler_prefix)
-  end function get_output_handler_prefix
-  
+    character(len=:),      allocatable                              :: get_write_matrices_prefix
+    call parameter_handler%GetAsString(key = write_matrices_prefix_key, string = get_write_matrices_prefix)
+  end function get_write_matrices_prefix
+   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none

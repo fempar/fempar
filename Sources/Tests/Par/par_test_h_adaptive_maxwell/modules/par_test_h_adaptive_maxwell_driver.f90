@@ -108,7 +108,6 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure        , private :: output_handler_initialize
      procedure        , private :: output_current_mesh_and_solution
      procedure        , private :: output_handler_finalize 
-     procedure        , private :: write_solution
      procedure        , private :: setup_error_estimator 
      procedure        , private :: update_error_estimator 
      procedure        , private :: setup_refinement_strategy 
@@ -647,17 +646,11 @@ end subroutine check_solution
     subroutine output_handler_initialize(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    character(len=:)     , allocatable :: path
-    character(len=:)     , allocatable :: prefix
-    type(parameterlist_t)              :: parameter_list
     integer(ip)                        :: error
     real(rp)                           :: dummy_vector(1)
     real(rp)                           :: cell_vector(1)
     real(rp)                           :: fe_id(1) 
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-            
-      path = this%test_params%get_dir_path()
-      prefix = this%test_params%get_prefix()
       call this%output_handler%create()
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
@@ -667,11 +660,9 @@ end subroutine check_solution
       call this%output_handler%add_cell_vector(dummy_vector, 'subdomain')
       call this%output_handler%add_cell_vector(cell_vector, 'set_id')
       call this%output_handler%add_cell_vector(fe_id, 'fe_id')
-      call parameter_list%init()
-      error = parameter_list%set(key=output_handler_static_grid_key, value=.false.)
+      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
       check (error==0)
-      call this%output_handler%open(path, prefix, parameter_list)
-      call parameter_list%free()
+      call this%output_handler%open(this%parameter_list)
     end if
   end subroutine output_handler_initialize
   
@@ -709,7 +700,7 @@ end subroutine check_solution
     end if
   end subroutine output_current_mesh_and_solution
   
-    subroutine output_handler_finalize(this)
+  subroutine output_handler_finalize(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
@@ -717,51 +708,6 @@ end subroutine check_solution
       call this%output_handler%free()
     end if
   end subroutine output_handler_finalize
-   
-  subroutine write_solution(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_fe_driver_t), intent(in) :: this
-    type(output_handler_t)              :: oh
-    class(cell_iterator_t), allocatable :: cell 
-    real(rp),allocatable :: cell_vector(:)
-    real(rp),allocatable :: mypart_vector(:)
-
-    if(this%test_params%get_write_solution()) then
-      if (this%par_environment%am_i_l1_task()) then
-
-       if (this%test_params%get_use_void_fes()) then
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          call this%triangulation%create_cell_iterator(cell)
-          do while ( .not. cell%has_finished() )
-            if ( cell%is_local() ) then       
-              cell_vector(cell%get_gid()) = cell%get_set_id()
-             end if 
-             call cell%next()
-          end do 
-          call this%triangulation%free_cell_iterator(cell)
-        end if
-        
-        call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-        mypart_vector(:) = this%par_environment%get_l1_rank()
-
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'u')
-        call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
-        if ( this%test_params%get_use_void_fes() ) then 
-        call oh%add_cell_vector(cell_vector,'cell_vector')
-        end if 
-        call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
-        call oh%write()
-        call oh%close()
-        call oh%free()
-
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
-        call memfree(mypart_vector,__FILE__,__LINE__)
-      end if
-    endif
-  end subroutine write_solution
   
   subroutine setup_error_estimator(this)
     implicit none

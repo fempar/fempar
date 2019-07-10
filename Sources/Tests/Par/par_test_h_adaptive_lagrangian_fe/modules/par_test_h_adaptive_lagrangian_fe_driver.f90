@@ -663,7 +663,7 @@ end subroutine free_timers
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%open(this%parameter_list)
         call oh%write()
         call oh%close()
         call oh%free()

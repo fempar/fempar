@@ -466,21 +466,16 @@ contains
   subroutine output_handler_initialize(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
-    character(len=:)     , allocatable :: path
-    character(len=:)     , allocatable :: prefix
     type(parameterlist_t)              :: parameter_list
     integer(ip)                        :: error
     if(this%par_test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-      path = this%par_test_params%get_output_handler_dir_path()
-      prefix = this%par_test_params%get_output_handler_prefix()
       call this%output_handler%create()
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-      call parameter_list%init()
-      error = parameter_list%set(key=output_handler_static_grid_key, value=.false.)
+      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
       check (error==0)
-      call this%output_handler%open(path, prefix, parameter_list)
+      call this%output_handler%open(this%parameter_list)
       call parameter_list%free()
     end if
   end subroutine output_handler_initialize

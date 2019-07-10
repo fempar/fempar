@@ -44,10 +44,6 @@ module test_poisson_params_names
    contains
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_output_handler_prefix
-     procedure, non_overridable             :: get_output_handler_dir_path
      procedure, non_overridable             :: get_fe_formulation
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_reference_fe_geo_order
@@ -81,7 +77,6 @@ contains
   ! GETTERS *****************************************************************************************
 
   !==================================================================================================
-
   subroutine process_parameters(this)
     implicit none
     class(test_poisson_params_t) , intent(in)  :: this
@@ -89,45 +84,12 @@ contains
   end subroutine process_parameters
 
   !==================================================================================================
-
   function get_parameter_list(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
     type(ParameterList_t), pointer            :: get_parameter_list
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
-
-  !==================================================================================================
-  function get_dir_path(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_dir_path
-    get_dir_path = parameter_handler%get_dir_path()
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_prefix
-    get_prefix = parameter_handler%get_prefix()
-  end function get_prefix
-
-  !==================================================================================================
-  function get_output_handler_dir_path(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_output_handler_dir_path
-    call parameter_handler%getasstring(output_handler_dir_path_key, get_output_handler_dir_path)
-  end function get_output_handler_dir_path
-  
-  !==================================================================================================
-  function get_output_handler_prefix(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_output_handler_prefix
-    call parameter_handler%getasstring(output_handler_prefix_key, get_output_handler_prefix)
-  end function get_output_handler_prefix
 
   !==================================================================================================
   function get_fe_formulation(this)

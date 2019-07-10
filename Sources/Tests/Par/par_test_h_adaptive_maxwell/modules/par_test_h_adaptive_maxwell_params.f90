@@ -29,8 +29,6 @@ module par_test_h_adaptive_maxwell_params_names
      contains
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
-       procedure, non_overridable             :: get_dir_path
-       procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_use_void_fes
@@ -89,22 +87,7 @@ contains
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
 
-  ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this
-    character(len=:),      allocatable                       :: get_dir_path
-    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_params_t) , intent(in) :: this
-    character(len=:),      allocatable                       :: get_prefix
-    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
-  end function get_prefix
-  
+  ! GETTERS *****************************************************************************************  
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none

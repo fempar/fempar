@@ -774,7 +774,7 @@ contains
           call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
           call oh%add_cell_vector(set_id_rank, 'rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call oh%open(this%parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()

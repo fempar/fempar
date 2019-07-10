@@ -48,9 +48,6 @@ module test_transient_poisson_params_names
    contains
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_output_handler_prefix
-     procedure, non_overridable             :: get_output_handler_dir_path
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_triangulation_type
@@ -100,30 +97,6 @@ contains
     type(ParameterList_t), pointer                      :: get_parameter_list
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
-
-  ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                  :: get_dir_path
-    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_output_handler_dir_path(this)
-    implicit none
-    class(test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                  :: get_output_handler_dir_path
-    call parameter_handler%GetAsString(key = output_handler_dir_path_key, string = get_output_handler_dir_path)
-  end function get_output_handler_dir_path
-
-  !==================================================================================================
-  function get_output_handler_prefix(this)
-    implicit none
-    class(test_transient_poisson_params_t) , intent(in) :: this
-    character(len=:),      allocatable                  :: get_output_handler_prefix
-    call parameter_handler%GetAsString(key = output_handler_prefix_key, string = get_output_handler_prefix)
-  end function get_output_handler_prefix
   
   !==================================================================================================
   function get_reference_fe_order(this)

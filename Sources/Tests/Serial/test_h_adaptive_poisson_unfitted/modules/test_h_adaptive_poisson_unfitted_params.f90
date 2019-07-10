@@ -58,8 +58,7 @@ module h_adaptive_poisson_unfitted_params_names
    contains
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
+     procedure, non_overridable             :: get_out_prefix
      procedure, non_overridable             :: get_dir_path_out
      procedure, non_overridable             :: get_output_handler_prefix
      procedure, non_overridable             :: get_output_handler_dir_path
@@ -94,7 +93,7 @@ contains
     implicit none
     ! IO parameters
     call parameter_handler%add(dir_path_out_key, '--dir-path-out', '.', 'Output path',  switch_ab='-dpo') 
-    call parameter_handler%add(out_prefix_key, '--prefix', 'output', 'Filename prefix for output results',  switch_ab='-p') 
+    call parameter_handler%add(out_prefix_key, '--out-prefix', 'output', 'Filename prefix for output results',  switch_ab='-op') 
     call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe',  switch_ab='-order') 
     call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
     call parameter_handler%add(write_matrix_key, '--write-matrix', .false., 'Write matrix in matrix market format', switch_ab='-wmatrix') 
@@ -138,22 +137,13 @@ contains
   end function get_parameter_list
   
   ! GETTERS *****************************************************************************************
-
-  !==================================================================================================
-  function get_dir_path(this)
-    implicit none
-    class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_dir_path
-    get_dir_path = parameter_handler%get_dir_path()
-  end function get_dir_path
-
    !==================================================================================================
-  function get_prefix(this)
+  function get_out_prefix(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_prefix
-    call parameter_handler%getasstring(out_prefix_key, get_prefix)
-  end function get_prefix
+    character(len=:), allocatable             :: get_out_prefix
+    call parameter_handler%getasstring(out_prefix_key, get_out_prefix)
+  end function get_out_prefix
 
   !==================================================================================================
   function get_dir_path_out(this)

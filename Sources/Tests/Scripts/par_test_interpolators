@@ -22,7 +22,7 @@ then
     then   
         for order in 2 3 #1
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $prefix_flag square $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 1 1 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 1 1 $struct_hex_mesh_generator_is_dir_periodic_flag 0 0 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -38,7 +38,7 @@ then
     then
         for order in 2 3 #1
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $prefix_flag square $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 4 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 -order $order"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 4 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -54,7 +54,7 @@ then
     then       
         for order in 2 3 #1
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra -order $order"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]
@@ -70,7 +70,7 @@ then
     then
         for order in 2 3 #1
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra -order $order"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag cube_tetrahedra -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ]

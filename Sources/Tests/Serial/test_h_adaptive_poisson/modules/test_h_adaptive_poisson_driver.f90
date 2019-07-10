@@ -755,14 +755,11 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
+    type(parameterlist_t), pointer :: parameter_list
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_output_handler_dir_path()
-        prefix = this%test_params%get_output_handler_prefix()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
@@ -790,8 +787,8 @@ contains
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call this%triangulation%free_cell_iterator(cell)
-        
-        call oh%open(path, prefix)
+        parameter_list => this%test_params%get_parameter_list()
+        call oh%open(parameter_list)
         call oh%write()
         call oh%close()
         call oh%free()

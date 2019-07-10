@@ -27,11 +27,11 @@ then
       do
         for v_order in 2 3
         do
-            COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag square_quads $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
+            COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
             echo $COMMAND
             eval $COMMAND
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag 'square_quads' $dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $prefix_flag 'square_quads'"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag 'square_quads'"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -58,11 +58,11 @@ then
       do
        for v_order in 2 3
         do
-	         COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_prefix_flag square_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag square_tetrahedra $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
+	         COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_prefix_flag square_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
              echo $COMMAND
              eval $COMMAND
 
-             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag 'square_tetrahedra' $dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $prefix_flag 'square_tetrahedra'"
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag 'square_tetrahedra'" 
              echo $COMMAND
              eval $COMMAND
              if [ $? -ne 0 ]
@@ -88,11 +88,11 @@ then
       do
        for v_order in 2 3
         do
-	         COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_prefix_flag cube_hexas $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag cube_hexas $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag cube_hexas $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
+	         COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_prefix_flag cube_hexas $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag cube_hexas $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
              echo $COMMAND
              eval $COMMAND
 
-             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag 'cube_hexas' $dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $prefix_flag 'cube_hexas'"
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag 'cube_hexas'"
              echo $COMMAND
              eval $COMMAND
              if [ $? -ne 0 ] 
@@ -118,11 +118,11 @@ then
       do
        for v_order in 2 
         do
-             COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_flag cube_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag cube_tetrahedra $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag cube_tetrahedra $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
+             COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_flag cube_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag cube_tetrahedra $mesh_partitioner_num_levels_distribution_flag 2 $mesh_partitioner_num_parts_x_level_flag 4 1"
              echo $COMMAND
              eval $COMMAND
 
-             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra' $dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $prefix_flag 'cube_tetrahedra'"
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $v_order $p_order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra'"
              echo $COMMAND
              eval $COMMAND
              if [ $? -ne 0 ] 

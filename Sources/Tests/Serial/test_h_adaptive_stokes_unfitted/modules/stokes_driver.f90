@@ -570,7 +570,7 @@ contains
 
     ! Write some info
     if (this%test_params%get_write_aggr_info()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_aggr_info.csv',action='write')
       check(iounit>0)
       call this%fe_space%print_debug_info(iounit)
       call io_close(iounit)
@@ -660,7 +660,7 @@ contains
     select type(matrix)
     class is (sparse_matrix_t)  
        if (this%test_params%get_write_matrix()) then
-       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_matrix.mm',action='write')
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_matrix.mm',action='write')
        check(iounit>0)
        call matrix%print_matrix_market(iounit) 
        call io_close(iounit)
@@ -899,7 +899,7 @@ contains
     write(*,'(a,e32.25)') 'u: rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms_u.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_error_norms_u.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'u: l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'u: h1_semi_norm           ;', h1_semi_norm
@@ -951,7 +951,7 @@ contains
     write(*,'(a,e32.25)') 'p: rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms_p.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_error_norms_p.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'p: l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'p: h1_semi_norm           ;', h1_semi_norm
@@ -989,8 +989,6 @@ contains
     implicit none
     class(stokes_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: cell_vector_set_ids(:)
     real(rp), allocatable :: cell_rel_pos(:)
@@ -1008,8 +1006,6 @@ contains
     real(rp), allocatable :: aggregate_size(:)
 
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_output_handler_dir_path()
-        prefix = this%test_params%get_output_handler_prefix()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
@@ -1089,7 +1085,7 @@ contains
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
         end if
 
-        call oh%open(path, prefix)
+        call oh%open(this%test_params%get_parameter_list())
         call oh%write()
         call oh%close()
         call oh%free()

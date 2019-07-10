@@ -976,31 +976,13 @@ contains
     call parameter_list%free()
   end subroutine setup_solver
 
-
   subroutine assemble_system (this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%compute()
-    !rhs                => this%fe_affine_operator%get_translation()
-    !matrix             => this%fe_affine_operator%get_matrix()
-
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine assemble_system
-
 
   subroutine solve_system(this)
     implicit none
@@ -1008,28 +990,8 @@ contains
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
-
-    !matrix     => this%fe_affine_operator%get_matrix()
-    !rhs        => this%fe_affine_operator%get_translation()
-    !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-    !write(*,*)'solution',dof_values%nrm2()
-
-    !select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine solve_system
 
   subroutine check_solution(this)
@@ -1099,7 +1061,7 @@ contains
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(mypart_vector,'l1_rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call oh%open(this%parameter_list)
           call oh%write()
           call oh%close()
           call oh%free()
@@ -1152,7 +1114,7 @@ contains
     environment => this%fe_space%get_environment()
     if ( this%test_params%get_write_matrices() ) then
       if ( environment%am_i_l1_task() ) then
-        matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
+        matrix_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() 
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),matrix_filename)
         luout = io_open ( matrix_filename, 'write')
         matrix => this%fe_affine_operator%get_matrix()
@@ -1172,28 +1134,28 @@ contains
         
         call this%generate_IS_PCBDDCSetDofsSplitting(dofs_gids, f1_IS, f2_IS, f3_IS)
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f1_IS"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "f1_IS"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call print_std_vector(luout, f1_IS)
         call io_close(luout)
         call f1_IS%free()
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f2_IS"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "f2_IS"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call print_std_vector(luout, f2_IS)
         call io_close(luout)
         call f2_IS%free()
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f3_IS"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "f3_IS"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call print_std_vector(luout, f3_IS)
         call io_close(luout)
         call f3_IS%free()
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "mapping"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call mapping%print_matrix_market(luout)
@@ -1202,7 +1164,7 @@ contains
         call memfree(dofs_gids, __FILE__, __LINE__)
         
         call this%generate_kernel(kernel)
-        kernel_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "kernel"
+        kernel_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "kernel"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),kernel_filename)
         luout = io_open ( kernel_filename, 'write')
         call print_kernel(luout, kernel)
@@ -1210,7 +1172,7 @@ contains
         call memfree(kernel, __FILE__, __LINE__)
         
         if ( environment%get_l1_rank() == 0 ) then
-          mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
+          mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "num_global_dofs"
           luout = io_open ( mapping_filename, 'write')
           write(luout,*) num_global_dofs
           call io_close(luout)

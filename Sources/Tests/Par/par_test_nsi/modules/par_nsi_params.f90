@@ -16,8 +16,6 @@ module par_nsi_params_names
      contains
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
-       procedure, non_overridable             :: get_dir_path
-       procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_orders
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
@@ -45,7 +43,6 @@ contains
   end subroutine par_nsi_params_define_parameters
 
   !==================================================================================================
-
   subroutine process_parameters(this)
     implicit none
     class(par_nsi_params_t) , intent(in)  :: this
@@ -53,29 +50,12 @@ contains
   end subroutine process_parameters
 
   !==================================================================================================
-
   function get_parameter_list(this)
     implicit none
     class(par_nsi_params_t) , intent(in) :: this
     type(ParameterList_t), pointer       :: get_parameter_list
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
-
-  ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(par_nsi_params_t) , intent(in) :: this
-    character(len=:),      allocatable   :: get_dir_path
-    call parameter_handler%GetAsString(key = dir_path_key, string = get_dir_path)
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(par_nsi_params_t) , intent(in) :: this
-    character(len=:),      allocatable   :: get_prefix
-    call parameter_handler%GetAsString(key = prefix_key, string = get_prefix)
-  end function get_prefix
   
   !==================================================================================================
   function get_reference_fe_orders(this, ifield)

@@ -13,8 +13,6 @@ export mesh_partitioner_program='mesh_partitioner'
 export environment_num_levels_flag="--ENVIRONMENT_NUM_LEVELS"
 export environment_num_tasks_x_level_flag="--ENVIRONMENT_NUM_TASKS_X_LEVEL"
 
-export dir_path_flag='--DIR_PATH'
-export prefix_flag='--PREFIX'
 export ils_type_flag='--ILS_TYPE'
 export ils_rtol_flag='--ILS_RTOL'
 export ils_atol_flag='--ILS_ATOL'

@@ -119,8 +119,6 @@ module fempar_parameter_handler_names
         procedure         :: process_parameters => fph_process_parameters
         procedure         :: print_values       => fph_print_values
         procedure         :: free               => fph_free
-        procedure         :: get_dir_path       => fph_get_dir_path
-        procedure         :: get_prefix         => fph_get_prefix
         procedure, public :: getasstring        => fph_GetAsString
         generic,   public :: get                => fph_Get_0D, fph_Get_1D
         generic,   public :: GetAsArray         => fph_Get_1D_ip, fph_Get_1D_rp, fph_Get_1D_logical, fph_Get_1D_string
@@ -977,16 +975,6 @@ contains
            mesh_partitioner_default_prefix_output, &
            mesh_partitioner_prefix_cla_help)
       
-      call this%add(dir_path_key, &
-           dir_path_cla_name, &
-           default_dir_path, &
-           dir_path_cla_help)
-            
-      call this%add(prefix_key, &
-           prefix_cla_name, &
-           default_prefix, &
-           prefix_cla_help)
-
       call this%add(mesh_partitioner_num_levels_key, &
            mesh_partitioner_num_levels_cla_name, &
            default_mesh_partitioner_num_levels, &
@@ -1432,29 +1420,5 @@ contains
         error = this%values%GetAsString(key=key, string=string)
         assert(error==0)
     end subroutine fph_GetAsString
-
-
-    function fph_get_dir_path(this)
-    !------------------------------------------------------------------
-    !< Get dir_path
-    !------------------------------------------------------------------
-        implicit none
-        class(fempar_parameter_handler_t) , intent(in) :: this
-        character(len=:),      allocatable             :: fph_get_dir_path
-    !------------------------------------------------------------------
-        call this%GetAsString(key=dir_path_key, String = fph_get_dir_path)
-    end function fph_get_dir_path 
-
-
-    function fph_get_prefix(this)
-    !------------------------------------------------------------------
-    !< Get prefix
-    !------------------------------------------------------------------
-        implicit none
-        class(fempar_parameter_handler_t) , intent(in) :: this
-        character(len=:),      allocatable             :: fph_get_prefix
-    !------------------------------------------------------------------
-        call this%GetAsString(key=prefix_key, String = fph_get_prefix)
-    end function fph_get_prefix
-
+    
 end module fempar_parameter_handler_names 

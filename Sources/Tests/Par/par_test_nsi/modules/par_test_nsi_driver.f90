@@ -472,7 +472,7 @@ end subroutine free_timers
            name =  this%par_nsi_integration%get_field_name(field_id)
            call oh%add_fe_function(this%solution, field_id, name)
         end do
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%open(this%parameter_list)
         call oh%write()
         call oh%close()
         call oh%free()

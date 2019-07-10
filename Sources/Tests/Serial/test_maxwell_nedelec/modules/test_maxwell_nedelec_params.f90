@@ -41,9 +41,6 @@ module maxwell_nedelec_params_names
      contains
        procedure, non_overridable             :: process_parameters
        procedure, non_overridable             :: get_parameter_list
-       procedure, non_overridable             :: get_dir_path
-       procedure, non_overridable             :: get_output_handler_prefix
-       procedure, non_overridable             :: get_output_handler_dir_path
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_analytical_function_case
@@ -81,32 +78,7 @@ contains
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
 
-  ! GETTERS *****************************************************************************************
-
-  !==================================================================================================
-  function get_dir_path(this)
-    implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
-    character(len=:), allocatable                :: get_dir_path
-    get_dir_path = parameter_handler%get_dir_path()
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_output_handler_prefix(this)
-    implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
-    character(len=:), allocatable                :: get_output_handler_prefix
-    call parameter_handler%getasstring(output_handler_prefix_key, get_output_handler_prefix)
-  end function get_output_handler_prefix
-
-  !==================================================================================================
-  function get_output_handler_dir_path(this)
-    implicit none
-    class(maxwell_nedelec_params_t) , intent(in) :: this
-    character(len=:), allocatable                :: get_output_handler_dir_path
-    call parameter_handler%getasstring(output_handler_dir_path_key, get_output_handler_dir_path)
-  end function get_output_handler_dir_path
-  
+  ! GETTERS *****************************************************************************************  
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none

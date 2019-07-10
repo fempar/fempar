@@ -38,8 +38,6 @@ module mixed_laplacian_rt_params_names
    contains
      procedure, non_overridable             :: process_parameters
      procedure, non_overridable             :: get_parameter_list
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_reference_fe_order
   end type mixed_laplacian_rt_params_t
 
@@ -73,23 +71,7 @@ contains
     get_parameter_list  => parameter_handler%get_values()
   end function get_parameter_list
   
-  ! GETTERS *****************************************************************************************
-  !==================================================================================================
-  function get_dir_path(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=:), allocatable                   :: get_dir_path
-    get_dir_path = parameter_handler%get_dir_path()
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(mixed_laplacian_rt_params_t) , intent(in) :: this
-    character(len=:), allocatable                   :: get_prefix
-    get_prefix = parameter_handler%get_prefix()
-  end function get_prefix
-
+  ! GETTERS *****************************************************************************************s
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none

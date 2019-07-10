@@ -597,26 +597,7 @@ contains
       call vtk_writer%attach_facets_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_fitted_facets_boundary_normals.vtu')
       call vtk_writer%free()
-
     end if
-
-    !type(output_handler_t)                   :: oh
-    !character(len=:), allocatable            :: path
-    !character(len=:), allocatable            :: prefix
-    !if(this%test_params%get_write_solution()) then
-    !    path = this%test_params%get_dir_path_out()
-    !    prefix = this%test_params%get_prefix()
-    !    call oh%create()
-    !    call oh%attach_fe_space(this%fe_space)
-    !    call oh%add_fe_function(this%solution, 1, 'solution')
-    !    call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-    !    call oh%open(path, prefix)
-    !    call oh%write()
-    !    call oh%close()
-    !    call oh%free()
-    !endif
-
-
   end subroutine write_solution
 
   subroutine run_simulation(this)
