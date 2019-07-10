@@ -628,6 +628,8 @@ contains
     class(test_transient_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
+    call this%oh%free()
+        
     call this%solution%free()
 
 #ifdef ENABLE_MKL
@@ -652,7 +654,6 @@ contains
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
-    call this%oh%free()
   end subroutine free
 
 end module test_transient_poisson_driver_names
