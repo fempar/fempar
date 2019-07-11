@@ -340,10 +340,10 @@ contains
     class(test_maxwell_nedelec_driver_t), intent(in) :: this
     type(output_handler_t)                           :: oh
     if(this%test_params%get_write_solution()) then
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%open(this%test_params%get_parameter_list())
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

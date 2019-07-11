@@ -469,13 +469,13 @@ contains
     type(parameterlist_t)              :: parameter_list
     integer(ip)                        :: error
     if(this%par_test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-      call this%output_handler%create()
+      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
+      check (error==0)
+      call this%output_handler%create(this%parameter_list)
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
-      check (error==0)
-      call this%output_handler%open(this%parameter_list)
+      call this%output_handler%open()
       call parameter_list%free()
     end if
   end subroutine output_handler_initialize

@@ -646,7 +646,7 @@ contains
     type(output_handler_t)                   :: oh
     real(rp),allocatable :: cell_vector(:)
     if(this%test_params%get_write_solution()) then
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -655,7 +655,7 @@ contains
            cell_vector(:) = this%cell_set_ids(:)
            call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
-        call oh%open(this%parameter_list)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

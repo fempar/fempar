@@ -466,13 +466,13 @@ end subroutine free_timers
     
     if(this%test_params%get_write_solution()) then
        if ( this%par_environment%am_i_l1_task() ) then
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         do field_id = 1, this%par_nsi_integration%get_number_fields()
            name =  this%par_nsi_integration%get_field_name(field_id)
            call oh%add_fe_function(this%solution, field_id, name)
         end do
-        call oh%open(this%parameter_list)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

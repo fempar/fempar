@@ -651,7 +651,9 @@ end subroutine check_solution
     real(rp)                           :: cell_vector(1)
     real(rp)                           :: fe_id(1) 
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-      call this%output_handler%create()
+      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
+      check (error==0)
+      call this%output_handler%create(this%parameter_list)
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -660,9 +662,7 @@ end subroutine check_solution
       call this%output_handler%add_cell_vector(dummy_vector, 'subdomain')
       call this%output_handler%add_cell_vector(cell_vector, 'set_id')
       call this%output_handler%add_cell_vector(fe_id, 'fe_id')
-      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
-      check (error==0)
-      call this%output_handler%open(this%parameter_list)
+      call this%output_handler%open()
     end if
   end subroutine output_handler_initialize
   

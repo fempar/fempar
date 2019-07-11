@@ -241,10 +241,10 @@ program tutorial_01_steady_poisson
   !* We can set the file system path where the results files are created using
   call parameter_handler%update(key = output_handler_dir_path_key, Value= 'tutorial_01_steady_poisson_results')
   
-  call output_handler%create()
+  call output_handler%create(parameter_handler%get_values())
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'solution')
-  call output_handler%open(parameter_handler%get_values())
+  call output_handler%open()
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()

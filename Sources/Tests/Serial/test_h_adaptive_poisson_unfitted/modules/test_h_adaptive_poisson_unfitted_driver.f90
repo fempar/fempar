@@ -915,10 +915,9 @@ contains
     integer(ip), allocatable :: aggregate_ids_color(:)
     
     type(unfitted_vtk_writer_t) :: vtk_writer
-    type(parameterlist_t), pointer :: parameter_list
 
     if(this%test_params%get_write_solution()) then
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -991,8 +990,8 @@ contains
           call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
         end if
-        parameter_list => this%test_params%get_parameter_list()
-        call oh%open(parameter_list)
+
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

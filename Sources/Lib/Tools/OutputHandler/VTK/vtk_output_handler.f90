@@ -117,6 +117,7 @@ private
         procedure, non_overridable        :: write_vtu                      => vtk_output_handler_write_vtu
         procedure, non_overridable        :: write_pvtu                     => vtk_output_handler_write_pvtu
         procedure, non_overridable        :: write_pvd                      => vtk_output_handler_write_pvd
+        procedure,                 public :: create_body                    => vtk_output_handler_create_body
         procedure,                 public :: open_body                      => vtk_output_handler_open_body
         procedure,                 public :: append_time_step               => vtk_output_handler_append_time_step
         procedure,                 public :: write                          => vtk_output_handler_write
@@ -129,6 +130,34 @@ private
 public :: vtk_output_handler_t
 
 contains
+
+
+    subroutine vtk_output_handler_create_body(this, parameter_list)
+    !-----------------------------------------------------------------
+    !< Open procedure. Set parameters from parameter list and args
+    !-----------------------------------------------------------------
+        class(vtk_output_handler_t),     intent(inout) :: this
+        type(ParameterList_t), optional, intent(in)    :: parameter_list
+        integer(ip)                                    :: FPLError
+    !-----------------------------------------------------------------
+        ! Set defaults
+        this%vtk_format = output_handler_vtk_format_default
+        this%StaticGrid = output_handler_vtk_static_grid_default
+
+        if(present(parameter_list)) then
+            if(parameter_list%isPresent(output_handler_vtk_format_key)) then
+                assert(parameter_list%isAssignable(output_handler_vtk_format_key, 'string'))
+                FPLError   = parameter_list%GetAsString(Key=output_handler_vtk_format_key, String=this%vtk_format)
+                assert(FPLError == 0)
+            endif
+
+            if(parameter_list%isPresent(output_handler_static_grid_key)) then
+                assert(parameter_list%isAssignable(output_handler_static_grid_key, this%StaticGrid))
+                FPLError   = parameter_list%Get(Key=output_handler_static_grid_key, Value=this%StaticGrid)
+                assert(FPLError == 0)
+            endif
+        endif
+    end subroutine vtk_output_handler_create_body
 
 
     subroutine vtk_output_handler_free_body(this)
@@ -166,38 +195,16 @@ contains
     end subroutine vtk_output_handler_free_body
 
 
-    subroutine vtk_output_handler_open_body(this, dir_path, prefix, parameter_list)
+    subroutine vtk_output_handler_open_body(this, dir_path, prefix)
     !-----------------------------------------------------------------
     !< Open procedure. Set parameters from parameter list and args
     !-----------------------------------------------------------------
         class(vtk_output_handler_t),     intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
         character(len=*),                intent(in)    :: prefix
-        type(ParameterList_t), optional, intent(in)    :: parameter_list
-        integer(ip)                                    :: FPLError
-        integer(ip)                                    :: vtk_format_size_in_bytes
     !-----------------------------------------------------------------
         this%Path       = dir_path
         this%FilePrefix = prefix
-
-        ! Set defaults
-        this%vtk_format = output_handler_vtk_format_default
-        this%StaticGrid = output_handler_vtk_static_grid_default
-
-        if(present(parameter_list)) then
-            if(parameter_list%isPresent(output_handler_vtk_format_key)) then
-                assert(parameter_list%isAssignable(output_handler_vtk_format_key, 'string'))
-                FPLError   = parameter_list%GetAsString(Key=output_handler_vtk_format_key, String=this%vtk_format)
-                assert(FPLError == 0)
-            endif
-
-            if(parameter_list%isPresent(output_handler_static_grid_key)) then
-                assert(parameter_list%isAssignable(output_handler_static_grid_key, this%StaticGrid))
-                FPLError   = parameter_list%Get(Key=output_handler_static_grid_key, Value=this%StaticGrid)
-                assert(FPLError == 0)
-            endif
-        endif
-
     end subroutine vtk_output_handler_open_body
 
 

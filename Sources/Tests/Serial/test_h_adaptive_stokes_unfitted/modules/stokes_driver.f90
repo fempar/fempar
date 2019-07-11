@@ -1006,7 +1006,7 @@ contains
     real(rp), allocatable :: aggregate_size(:)
 
     if(this%test_params%get_write_solution()) then
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'grad_u', grad_diff_operator)
@@ -1085,7 +1085,7 @@ contains
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
         end if
 
-        call oh%open(this%test_params%get_parameter_list())
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

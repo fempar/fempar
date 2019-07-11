@@ -561,11 +561,11 @@ contains
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
     if(this%test_params%get_write_solution()) then
-        call this%oh%create()
+        call this%oh%create(this%parameter_list)
         call this%oh%attach_fe_space(this%fe_space)
         call this%oh%add_fe_function(this%solution, 1, 'solution')
         call this%oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        call this%oh%open(this%parameter_list)
+        call this%oh%open()
     endif
   end subroutine initialize_output
   !*

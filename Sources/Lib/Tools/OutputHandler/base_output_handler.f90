@@ -167,6 +167,7 @@ private
         procedure, non_overridable, public :: update_cell_vector                => base_output_handler_update_cell_vector
         procedure, non_overridable, public :: fill_data                         => base_output_handler_fill_data
         procedure, non_overridable, public :: fill_patch                        => base_output_handler_fill_patch
+        procedure, non_overridable, public :: create                            => base_output_handler_create
         procedure, non_overridable, public :: open                              => base_output_handler_open
         procedure, non_overridable, public :: close                             => base_output_handler_close
         
@@ -174,6 +175,7 @@ private
         procedure, non_overridable         :: configure_patch_field_strategy    => base_output_handler_configure_patch_field_strategy
         procedure, non_overridable         :: apply_fill_patch_field_strategy   => base_output_handler_apply_fill_patch_field_strategy
 
+        procedure(base_output_handler_create_body),                    public, deferred :: create_body
         procedure(base_output_handler_open_body),                      public, deferred :: open_body
         procedure(base_output_handler_append_time_step),               public, deferred :: append_time_step
         procedure(base_output_handler_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
@@ -201,13 +203,19 @@ private
     
     
     abstract interface
-        subroutine base_output_handler_open_body(this, dir_path, prefix, parameter_list)
+        subroutine base_output_handler_create_body(this, parameter_list)
+            import base_output_handler_t
+            import ParameterList_t
+            class(base_output_handler_t),    intent(inout) :: this
+            type(ParameterList_t), optional, intent(in)    :: parameter_list
+        end subroutine
+
+        subroutine base_output_handler_open_body(this, dir_path, prefix)
             import base_output_handler_t
             import ParameterList_t
             class(base_output_handler_t),    intent(inout) :: this
             character(len=*),                intent(in)    :: dir_path
             character(len=*),                intent(in)    :: prefix
-            type(ParameterList_t), optional, intent(in)    :: parameter_list
         end subroutine
 
         subroutine base_output_handler_append_time_step(this, value)
@@ -509,8 +517,6 @@ contains
             deallocate(temp_field_generators)
         endif
     end subroutine base_output_handler_resize_field_generators_if_needed
-    
-    
 
 
     subroutine base_output_handler_resize_cell_vectors_if_needed(this, num_fields)
@@ -636,8 +642,26 @@ contains
         end do
     end subroutine base_output_handler_configure_patch_field_strategy
 
+
+    subroutine base_output_handler_create(this, parameterlist)
+    !-----------------------------------------------------------------
+    !< Create procedure. 
+    !< Only manages the *State transition diagram* and
+    !< call [[base_output_handler_t(type):Create_body(bound)]] of the
+    !< concrete object to set parameters
+    !-----------------------------------------------------------------
+        class(base_output_handler_t),    intent(inout) :: this
+        type(ParameterList_t),           intent(in)    :: parameterlist
+    !-----------------------------------------------------------------
+        character(len=:), allocatable :: field_type, diff_operator
+        integer(ip) :: num_field
+        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
+
+        call this%create_body(parameterlist)
+    end subroutine base_output_handler_create
+
     
-    subroutine base_output_handler_open(this, dir_path, prefix, parameter_list)
+    subroutine base_output_handler_open(this, dir_path, prefix)
     !-----------------------------------------------------------------
     !< Open procedure. 
     !< Only manages the *State transition diagram* and
@@ -647,14 +671,13 @@ contains
         class(base_output_handler_t),    intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
         character(len=*),                intent(in)    :: prefix
-        type(ParameterList_t), optional, intent(in)    :: parameter_list
     !-----------------------------------------------------------------
         character(len=:), allocatable :: field_type, diff_operator
         integer(ip) :: num_field
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
 
         call this%configure_patch_field_strategy()
-        call this%open_body(dir_path, prefix, parameter_list)
+        call this%open_body(dir_path, prefix)
 
         this%state = BASE_OUTPUT_HANDLER_STATE_OPEN
     end subroutine base_output_handler_open

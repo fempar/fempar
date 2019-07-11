@@ -206,11 +206,11 @@ program tutorial_02_steady_stokes
   
   call parameter_handler%update(key = output_handler_dir_path_key, Value= 'tutorial_02_steady_stokes_results')
   
-  call output_handler%create()
+  call output_handler%create(parameter_handler%get_values())
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'velocity')
   call output_handler%add_fe_function(solution, 2, 'pressure')
-  call output_handler%open(parameter_handler%get_values())
+  call output_handler%open()
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()

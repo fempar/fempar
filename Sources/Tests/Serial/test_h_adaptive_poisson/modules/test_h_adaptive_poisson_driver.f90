@@ -758,9 +758,8 @@ contains
     real(rp),allocatable :: cell_vector(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
-    type(parameterlist_t), pointer :: parameter_list
     if(this%test_params%get_write_solution()) then
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -787,8 +786,7 @@ contains
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call this%triangulation%free_cell_iterator(cell)
-        parameter_list => this%test_params%get_parameter_list()
-        call oh%open(parameter_list)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

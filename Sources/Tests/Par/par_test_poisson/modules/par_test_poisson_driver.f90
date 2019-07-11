@@ -606,14 +606,14 @@ end subroutine free_timers
         call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
         mypart_vector(:) = this%par_environment%get_l1_rank()
 
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         if (this%test_params%get_use_void_fes()) then
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%parameter_list)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()

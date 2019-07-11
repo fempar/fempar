@@ -132,7 +132,6 @@ contains
     call the_direct_solver_creational_methods_dictionary%Init()           ! Direct solver creational methods dictionary initialization
     call the_iterative_linear_solver_creational_methods_dictionary%Init() ! Iterative linear solver creational methods dictionary initialization
     call sparse_matrix_prototype_reset()                                  ! Set to default type the sparse matrix prototype
-    call output_handler_prototype_reset()                                 ! Set to default type the output prototype
     call parameter_handler%init()                                         ! Initialize the parameter handler
   end subroutine
 
@@ -143,7 +142,6 @@ contains
     call the_direct_solver_creational_methods_dictionary%Free()           ! Free Direct solver creational methods dictionary
     call the_iterative_linear_solver_creational_methods_dictionary%Free() ! Free Iterative linear solver creational methods dictionary
     call sparse_matrix_prototype_free()                                   ! Free the sparse matrix prototype
-    call output_handler_prototype_free()                                  ! Free the output handler prototype
     call memstatus()
   end subroutine
 

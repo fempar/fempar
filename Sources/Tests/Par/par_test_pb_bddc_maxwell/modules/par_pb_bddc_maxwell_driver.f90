@@ -768,13 +768,13 @@ contains
     if ( this%par_environment%am_i_l1_task() ) then
        if( this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
           call build_set_ids()
-          call oh%create()
+          call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'u')
           call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
           call oh%add_cell_vector(set_id_rank, 'rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call oh%open(this%parameter_list)
+          call oh%open()
           call oh%write()
           call oh%close()
           call oh%free()
