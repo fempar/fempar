@@ -98,6 +98,8 @@ module refinement_strategy_names
   end type uniform_refinement_strategy_t
   
   type, abstract, extends(refinement_strategy_t) :: error_objective_refinement_strategy_t
+    ! RMK. The acceptability criterion implemented in the method eors_has_finished_refinement 
+    ! seeks to satisfy a bound of the global **absolute** error
     private
     real(rp)                          :: error_objective
     real(rp)                          :: objective_tolerance
@@ -108,7 +110,11 @@ module refinement_strategy_names
   end type error_objective_refinement_strategy_t
   
   type, extends(error_objective_refinement_strategy_t) :: li_bettess_refinement_strategy_t
-    private
+   ! Implements Li and Bettess (LB) remeshing strategy described in Section 3.2 of
+   ! A unified approach to remeshing strategies for finite element h-adaptivity
+   ! P Diez, A Huerta
+   ! Comput. Methods. Appl. Mech. Engrg. 176 (1999) 215-229
+   private
    contains
     procedure :: update_refinement_flags    => lirs_update_refinement_flags
   end type li_bettess_refinement_strategy_t
@@ -296,8 +302,8 @@ contains
     estimate_num_cells_opt_mesh = estimate_num_cells_opt_mesh ** aux_exp
     estimate_num_cells_opt_mesh = estimate_num_cells_opt_mesh * &
       this%error_objective ** ( - num_dims / max_order )   
-    sq_error_upper_bound = this%error_objective ** 2.0_rp / estimate_num_cells_opt_mesh
     
+    sq_error_upper_bound = this%error_objective ** 2.0_rp / estimate_num_cells_opt_mesh
     call triangulation%create_cell_iterator(cell)
     do while ( .not. cell%has_finished() )
       if ( cell%is_local() ) then
