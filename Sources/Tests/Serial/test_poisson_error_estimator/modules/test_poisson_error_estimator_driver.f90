@@ -323,8 +323,7 @@ contains
     call this%direct_solver%set_parameters_from_pl(parameter_list)
     
     matrix => this%fe_affine_operator%get_matrix()
-    select type(matrix)    FPLError = parameter_list%set(key = error_objective_key                   , value = 2.0_rp)
-    FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
+    select type(matrix)
     class is (sparse_matrix_t)
        call this%direct_solver%set_matrix(matrix)
     class DEFAULT
