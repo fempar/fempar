@@ -114,11 +114,14 @@ contains
     istat = parameters%get(key = struct_hex_mesh_generator_num_cells_x_dim_key, value = this%num_cells_x_dim); check(istat==0)
 
     ! Mandatory (array)
-    assert (parameters%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key ) )
-    istat = parameters%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0);
-    call memalloc(array_size(1), this%is_dir_periodic,__FILE__,__LINE__)
-    assert(parameters%isAssignable(struct_hex_mesh_generator_is_dir_periodic_key, this%is_dir_periodic))
-    istat = parameters%get(key = struct_hex_mesh_generator_is_dir_periodic_key, value = this%is_dir_periodic); check(istat==0)
+    if (parameters%isPresent(key = struct_hex_mesh_generator_is_dir_periodic_key ) ) then
+        istat = parameters%GetShape(key = struct_hex_mesh_generator_is_dir_periodic_key, shape = array_size); check(istat==0);
+        call memalloc(array_size(1), this%is_dir_periodic,__FILE__,__LINE__)
+        assert(parameters%isAssignable(struct_hex_mesh_generator_is_dir_periodic_key, this%is_dir_periodic))
+        istat = parameters%get(key = struct_hex_mesh_generator_is_dir_periodic_key, value = this%is_dir_periodic); check(istat==0)
+    else
+        call memalloc(this%num_dims, this%is_dir_periodic,__FILE__,__LINE__, valin=0)
+    endif
 
     ! Mandatory (array)
     assert( parameters%isPresent(key = struct_hex_mesh_generator_num_parts_x_dim_x_level_key) )
