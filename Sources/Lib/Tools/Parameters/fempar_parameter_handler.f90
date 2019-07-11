@@ -62,6 +62,7 @@ module fempar_parameter_handler_names
     !------------------------------------------------------------------
         private 
         type(Command_Line_Interface)  :: cli 
+        logical                       :: cli_initialized = .false.
         type(ParameterList_t)         :: values
         type(ParameterList_t)         :: switches
         type(ParameterList_t)         :: switches_ab
@@ -73,11 +74,12 @@ module fempar_parameter_handler_names
         procedure, non_overridable, private        :: add1D                    => parameter_handler_add1D
         procedure, non_overridable, private        :: update0D                 => parameter_handler_update0D
         procedure, non_overridable, private        :: update1D                 => parameter_handler_update1D
-        procedure, non_overridable                 :: add_to_cli               => parameter_handler_add_to_cli
-        procedure, non_overridable, private        :: add_to_cli_group         => parameter_handler_add_to_cli_group
-        procedure, non_overridable                 :: init_cli                 => parameter_handler_init_cli
-        procedure, non_overridable                 :: parse                    => parameter_handler_parse
+        procedure, non_overridable, private        :: bulk_add_to_cli          => parameter_handler_bulk_add_to_cli
+        procedure, non_overridable, private        :: bulk_add_to_cli_group    => parameter_handler_bulk_add_to_cli_group
+        procedure, non_overridable, private        :: init_cli                 => parameter_handler_init_cli
+        procedure, non_overridable, private        :: parse                    => parameter_handler_parse
         procedure, non_overridable, private        :: parse_group              => parameter_handler_parse_group
+        procedure, non_overridable, private        :: free_cli                 => parameter_handler_free_cli
         procedure                                  :: free                     => parameter_handler_free
         procedure, non_overridable                 :: get_values               => parameter_handler_get_values 
         procedure, non_overridable, private        :: get_switches             => parameter_handler_get_switches   
@@ -119,6 +121,7 @@ module fempar_parameter_handler_names
         
         procedure         :: process_parameters => fph_process_parameters
         procedure         :: print_values       => fph_print_values
+        procedure         :: init               => fph_init
         procedure         :: free               => fph_free
         procedure, public :: getasstring        => fph_GetAsString
         generic,   public :: get                => fph_Get_0D, fph_Get_1D
@@ -227,7 +230,7 @@ contains
         call this%required%free()
         call this%helpers%free()
         call this%choices%free()
-        call this%cli%free()
+        call this%free_cli()
     end subroutine parameter_handler_free
 
 
@@ -251,8 +254,10 @@ contains
         type(ParameterList_t),      pointer       :: switches_ab
         type(ParameterList_t),      pointer       :: requires
         type(ParameterList_t),      pointer       :: choice
+        character(len=:), allocatable             :: cvalue
         integer                                   :: error
     !------------------------------------------------------------------
+        wassert(this%cli_initialized, 'Parameters can only be added into parameter_handler from process_parameters() procedure')
         if(present(group)) then
             if(this%switches%isSublist(key=group)) then
                 error = this%switches%getSublist(key=group, Sublist=switches); assert(error == 0)
@@ -305,6 +310,13 @@ contains
         if(present(choices)) then
             error = choice%Set(key=key, value=choices); assert(error==0)
         endif
+
+        ! Add to CLI if initialized
+        if(this%cli_initialized) then
+            error = values%GetAsString(key=key, String=cvalue, separator=" "); assert(error==0)
+            call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+                        required=required,choices=choices,act='store',def=cvalue,error=error)
+        endif
     end subroutine parameter_handler_add0D
 
 
@@ -328,8 +340,10 @@ contains
         type(ParameterList_t),      pointer       :: switches_ab
         type(ParameterList_t),      pointer       :: requires
         type(ParameterList_t),      pointer       :: choice
+        character(len=:), allocatable             :: cvalue
         integer                                   :: error
     !------------------------------------------------------------------
+        wassert(this%cli_initialized, 'Parameters can only be added into parameter_handler from process_parameters() procedure')
         if(present(group)) then
             if(this%switches%isSublist(key=group)) then
                 error = this%switches%getSublist(key=group, Sublist=switches); assert(error == 0)
@@ -381,6 +395,13 @@ contains
         endif
         if(present(choices)) then
             error = choice%Set(key=key, value=choices); assert(error==0)
+        endif
+
+        ! Add to CLI if initialized
+        if(this%cli_initialized) then
+            error = values%GetAsString(key=key, String=cvalue, separator=" "); assert(error==0)
+            call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
+                        required=required,choices=choices,act='store',def=cvalue,error=error,nargs='+')
         endif
     end subroutine parameter_handler_add1D
 
@@ -437,7 +458,7 @@ contains
 
   
    
-    subroutine parameter_handler_add_to_cli(this)
+    subroutine parameter_handler_bulk_add_to_cli(this)
     !------------------------------------------------------------------
     !< Add to command line interface procedure
     !------------------------------------------------------------------
@@ -457,7 +478,7 @@ contains
         type(ParameterList_t), pointer             :: choices_sublist
     !------------------------------------------------------------------
         error = 0
-        call this%add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values,this%choices)
+        call this%bulk_add_to_cli_group(this%switches,this%switches_ab,this%helpers,this%required,this%values,this%choices)
         Iterator = this%switches%GetIterator()
         do while (.not. Iterator%HasFinished())
             if(.not. Iterator%isSublist()) then
@@ -471,19 +492,19 @@ contains
             error = this%required%GetSubList(key,required_sublist); assert(error==0);
             error = this%values%GetSubList(key,values_sublist); assert(error==0);
             error = this%choices%GetSubList(key,choices_sublist); assert(error==0);
-            call this%add_to_cli_group(switches_sublist,    &
-                                       switches_ab_sublist, &
-                                       helpers_sublist,     &
-                                       required_sublist,    &
-                                       values_sublist,      &
-                                       choices_sublist,     &
-                                       key)
+            call this%bulk_add_to_cli_group(switches_sublist,    &
+                                            switches_ab_sublist, &
+                                            helpers_sublist,     &
+                                            required_sublist,    &
+                                            values_sublist,      &
+                                            choices_sublist,     &
+                                            key)
             call Iterator%Next()
         enddo
-    end subroutine parameter_handler_add_to_cli
+    end subroutine parameter_handler_bulk_add_to_cli
 
 
-    subroutine parameter_handler_add_to_cli_group(this,switches,switches_ab,helpers,required,values,choices,group)
+    subroutine parameter_handler_bulk_add_to_cli_group(this,switches,switches_ab,helpers,required,values,choices,group)
     !------------------------------------------------------------------
     !< Add to command line interface group procedure
     !------------------------------------------------------------------
@@ -565,7 +586,7 @@ contains
             assert(error==0)
             call Iterator%Next()
         end do
-    end subroutine parameter_handler_add_to_cli_group
+    end subroutine parameter_handler_bulk_add_to_cli_group
   
 
     subroutine parameter_handler_parse(this)
@@ -626,7 +647,22 @@ contains
         call this%cli%init(progname, version, help, description, &
                          license, authors, examples, epilog, disable_hv, &
                          usage_lun, error_lun, version_lun)
+        this%cli_initialized = .true.
     end subroutine parameter_handler_init_cli  
+
+
+    subroutine parameter_handler_free_cli(this)
+    !------------------------------------------------------------------
+    !< Initialize command line interface
+    !------------------------------------------------------------------
+        implicit none
+        class(parameter_handler_t),   intent(inout) :: this
+
+        if(this%cli_initialized) then
+            call this%cli%free()
+            this%cli_initialized = .false.
+        endif
+    end subroutine parameter_handler_free_cli  
 
   
     subroutine parameter_handler_parse_group(this,switches,values,group)
@@ -722,6 +758,16 @@ contains
 ! FEMPAR_PARAMETER_HANDLER_T PROCEDURES
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    subroutine fph_init(this)
+    !------------------------------------------------------------------
+    !< Free fempar_parameter_handler_t derived type
+    !------------------------------------------------------------------
+        implicit none
+        class(fempar_parameter_handler_t), intent(inout) :: this
+    !------------------------------------------------------------------
+        call this%free()
+        call this%initialize_lists()
+    end subroutine fph_init
 
     subroutine fph_print_values(this, prefix)
     !------------------------------------------------------------------
@@ -770,13 +816,13 @@ contains
         logical                                                    :: print_values
         logical                                                    :: parse_cla_
     !------------------------------------------------------------------
-        call this%free()
+        !call this%free()
         print_values = .false.
         parse_cla_ = .true.; if ( present(parse_cla) ) parse_cla_ = parse_cla
         if ( parse_cla_ ) call this%init_cli(progname, version, help, description,     &
                                       license, authors, examples, epilog, disable_hv,  &
                                       usage_lun, error_lun, version_lun)
-        call this%initialize_lists()
+        !call this%initialize_lists()
         call this%define_fempar_parameters()
         if (present(define_user_parameters_procedure)) then
             this%define_user_parameters => define_user_parameters_procedure
@@ -786,11 +832,12 @@ contains
         end if
 
         if ( parse_cla_ ) then 
-            call this%add_to_cli()
+            !call this%bulk_add_to_cli()
             call this%parse()
         end if
         call this%Get(key=fph_print_values_key, value = print_values)
         if(print_values) call this%print_values()
+        if ( parse_cla_ ) call this%free_cli()
     end subroutine fph_process_parameters
 
 

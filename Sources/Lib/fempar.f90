@@ -133,11 +133,12 @@ contains
     call the_iterative_linear_solver_creational_methods_dictionary%Init() ! Iterative linear solver creational methods dictionary initialization
     call sparse_matrix_prototype_reset()                                  ! Set to default type the sparse matrix prototype
     call output_handler_prototype_reset()                                 ! Set to default type the output prototype
+    call parameter_handler%init()                                         ! Initialize the parameter handler
   end subroutine
 
 
   subroutine FEMPAR_FINALIZE()
-    call parameter_handler%free()                                       ! Free the parameter handler
+    call parameter_handler%free()                                         ! Free the parameter handler
     call FPL_Finalize()                                                   ! Free FPL Wrapper factory list
     call the_direct_solver_creational_methods_dictionary%Free()           ! Free Direct solver creational methods dictionary
     call the_iterative_linear_solver_creational_methods_dictionary%Free() ! Free Iterative linear solver creational methods dictionary
