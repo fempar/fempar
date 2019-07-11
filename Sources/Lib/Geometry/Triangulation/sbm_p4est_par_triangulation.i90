@@ -186,12 +186,11 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         call this%set_up_lst_itfc_vefs()
      end if
   end if
-  this%nodal_coordinates_fe_space => this%par_fe_space
+  allocate ( par_fe_space_t :: this%nodal_coordinates_fe_space )
   call this%setup_workspace_to_compute_nodal_coordinates()
   if ( p_environment%am_i_l1_task() ) then  
     call this%fill_nodal_coordinates_fe_function()
-  end if   
-  
+  end if
 #else
   call this%not_enabled_error()
 #endif

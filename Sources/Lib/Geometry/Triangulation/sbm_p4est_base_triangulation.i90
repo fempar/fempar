@@ -2140,14 +2140,17 @@ subroutine p4est_bt_setup_workspace_to_compute_nodal_coordinates(this)
   type(ParameterList_t)              :: parameter_list  
   integer(ip) :: istat
   
+  assert ( allocated(this%nodal_coordinates_fe_space) )
+  
   ! Create reference fe
   call this%nodal_coordinates_reference_fe%create( topology_hex, &
                                                this%get_num_dims(), &
                                                this%geometric_interpolation_order, &
                                                field_type_vector, & 
-                                               conformity=.true.)
+                                               conformity=.true., & 
+                                               continuity=.true.)
     
-  allocate(this%nodal_coordinates_reference_fes(1), stat=istat)    
+  allocate(this%nodal_coordinates_reference_fes(1), stat=istat); check(istat==0);
   this%nodal_coordinates_reference_fes(1)%p => this%nodal_coordinates_reference_fe
 
   ! Create nodal coordinates fe space  
@@ -2168,42 +2171,33 @@ end subroutine p4est_bt_setup_workspace_to_compute_nodal_coordinates
 subroutine p4est_bt_refine_and_coarsen_coordinates_fe_function(this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this
-  class(serial_fe_space_t), pointer  :: fe_space
-
+  
   ! Refine and coarsen nodal coordinates fe function
   call this%nodal_coordinates_fe_space%refine_and_coarsen(this%nodal_coordinates_fe_function)
   
-  fe_space => this%nodal_coordinates_fe_space
-  select type(fe_space)
+  select type(fe_space => this%nodal_coordinates_fe_space)
     class is(par_fe_space_t)
-     ! Update ghost dof values
-      call this%par_fe_space%update_ghost_dof_values(this%nodal_coordinates_fe_function)
+      call fe_space%update_ghost_dof_values(this%nodal_coordinates_fe_function)
   end select
-
 end subroutine p4est_bt_refine_and_coarsen_coordinates_fe_function
 
 subroutine p4est_bt_redistribute_coordinates_fe_function(this)
   implicit none
-  class(p4est_base_triangulation_t), target, intent(inout)   :: this
-  class(serial_fe_space_t), pointer  :: fe_space
-
-  fe_space => this%nodal_coordinates_fe_space
-  select type(fe_space)
+  class(p4est_base_triangulation_t), target, intent(inout) :: this
+  
+  select type(fe_space => this%nodal_coordinates_fe_space)
     class is(par_fe_space_t)
-
       ! redistribute nodal coordinates fe function
-      call this%par_fe_space%redistribute(this%nodal_coordinates_fe_function)
+      call fe_space%redistribute(this%nodal_coordinates_fe_function)
 
       ! Update hanging dof values
-      call this%par_fe_space%update_hanging_dof_values(this%nodal_coordinates_fe_function)
+      call fe_space%update_hanging_dof_values(this%nodal_coordinates_fe_function)
 
       ! Update ghost dof values
-      call this%par_fe_space%update_ghost_dof_values(this%nodal_coordinates_fe_function)      
+      call fe_space%update_ghost_dof_values(this%nodal_coordinates_fe_function)      
   end select
-
   ! Update per_cell_vertex_coordinates
   !call this%update_per_cell_coordinates_array()
-
 end subroutine p4est_bt_redistribute_coordinates_fe_function
 
 subroutine p4est_bt_set_nodal_coordinates_from_mapping(this,mapping_function)
@@ -2312,11 +2306,12 @@ subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates(this)
      mcheck(istat==0,'Error deallocating')
   end if
   call this%nodal_coordinates_fe_function%free()
-
-  call this%serial_fe_space%free()
-  call this%par_fe_space%free()
-  nullify(this%nodal_coordinates_fe_space)
-
+  
+  if ( allocated(this%nodal_coordinates_fe_space) ) then
+    call this%nodal_coordinates_fe_space%free()
+    deallocate(this%nodal_coordinates_fe_space, stat=istat)
+    mcheck(istat==0,'Error deallocating')
+  end if
 end subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates
 
 subroutine p4est_bt_fill_cells_set (this, cells_set)

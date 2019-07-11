@@ -158,16 +158,9 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%set_up_lst_itfc_vefs()
   end if
-  
-  !allocate ( serial_fe_space_t :: this%nodal_coordinates_fe_space )
-  this%nodal_coordinates_fe_space => this%serial_fe_space
-  
-  ! Initialize nodal coordinates workspace
+  allocate ( serial_fe_space_t :: this%nodal_coordinates_fe_space )
   call this%setup_workspace_to_compute_nodal_coordinates()
-  
-  ! Fill nodal coordinates function
   call this%fill_nodal_coordinates_fe_function()
-  
 #else
   call this%not_enabled_error()
 #endif

@@ -542,9 +542,7 @@ module p4est_triangulation_names
      ! Auxiliar workspace required to compute the nodal coordinates
      type(hex_lagrangian_reference_fe_t)               :: nodal_coordinates_reference_fe
      type(p_reference_fe_t),              allocatable  :: nodal_coordinates_reference_fes(:)
-     class(serial_fe_space_t),            pointer      :: nodal_coordinates_fe_space
-     type(serial_fe_space_t)                           :: serial_fe_space
-     type(par_fe_space_t)                              :: par_fe_space
+     class(serial_fe_space_t),            allocatable  :: nodal_coordinates_fe_space
      type(fe_function_t)                               :: nodal_coordinates_fe_function
      integer(ip)                                       :: geometric_interpolation_order
 
