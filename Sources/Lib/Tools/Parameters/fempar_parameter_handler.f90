@@ -1268,6 +1268,12 @@ contains
            output_handler_prefix_cla_name, &
            output_handler_default_prefix, &
            output_handler_prefix_cla_help)
+
+      call this%add(output_handler_format_key, &
+           output_handler_format_cla_name, &
+           output_handler_default_format, &
+           output_handler_format_cla_help, &
+           choices = output_handler_format_choices)
       
       call this%add(output_handler_static_grid_key, &
            output_handler_static_grid_cla_name, &
