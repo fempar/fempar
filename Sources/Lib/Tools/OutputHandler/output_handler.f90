@@ -74,9 +74,6 @@ implicit none
 #include "debug.i90"
 private
 
-    character(len=*), parameter :: VTK = 'VTK'
-    character(len=*), parameter :: XH5 = 'XH5'
-
     type :: output_handler_t
     !-----------------------------------------------------------------
     !*Author: Víctor Sande
@@ -116,6 +113,7 @@ private
         procedure, non_overridable         ::                                   output_handler_create
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         ::                                   output_handler_create_mold
+        procedure, non_overridable         ::                                   output_handler_create_parameterlist
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
         procedure, non_overridable, public :: set_create_fe_cell_iterator    => output_handler_set_create_fe_cell_iterator
         procedure, non_overridable, public :: set_free_fe_cell_iterator      => output_handler_set_free_fe_cell_iterator
@@ -132,6 +130,7 @@ private
         generic,                    public :: open                           => open_dir_path_prefix, open_pl
         generic,                    public :: create                         => output_handler_create, &
                                                                                 output_handler_create_string, &
+                                                                                output_handler_create_parameterlist, &
                                                                                 output_handler_create_mold
     end type
 
@@ -226,6 +225,23 @@ contains
         call this%free()
         allocate(this%state, mold=mold)
     end subroutine output_handler_create_mold
+
+
+    subroutine output_handler_create_parameterlist(this, parameterlist)
+    !-----------------------------------------------------------------
+    !< Create the output handler **state** given its descriptor string
+    !-----------------------------------------------------------------
+        class(output_handler_t), intent(inout) :: this
+        type(ParameterList_t),   intent(in)    :: parameterlist
+        character(len=:), allocatable          :: format_descriptor
+        integer(ip)                            :: error
+    !-----------------------------------------------------------------
+        assert(parameterlist%isPresent(output_handler_format_key))
+        error = parameterlist%getasstring(key = output_handler_format_key, string = format_descriptor)
+        check(error==0)
+        call this%create(descriptor=format_descriptor)
+    end subroutine output_handler_create_parameterlist
+
 
     subroutine output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------
