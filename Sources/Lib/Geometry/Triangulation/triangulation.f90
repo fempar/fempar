@@ -37,7 +37,6 @@ module triangulation_names
   use field_names
   use environment_names
   use std_vector_integer_ip_names
-  use function_names  
   
   ! Modules required by triangulation_t implementors
   ! Serial modules
@@ -787,10 +786,7 @@ module triangulation_names
      procedure(compute_max_cells_set_id_interface)     , deferred :: compute_max_cells_set_id 
      procedure(resize_disconnected_cells_set_interface), deferred :: resize_disconnected_cells_set
      procedure(fill_disconnected_cells_set_interface)  , deferred :: fill_disconnected_cells_set
-
-     ! Coordinates mapping
-     procedure(set_nodal_coordinates_from_mapping_interface), deferred :: set_nodal_coordinates_from_mapping
-
+     
      ! Methods for h-adaptivity
      procedure(get_refinement_and_coarsening_flags_interface)     , deferred :: get_refinement_and_coarsening_flags 
      
@@ -890,13 +886,7 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_max_num_shape_functions_interface
      end function get_max_num_shape_functions_interface
-
-     subroutine set_nodal_coordinates_from_mapping_interface ( this, mapping_function ) 
-       import :: triangulation_t, vector_function_t
-       class(triangulation_t),           intent(inout) :: this
-       class(vector_function_t), target, intent(in)    :: mapping_function
-     end subroutine set_nodal_coordinates_from_mapping_interface      
-
+     
      function get_refinement_and_coarsening_flags_interface ( this )
        import :: triangulation_t, std_vector_integer_ip_t
        class(triangulation_t),   target, intent(in) :: this
@@ -1237,10 +1227,7 @@ module triangulation_names
      procedure, non_overridable, private :: allocate_and_fill_cells_around      => bst_allocate_and_fill_cells_around
      procedure, non_overridable, private :: free_cells_around                   => bst_free_cells_around
      procedure, non_overridable, private :: find_local_ghost_vefs               => bst_find_local_ghost_vefs
-
-     ! Coordinates mapping
-     procedure                           :: set_nodal_coordinates_from_mapping  => bst_set_nodal_coordinates_from_mapping
-
+     
      ! Methods for h-adaptivity
      procedure                           :: get_refinement_and_coarsening_flags => bst_get_refinement_and_coarsening_flags
      
