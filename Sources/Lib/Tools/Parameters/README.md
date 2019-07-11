@@ -1,11 +1,5 @@
 
-### Short description
-
-description
-
 ### Command line options:
-
-
 
 
 Optional switches:
@@ -388,8 +382,3 @@ Optional switches:
 
 * `--version`, `-v`  
     Print version
-### Examples
-
-`examples` 
-
-`examples` 
