@@ -944,10 +944,11 @@ contains
            default_struct_hex_mesh_generator_domain_limits, &
            struct_hex_mesh_generator_domain_limits_cla_help)
 
-      call this%add(struct_hex_mesh_generator_is_dir_periodic_key, &
-           struct_hex_mesh_generator_is_dir_periodic_cla_name, &
-           default_struct_hex_mesh_generator_is_dir_periodic, &
-           struct_hex_mesh_generator_is_dir_periodic_cla_help)
+      ! Temporary disabled
+      ! call this%add(struct_hex_mesh_generator_is_dir_periodic_key, &
+      !      struct_hex_mesh_generator_is_dir_periodic_cla_name, &
+      !      default_struct_hex_mesh_generator_is_dir_periodic, &
+      !      struct_hex_mesh_generator_is_dir_periodic_cla_help)
 
       call this%add(struct_hex_mesh_generator_num_cells_x_dim_key, &
            struct_hex_mesh_generator_num_cells_x_dim_cla_name, &

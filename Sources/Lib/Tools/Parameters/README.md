@@ -1,11 +1,5 @@
 
-### Short description
-
-description
-
 ### Command line options:
-
-
 
 
 Optional switches:
@@ -52,10 +46,6 @@ Optional switches:
 * `--STRUCT_HEX_MESH_GENERATOR_DOMAIN_LIMITS value#1 [value#2...]`  
     default value 0.000000000000000E+000 +0.100000000000000E+001 0.000000000000000E+000 +0.100000000000000E+001 0.000000000000000E+000 +0.100000000000000E+001  
     Domain interval per dimension
-
-* `--STRUCT_HEX_MESH_GENERATOR_IS_DIR_PERIODIC value#1 [value#2...]`  
-    default value +0 +0 +0  
-    Is the mesh periodic per dimension
 
 * `--STRUCT_HEX_MESH_GENERATOR_NUM_CELLS_X_DIM value#1 [value#2...]`  
     default value +10 +10 +10  
@@ -392,8 +382,3 @@ Optional switches:
 
 * `--version`, `-v`  
     Print version
-### Examples
-
-`examples` 
-
-`examples` 
