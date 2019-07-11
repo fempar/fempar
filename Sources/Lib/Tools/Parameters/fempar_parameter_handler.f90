@@ -862,14 +862,14 @@ contains
         call this%fph_environment_define_parameters()
         call this%fph_triang_define_parameters()
         call this%fph_static_triang_define_parameters()
-        call this%fph_struct_hex_mesh_generator_define_parameters()
-        call this%fph_p4est_triang_define_parameters()
         call this%fph_mesh_define_parameters()
         call this%fph_mesh_partitioner_define_parameters()
+        call this%fph_struct_hex_mesh_generator_define_parameters()
+        call this%fph_p4est_triang_define_parameters()
         call this%fph_fes_define_parameters()
         call this%fph_ils_define_parameters()
-        call this%fph_nls_define_parameters()
         call this%fph_dls_define_parameters()
+        call this%fph_nls_define_parameters()
         call this%fph_coarse_fe_handler_define_parameters()
         call this%fph_output_handler_define_parameters()        
     end subroutine fph_define_fempar_parameters
@@ -916,17 +916,18 @@ contains
     subroutine fph_static_triang_define_parameters(this)
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
-      call this%add(static_triang_generate_from_key, &
-           static_triang_generate_cla_name, &
-           static_triang_generate_from_struct_hex_mesh_generator, &
-           static_triang_generate_cla_help, &
-           choices = static_triang_generate_cla_choices)
 
       ! Temporary disabled
       ! call this%add(static_triang_geometric_interpolation_order_key, &
       !      static_triang_geometric_interpolation_order_cla_name, &
       !      default_static_triang_geometric_interpolation_order, &
       !      static_triang_geometric_interpolation_order_cla_help)
+
+      call this%add(static_triang_generate_from_key, &
+           static_triang_generate_cla_name, &
+           static_triang_generate_from_struct_hex_mesh_generator, &
+           static_triang_generate_cla_help, &
+           choices = static_triang_generate_cla_choices)
     end subroutine fph_static_triang_define_parameters
     
     
