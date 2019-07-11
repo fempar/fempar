@@ -45,10 +45,13 @@ subroutine fine_triangulation_process_parameters ( this, parameters )
     call dummy_mesh%get_dir_path_and_prefix_from_pl(parameters, this%dir_path, this%prefix)
   end if
 
-  assert( parameters%isPresent(static_triang_geometric_interpolation_order_key) )
-  assert( parameters%isAssignable(static_triang_geometric_interpolation_order_key, this%geometric_interpolation_order) )
-  istat = parameters%Get(key = static_triang_geometric_interpolation_order_key, Value = this%geometric_interpolation_order)
-  assert(istat==0)
+  if(parameters%isPresent(static_triang_geometric_interpolation_order_key) ) then
+    assert( parameters%isAssignable(static_triang_geometric_interpolation_order_key, this%geometric_interpolation_order) )
+    istat = parameters%Get(key = static_triang_geometric_interpolation_order_key, Value = this%geometric_interpolation_order)
+    assert(istat==0)
+  else
+    this%geometric_interpolation_order = 1
+  endif
   
   if(this%geometric_interpolation_order>1) & 
     call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)

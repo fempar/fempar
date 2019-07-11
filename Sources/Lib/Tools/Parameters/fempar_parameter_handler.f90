@@ -921,11 +921,12 @@ contains
            static_triang_generate_from_struct_hex_mesh_generator, &
            static_triang_generate_cla_help, &
            choices = static_triang_generate_cla_choices)
-      
-      call this%add(static_triang_geometric_interpolation_order_key, &
-           static_triang_geometric_interpolation_order_cla_name, &
-           default_static_triang_geometric_interpolation_order, &
-           static_triang_geometric_interpolation_order_cla_help)
+
+      ! Temporary disabled
+      ! call this%add(static_triang_geometric_interpolation_order_key, &
+      !      static_triang_geometric_interpolation_order_cla_name, &
+      !      default_static_triang_geometric_interpolation_order, &
+      !      static_triang_geometric_interpolation_order_cla_help)
     end subroutine fph_static_triang_define_parameters
     
     
