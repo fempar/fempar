@@ -29,7 +29,7 @@
 subroutine p4est_serial_triangulation_create (this, environment, parameters)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
-  type(environment_t)                , target, intent(in)    :: environment
+  type(environment_t)                , target, intent(inout) :: environment
   type(ParameterList_t)                      , intent(inout) :: parameters
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
@@ -45,6 +45,8 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
   
   call this%set_environment(environment)
   
+  call environment%setup_l1_to_l2_context_all_levels(task_aggregation_among_levels=[1])
+
   call this%process_parameters(parameters)
   
   call this%reference_fe_geo%create( topology_hex, &
