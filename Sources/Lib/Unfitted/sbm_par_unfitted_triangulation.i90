@@ -31,9 +31,9 @@ subroutine put_create(this, parameters, level_set_function, par_environment)
   !$ use omp_lib
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
-  type(ParameterList_t),                       intent(inout) :: parameters
+  type(ParameterList_t),                       intent(in)    :: parameters
   class(level_set_function_t),         target, intent(in)    :: level_set_function
-  type(environment_t) ,                target, intent(in)    :: par_environment
+  type(environment_t) ,                target, intent(inout) :: par_environment
   call this%free()
   call this%par_triangulation_t%create(par_environment,parameters)
   
@@ -62,8 +62,8 @@ end subroutine put_free
 subroutine put_par_triangulation_create( this, environment, parameters)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
-  type(environment_t),                 target, intent(in)    :: environment
-  type(ParameterList_t),                       intent(inout) :: parameters
+  type(environment_t),                 target, intent(inout) :: environment
+  type(ParameterList_t),                       intent(in)    :: parameters
   check(.false.)
 end subroutine put_par_triangulation_create
 

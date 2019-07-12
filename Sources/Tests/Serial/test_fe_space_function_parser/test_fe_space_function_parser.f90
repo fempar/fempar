@@ -51,7 +51,6 @@ program test_steady_poisson
   !* 1) default values of the library, 2) the ones provided by the user through the command line (using the keys in 
   !* fempar_parameter_handler_t, 3) or overwritten by the user. Option 3) overwrites 2) which overwrites 1). In this tutorial
   !* we will explicitly provide the values in the code (option 3) but they could be provided by the command line argument instead.
-  type(fempar_parameter_handler_t)     :: parameter_handler
   !* This is the object in parameter_handler_t that provides the list of parameters
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
@@ -203,7 +202,6 @@ program test_steady_poisson
   write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
 !*
 !* Free all the created objects
-!*  call fempar_parameter_handler%free()
 !*  call triangulation%free()
 !*
 !*   In the following code, we will use
@@ -215,7 +213,6 @@ program test_steady_poisson
   call poisson_conditions%free()
   call triangulation%free()
   call serial_environment%free()
-  call parameter_handler%free()
   call world_context%free(.true.)
 
   call fempar_finalize()

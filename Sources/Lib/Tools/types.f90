@@ -76,10 +76,9 @@ module types_names
   integer(ip)  , parameter :: size_of_igp = size(transfer(1_igp ,[0_ieep]))
   integer(ip)  , parameter :: size_of_rp = size(transfer(1.0_rp, [0_ieep]))
 
-  character(len=*), parameter :: dir_path_key           = 'dir_path'
-  character(len=*), parameter :: prefix_key             = 'prefix'
-  character(len=*), parameter :: dir_path_out_key       = 'dir_path_out'
-  integer(ip)  ,    parameter :: str_cla_len                = 512 ! String Command line argument lenght
+  character(*), parameter :: FLAP_HELP_MESSAGE_TABULATOR = "    "
+  character(*), parameter :: BRK_LINE = NEW_LINE(FLAP_HELP_MESSAGE_TABULATOR) // FLAP_HELP_MESSAGE_TABULATOR
+  character(*), parameter :: BULLET_FLAP_HELP_MESSAGE = "* " 
 
   interface
      subroutine runend

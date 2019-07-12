@@ -34,34 +34,12 @@ module nonlinear_solver_names
   use environment_names
   use linear_solver_names
   use fe_operator_names
+  use nonlinear_solver_parameters_names
   use FPL
 
   implicit none
 # include "debug.i90"
   private
-
-  !-------------------------------------------------------------------
-  ! FPL keys of the parameters for nonlinear solvers
-  !-------------------------------------------------------------------
-  character(len=*), parameter :: nls_rtol_key                   = 'nonlinear_solver_rtol'
-  character(len=*), parameter :: nls_atol_key                   = 'nonlinear_solver_atol'
-  character(len=*), parameter :: nls_stopping_criterium_key     = 'nonlinear_solver_stopping_criterium'
-  character(len=*), parameter :: nls_max_num_iterations_key     = 'nonlinear_solver_max_num_iterations'
-  character(len=*), parameter :: nls_print_iteration_output_key = 'nonlinear_solver_print_iteration_output'
-
-  character(len=*), parameter :: abs_res_norm                   = 'abs_res_norm'                  ! |r(x_i)| <= abs_tol
-  character(len=*), parameter :: rel_inc_norm                   = 'rel_inc_norm'                  ! |dx_i|   <= rel_norm*|x_i|
-  character(len=*), parameter :: rel_r0_res_norm                = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|+abs_tol
-  character(len=*), parameter :: abs_res_norm_and_rel_inc_norm  = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
-
-  !------------------------------------------------------------------
-  ! Default values of the parameters for nonlinear solvers 
-  !------------------------------------------------------------------
-  real    (rp), parameter :: default_nls_rtol                     = 1.0e-09_rp
-  real    (rp), parameter :: default_nls_atol                     = 1.0e-14_rp
-  character(*), parameter :: default_nls_stopping_criterium       = rel_r0_res_norm
-  integer (ip), parameter :: default_nls_max_iter                 = 10 
-  logical     , parameter :: default_nls_print_iteration_output   = .true. 
 
   type, extends(solver_t) :: nonlinear_solver_t
   private

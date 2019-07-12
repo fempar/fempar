@@ -6,9 +6,13 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
 echo "$DIR"
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
 
 if [ -d "$DIR" ]
 then
@@ -17,60 +21,18 @@ then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
 
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0
-     # if [ $? -ne 0 ] 
-     # then
-     #  final_exit_code=1
-     # fi
-
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 18 18 0"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 10 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 3 3 0 1 1 0 -n 18 18 0
-     # if [ $? -ne 0 ] 
-     # then
-     #  final_exit_code=1
-     # fi
-
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18
-     # if [ $? -ne 0 ] 
-     # then
-     #  final_exit_code=1
-     # fi
-
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case half"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case half
-     # if [ $? -ne 0 ] 
-     # then
-     #   final_exit_code=1
-     # fi
-
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case quarter"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 10 10 0 -use-voids T -use-voids-case quarter
-     # if [ $? -ne 0 ] 
-     # then
-     #    final_exit_code=1
-     # fi
-
-     # echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18 -use-voids T -use-voids-case popcorn"
-     # $MPIEXEC_PATH $MPIEXEC_NP_FLAG 28 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH --dim 3 -tt 1 -l 2 -np 3 3 3 1 1 1 -n 18 18 18 -use-voids T -use-voids-case popcorn
-     # if [ $? -ne 0 ] 
-     # then
-     #   final_exit_code=1
-     # fi
-
-
-      # Square + Quads (4 parts)
-      for gorder in 1 # 2 3 4 5 6
-      do
+    # Square + Quads (4 parts)
+    if [ $final_exit_code -eq 0 ] 
+    then
         for order in 1 2 3 # 4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
-	    echo "$DIR/part -d $TEST_INPUT_DATA_PATH/square_quads.gid -o $TEST_INPUT_DATA_PATH/square_quads.gid --prefix square_quads --num_levels 3 --num_parts_x_level 4 2 1 0 0 "
-	    $DIR/part -d $TEST_INPUT_DATA_PATH/square_quads.gid -o $TEST_INPUT_DATA_PATH/square_quads.gid --prefix square_quads --num_levels 3 --num_parts_x_level 4 2 1 0 0 
-            echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/square_quads.gid --prefix 'square_quads' --num_levels 3 -gorder $gorder -order $order"
-            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/square_quads.gid --prefix 'square_quads' --num_levels 3 -gorder $gorder -order $order
+            COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_partitioner_prefix_flag square_quads $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag square_quads $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
+            echo $COMMAND
+            eval $COMMAND
+
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 3 $environment_num_tasks_x_level_flag 4 2 1 -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_quads.gid $mesh_prefix_flag 'square_quads'"
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
               final_exit_code=1
@@ -79,21 +41,25 @@ then
     	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.prt.* 
     	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.env.*
     	    rm -f $TEST_INPUT_DATA_PATH/square_quads.gid/square_quads.*post.*
-          fi
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
         done
-      done
+    fi
 
-
-      # Square + Tets        
-      for gorder in 1 #2 3 4 5 6
-      do
+    # Square + Tets        
+    if [ $final_exit_code -eq 0 ] 
+    then
        for order in 1 2 3 #4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
-	     $DIR/part -d $TEST_INPUT_DATA_PATH/square_tetrahedra.gid -o $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra --num_levels 3 --num_parts_x_level 4 2 1 0 0 
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix 'square_tetrahedra' --num_levels 3 -gorder $gorder -order $order"
-             $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix 'square_tetrahedra' --num_levels 3 -gorder $gorder -order $order
+	     COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_partitioner_prefix_flag square_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
+             echo $COMMAND
+             eval $COMMAND
+
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 3 $environment_num_tasks_x_level_flag 4 2 1 -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag 'square_tetrahedra'"
+             echo $COMMAND
+             eval $COMMAND
              if [ $? -ne 0 ]
              then
                final_exit_code=1
@@ -102,21 +68,25 @@ then
     	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.prt.* 
     	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.env.*
     	     rm $TEST_INPUT_DATA_PATH/square_tetrahedra.gid/square_tetrahedra.*post.*
-          fi
-       done
-    done
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
+        done
+    fi
 
-
-    # Cube + Hexas        
-    for gorder in 1 #2 3 4 5 6
-      do
+    # Cube + Hexas
+    if [ $final_exit_code -eq 0 ] 
+    then        
        for order in 1 2 3 #1 2 3 4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
-	     $DIR/part -d $TEST_INPUT_DATA_PATH/cube_hexas.gid -o $TEST_INPUT_DATA_PATH/cube_hexas.gid --prefix cube_hexas --num_levels 3 --num_parts_x_level 4 2 1 0 0 
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/cube_hexas.gid --prefix 'cube_hexas' --num_levels 3 -gorder $gorder -order $order"
-             $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/cube_hexas.gid --prefix 'cube_hexas' --num_levels 3 -gorder $gorder -order $order
+             COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_partitioner_prefix_flag cube_hexas $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag cube_hexas $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
+             echo $COMMAND
+             eval $COMMAND
+
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 3 $environment_num_tasks_x_level_flag 4 2 1 -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_hexas.gid $mesh_prefix_flag 'cube_hexas'"
+             echo $COMMAND
+             eval $COMMAND
              if [ $? -ne 0 ] 
              then
                final_exit_code=1
@@ -125,21 +95,26 @@ then
     	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.prt.*
     	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.env.*
     	     rm $TEST_INPUT_DATA_PATH/cube_hexas.gid/cube_hexas.*post.*
-          fi
-       done
-    done
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
+        done
+    fi
 
-    # Cube + Tets        
-    for gorder in 1 #2 3 4 5 6
-      do
+    # Cube + Tets
+    if [ $final_exit_code -eq 0 ] 
+    then        
        for order in 1 2 #1 2 3 4 5 6
         do
-          if [ $order -ge $gorder ]
-          then
-	     $DIR/part -d $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid -o $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra --num_levels 3 --num_parts_x_level 4 2 1 0 0 
-             echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix 'cube_tetrahedra' --num_levels 3 -gorder $gorder -order $order"
-             $MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -d $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix 'cube_tetrahedra' --num_levels 3 -gorder $gorder -order $order
-              if [ $? -ne 0 ] 
+             COMMAND="$DIR/$mesh_partitioner_program $mesh_partitioner_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_partitioner_prefix_flag cube_tetrahedra $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag cube_tetrahedra $mesh_partitioner_num_levels_distribution_flag 3 $mesh_partitioner_num_parts_x_level_flag 4 2 1"
+             echo $COMMAND
+             eval $COMMAND
+
+             COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 3 $environment_num_tasks_x_level_flag 4 2 1 -order $order $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag  $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid $mesh_prefix_flag 'cube_tetrahedra'"
+             echo $COMMAND
+             eval $COMMAND
+             if [ $? -ne 0 ] 
              then
                final_exit_code=1
              fi
@@ -147,10 +122,12 @@ then
     	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.prt.*
     	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.env.*
     	     rm $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/cube_tetrahedra.*post.*
-          fi
-       done
-    done
-
+             if [ $final_exit_code -eq 1 ] 
+             then
+               break 2
+             fi
+        done
+    fi
 
 
    else

@@ -213,8 +213,8 @@ contains
     !----------------------------------------------------------------- 
     !< Return the C pointer to This%n
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
-        type(c_ptr)                          :: num_pointers_c_loc
+        class(list_t), target, intent(in) :: this
+        type(c_ptr)                       :: num_pointers_c_loc
     !----------------------------------------------------------------- 
         assert(this%state >= LIST_STATE_CREATED)
         num_pointers_c_loc = c_loc(this%n)
@@ -225,8 +225,8 @@ contains
     !----------------------------------------------------------------- 
     !< Return the C pointer to This%p
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
-        type(c_ptr)                          :: pointers_c_loc
+        class(list_t), target, intent(in) :: this
+        type(c_ptr)                       :: pointers_c_loc
     !----------------------------------------------------------------- 
         assert(this%state >= LIST_STATE_CREATED)
         pointers_c_loc = c_loc(this%p)
@@ -237,8 +237,8 @@ contains
     !----------------------------------------------------------------- 
     !< Return the C pointer to This%l
     !----------------------------------------------------------------- 
-        class(list_t), target, intent(inout) :: this
-        type(c_ptr)                          :: list_c_loc
+        class(list_t), target, intent(in) :: this
+        type(c_ptr)                       :: list_c_loc
     !----------------------------------------------------------------- 
         assert(this%state >= LIST_STATE_LIST_ALLOCATED)
         list_c_loc = c_loc(this%l)

@@ -1,9 +1,17 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
+
 if [ -f "$TEST_BINARY_PATH" ]
 then   
-      $TEST_BINARY_PATH
+      COMMAND="$TEST_BINARY_PATH"
+      echo $COMMAND
+      eval $COMMAND
       if [ $? -ne 0 ] 
       then
          final_exit_code=1

@@ -105,6 +105,7 @@ private
         integer(ip)                                           :: GridType
         integer(ip)                                           :: Strategy
         integer(ip)                                           :: Action
+        integer(ip)                                           :: MPI_info
         real(rp),                                 allocatable :: XYZ(:)
         integer(ip),                              allocatable :: Connectivities(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: FieldValues(:)
@@ -114,6 +115,7 @@ private
         integer(ip)                                           :: cell_offset = 0
     contains
     private
+        procedure,                 public :: create_body                    => xh5_output_handler_create_body
         procedure,                 public :: open_body                      => xh5_output_handler_open_body
         procedure,                 public :: append_time_step               => xh5_output_handler_append_time_step
         procedure                         :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
@@ -126,6 +128,45 @@ private
 public :: xh5_output_handler_t
 
 contains
+
+    subroutine xh5_output_handler_create_body(this, parameter_list)
+    !-----------------------------------------------------------------
+    !< Open xh5for_t derive dtype. Set parameters from parameter list and args
+    !-----------------------------------------------------------------
+        class(xh5_output_handler_t),     intent(inout) :: this
+        type(ParameterList_t), optional, intent(in)    :: parameter_list
+        integer(ip)                                    :: FPLError
+    !-----------------------------------------------------------------
+        ! Set defaults
+        this%StaticGrid = xh5_default_StaticGrid
+        this%Strategy   = output_handler_xh5_strategy_default
+        this%GridType   = xh5_default_GridType
+        this%Action     = xh5_default_Action
+        this%MPI_info   = output_handler_xh5_Info_default
+
+        if(present(parameter_list)) then
+            ! Get StaticGrid value from parameter_list
+            if(parameter_list%isPresent(output_handler_static_grid_key)) then
+                assert(parameter_list%isAssignable(output_handler_static_grid_key, this%StaticGrid))
+                FPLError   = parameter_list%Get(Key=output_handler_static_grid_key, Value=this%StaticGrid)
+                assert(FPLError == 0)
+            endif
+
+            ! Get Strategy value from parameter_list
+            if(parameter_list%isPresent(output_handler_xh5_strategy_key)) then
+                assert(parameter_list%isAssignable(output_handler_xh5_strategy_key, this%Strategy))
+                FPLError   = parameter_list%Get(Key=output_handler_xh5_strategy_key, Value=this%Strategy)
+                assert(FPLError == 0)
+            endif
+
+            ! Get Info value from parameter_list
+            if(parameter_list%isPresent(output_handler_xh5_info_key)) then
+                assert(parameter_list%isAssignable(output_handler_xh5_info_key, this%MPI_info))
+                FPLError   = parameter_list%Get(Key=output_handler_xh5_info_key, Value=this%MPI_info)
+                assert(FPLError == 0)
+            endif
+        endif
+    end subroutine xh5_output_handler_create_body
 
 
     subroutine xh5_output_handler_free_body(this)
@@ -158,14 +199,13 @@ contains
     end subroutine xh5_output_handler_free_body
 
 
-    subroutine xh5_output_handler_open_body(this, dir_path, prefix, parameter_list)
+    subroutine xh5_output_handler_open_body(this, dir_path, prefix)
     !-----------------------------------------------------------------
-    !< Open xh5for_t derive dtype. Set parameters from parameter list
+    !< Open xh5for_t derive dtype. Set parameters from parameter list and args
     !-----------------------------------------------------------------
         class(xh5_output_handler_t),     intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
         character(len=*),                intent(in)    :: prefix
-        type(ParameterList_t), optional, intent(in)    :: parameter_list
         class(serial_fe_space_t),        pointer       :: fe_space
         type(environment_t),             pointer       :: environment
         class(execution_context_t),      pointer       :: cntxt
@@ -184,11 +224,6 @@ contains
             this%FilePrefix = prefix
 
             ! Set defaults
-            this%StaticGrid = xh5_default_StaticGrid
-            this%Strategy   = xh5_default_Strategy
-            this%GridType   = xh5_default_GridType
-            this%Action     = xh5_default_Action
-            mpi_info        = xh5_default_Info
             mpi_comm        = xh5_default_Comm
 
             cntxt => environment%get_l1_context()
@@ -198,29 +233,6 @@ contains
                     mpi_comm  =  cntxt%get_icontxt()
             end select
 
-            if(present(parameter_list)) then
-                ! Get StaticGrid value from parameter_list
-                if(parameter_list%isPresent(oh_staticgrid)) then
-                    assert(parameter_list%isAssignable(oh_StaticGrid, this%StaticGrid))
-                    FPLError   = parameter_list%Get(Key=oh_StaticGrid, Value=this%StaticGrid)
-                    assert(FPLError == 0)
-                endif
-
-                ! Get Strategy value from parameter_list
-                if(parameter_list%isPresent(xh5_Strategy)) then
-                    assert(parameter_list%isAssignable(xh5_Strategy, this%Strategy))
-                    FPLError   = parameter_list%Get(Key=xh5_Strategy, Value=this%Strategy)
-                    assert(FPLError == 0)
-                endif
-
-                ! Get Info value from parameter_list
-                if(parameter_list%isPresent(xh5_Info)) then
-                    assert(parameter_list%isAssignable(xh5_info, mpi_info))
-                    FPLError   = parameter_list%Get(Key=xh5_Info, Value=mpi_info)
-                    assert(FPLError == 0)
-                endif
-            endif
-
             call this%xh5%Open(FilePrefix = this%FilePrefix, &
                                Path       = this%Path,       &
                                GridType   = this%GridType,   &
@@ -228,9 +240,8 @@ contains
                                Strategy   = this%Strategy,   &
                                Action     = this%Action,     &
                                Comm       = mpi_comm,        &
-                               Info       = mpi_info)
+                               Info       = this%MPI_info)
         endif
-
     end subroutine xh5_output_handler_open_body
 
 

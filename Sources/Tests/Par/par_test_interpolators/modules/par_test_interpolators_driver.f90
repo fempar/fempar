@@ -90,7 +90,6 @@ module test_interpolators_driver_names
      procedure        , private :: interpolate_analytical_functions 
      procedure        , private :: check_solution
      procedure        , private :: check_time_solution
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment 
      procedure        , private :: free
   end type par_test_interpolators_driver_t
@@ -103,35 +102,26 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this 
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
  
   !========================================================================================
   subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
-    class(execution_context_t)                    , intent(in)    :: world_context
-    integer(ip) :: istat
-   if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
+    class(execution_context_t)            , intent(in)    :: world_context
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
- 
+  !========================================================================================
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
-    class(cell_iterator_t)            , allocatable :: cell
-    integer(ip)                                     :: set_id 
-
     call this%triangulation%create( this%par_environment, this%parameter_list)
-
   end subroutine setup_triangulation
 
+  !========================================================================================
   subroutine setup_reference_fes(this, test_case)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this
@@ -181,7 +171,6 @@ contains
          end if
        end if
 
-    ! if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
     call this%triangulation%create_vef_iterator(vef)
     do while ( .not. vef%has_finished() )
        if(vef%is_at_boundary()) then
@@ -545,12 +534,6 @@ contains
     call this%free()
 
   end subroutine run_simulation_for_tensor_functions
-
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_interpolators_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
   subroutine free_environment(this)
     implicit none

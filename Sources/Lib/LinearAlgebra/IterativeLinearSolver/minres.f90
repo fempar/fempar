@@ -763,8 +763,8 @@ contains
 
   function minres_supports_stopping_criteria(this,stopping_criteria)
     implicit none
-    class(minres_t), intent(in) :: this
-    integer(ip), intent(in) :: stopping_criteria
+    class(minres_t) , intent(in) :: this
+    character(len=*), intent(in) :: stopping_criteria
     logical :: minres_supports_stopping_criteria
     minres_supports_stopping_criteria = ( stopping_criteria == res_res )
   end function minres_supports_stopping_criteria
@@ -772,7 +772,7 @@ contains
   function minres_get_default_stopping_criteria(this)
     implicit none
     class(minres_t), intent(in) :: this
-    integer(ip) :: minres_get_default_stopping_criteria
+    character(len=:), allocatable :: minres_get_default_stopping_criteria
     minres_get_default_stopping_criteria = default_minres_stopping_criteria
   end function minres_get_default_stopping_criteria
   

@@ -62,7 +62,6 @@ module stokes_driver_names
      private 
      
      type(stokes_params_t)                        :: test_params
-     type(ParameterList_t)                        :: parameter_list
      type(unfitted_p4est_serial_triangulation_t)  :: triangulation
      class(level_set_function_t), allocatable     :: level_set_function
      type(serial_unfitted_fe_space_t)             :: fe_space 
@@ -108,8 +107,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(stokes_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -117,7 +115,7 @@ contains
     class(stokes_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -129,24 +127,17 @@ contains
   subroutine setup_levelset(this)
     implicit none
     class(stokes_driver_t ), target, intent(inout) :: this
-
-    integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     type(level_set_function_factory_t) :: level_set_factory
     real(rp) :: dom1d(2)
     real(rp) :: dom3d(6)
 
-    ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent   (key = struct_hex_triang_num_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
-
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dims(num_dime)
+    call this%level_set_function%set_num_dims(this%test_params%get_struct_hex_mesh_generator_num_dims_key())
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
     dom1d = this%test_params%get_domain_limits()
     mcheck(dom1d(2)>dom1d(1),'Upper limit has to be bigger than lower limit')
@@ -199,7 +190,7 @@ contains
     logical :: active_found, innactive_found
 
     ! Create the triangulation, with the levelset function
-    call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
+    call this%triangulation%create(this%test_params%get_parameter_list(),this%level_set_function,this%serial_environment)
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )
@@ -325,7 +316,6 @@ contains
       diri_set_id_u = 0
       diri_set_id_u_and_p = 0
     end if
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
 
        call this%triangulation%create_vef_iterator(vef)
        call this%triangulation%create_cell_iterator(cell)
@@ -451,8 +441,6 @@ contains
        call this%triangulation%free_vef_iterator(vef)
        call this%triangulation%free_cell_iterator(cell)
        deallocate(nodal_coords,stat=istat); check(istat == 0)
-
-    end if
     
     !call this%triangulation%print()
 
@@ -582,7 +570,7 @@ contains
 
     ! Write some info
     if (this%test_params%get_write_aggr_info()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_aggr_info.csv',action='write')
       check(iounit>0)
       call this%fe_space%print_debug_info(iounit)
       call io_close(iounit)
@@ -672,7 +660,7 @@ contains
     select type(matrix)
     class is (sparse_matrix_t)  
        if (this%test_params%get_write_matrix()) then
-       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_matrix.mm',action='write')
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_matrix.mm',action='write')
        check(iounit>0)
        call matrix%print_matrix_market(iounit) 
        call io_close(iounit)
@@ -911,7 +899,7 @@ contains
     write(*,'(a,e32.25)') 'u: rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms_u.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_error_norms_u.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'u: l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'u: h1_semi_norm           ;', h1_semi_norm
@@ -963,7 +951,7 @@ contains
     write(*,'(a,e32.25)') 'p: rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms_p.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_out_prefix()//'_error_norms_p.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'p: l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'p: h1_semi_norm           ;', h1_semi_norm
@@ -1001,8 +989,6 @@ contains
     implicit none
     class(stokes_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: cell_vector_set_ids(:)
     real(rp), allocatable :: cell_rel_pos(:)
@@ -1020,9 +1006,7 @@ contains
     real(rp), allocatable :: aggregate_size(:)
 
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_dir_path_out()
-        prefix = this%test_params%get_prefix()
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'grad_u', grad_diff_operator)
@@ -1101,7 +1085,7 @@ contains
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
         end if
 
-        call oh%open(path, prefix)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -1116,23 +1100,23 @@ contains
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_mesh.vtu')
         call vtk_writer%free()
         
         ! Write the solution
         call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_mesh_solution.vtu')
         call vtk_writer%free()
 
         ! Write vefs
         call vtk_writer%attach_vefs(this%triangulation,this%conditions)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vefs.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_vefs.vtu')
         call vtk_writer%free()
 
         ! TODO make it work when no cut cells
         ! Write the unfitted mesh
         call vtk_writer%attach_boundary_faces(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
+        call vtk_writer%write_to_vtk_file(this%test_params%get_output_handler_dir_path()//this%test_params%get_output_handler_prefix()//'_boundary_faces.vtu')
         call vtk_writer%free()
 
     endif
@@ -1227,7 +1211,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free  
   
 

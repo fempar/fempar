@@ -101,7 +101,6 @@ module par_test_nsi_driver_names
      procedure        , private :: write_solution
      procedure                  :: run_simulation
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
   end type par_test_nsi_fe_driver_t
 
@@ -177,8 +176,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -219,22 +218,14 @@ subroutine free_timers(this)
     call this%timer_solver_run%free()
 end subroutine free_timers
 
-  
   !========================================================================================
   subroutine setup_environment(this, world_context)
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    class(execution_context_t)                    , intent(in)    :: world_context
-    integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
+    class(execution_context_t)     , intent(in)    :: world_context
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
-
 !========================================================================================
   subroutine setup_triangulation(this)
     implicit none
@@ -243,7 +234,7 @@ end subroutine free_timers
     logical :: fixed_pressure
     
     call this%triangulation%create(this%par_environment, this%parameter_list)
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
        fixed_pressure = .false.
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
@@ -475,13 +466,13 @@ end subroutine free_timers
     
     if(this%test_params%get_write_solution()) then
        if ( this%par_environment%am_i_l1_task() ) then
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         do field_id = 1, this%par_nsi_integration%get_number_fields()
            name =  this%par_nsi_integration%get_field_name(field_id)
            call oh%add_fe_function(this%solution, field_id, name)
         end do
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -527,12 +518,5 @@ end subroutine free_timers
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-  !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
   
 end module par_test_nsi_driver_names

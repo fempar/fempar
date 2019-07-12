@@ -51,10 +51,13 @@ subroutine fe_operator_create (this, &
   call this%allocate_state()
 
   this%sparse_matrix_storage_format = sparse_matrix_storage_format
+  assert ( size(diagonal_blocks_symmetric_storage) == fe_space%get_num_blocks() )
   call memalloc ( size(diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
   this%diagonal_blocks_symmetric_storage = diagonal_blocks_symmetric_storage
+  assert ( size(diagonal_blocks_symmetric) == fe_space%get_num_blocks() )
   call memalloc ( size(diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
   this%diagonal_blocks_symmetric = diagonal_blocks_symmetric
+  assert ( size(diagonal_blocks_sign) == fe_space%get_num_blocks() )
   call memalloc ( size(diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
   this%diagonal_blocks_sign = diagonal_blocks_sign
   this%test_fe_space                => fe_space

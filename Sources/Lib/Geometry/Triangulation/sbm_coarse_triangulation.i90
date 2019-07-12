@@ -38,7 +38,8 @@
                                            ptr_ext_neighs_x_itfc_cell, &
                                            lst_ext_neighs_gids, &
                                            lst_ext_neighs_part_ids, &
-                                           subparts_coupling_criteria )
+                                           identify_disconn_components, &
+                                           identify_disconn_components_dgraph_coupling )
     implicit none
     class(coarse_triangulation_t)      , intent(inout) :: this
     type(environment_t)     ,target    , intent(in)    :: environment
@@ -53,7 +54,8 @@
     integer(ip)                        , intent(in)    :: ptr_ext_neighs_x_itfc_cell(*)
     integer(ip)                        , intent(in)    :: lst_ext_neighs_gids(*)
     integer(ip)                        , intent(in)    :: lst_ext_neighs_part_ids(*)
-    character(*)                       , intent(in)    :: subparts_coupling_criteria 
+    logical                            , intent(in)    :: identify_disconn_components
+    character(*)                       , intent(in)    :: identify_disconn_components_dgraph_coupling 
   
     integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
     integer(ip) , allocatable :: lst_vefs_dim_ghost_extended(:)
@@ -108,7 +110,6 @@
       call memfree (lst_vefs_gids_ghost_extended, __FILE__, __LINE__)
       call memfree (lst_vefs_dim_ghost_extended, __FILE__, __LINE__)
       
-      
       ! Warning: this%compute_vefs_and_parts_object() below relies on cells_set being
       !          allocated + filled. Therefore, these lines of code CANNOT be moved
       !          below the call to this%compute_vefs_and_parts_object()
@@ -118,7 +119,8 @@
       call this%fill_cells_set(cells_set)
       call memfree (cells_set, __FILE__, __LINE__)  
     end if
-    this%subparts_coupling_criteria = subparts_coupling_criteria 
+    this%identify_disconn_components = identify_disconn_components
+    this%identify_disconn_components_dgraph_coupling = identify_disconn_components_dgraph_coupling 
     call this%setup_coarse_triangulation()
     !call this%print()
   end subroutine coarse_triangulation_create

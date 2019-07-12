@@ -28,10 +28,10 @@
 module par_test_poisson_error_estimator_driver_names
   use fempar_names
   use par_test_poisson_error_estimator_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use analytical_functions_names
-  use poisson_cG_error_estimator_names
+  use par_test_poisson_error_estimator_cG_discrete_integration_names
+  use par_test_poisson_error_estimator_conditions_names
+  use par_test_poisson_error_estimator_analytical_functions_names
+  use par_test_poisson_error_estimator_cG_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
   
@@ -46,7 +46,7 @@ module par_test_poisson_error_estimator_driver_names
      type(environment_t)                               :: par_environment
      
      type(par_test_poisson_error_estimator_params_t)   :: par_test_params
-     type(ParameterList_t)                             :: parameter_list
+     type(ParameterList_t), pointer                    :: parameter_list
      
      type(p4est_par_triangulation_t)                   :: triangulation
      
@@ -102,16 +102,14 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
-    call this%par_test_params%create()
-    call this%par_test_params%parse(this%parameter_list)
+    call this%par_test_params%process_parameters()
+    this%parameter_list => this%par_test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
-    call this%par_test_params%free()
-    call this%parameter_list%free()
   end subroutine free_command_line_parameters
   
   !========================================================================================
@@ -119,9 +117,6 @@ contains
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
-    integer(ip) :: istat
-    istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
-    istat = this%parameter_list%set(key = struct_hex_triang_num_levels_key, value = 2) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
@@ -138,7 +133,7 @@ contains
     class(vef_iterator_t), allocatable :: vef
     integer(ip)                        :: i, istat
     call this%triangulation%create(this%par_environment,this%parameter_list)
-    if ( .not. this%par_test_params%get_use_void_fes() .and. this%par_environment%am_i_l1_task() ) then
+    if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_vef_iterator(vef)
       do while ( .not. vef%has_finished() )
         if(vef%is_at_boundary()) then
@@ -475,21 +470,16 @@ contains
   subroutine output_handler_initialize(this)
     implicit none
     class(par_test_poisson_error_estimator_driver_t), intent(inout) :: this
-    character(len=:)     , allocatable :: path
-    character(len=:)     , allocatable :: prefix
     type(parameterlist_t)              :: parameter_list
     integer(ip)                        :: error
     if(this%par_test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-      path = this%par_test_params%get_dir_path_out()
-      prefix = this%par_test_params%get_prefix()
-      call this%output_handler%create()
+      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
+      check (error==0)
+      call this%output_handler%create(this%parameter_list)
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-      call parameter_list%init()
-      error = parameter_list%set(key=oh_staticgrid, value=.false.)
-      check (error==0)
-      call this%output_handler%open(path, prefix, parameter_list)
+      call this%output_handler%open()
       call parameter_list%free()
     end if
   end subroutine output_handler_initialize

@@ -1,29 +1,33 @@
 #!/bin/sh
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
       ###############################################################################################################################
       # Scalar-valued tests
       ###############################################################################################################################
 
-      # Square + Quads + Uniform refinement     
-      for gorder in 1
-      do
+    # Square + Quads + Uniform refinement    
+    if [ $final_exit_code -eq 0 ] 
+    then 
        for order in 1 2
         do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform"
-            $TEST_BINARY_PATH -order $order -gorder $gorder -af polynomial -rs uniform
+            COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0 "
+            echo $COMMAND
+            eval $COMMAND
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
+             break 2
             fi
-          fi
         done
-      done
+    fi
       
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."

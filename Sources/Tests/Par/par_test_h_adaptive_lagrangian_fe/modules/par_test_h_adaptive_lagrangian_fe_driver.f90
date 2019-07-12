@@ -103,7 +103,6 @@ module par_test_h_adaptive_lagrangian_fe_driver_names
      procedure                  :: run_simulation
      procedure        , private :: print_info 
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_lagrangian_fe_driver_popcorn_fun
      procedure                  :: set_cells_for_uniform_refinement
@@ -121,8 +120,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -165,8 +164,6 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(inout) :: this
     class(execution_context_t)                    , intent(in)    :: world_context
-    integer(ip) :: istat
-    istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
    
@@ -193,16 +190,13 @@ end subroutine free_timers
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment
-    real(rp)                      :: domain(6)
-    character(len=:), allocatable :: subparts_coupling_criteria
     integer(ip) :: num_refs
     integer(ip) :: vef_set_id
-
-    ! Create a p4est mesh with a custom domain 
-    domain = this%test_params%get_domain_limits() 
-    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
-    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
-    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
+    
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_key, &
+                                    value = .true.); assert(istat==0)
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_dgraph_coupling_key, & 
+                                    value = vertex_coupling); assert(istat==0)
     call this%triangulation%create(this%par_environment,this%parameter_list)
     
     ! Generate initial uniform mesh and set the cell ids to use void fes
@@ -659,7 +653,7 @@ end subroutine free_timers
         call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
         mypart_vector(:) = this%par_environment%get_l1_rank()
 
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution: temperature')
         call oh%add_fe_function(this%solution, 2, 'solution: pressure')
@@ -669,7 +663,7 @@ end subroutine free_timers
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -809,12 +803,6 @@ end subroutine free_timers
   end subroutine free_environment
 
   !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
-
   function par_test_h_adaptive_lagrangian_fe_driver_popcorn_fun(point,num_dim) result (val)
     implicit none
     type(point_t), intent(in) :: point

@@ -41,7 +41,6 @@ module test_maxwell_nedelec_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(maxwell_nedelec_params_t)           :: test_params
-     type(ParameterList_t), pointer           :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)                :: triangulation
@@ -83,7 +82,6 @@ module test_maxwell_nedelec_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
-     procedure                  :: free_command_line_parameters
      procedure        , private :: free
   end type test_maxwell_nedelec_driver_t
 
@@ -95,15 +93,14 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
     implicit none
     class(test_maxwell_nedelec_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -116,7 +113,7 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat 
-    call this%triangulation%create(this%serial_environment, this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)
@@ -343,10 +340,10 @@ contains
     class(test_maxwell_nedelec_driver_t), intent(in) :: this
     type(output_handler_t)                           :: oh
     if(this%test_params%get_write_solution()) then
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -369,12 +366,6 @@ contains
     !call this%show_H()
     call this%free()
   end subroutine run_simulation
-
-    subroutine free_command_line_parameters(this)
-    implicit none
-    class(test_maxwell_nedelec_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
   
   subroutine free(this)
     implicit none

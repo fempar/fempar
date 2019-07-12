@@ -57,7 +57,6 @@ module test_poisson_unfitted_driver_names
 
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_unfitted_params_t)   :: test_params
-     type(ParameterList_t)         :: parameter_list
 
      ! Cells and lower dimension objects container
      type(serial_unfitted_triangulation_t)              :: triangulation
@@ -121,8 +120,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_poisson_unfitted_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -130,7 +128,7 @@ contains
     class(test_poisson_unfitted_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -149,13 +147,7 @@ contains
     real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
-    if ( this%test_params%get_triangulation_type() == 'structured' ) then
-      assert( this%parameter_list%isPresent    (key = struct_hex_triang_num_dims_key) )
-      assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dims) )
-      istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dims); check(istat==0)
-    else
-      num_dims = this%test_params%get_num_dims()
-    end if
+    num_dims = this%test_params%get_num_dims()
 
     !TODO we assume it is a sphere
     select case ('sphere')
@@ -168,19 +160,6 @@ contains
       case default
         check(.false.)
     end select
-
-    ! Uncommenting the following lines and calling the driver with these flags,
-    ! generates a case of a single cut hex that leads to a
-    ! broken sub-triangulation computed with marching cubes
-    ! Flags: -tt structured -dim 3 -nx 1 -ny 1 -nz 1 -in_space .true. -order 1 -gorder 1 -wsolution .true. 
-    !
-    !dom3d(1) = 0.25
-    !dom3d(2) = 0.5
-    !dom3d(3) = 0.25
-    !dom3d(4) = 0.5
-    !dom3d(5) = 0.5
-    !dom3d(6) = 0.75
-    !call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dims)
@@ -210,7 +189,7 @@ contains
     real(rp) :: x, y
     integer(ip) :: num_void_neigs
 
-    call this%triangulation%create(this%parameter_list,this%level_set_function,this%serial_environment)
+    call this%triangulation%create(this%test_params%get_parameter_list(),this%level_set_function,this%serial_environment)
 
     ! Set the cell ids
     call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
@@ -227,7 +206,6 @@ contains
     call this%triangulation%fill_cells_set(this%cell_set_ids)
     call this%triangulation%free_cell_iterator(cell)
     
-    !if ( this%test_params%get_triangulation_type() == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -619,26 +597,7 @@ contains
       call vtk_writer%attach_facets_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_fitted_facets_boundary_normals.vtu')
       call vtk_writer%free()
-
     end if
-
-    !type(output_handler_t)                   :: oh
-    !character(len=:), allocatable            :: path
-    !character(len=:), allocatable            :: prefix
-    !if(this%test_params%get_write_solution()) then
-    !    path = this%test_params%get_dir_path_out()
-    !    prefix = this%test_params%get_prefix()
-    !    call oh%create()
-    !    call oh%attach_fe_space(this%fe_space)
-    !    call oh%add_fe_function(this%solution, 1, 'solution')
-    !    call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-    !    call oh%open(path, prefix)
-    !    call oh%write()
-    !    call oh%close()
-    !    call oh%free()
-    !endif
-
-
   end subroutine write_solution
 
   subroutine run_simulation(this)
@@ -833,7 +792,6 @@ end subroutine compute_fitted_boundary_surface
     if ( allocated(this%level_set_function) ) then
       deallocate( this%level_set_function, stat=istat ); check(istat == 0)
     end if
-    call this%test_params%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free
 

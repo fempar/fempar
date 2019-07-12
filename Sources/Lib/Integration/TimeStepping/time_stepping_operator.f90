@@ -191,7 +191,7 @@ module time_stepping_names
   
   !> This operator is responsible of the time management of the RK scheme
   !> When `apply` is called it solves a `non_linear_solver_t` for each RK stage.
-  !> Through `advance_fe_function` it upgrades the values of a `fe_funtion_t` to the next time step values
+  !> Through `advance_fe_function` it upgrades the values of a `fe_function_t` to the next time step values
   type :: dirk_solver_t
     private
     type(time_stepping_operator_t), pointer :: ts_op     => NULL()

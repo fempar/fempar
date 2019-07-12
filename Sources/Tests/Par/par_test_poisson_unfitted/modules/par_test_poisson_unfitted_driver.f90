@@ -120,7 +120,6 @@ module par_test_poisson_unfitted_driver_names
      procedure                  :: run_simulation
      procedure        , private :: free
      procedure                  :: free_environment
-     procedure                  :: free_command_line_parameters
   end type par_test_poisson_unfitted_fe_driver_t
 
   ! Types
@@ -132,9 +131,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    !call this%test_params%parse(this%parameter_list)
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -192,9 +190,9 @@ end subroutine free_timers
     type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = struct_hex_triang_num_dims_key) )
-    assert( this%parameter_list%isAssignable (key = struct_hex_triang_num_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = struct_hex_triang_num_dims_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = struct_hex_mesh_generator_num_dims_key) )
+    assert( this%parameter_list%isAssignable (key = struct_hex_mesh_generator_num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = struct_hex_mesh_generator_num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_level_set_function_type(), this%level_set_function)
@@ -219,13 +217,7 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     class(execution_context_t)     , intent(in)    :: world_context
-    integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
-    call this%par_environment%create (world_context, this%parameter_list)
+    call this%par_environment%create(world_context, this%parameter_list)
     call this%test_params%print(this%par_environment)
   end subroutine setup_environment
    
@@ -236,7 +228,7 @@ end subroutine free_timers
 
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: istat
-    integer(ip) :: set_id
+    integer(ip) :: set_id, num_dims
 
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
@@ -252,7 +244,8 @@ end subroutine free_timers
     real(rp)                       :: num_blocked_vertex
 
     ! Create a structured mesh with a custom domain
-    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%get(key = struct_hex_mesh_generator_num_dims_key , value = num_dims); check(istat==0)
+    istat = this%parameter_list%set(key = struct_hex_mesh_generator_domain_limits_key , value = domain(1:2*num_dims)); check(istat==0)
 
     ! Create the unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function,this%par_environment)
@@ -286,14 +279,12 @@ end subroutine free_timers
     call this%triangulation%free_vef_iterator(vef)
 
     ! Fix all the vefs at the boundary
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-      call this%triangulation%create_vef_iterator(vef)
-      do while ( .not. vef%has_finished() )
-        if(vef%is_at_boundary()) call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
-        call vef%next()
-      end do
-      call this%triangulation%free_vef_iterator(vef)
-    end if
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+       if(vef%is_at_boundary()) call vef%set_set_id(PAR_POISSON_UNFITTED_SET_ID_DIRI)
+       call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
 
     ! If we use neumann boundary conditions on the unfitted boundary, 
     ! constrain the solution at the first interior vertex
@@ -857,12 +848,5 @@ end subroutine free_timers
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-!========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
   
 end module par_test_poisson_unfitted_driver_names
