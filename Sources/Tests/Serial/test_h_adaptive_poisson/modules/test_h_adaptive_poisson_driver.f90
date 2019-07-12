@@ -27,14 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_h_adaptive_poisson_driver_names
   use fempar_names
-  use test_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_dG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
-  use vector_poisson_discrete_integration_names
-  use vector_poisson_conditions_names
-  use vector_poisson_analytical_functions_names
+  use test_h_adaptive_poisson_params_names
+  use test_h_adaptive_poisson_cG_discrete_integration_names
+  use test_h_adaptive_poisson_dG_discrete_integration_names
+  use test_h_adaptive_poisson_conditions_names
+  use test_h_adaptive_poisson_analytical_functions_names
+  use test_h_adaptive_vector_poisson_discrete_integration_names
+  use test_h_adaptive_vector_poisson_conditions_names
+  use test_h_adaptive_vector_poisson_analytical_functions_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
     
@@ -50,8 +50,7 @@ module test_h_adaptive_poisson_driver_names
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_poisson_params_t)   :: test_params
-     type(ParameterList_t)         :: parameter_list
+     type(test_poisson_params_t)    :: test_params
      
      ! Cells and lower dim objects container
      type(p4est_serial_triangulation_t)           :: triangulation
@@ -113,8 +112,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -122,7 +120,7 @@ contains
     class(test_h_adaptive_poisson_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -156,7 +154,7 @@ contains
     integer(ip), parameter :: num_nodes_x_cell = 4
     integer(ip) :: i
     
-    call this%triangulation%create(this%serial_environment,this%parameter_list)
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
     
     if ( .not. this%test_params%get_use_void_fes() ) then
       call this%triangulation%create_vef_iterator(vef)
@@ -204,8 +202,6 @@ contains
         call this%triangulation%fill_cells_set(cell_set_ids)
     end if
     
-    if ( this%test_params%get_triangulation_type() == 'structured') then
-
       ! Set all the vefs on the interface between full/void if there are void fes
       if ( this%test_params%get_use_void_fes()) then
         ! WARNING: Consider updating this piece of code for h-adaptivity, because 
@@ -281,9 +277,7 @@ contains
         call this%triangulation%free_cell_iterator(cell)
         
       end if
-    
-    end if
-    
+        
     if (allocated(cell_set_ids)) call memfree(cell_set_ids,__FILE__,__LINE__)
     
   end subroutine setup_triangulation
@@ -761,15 +755,11 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_dir_path_out()
-        prefix = this%test_params%get_prefix()
-        call oh%create()
+        call oh%create(this%test_params%get_parameter_list())
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -796,8 +786,7 @@ contains
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call this%triangulation%free_cell_iterator(cell)
-        
-        call oh%open(path, prefix)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -923,7 +912,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free  
   
 

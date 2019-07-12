@@ -1,0 +1,80 @@
+#!/bin/bash
+
+############################################
+# Programs
+############################################
+
+export mesh_partitioner_program='mesh_partitioner'
+
+############################################
+# CLA names
+############################################
+
+export environment_num_levels_flag="--ENVIRONMENT_NUM_LEVELS"
+export environment_num_tasks_x_level_flag="--ENVIRONMENT_NUM_TASKS_X_LEVEL"
+
+export ils_type_flag='--ILS_TYPE'
+export ils_rtol_flag='--ILS_RTOL'
+export ils_atol_flag='--ILS_ATOL'
+export ils_stopping_criterium_flag='--ILS_STOPPING_CRITERIUM'
+export ils_output_frequency_flag='--ILS_OUTPUT_FREQUENCY'
+export ils_max_num_iterations_flag='--ILS_MAX_NUM_ITERATIONS'
+export ils_track_convergence_history_flag='--ILS_TRACK_CONVERGENCE_HISTORY'
+export ils_max_dim_krylov_basis_flag='--ILS_MAX_DIM_KRYLOV_BASIS'
+export ils_orthonorm_strategy_flag='--ILS_ORTHONORM_STRATEGY'
+export ils_relaxation_flag='--ILS_RELAXATION'
+export dls_type_flag='--DLS_TYPE'
+export pardiso_mkl_message_level_flag='--PARDISO_messg_lev'
+export pardiso_mkl_iparm_falg='--PARDISO_params'
+export pardiso_mkl_matrix_type_flag='--PARDISO_mat_type'
+export umfpack_control_params_flag='--UMFPACK_cont_params'
+export nls_rtol_flag='--NLS_RTOL'
+export nls_atol_flag='--NLS_ATOL'
+export nls_stopping_criterium_flag='--NLS_STOPPING_CRITERIUM'
+export nls_max_num_iterations_flag='--NLS_MAX_NUM_ITERATIONS'
+export nls_print_iteration_output_flag='--NLS_PRINT_ITERATION_OUTPUT'
+export fes_num_fields_flag='--FES_NUM_FIELDS'
+export fes_num_ref_fes_flag='--FES_NUM_REF_FES'
+export fes_set_ids_ref_fes_flag='--FES_SET_IDS_REF_FES'
+export fes_ref_fe_types_flag='--FES_REF_FE_TYPES'
+export fes_ref_fe_orders_flag='--FES_REF_FE_ORDERS'
+export fes_ref_fe_conformities_flag='--FES_REF_FE_CONFORMITIES'
+export fes_ref_fe_continuities_flag='--FES_REF_FE_CONTINUITIES'
+export fes_field_types_flag='--FES_FIELD_TYPES'
+export fes_field_blocks_flag='--FES_FIELD_BLOCKS'
+export fes_same_ref_fes_all_cells_flag='--FES_SAME_REFS_ALL_CELLS'
+export coarse_space_use_vertices_flag='--FES_COARSE_SPACE_USE_VERTICES'
+export coarse_space_use_edges_flag='--FES_COARSE_SPACE_USE_EDGES'
+export coarse_space_use_faces_flag='--FES_COARSE_SPACE_USE_FACES'
+export environment_type_flag='--ENV_TYPE'
+export mesh_dir_path_flag="--MESH_DIR_PATH"
+export mesh_prefix_flag="--MESH_PREFIX"
+export mesh_partitioner_num_levels_distribution_flag='--MESH_PARTITIONER_NUM_LEVELS'
+export mesh_partitioner_num_parts_x_level_flag='--MESH_PARTITIONER_NUM_PARTS_X_LEVEL'
+export mesh_partitioner_dir_path_flag="--MESH_PARTITIONER_DIR_PATH"
+export mesh_partitioner_prefix_flag="--MESH_PARTITIONER_PREFIX"
+export mesh_partitioner_strategy_flag='--MESH_PARTITIONER_STRATEGY'
+export mesh_partitioner_metis_option_debug_flag='--MESH_PARTITIONER_METIS_DEBUG'
+export mesh_partitioner_metis_option_ufactor_flag='--MESH_PARTITIONER_METIS_OPTION_UFACTOR'
+export mesh_partitioner_metis_option_minconn_flag='--MESH_PARTITIONER_METIS_OPTION_MINCONN'
+export mesh_partitioner_metis_option_contig_flag='--MESH_PARTITIONER_METIS_OPTION_CONFIG'
+export mesh_partitioner_metis_option_ctype_flag='--MESH_PARTITIONER_METIS_OPTION_CTYPE'
+export mesh_partitioner_metis_option_iptype_flag='--MESH_PARTITIONER_METIS_OPTION_IPTYPE'
+export output_handler_dir_path_flag='--OUTPUT_HANDLER_DIR_PATH'
+export output_handler_prefix_flag='--OUTPUT_HANDLER_PREFIX'
+export output_handler_static_grid_flag='--OUTPUT_HANDLER_STATIC_GRID'
+export output_handler_vtk_format_flag='--OUTPUT_HANDLER_VTK_FORMAT'
+export output_handler_xh5_strategy_flag='--OUTPUT_HANDLER_XH5_STRATEGY'
+export output_handler_xh5_info_flag='--OUTPUT_HANDLER_XH5_INFO'
+export parameter_handler_print_values_flag='--PARAMETER_HANDLER_PRINT_VALUES'
+export static_triang_generate_from_flag='--STATIC_TRIANG_GENERATE_FROM'
+export static_triang_geometric_interpolation_order_flag='--STATIC_TRIANG_GEOMETRIC_INTERPOLATION_ORDER'
+export struct_hex_mesh_generator_num_dims_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_DIMS'
+export struct_hex_mesh_generator_num_cells_x_dim_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_CELLS_X_DIM'
+export struct_hex_mesh_generator_num_parts_x_dim_x_level_flag='--STRUCT_HEX_MESH_GENERATOR_NUM_PARTS_X_DIM_AND_X_LEVEL'
+export struct_hex_mesh_generator_domain_limits_flag='--STRUCT_HEX_MESH_GENERATOR_DOMAIN_LIMITS'
+export p4est_triang_log_level_flag='--P4EST_TRIANG_LOG_LEVEL'
+export p4est_triang_num_dims_flag='--P4EST_TRIANG_NUM_DIMS'
+export p4est_triang_domains_limits_flag='--P4EST_TRIANG_DOMAIN_LIMITS'
+export p4est_triang_log_level_flag='--P4EST_TRIANG_LOG_LEVEL'
+export bddc_scaling_function_case_flag='--BDDC_SCALING_FUNCTION_CASE'

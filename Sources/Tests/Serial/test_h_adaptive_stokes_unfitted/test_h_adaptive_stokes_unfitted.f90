@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !****************************************************************************************************
-program test_unfitted_h_adaptive_poisson
+program test_h_adaptive_stokes_unfitted
   use fempar_names
   use stokes_driver_names  
   implicit none
@@ -41,4 +41,4 @@ program test_unfitted_h_adaptive_poisson
   call driver%free_environment()
   call fempar_finalize()
   call world_context%free(finalize=.true.)
-end program test_unfitted_h_adaptive_poisson
+end program test_h_adaptive_stokes_unfitted

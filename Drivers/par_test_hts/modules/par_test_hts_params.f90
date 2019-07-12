@@ -145,7 +145,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
  error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
  error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
- error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
+ error = list%set(key = triangulation_generate_key        , value =  static_triang_generate_from_mesh_data_files) ; check(error==0)
  error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                   ; check(error==0)
  error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
  error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
@@ -347,8 +347,8 @@ subroutine par_test_hts_params_define_parameters(this)
  error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
 
  msg = 'structured (*) or unstructured (*) triangulation?'
- write(msg(13:13),'(i1)') triangulation_generate_structured
- write(msg(33:33),'(i1)') triangulation_generate_from_mesh
+ write(msg(13:13),'(i1)') static_triang_generate_from_struct_hex_mesh_generator
+ write(msg(33:33),'(i1)') static_triang_generate_from_mesh_data_files
  error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
 
  msg = 'Specify BDDC space continuity: Tangent component on coarse edges (TANGENTIAL_AVERAGE), tangent component + first order moment (TANGENTIAL_AVERAGE_AND_FIRST_ORDER_MOMENT) or one-to-one over all fine edges (ALL_DOFS_IN_COARSE_EDGES) '

@@ -78,13 +78,13 @@ module base_iterative_linear_solver_names
     logical                      :: user_has_called_set_initial_solution = .false.
   
     ! Parameters
-    integer(ip)   :: luout                     ! Logical Unit Output
-    real(rp)      :: rtol                      ! Relative tolerance
-    real(rp)      :: atol                      ! Absolute tolerance
-    integer(ip)   :: stopping_criteria         ! Stopping criteria
-    integer(ip)   :: output_frequency          ! Message every output_frequency iterations
-    integer(ip)   :: max_num_iterations        ! Max. # of iterations
-    logical       :: track_convergence_history ! Is the convergence history going to be tracked? 
+    integer(ip)               :: luout                     ! Logical Unit Output
+    real(rp)                  :: rtol                      ! Relative tolerance
+    real(rp)                  :: atol                      ! Absolute tolerance
+    character(:), allocatable :: stopping_criteria         ! Stopping criteria
+    integer(ip)               :: output_frequency          ! Message every output_frequency iterations
+    integer(ip)               :: max_num_iterations        ! Max. # of iterations
+    logical                   :: track_convergence_history ! Is the convergence history going to be tracked? 
     
     ! Outputs
     logical               :: did_converge          ! Converged?
@@ -206,7 +206,7 @@ module base_iterative_linear_solver_names
        import :: base_iterative_linear_solver_t, ip
        implicit none
        class(base_iterative_linear_solver_t), intent(in) :: this
-       integer(ip), intent(in) :: stopping_criteria
+       character(len=*)                     , intent(in) :: stopping_criteria
        logical :: supports_stopping_criteria_interface
     end function supports_stopping_criteria_interface
     
@@ -214,7 +214,7 @@ module base_iterative_linear_solver_names
        import :: base_iterative_linear_solver_t, ip
        implicit none
        class(base_iterative_linear_solver_t), intent(in) :: this
-       integer(ip) :: get_default_stopping_criteria_interface
+       character(len=:), allocatable :: get_default_stopping_criteria_interface
     end function get_default_stopping_criteria_interface
   end interface
   
@@ -379,7 +379,7 @@ contains
     subroutine set_stopping_criteria(this,stopping_criteria)
      implicit none
      class(base_iterative_linear_solver_t)        , intent(inout) :: this
-     integer(ip)                        , intent(in)    :: stopping_criteria
+     character(*)                                 , intent(in)    :: stopping_criteria
      this%stopping_criteria = stopping_criteria
     end subroutine set_stopping_criteria
     
@@ -407,7 +407,7 @@ contains
     function get_stopping_criteria(this)
       implicit none
       class(base_iterative_linear_solver_t), intent(in) :: this
-      integer(ip) :: get_stopping_criteria
+      character(len=:), allocatable :: get_stopping_criteria
       get_stopping_criteria = this%stopping_criteria
     end function get_stopping_criteria
     

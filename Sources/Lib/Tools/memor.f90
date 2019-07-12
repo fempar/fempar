@@ -281,7 +281,7 @@ contains
        if(istat==was_stored) then
           call mem_db%get(key, old_val, istat)
           if(istat==key_found) then
-             write(*,*) 'Stored allocation was performed from:'//old_val%file, old_val%line
+             write(*,*) 'Stored allocation was performed from:'//trim(old_val%file), old_val%line
           else
              write(*,*) 'Error getting stored allocation', istat
           end if

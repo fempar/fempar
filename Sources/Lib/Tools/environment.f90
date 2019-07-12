@@ -30,83 +30,65 @@ module environment_names
   use memor_names
   use stdio_names
   use FPL
-  use par_io_names
-  use uniform_hex_mesh_generator_names
   use timer_names
   ! Parallel modules
   use execution_context_names
   use mpi_context_names
   use mpi_omp_context_names
   use serial_context_names
+  use environment_parameters_names
   implicit none
 
 # include "debug.i90"
   private
 
-  integer(ip) , parameter :: not_created = 0            ! when contexts are not created
-  integer(ip) , parameter :: created     = 1            ! when contexts have been created from lower levels
-  integer(ip) , parameter :: created_from_scratch = 2   ! when contexts have been created from scratch
-
-  integer(ip)     , parameter :: structured   = 0
-  integer(ip)     , parameter :: unstructured = 1
-  integer(ip)     , parameter :: p4est        = 2 
-  character(len=*), parameter :: environment_type_key = 'environment_type'
-  public :: structured
-  public :: unstructured
-  public :: p4est
-  public :: environment_type_key
-
   ! This type manages the assigment of tasks to different levels as well as
-  ! the dutties assigned to each of them. The array parts_mapping gives the
+  ! the duties assigned to each of them. The array task_aggregation_among_levels gives the
   ! part assigned to this task and the parts of coarser levels it belongs to. 
   ! Different levels in the hierarchy are managed recursively.
   type ::  environment_t
      private 
-     integer(ip)                       :: state = not_created
-     integer(ip)                       :: num_levels = 0         ! =0 when parts are not assigned to tasks
-     integer(ip)         , allocatable :: num_parts_x_level(:)
-     integer(ip)         , allocatable :: parts_mapping(:)
+     integer(ip)                       :: num_levels
+     integer(ip)         , allocatable :: num_tasks_x_level(:)
+     integer(ip)         , allocatable :: task_aggregation_among_levels(:)
      class(execution_context_t), allocatable :: world_context          ! All tasks context (=l1+lgt1 tasks)
      class(execution_context_t), allocatable :: l1_context             ! 1st lev tasks context
      class(execution_context_t), allocatable :: lgt1_context           ! > 1st lev tasks context
      class(execution_context_t), allocatable :: l1_to_l2_context       ! Mixed l1 and l2 tasks context 
-     ! to exchange data between levels
-     type(environment_t), pointer :: next_level 
-   contains
-     procedure :: read                           => environment_read_file
-     procedure :: write                          => environment_write_file
-
-     procedure          :: create                => environment_create
-     procedure          :: assign_parts_to_tasks => environment_assign_parts_to_tasks
-     procedure, private :: fill_contexts         => environment_fill_contexts
+     type(environment_t), pointer :: next_level                        ! Pointer to the next level environment
+   contains     
+     procedure          :: create                                      => environment_create
+     procedure, private :: process_parameters                          => environment_process_parameters
+     procedure, private :: setup_world_context                         => environment_setup_world_context
+     procedure, private :: setup_world_l1_and_lgt1_contexts_all_levels => environment_setup_world_l1_and_lgt1_contexts_all_levels
+     procedure          :: setup_l1_to_l2_context_all_levels           => environment_setup_l1_to_l2_context_all_levels
+     procedure, private :: l1_to_l2_context_all_levels_free            => environment_l1_to_l2_context_all_levels_free
 
      procedure :: free                           => environment_free
      procedure :: print                          => environment_print
-     procedure :: created                        => environment_created
      procedure :: report_times                   => environment_report_times
+     procedure :: create_l1_timer                => environment_create_l1_timer
 
      ! Getters
-     procedure :: get_num_levels                 => environment_get_num_levels
-     procedure :: get_num_tasks                  => environment_get_num_tasks
-     procedure :: get_next_level                 => environment_get_next_level
-     procedure :: get_w_context                  => environment_get_w_context
-     procedure :: get_l1_context                 => environment_get_l1_context
-     procedure :: get_lgt1_context               => environment_get_lgt1_context
-     procedure :: get_l1_rank                    => environment_get_l1_rank
-     procedure :: get_l1_size                    => environment_get_l1_size
-     procedure :: get_l1_to_l2_rank              => environment_get_l1_to_l2_rank
-     procedure :: get_l1_to_l2_size              => environment_get_l1_to_l2_size
-     procedure :: get_lgt1_rank                  => environment_get_lgt1_rank
-     ! Who am I?
-     procedure :: am_i_lgt1_task                 => environment_am_i_lgt1_task
-     procedure :: am_i_l1_to_l2_task             => environment_am_i_l1_to_l2_task
-     procedure :: am_i_l1_to_l2_root             => environment_am_i_l1_to_l2_root
-     procedure :: am_i_l1_root                   => environment_am_i_l1_root
-
-     procedure :: create_l1_timer                => environment_create_l1_timer
+     procedure :: get_num_levels                   => environment_get_num_levels
+     procedure :: get_num_tasks                    => environment_get_num_tasks
+     procedure :: get_num_tasks_x_level            => environment_get_num_tasks_x_level
+     procedure :: get_next_level                   => environment_get_next_level
+     procedure :: get_w_context                    => environment_get_w_context
+     procedure :: get_l1_context                   => environment_get_l1_context
+     procedure :: get_lgt1_context                 => environment_get_lgt1_context
+     procedure :: get_l1_rank                      => environment_get_l1_rank
+     procedure :: get_l1_size                      => environment_get_l1_size
+     procedure :: get_l1_to_l2_rank                => environment_get_l1_to_l2_rank
+     procedure :: get_l1_to_l2_size                => environment_get_l1_to_l2_size
+     procedure :: get_lgt1_rank                    => environment_get_lgt1_rank
+     procedure :: get_l2_rank_l1_rank_is_mapped_to => environment_get_l2_rank_l1_rank_is_mapped_to
      
-     procedure :: get_l2_part_id_l1_task_is_mapped_to => environment_get_l2_part_id_l1_task_is_mapped_to
-
+     ! Who am I?
+     procedure :: am_i_lgt1_task                   => environment_am_i_lgt1_task
+     procedure :: am_i_l1_to_l2_task               => environment_am_i_l1_to_l2_task
+     procedure :: am_i_l1_to_l2_root               => environment_am_i_l1_to_l2_root
+     procedure :: am_i_l1_root                     => environment_am_i_l1_root
 
      procedure, private :: environment_l1_neighbours_exchange_rp
      procedure, private :: environment_l1_neighbours_exchange_wo_alpha_beta_rp
@@ -195,7 +177,7 @@ module environment_names
   end type environment_t
 
   ! Types
-  public :: environment_t, environment_compose_name, environment_write_files
+  public :: environment_t, environment_compose_name
 
 contains
 
@@ -207,223 +189,132 @@ contains
     name = trim(prefix) // '.env'
   end subroutine environment_compose_name
 
-  !=============================================================================
-  subroutine environment_write_files ( parameter_list, envs )
-    implicit none
-    ! Parameters
-    type(ParameterList_t)  , intent(in) :: parameter_list
-    type(environment_t), intent(in)  :: envs(:)
-
-    ! Locals
-    integer(ip)          :: nenvs
-    integer(ip)          :: istat
-    character(len=:), allocatable :: dir_path
-    character(len=:), allocatable :: prefix
-    character(len=:), allocatable :: name, rename
-    integer(ip)          :: lunio
-    integer(ip)          :: i
-
-    nenvs = size(envs)
-
-     ! Mandatory parameters
-    assert(parameter_list%isAssignable(dir_path_key, 'string'))
-    istat = parameter_list%GetAsString(key = dir_path_key, string = dir_path)
-    assert(istat==0)
-
-    assert(parameter_list%isAssignable(prefix_key, 'string')) 
-    istat = parameter_list%GetAsString(key = prefix_key, string = prefix)
-    assert(istat==0)
-
-    call environment_compose_name ( prefix, name )
-
-    do i=1,nenvs
-       rename=name
-       call numbered_filename_compose(i,nenvs,rename)
-       lunio = io_open (trim(dir_path) // '/' // trim(rename)); check(lunio>0)
-       call envs(i)%write (lunio)
-       call io_close (lunio)
-    end do
-
-    ! name, and rename should be automatically deallocated by the compiler when they
-    ! go out of scope. Should we deallocate them explicitly for safety reasons?
-  end subroutine  environment_write_files
-
-  !=============================================================================
-  subroutine environment_read_file ( this,lunio)
-    implicit none 
-    class(environment_t), intent(inout) :: this
-    integer(ip)             , intent(in)    :: lunio
-    call this%free()
-    read ( lunio, '(10i10)' ) this%num_levels
-    call memalloc ( this%num_levels, this%num_parts_x_level,__FILE__,__LINE__  )
-    call memalloc ( this%num_levels, this%parts_mapping,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) this%num_parts_x_level
-    read ( lunio, '(10i10)' ) this%parts_mapping
-  end subroutine environment_read_file
-
-  !=============================================================================
-  subroutine environment_write_file ( this,lunio)
-    implicit none 
-    class(environment_t), intent(in) :: this
-    integer(ip)             , intent(in) :: lunio
-    assert( this%num_levels>0)
-    write ( lunio, '(10i10)' ) this%num_levels
-    write ( lunio, '(10i10)' ) this%num_parts_x_level
-    write ( lunio, '(10i10)' ) this%parts_mapping    
-  end subroutine environment_write_file
-
-  !=============================================================================
-  subroutine environment_create ( this, world_context, parameters)
-    !$ use omp_lib
+  subroutine environment_create( this, world_context, parameters)
     implicit none 
     class(environment_t)      , intent(inout) :: this
     class(execution_context_t), intent(in)    :: world_context
-    type(ParameterList_t)     , intent(in)    :: parameters
-
-    ! Some refactoring is needed here separating num_parts_x_level (and dir)
-    ! from the rest of the mesh information.
-    type(uniform_hex_mesh_t) :: uniform_hex_mesh
-
-    integer(ip)                     :: istat
-    logical                         :: is_present
-    integer(ip)                     :: environment_type
-    integer(ip)                     :: execution_context
-    character(len=:), allocatable   :: dir_path
-    character(len=:), allocatable   :: prefix
-    character(len=:), allocatable   :: name
-    integer(ip)                     :: lunio
-    integer(ip)               :: num_levels
-    integer(ip) , allocatable :: num_parts_x_level(:)
-    integer(ip) , allocatable :: parts_mapping(:)
-
+    type(ParameterList_t)     , intent(in)    :: parameters 
+    integer(ip) :: istat
     call this%free()
-
-    if( parameters%isPresent(environment_type_key)) then
-       assert(parameters%isAssignable(environment_type_key, environment_type))
-       istat = parameters%get(key = environment_type_key, value = environment_type)
-       assert(istat==0)
-    else
-       environment_type = unstructured
-    end if
-
+    ! Extract num_levels and num_tasks_x_level from parameters
+    call this%process_parameters(world_context,parameters)
+    call this%setup_world_l1_and_lgt1_contexts_all_levels(world_context)
+  end subroutine environment_create
+  
+  subroutine environment_setup_world_context(this, world_context)
+    implicit none
+    class(environment_t)      , intent(inout) :: this
+    class(execution_context_t), intent(in)    :: world_context
+    integer(ip) :: istat
     allocate(this%world_context,mold=world_context,stat=istat); check(istat==0)
     this%world_context = world_context
+  end subroutine  environment_setup_world_context
+  
+  subroutine environment_process_parameters(this, world_context, parameters)
+    implicit none
+    class(environment_t)      , intent(inout) :: this
+    class(execution_context_t), intent(in)    :: world_context
+    type(ParameterList_t)     , intent(in)    :: parameters
     
-    ! If there is a single MPI task, then trivially create
-    ! all execution_context_t member variables it is composed of
-    if(this%world_context%get_num_tasks()==1) then
-      allocate(this%l1_context,mold=this%world_context,stat=istat);check(istat==0)
-      this%l1_context = this%world_context
-      allocate(this%lgt1_context,mold=this%world_context,stat=istat);check(istat==0)
-      call this%lgt1_context%nullify()
-      allocate(this%l1_to_l2_context,mold=this%world_context,stat=istat);check(istat==0)
-      call this%l1_to_l2_context%nullify()
-      this%num_levels = 1
-      call memalloc( this%num_levels, this%num_parts_x_level, __FILE__, __LINE__ )
-      this%num_parts_x_level = 1 
-      call memalloc( this%num_levels, this%parts_mapping, __FILE__, __LINE__ )
-      this%parts_mapping = 1
-    else
-       if(environment_type==unstructured) then
-          ! Mandatory parameters
-          assert(parameters%isAssignable(dir_path_key, 'string'))
-          istat = parameters%GetAsString(key = dir_path_key, String = dir_path)
-          assert(istat==0)
+    integer(ip), allocatable :: array_size(:)
+    integer(ip) :: istat
+    character(len=:), allocatable :: error_message
+    
+    ! Mandatory
+    assert(parameters%isAssignable(environment_num_levels_key_name, this%num_levels))
+    istat = parameters%get(key = environment_num_levels_key_name, value = this%num_levels)
+    assert(istat==0)
 
-          assert(parameters%isAssignable(prefix_key, 'string'))
-          istat = parameters%GetAsString(key = prefix_key  , String = prefix) 
-          assert(istat==0)
-
-          call environment_compose_name(prefix, name )  
-          call par_filename( this%world_context%get_current_task()+1, this%world_context%get_num_tasks() , name )
-          lunio = io_open( trim(dir_path) // '/' // trim(name), 'read' ); check(lunio>0)
-          !$ write(*,*) omp_get_thread_num(),lunio 
-
-          ! Read parts assignment to tasks and verify that the multilevel environment 
-          ! can be executed in current context (long-lasting Alberto's concern). 
-          call this%read(lunio)
-          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
-
-          ! Recursively create multilevel environment
-          call this%fill_contexts()
-
-       else if(environment_type==structured) then
-
-          call uniform_hex_mesh%get_data_from_parameter_list(parameters)
-
-          ! Generate parts, assign them to tasks and verify that the multilevel environment 
-          ! can be executed in current context (long-lasting Alberto's concern). 
-          call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
-               &                                          num_levels, &
-               &                                          num_parts_x_level, &
-               &                                          parts_mapping)
-          call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
-          call memfree(num_parts_x_level,__FILE__,__LINE__)
-          call memfree(parts_mapping,__FILE__,__LINE__)
-          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
-          
-          ! Recursively create multilevel environment
-          call this%fill_contexts()
-          call uniform_hex_mesh%free()
-       else if(environment_type==p4est) then
-          ! Optional
-          if( parameters%isPresent(struct_hex_triang_num_levels_key) ) then
-             assert(parameters%isAssignable(struct_hex_triang_num_levels_key, num_levels))
-             istat = parameters%get(key = struct_hex_triang_num_levels_key , value = num_levels)
-             assert(istat==0)
-          else
-             num_levels = 1
-          end if
-          
-          ! This part is absolutely temporary. To re-think for num_levels > 2
-          massert ( num_levels == 1 .or. num_levels == 2, "p4est triangulation CANNOT be used with num_levels > 2")
-          
-          call memalloc( num_levels, num_parts_x_level, __FILE__, __LINE__ )
-          num_parts_x_level(1) = this%world_context%get_num_tasks()-1
-          if ( num_levels == 1 ) then
-             num_parts_x_level(1) = this%world_context%get_num_tasks()
-          else if ( num_levels == 2 ) then
-             num_parts_x_level(1) = this%world_context%get_num_tasks()-1
-             num_parts_x_level(2) = 1
-          end if
-          
-          call memalloc( num_levels, parts_mapping, __FILE__, __LINE__ )
-          parts_mapping(1) = this%world_context%get_current_task()+1
-          if ( num_levels == 2 ) then
-             parts_mapping(2) = 1
-          end if
-          call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
-          call this%fill_contexts()
-          
-          call memfree(num_parts_x_level,__FILE__,__LINE__)
-          call memfree(parts_mapping,__FILE__,__LINE__)
-          check(this%get_num_tasks() <= this%world_context%get_num_tasks())
-       end if
-    end if
-    this%state = created_from_scratch
-  end subroutine environment_create
-
+    ! Mandatory (array)
+    assert(parameters%isPresent(key = environment_num_tasks_x_level_key_name))
+    istat = parameters%GetShape(key = environment_num_tasks_x_level_key_name, shape = array_size); check(istat==0)
+    
+    error_message = 'The size of the ' // & 
+                    environment_num_tasks_x_level_key_name // & 
+                    ' (' // ch(array_size(1)) // ') ' // &
+                    'array must match the one provided to ' // &
+                    environment_num_levels_key_name // & 
+                    ' (' // ch(this%num_levels) // ') '
+    massert(array_size(1)==this%num_levels, error_message)
+    
+    call memalloc(array_size(1), this%num_tasks_x_level,__FILE__,__LINE__)
+    istat = parameters%get(key = environment_num_tasks_x_level_key_name, value = this%num_tasks_x_level); check(istat==0)
+    
+    error_message = 'At present, only a single task & 
+                   supported for the last level provided to ' // & 
+                   environment_num_tasks_x_level_key_name
+    massert ( this%num_tasks_x_level(this%num_levels) == 1,  error_message)   
+    
+    error_message = 'The sum of all tasks provided to ' // & 
+                   environment_num_tasks_x_level_key_name // & 
+                   ' (' // ch(sum(this%num_tasks_x_level)) // ') ' // & 
+                   'must match the total number of tasks that ENVIRONMENT is handling' // & 
+                   ' (' // ch(world_context%get_num_tasks()) // ') '
+    massert ( world_context%get_num_tasks() == sum(this%num_tasks_x_level), error_message)
+  end subroutine environment_process_parameters
+  
   !=============================================================================
-  recursive subroutine environment_fill_contexts (this)
+  recursive subroutine environment_setup_world_l1_and_lgt1_contexts_all_levels(this, world_context)
     implicit none 
     ! Parameters
-    class(environment_t), intent(inout) :: this
+    class(environment_t)      , intent(inout) :: this
+    class(execution_context_t), intent(in)    :: world_context
     integer                             :: my_color
     integer(ip)                         :: istat
-    type(environment_t), pointer        :: next_level
 
     assert ( this%num_levels >= 1 )
-    assert ( allocated(this%world_context))
-    assert ( this%world_context%get_current_task() >= 0 )
+    assert ( world_context%get_current_task() >= 0 )
+    
+    call this%setup_world_context(world_context)
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_x_level(1), this%l1_context, this%lgt1_context )
+    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_tasks_x_level(1), &
+                                                 this%l1_context, &
+                                                 this%lgt1_context )
 
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
+       allocate(this%next_level, stat=istat);check(istat == 0)
+       this%next_level%num_levels = this%num_levels-1
+       call memalloc(this%next_level%num_levels, this%next_level%num_tasks_x_level,__FILE__,__LINE__ )
+       this%next_level%num_tasks_x_level(:) = this%num_tasks_x_level(2:)
+       call this%next_level%setup_world_l1_and_lgt1_contexts_all_levels(this%lgt1_context)
+    else
+       nullify(this%next_level)
+    end if
+  end subroutine environment_setup_world_l1_and_lgt1_contexts_all_levels
+  
+  ! Assuming that we have 7 MPI tasks in total,  4 2 1 MPI tasks per level, and the following:
+  ! * L1 MPI tasks 0,1 (0,1 in WORLD COMMUNICATOR) are aggregated into L2 MPI task 0 (4 in WORLD COMMUNICATOR)
+  ! * L1 MPI tasks 2,3 (3,2 in WORLD COMMUNICATOR) are aggregated into L2 MPI task 1 (5 in WORLD COMMUNICATOR)
+  ! * L2 MPI tasks 0,1 (4,5 in WORLD COMMUNICATOR) are aggregated into L3 MPI task 0 (6 in WORLD_COMMUNICATOR)
+  ! Then, the task_aggregation_among_levels(NUM_LEVELS) array looks like at each MPI task as follows (on the root of the recursion):
+  ! ("x" means that the corresponding array entry is not actually consumed by environment_setup_l1_to_l2_context_all_levels)
+  ! * MPI task 0 in WORLD_COMMUNICATOR: (x,1,x)
+  ! * MPI task 1 in WORLD_COMMUNICATOR: (x,1,x)
+  ! * MPI task 2 in WORLD_COMMUNICATOR: (x,2,x)
+  ! * MPI task 3 in WORLD_COMMUNICATOR: (x,2,x)
+  ! * MPI task 4 in WORLD_COMMUNICATOR: (x,x,1)
+  ! * MPI task 5 in WORLD_COMMUNICATOR: (x,x,1)
+  ! * MPI task 6 in WORLD_COMMUNICATOR: (x,x,x)
+  recursive subroutine environment_setup_l1_to_l2_context_all_levels( this, task_aggregation_among_levels ) 
+    implicit none
+    ! Parameters
+    class(environment_t)      , intent(inout) :: this
+    integer(ip)               , intent(in)    :: task_aggregation_among_levels(:)
+    integer(ip) :: istat, my_color
+    
+    call this%l1_to_l2_context_all_levels_free()
+    
+    assert ( this%num_levels == size(task_aggregation_among_levels) )
+        
+    call memalloc ( this%num_levels, this%task_aggregation_among_levels, __FILE__, __LINE__ )
+    this%task_aggregation_among_levels(:) = task_aggregation_among_levels
+    
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
        if(this%l1_context%get_current_task() >= 0) then
-          my_color = this%parts_mapping(2)
-       else if( this%lgt1_context%get_current_task() < this%num_parts_x_level(2)  ) then
+          my_color = this%task_aggregation_among_levels(2)
+       else if( this%lgt1_context%get_current_task() < this%num_tasks_x_level(2)  ) then
           my_color = this%lgt1_context%get_current_task()+1
        else
           my_color = undefined_color
@@ -433,63 +324,65 @@ contains
        allocate(this%l1_to_l2_context,mold=this%world_context,stat=istat);check(istat==0)
        call this%l1_to_l2_context%nullify()
     end if
-
+    
     if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-       allocate(next_level, stat=istat);check(istat == 0)
-       allocate(next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
-       this%next_level => next_level
-       this%next_level%world_context = this%lgt1_context
-       call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_x_level(2:),this%parts_mapping(2:))
-       call this%next_level%fill_contexts()
-    else
-       nullify(this%next_level)
+       assert (associated(this%next_level) )
+       call this%next_level%setup_l1_to_l2_context_all_levels(task_aggregation_among_levels(2:))
     end if
-    this%state = created
-
-  end subroutine environment_fill_contexts
+  end subroutine environment_setup_l1_to_l2_context_all_levels
 
   !=============================================================================
-  subroutine environment_assign_parts_to_tasks ( this, num_levels, num_parts_x_level, parts_mapping)
+  recursive subroutine environment_l1_to_l2_context_all_levels_free ( this ) 
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
-    integer(ip)         , intent(in)    :: num_levels
-    integer(ip)         , intent(in)    :: num_parts_x_level(num_levels)
-    integer(ip)         , intent(in)    :: parts_mapping(num_levels)
-    integer(ip)                         :: istat
-
-    assert ( num_levels >= 1 )
-    call this%free()
-    this%num_levels = num_levels
-    call memalloc(this%num_levels, this%parts_mapping,__FILE__,__LINE__ )
-    call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__ )
-    this%parts_mapping = parts_mapping
-    this%num_parts_x_level = num_parts_x_level
-
-  end subroutine environment_assign_parts_to_tasks
-
+    integer(ip) :: istat
+    if ( allocated(this%task_aggregation_among_levels) ) & 
+      call memfree ( this%task_aggregation_among_levels, __FILE__, __LINE__ )
+    
+    ! Free l1_to_l2_context
+    if ( allocated(this%l1_to_l2_context) ) then
+       call this%l1_to_l2_context%free(finalize=.false.)
+       deallocate(this%l1_to_l2_context,stat=istat);check(istat==0)
+    end if 
+   
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
+       assert (associated(this%next_level) )
+       call this%next_level%l1_to_l2_context_all_levels_free()
+    end if  
+  end subroutine environment_l1_to_l2_context_all_levels_free 
+  
   !=============================================================================
   recursive subroutine environment_free ( this )
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
-    integer(ip)                             :: istat
-
-    if(this%state >= created) then
+    integer(ip) :: istat
+    if ( allocated( this%world_context ) ) then
        if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-          call this%next_level%free()
-          deallocate ( this%next_level, stat = istat ); assert ( istat == 0 )
+         call this%next_level%free()
+         deallocate ( this%next_level, stat = istat ); assert ( istat == 0 )
        end if
-       call this%l1_context%free(finalize=.false.)
-       call this%lgt1_context%free(finalize=.false.)
-       call this%l1_to_l2_context%free(finalize=.false.)
-       call this%world_context%free(finalize=.false.)
-       deallocate ( this%world_context, stat = istat ); assert ( istat == 0 )
+       if ( allocated(this%l1_context) ) then
+         call this%l1_context%free(finalize=.false.)
+         deallocate ( this%l1_context, stat = istat ); assert ( istat == 0 )
+       end if  
+       if ( allocated(this%lgt1_context) ) then
+         call this%lgt1_context%free(finalize=.false.)
+         deallocate ( this%lgt1_context, stat = istat ); assert ( istat == 0 )
+       end if 
+       if ( allocated(this%l1_to_l2_context) ) then
+         call this%l1_to_l2_context%free(finalize=.false.)
+         deallocate ( this%l1_to_l2_context, stat = istat ); assert ( istat == 0 )
+       end if 
+       if ( allocated(this%world_context) ) then
+         call this%world_context%free(finalize=.false.)
+         deallocate ( this%world_context, stat = istat ); assert ( istat == 0 )
+       end if
+       this%num_levels = 0
+       if (allocated(this%task_aggregation_among_levels)) call memfree(this%task_aggregation_among_levels , __FILE__, __LINE__ )
+       if (allocated(this%num_tasks_x_level)) call memfree(this%num_tasks_x_level, __FILE__, __LINE__ )
     end if
-    this%state = not_created
-    this%num_levels = 0
-    if (allocated(this%parts_mapping)) call memfree(this%parts_mapping , __FILE__, __LINE__ )
-    if (allocated(this%num_parts_x_level)) call memfree(this%num_parts_x_level, __FILE__, __LINE__ )
   end subroutine environment_free
 
   subroutine environment_report_times ( this, show_header, luout )
@@ -505,26 +398,15 @@ contains
     implicit none 
     ! Parameters
     class(environment_t), intent(in) :: this
-    integer(ip)                          :: istat
-
-    if (this%state>=created) then
-       write(*,*) 'LEVELS: ', this%num_levels, 'l1_context      : ',this%l1_context%get_current_task(), this%l1_context%get_num_tasks()
-       write(*,*) 'LEVELS: ', this%num_levels, 'lgt1_context    : ',this%lgt1_context%get_current_task(), this%lgt1_context%get_num_tasks()
-       !write(*,*) 'LEVELS: ', this%num_levels, 'l1_lgt1_context : ',this%l1_lgt1_context%get_rank(), this%l1_lgt1_context%get_size()
-       write(*,*) 'LEVELS: ', this%num_levels, 'l1_to_l2_context: ',this%l1_to_l2_context%get_current_task(), this%l1_to_l2_context%get_num_tasks()
-       if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
-          call this%next_level%print()
-       end if
+    integer(ip) :: istat
+    write(*,*) 'LEVELS: ', this%num_levels, 'l1_context      : ',this%l1_context%get_current_task(), this%l1_context%get_num_tasks()
+    write(*,*) 'LEVELS: ', this%num_levels, 'lgt1_context    : ',this%lgt1_context%get_current_task(), this%lgt1_context%get_num_tasks()
+    !write(*,*) 'LEVELS: ', this%num_levels, 'l1_lgt1_context : ',this%l1_lgt1_context%get_rank(), this%l1_lgt1_context%get_size()
+    write(*,*) 'LEVELS: ', this%num_levels, 'l1_to_l2_context: ',this%l1_to_l2_context%get_current_task(), this%l1_to_l2_context%get_num_tasks()
+    if ( this%num_levels > 1 .and. this%lgt1_context%get_current_task() >= 0 ) then
+      call this%next_level%print()
     end if
   end subroutine environment_print
-
-  !=============================================================================
-  function environment_created ( this )
-    implicit none 
-    class(environment_t), intent(in) :: this
-    logical                              :: environment_created
-    environment_created =  (this%state>=created)
-  end function environment_created
 
   !=============================================================================
   function environment_get_num_levels (this)
@@ -533,7 +415,7 @@ contains
     integer(ip) :: environment_get_num_levels
     environment_get_num_levels = this%num_levels 
   end function environment_get_num_levels
-
+  
   !=============================================================================
   function environment_get_num_tasks (this)
     implicit none 
@@ -542,9 +424,17 @@ contains
     assert(this%num_levels>0)
     environment_get_num_tasks = 0
     do ilevel=1,this%num_levels
-       environment_get_num_tasks = environment_get_num_tasks + this%num_parts_x_level(ilevel)
+       environment_get_num_tasks = environment_get_num_tasks + this%num_tasks_x_level(ilevel)
     end do
   end function environment_get_num_tasks
+  
+  !=============================================================================
+  function environment_get_num_tasks_x_level (this)
+    implicit none 
+    class(environment_t), target, intent(in) :: this
+    integer(ip), pointer :: environment_get_num_tasks_x_level(:)
+    environment_get_num_tasks_x_level => this%num_tasks_x_level 
+  end function environment_get_num_tasks_x_level
 
   !=============================================================================
   function environment_get_next_level( this )
@@ -653,12 +543,12 @@ contains
   end function environment_am_i_l1_root
 
   !=============================================================================
-  function environment_get_l2_part_id_l1_task_is_mapped_to (this)
+  function environment_get_l2_rank_l1_rank_is_mapped_to (this)
     implicit none
     class(environment_t), intent(in) :: this
-    integer(ip) :: environment_get_l2_part_id_l1_task_is_mapped_to 
-    environment_get_l2_part_id_l1_task_is_mapped_to = this%parts_mapping(2) 
-  end function environment_get_l2_part_id_l1_task_is_mapped_to
+    integer(ip) :: environment_get_l2_rank_l1_rank_is_mapped_to 
+    environment_get_l2_rank_l1_rank_is_mapped_to = this%task_aggregation_among_levels(2) 
+  end function environment_get_l2_rank_l1_rank_is_mapped_to
 
   !=============================================================================
   subroutine environment_l1_barrier(this) 
@@ -691,7 +581,6 @@ contains
     ! Parameters
     class(environment_t), intent(in)    :: this
     logical                 , intent(inout) :: condition
-    assert ( this%created() )
     call this%world_context%bcast_subcontext(this%l1_context,this%lgt1_context,condition)
   end subroutine environment_l1_lgt1_bcast
 
@@ -1259,6 +1148,5 @@ contains
     class(execution_context_t), pointer            :: w_context
     w_context => this%world_context
   end function environment_get_w_context
-  
   
 end module environment_names

@@ -147,6 +147,23 @@ contains
     logical                , intent(in)    :: in_subcontext1
     class(execution_context_t), allocatable , intent(inout) :: subcontext1
     class(execution_context_t), allocatable , intent(inout) :: subcontext2
+    integer(ip) :: istat
+    
+    if(allocated(subcontext1)) then
+       call subcontext1%free(finalize=.false.)
+       deallocate(subcontext1, stat=istat); ;check(istat==0)
+    else
+       allocate(subcontext1,mold=this,stat=istat);check(istat==0)
+       subcontext1 = this
+    end if
+    
+    if(allocated(subcontext2)) then
+       call subcontext2%free(finalize=.false.)
+       deallocate(subcontext2, stat=istat); ;check(istat==0)
+    else
+       allocate(subcontext2,mold=this,stat=istat);check(istat==0)
+       call subcontext2%nullify()
+    end if
   end subroutine serial_context_split_by_condition
 
   !=============================================================================
@@ -162,6 +179,9 @@ contains
   subroutine serial_context_nullify ( this )
     implicit none 
     class(serial_context_t), intent(inout) :: this
+    call this%free(finalize=.false.)
+    call this%set_current_task(-1)
+    call this%set_num_tasks(-1)
   end subroutine serial_context_nullify
 
   !=============================================================================

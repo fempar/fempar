@@ -192,7 +192,7 @@ contains
             if(this%state_is_start()) then
                 ! Matrix cannot change in symbolic to numeric transition
                 this%matrix_type = matrix_type
-                this%forced_matrix_type = .true.
+                if(matrix_type /= pardiso_mkl_type_guess_from_matrix_properties) this%forced_matrix_type = .true.
             else
                 write(*,'(a)') ' Warning! pardiso_mkl_matrix_type ignored. It cannot be changed after analysis phase'
             endif

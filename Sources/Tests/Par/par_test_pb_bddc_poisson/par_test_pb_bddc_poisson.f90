@@ -13,7 +13,6 @@ program par_test_pb_bddc_poisson
   do i = 1,1
      call test_driver%run_simulation()
   end do 
-  call test_driver%free_command_line_parameters()
   call test_driver%free_environment()
   call fempar_finalize()
   call world_context%free(finalize=.true.)

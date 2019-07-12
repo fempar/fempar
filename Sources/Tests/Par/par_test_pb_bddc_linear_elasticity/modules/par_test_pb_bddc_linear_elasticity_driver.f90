@@ -110,7 +110,6 @@ module par_test_pb_bddc_linear_elasticity_driver_names
      procedure                  :: run_simulation
      procedure                  :: print_info
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure                  :: free_discrete_integration 
   end type par_test_pb_bddc_linear_elasticity_fe_driver_t
@@ -123,8 +122,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
   !========================================================================================
@@ -170,12 +169,6 @@ contains
     implicit none
     class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
-    integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
 
@@ -188,41 +181,39 @@ contains
 
     call this%triangulation%create(this%par_environment, this%parameter_list)
 
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then 
-       call this%triangulation%create_vef_iterator(vef)
-       if (this%test_params%get_is_a_beam()) then        
-          do while ( .not. vef%has_finished() )
-             if (vef%is_at_boundary()) then
-                if (vef%is_local()) then 
-                   num_nodes = vef%get_num_nodes()
-                   allocate (nodes_coordinates(num_nodes),stat=istat)! Is max_num_nodes available so that this can be done only once!
-                   call vef%get_nodes_coordinates(nodes_coordinates)
-                   if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
-                      call vef%set_set_id(1)
-                   else 
-                      call vef%set_set_id(0)
-                   end if
-                   deallocate(nodes_coordinates)
+    call this%triangulation%create_vef_iterator(vef)
+    if (this%test_params%get_is_a_beam()) then        
+       do while ( .not. vef%has_finished() )
+          if (vef%is_at_boundary()) then
+             if (vef%is_local()) then 
+                num_nodes = vef%get_num_nodes()
+                allocate (nodes_coordinates(num_nodes),stat=istat)! Is max_num_nodes available so that this can be done only once!
+                call vef%get_nodes_coordinates(nodes_coordinates)
+                if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
+                   call vef%set_set_id(1)
                 else 
-                   call vef%set_set_id(0) ! Not neccessary?
+                   call vef%set_set_id(0)
                 end if
-             else
-                call vef%set_set_id(0)
-             end if
-             call vef%next()
-          end do          
-       else       
-          do while (.not. vef%has_finished())
-             if (vef%is_at_boundary()) then
-                call vef%set_set_id(1)
+                deallocate(nodes_coordinates)
              else 
-                call vef%set_set_id(0)
+                call vef%set_set_id(0) ! Not neccessary?
              end if
-             call vef%next()
-          end do
-       end if
-       call this%triangulation%free_vef_iterator(vef)
+          else
+             call vef%set_set_id(0)
+          end if
+          call vef%next()
+       end do
+    else       
+       do while (.not. vef%has_finished())
+          if (vef%is_at_boundary()) then
+             call vef%set_set_id(1)
+          else 
+             call vef%set_set_id(0)
+          end if
+          call vef%next()
+       end do
     end if
+    call this%triangulation%free_vef_iterator(vef)
 
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
@@ -282,7 +273,7 @@ contains
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_hex_mesh_domain_limits(), &
-                  this%test_params%get_num_cells_x_dir(), &
+                  this%test_params%get_num_cells_x_dim(), &
                   this%test_params%get_size_sub_object(), &
                   this%test_params%get_nparts())
              cells_set( cell%get_gid() ) = cell_id
@@ -985,31 +976,13 @@ contains
     call parameter_list%free()
   end subroutine setup_solver
 
-
   subroutine assemble_system (this)
     implicit none
     class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%compute()
-    !rhs                => this%fe_affine_operator%get_translation()
-    !matrix             => this%fe_affine_operator%get_matrix()
-
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine assemble_system
-
 
   subroutine solve_system(this)
     implicit none
@@ -1017,28 +990,8 @@ contains
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
-
-    !matrix     => this%fe_affine_operator%get_matrix()
-    !rhs        => this%fe_affine_operator%get_translation()
-    !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-    !write(*,*)'solution',dof_values%nrm2()
-
-    !select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine solve_system
 
   subroutine check_solution(this)
@@ -1103,12 +1056,12 @@ contains
           call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
           mypart_vector(:) = this%par_environment%get_l1_rank()
 
-          call oh%create()
+          call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(mypart_vector,'l1_rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call oh%open()
           call oh%write()
           call oh%close()
           call oh%free()
@@ -1161,7 +1114,7 @@ contains
     environment => this%fe_space%get_environment()
     if ( this%test_params%get_write_matrices() ) then
       if ( environment%am_i_l1_task() ) then
-        matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
+        matrix_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() 
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),matrix_filename)
         luout = io_open ( matrix_filename, 'write')
         matrix => this%fe_affine_operator%get_matrix()
@@ -1181,28 +1134,28 @@ contains
         
         call this%generate_IS_PCBDDCSetDofsSplitting(dofs_gids, f1_IS, f2_IS, f3_IS)
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f1_IS"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "f1_IS"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call print_std_vector(luout, f1_IS)
         call io_close(luout)
         call f1_IS%free()
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f2_IS"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "f2_IS"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call print_std_vector(luout, f2_IS)
         call io_close(luout)
         call f2_IS%free()
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f3_IS"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "f3_IS"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call print_std_vector(luout, f3_IS)
         call io_close(luout)
         call f3_IS%free()
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "mapping"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call mapping%print_matrix_market(luout)
@@ -1211,7 +1164,7 @@ contains
         call memfree(dofs_gids, __FILE__, __LINE__)
         
         call this%generate_kernel(kernel)
-        kernel_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "kernel"
+        kernel_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "kernel"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),kernel_filename)
         luout = io_open ( kernel_filename, 'write')
         call print_kernel(luout, kernel)
@@ -1219,7 +1172,7 @@ contains
         call memfree(kernel, __FILE__, __LINE__)
         
         if ( environment%get_l1_rank() == 0 ) then
-          mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
+          mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "num_global_dofs"
           luout = io_open ( mapping_filename, 'write')
           write(luout,*) num_global_dofs
           call io_close(luout)
@@ -1526,13 +1479,5 @@ contains
     class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-  !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
-
 
 end module par_test_pb_bddc_linear_elasticity_driver_names

@@ -32,61 +32,26 @@ module test_poisson_unfitted_params_names
   implicit none
   private
 
-  type test_poisson_unfitted_params_t  
+  character(len=*), parameter :: fe_formulation_key            = 'fe_formulation'
+  character(len=*), parameter :: laplacian_type_key            = 'laplacian_type'
+  character(len=*), parameter :: reference_fe_order_key        = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key            = 'write_solution'        
+  character(len=*), parameter :: use_void_fes_key              = 'use_void_fes'
+  character(len=*), parameter :: use_void_fes_case_key         = 'use_void_fes_case'
+  character(len=*), parameter :: solution_in_fe_space_key      = 'solution_in_fe_space'
+  character(len=*), parameter :: check_solution_key            = 'check_solution'
+  character(len=*), parameter :: use_constraints_key           = 'use_constraints'
+
+  type :: test_poisson_unfitted_params_t  
      private 
-     ! IO parameters
-     character(len=:), allocatable :: default_dir_path 
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_fe_formulation
-     character(len=:), allocatable :: default_reference_fe_geo_order
-     character(len=:), allocatable :: default_reference_fe_order
-     character(len=:), allocatable :: default_write_solution
-     character(len=:), allocatable :: default_laplacian_type
-
-     character(len=:), allocatable :: default_triangulation_type
-     character(len=:), allocatable :: default_num_dims
-     character(len=:), allocatable :: default_nx
-     character(len=:), allocatable :: default_ny
-     character(len=:), allocatable :: default_nz
-     character(len=:), allocatable :: default_is_periodic_in_x
-     character(len=:), allocatable :: default_is_periodic_in_y
-     character(len=:), allocatable :: default_is_periodic_in_z
-     character(len=:), allocatable :: default_is_in_fe_space
-     character(len=:), allocatable :: default_check_solution
-     character(len=:), allocatable :: default_use_constraints
-
-     type(Command_Line_Interface):: cli 
-
-     ! IO parameters
-     character(len=str_cla_len)    :: dir_path
-     character(len=str_cla_len)    :: prefix
-     character(len=str_cla_len)    :: dir_path_out
-     character(len=str_cla_len)    :: fe_formulation
-     integer(ip)                   :: reference_fe_geo_order
-     integer(ip)                   :: reference_fe_order
-     logical                       :: write_solution
-     character(len=str_cla_len)    :: laplacian_type
-
-     character(len=str_cla_len)    :: triangulation_type
-     integer(ip) :: num_dims     
-     integer(ip) :: num_cells_x_dir(0:SPACE_DIM-1)
-     integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      logical :: in_fe_space
      logical :: check_sol
      logical :: use_constraints
 
    contains
-     procedure, non_overridable             :: create       => test_poisson_unfitted_create
-     procedure, non_overridable, private    :: set_default  => test_poisson_unfitted_set_default
-     procedure, non_overridable, private    :: add_to_cli   => test_poisson_unfitted_add_to_cli
-     procedure, non_overridable             :: parse        => test_poisson_unfitted_parse 
-     procedure, non_overridable             :: free         => test_poisson_unfitted_free
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_dir_path_out
+     procedure, non_overridable             :: process_parameters
+     procedure, non_overridable             :: get_parameter_list
      procedure, non_overridable             :: get_fe_formulation
-     procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
@@ -101,268 +66,88 @@ module test_poisson_unfitted_params_names
   public :: test_poisson_unfitted_params_t
 
 contains
-
-  subroutine test_poisson_unfitted_create(this)
-    implicit none
-    class(test_poisson_unfitted_params_t), intent(inout) :: this
-    
-    call this%free()
-    
-     ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'test_poisson_unfitted',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D poisson_unfitted PDE with known analytical solution. &
-                                  Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['test_poisson_unfitted -h  ', 'test_poisson_unfitted -h  ' ])
-    
-    call this%set_default()
-    call this%add_to_cli()
-  end subroutine test_poisson_unfitted_create
-  
-  subroutine test_poisson_unfitted_set_default(this)
-    implicit none
-    class(test_poisson_unfitted_params_t), intent(inout) :: this
-    ! IO parameters
-    this%default_dir_path       = 'data/'
-    this%default_prefix         = 'square'
-    this%default_dir_path_out   = 'output/'
-    this%default_fe_formulation = 'cG'
-    this%default_reference_fe_geo_order = '1'
-    this%default_reference_fe_order = '1'
-    this%default_write_solution = '.false.'
-    this%default_laplacian_type = 'scalar'
-    
-    this%default_triangulation_type = 'unstructured'
-    this%default_num_dims = '2'
-    this%default_nx = '1'
-    this%default_ny = '1'
-    this%default_nz = '1'
-    this%default_is_periodic_in_x = '0'
-    this%default_is_periodic_in_y = '0'
-    this%default_is_periodic_in_z = '0'
-    this%default_is_in_fe_space = '.true.'
-    this%default_check_solution = '.true.'
-    this%default_use_constraints = '.true.'
-
-  end subroutine test_poisson_unfitted_set_default
   
   !==================================================================================================
-  subroutine test_poisson_unfitted_add_to_cli(this)
+  subroutine test_poisson_unfitted_define_parameters()
     implicit none
-    class(test_poisson_unfitted_params_t) , intent(inout) :: this
-
-    ! Locals
-    integer(ip) :: error
 
     ! IO parameters
-    call this%cli%add(switch='--dir-path',switch_ab='-d',                              &
-         &            help='Directory of the source files',required=.false., act='store',                &
-         &            def=trim(this%default_dir_path),error=error)
-    check(error==0)
-    call this%cli%add(switch='--prefix',switch_ab='-p',help='Name of the GiD files',  &
-         &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
-         &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--fe-formulation',switch_ab='-f',help='cG or dG FE formulation for poisson_unfitted problem',&
-         &            required=.false.,act='store',def=trim(this%default_fe_formulation), choices='cG,dG', error=error)
-    check(error==0)  
-    call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
-         &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
-         &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
-    check(error==0) 
-    
-    
-        call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
-         &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--num_dims',switch_ab='-dim',help='Number of space dimensions',&
-         &            required=.false.,act='store',def=trim(this%default_num_dims),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--num_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
-         &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--num_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
-         &            required=.false.,act='store',def=trim(this%default_ny),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--num_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
-         &            required=.false.,act='store',def=trim(this%default_nz),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_x),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--periodic_in_y',switch_ab='-py',help='Is the mesh periodic in y',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_y),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--solution_in_fe_space',switch_ab='-in_space',help='Is the solution in fe space',&
-         &            required=.false.,act='store',def=trim(this%default_is_in_fe_space),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
-         &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
-    check(error==0) 
-        call this%cli%add(switch='--use_constraints',switch_ab='-uconstraints',help='Use or not the constraints provided by the cut cell aggregation',&
-         &            required=.false.,act='store',def=trim(this%default_use_constraints),error=error) 
-    check(error==0) 
+    call parameter_handler%add(fe_formulation_key, '--fe-formulation', 'cG', 'cG or dG FE formulation for poisson_unfitted problem (cG,dG)', switch_ab='-f')
+    call parameter_handler%add(reference_fe_order_key, '--reference-fe-order', 1, 'Order of the fe space reference fe', switch_ab='-order') 
+    call parameter_handler%add(write_solution_key, '--write-solution', .false., 'Write solution in VTK format', switch_ab='-wsolution') 
+    call parameter_handler%add(laplacian_type_key, '--laplacian-type', 'scalar', 'Scalar or Vector-Valued Laplacian PDE? (scalar,vector)', switch_ab='-lt') 
 
-  end subroutine test_poisson_unfitted_add_to_cli
-  
-  subroutine test_poisson_unfitted_parse(this,parameter_list)
+    call parameter_handler%add(solution_in_fe_space_key, '--solution_in_fe_space', .true., 'Is the solution in fe space', switch_ab='-in_space') 
+    call parameter_handler%add(check_solution_key, '--check_solution', .true., 'Check or not the solution', switch_ab='-check') 
+    call parameter_handler%add(use_constraints_key, '--use_constraints', .true., 'Use or not the constraints provided by the cut cell aggregation', switch_ab='-uconstraints') 
+
+  end subroutine test_poisson_unfitted_define_parameters
+
+  !==================================================================================================
+
+  subroutine process_parameters(this)
     implicit none
-    class(test_poisson_unfitted_params_t), intent(inout) :: this
-    type(ParameterList_t)       , intent(inout) :: parameter_list
-    integer(ip) :: istat
-    
-    call this%cli%parse(error=istat); check(istat==0)
-    
-    ! IO parameters
-    call this%cli%get(switch='-d',val=this%dir_path    ,error=istat); check(istat==0)
-    call this%cli%get(switch='-p',val=this%prefix       ,error=istat); check(istat==0)
-    call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
-    call this%cli%get(switch='-f',val=this%fe_formulation,error=istat); check(istat==0)
-    call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
-    call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
+    class(test_poisson_unfitted_params_t) , intent(in)  :: this
+    call parameter_handler%process_parameters(test_poisson_unfitted_define_parameters)
+  end subroutine process_parameters
 
-    call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
-    call this%cli%get(switch='-nx',val=this%num_cells_x_dir(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-ny',val=this%num_cells_x_dir(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-nz',val=this%num_cells_x_dir(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-in_space',val=this%in_fe_space,error=istat); check(istat==0)
-    call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
-    call this%cli%get(switch='-uconstraints',val=this%use_constraints,error=istat); check(istat==0)
+  !==================================================================================================
 
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
-    istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
-    istat = istat + parameter_list%set(key = triang_geometric_interpolation_order_key  , value = this%reference_fe_geo_order)
-    check(istat==0)
-
-    if(trim(this%triangulation_type)=='unstructured') then
-       istat = parameter_list%set(key = triang_generate_key, value = triangulation_generate_from_mesh)
-    else if(trim(this%triangulation_type)=='structured') then
-       istat = parameter_list%set(key = triang_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = this%num_cells_x_dir)
-       istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key        , value = this%is_dir_periodic)
-    end if
-    check(istat==0)
-    
-  end subroutine test_poisson_unfitted_parse  
-
-  subroutine test_poisson_unfitted_free(this)
+  function get_parameter_list(this)
     implicit none
-    class(test_poisson_unfitted_params_t), intent(inout) :: this
-    if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
-    if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
-    if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
-    if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
-    if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
-    if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
-    if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
-    if(allocated(this%default_is_in_fe_space)) deallocate(this%default_is_in_fe_space)
-    if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
-    if(allocated(this%default_use_constraints)) deallocate(this%default_use_constraints)
-    call this%cli%free()
-  end subroutine test_poisson_unfitted_free
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
+    type(ParameterList_t), pointer                     :: get_parameter_list
+    get_parameter_list  => parameter_handler%get_values()
+  end function get_parameter_list
 
   ! GETTERS *****************************************************************************************
-  function get_dir_path(this)
-    implicit none
-    class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path
-    get_dir_path = trim(this%dir_path)
-  end function get_dir_path
-
-  !==================================================================================================
-  function get_prefix(this)
-    implicit none
-    class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_prefix
-    get_prefix = trim(this%prefix)
-  end function get_prefix
-
-  !==================================================================================================
-  function get_dir_path_out(this)
-    implicit none
-    class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path_out
-    get_dir_path_out = trim(this%dir_path_out)
-  end function get_dir_path_out
   
   !==================================================================================================
   function get_fe_formulation(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_fe_formulation
-    get_fe_formulation = trim(this%fe_formulation)
+    character(len=:), allocatable                      :: get_fe_formulation
+    call parameter_handler%GetAsString(key = fe_formulation_key, string = get_fe_formulation)
   end function get_fe_formulation
-  
-  !==================================================================================================
-  function get_reference_fe_geo_order(this)
-    implicit none
-    class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_geo_order
-    get_reference_fe_geo_order = this%reference_fe_geo_order
-  end function get_reference_fe_geo_order
-  
+
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_order
-    get_reference_fe_order = this%reference_fe_order
+    integer(ip)                                        :: get_reference_fe_order
+    call parameter_handler%Get(key = reference_fe_order_key, value = get_reference_fe_order)
   end function get_reference_fe_order
   
   !==================================================================================================
   function get_write_solution(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    logical :: get_write_solution
-    get_write_solution = this%write_solution
+    logical                                            :: get_write_solution
+    call parameter_handler%Get(key = write_solution_key, Value = get_write_solution)
   end function get_write_solution
   
   !==================================================================================================
   function get_laplacian_type(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_laplacian_type
-    get_laplacian_type = trim(this%laplacian_type)
+    character(len=:), allocatable                      :: get_laplacian_type
+    call parameter_handler%GetAsString(key = laplacian_type_key, string = get_laplacian_type)
   end function get_laplacian_type 
 
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_triangulation_type
-    get_triangulation_type = trim(this%triangulation_type)
-  end function get_triangulation_type 
+    integer(ip)                                        :: get_triangulation_type
+    call parameter_handler%Get(key = static_triang_generate_from_key, value = get_triangulation_type)
+  end function get_triangulation_type
 
   !==================================================================================================
   function get_num_dims(this)
     implicit none
     class(test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip) :: get_num_dims
-    get_num_dims = this%num_dims
+    integer(ip)                                        :: get_num_dims
+    call parameter_handler%Get(key = struct_hex_mesh_generator_num_dims_key, value = get_num_dims)
   end function get_num_dims
 
   !==================================================================================================

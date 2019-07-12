@@ -4,6 +4,7 @@ module gid_geometry_reader_names
     use stdio_names
     use memor_names
     use geometry_names
+    use mesh_parameters_names
     use FPL
 
 implicit none
@@ -24,7 +25,7 @@ private
         procedure, non_overridable         :: read_line_conditions     => gid_geometry_reader_read_line_conditions
         procedure, non_overridable         :: read_surface_conditions  => gid_geometry_reader_read_surface_conditions
         procedure, non_overridable         :: read_volume_conditions   => gid_geometry_reader_read_volume_conditions
-        procedure,                  public :: fill_geometry => gid_geometry_reader_fill_geometry
+        procedure,                  public :: fill_geometry            => gid_geometry_reader_fill_geometry
     end type
 
     type(gid_geometry_reader_t), save :: the_GiD_geometry_reader
@@ -462,12 +463,12 @@ contains
         integer(ip)                                 :: lunio
     !------------------------------------------------------------------------
         ! Mandatory parameters
-        assert(parameter_list%isAssignable(dir_path_key, 'string'))
-        istat = parameter_list%getAsString(key = dir_path_key, string = dir_path)
+        assert(parameter_list%isAssignable(mesh_dir_path_key, 'string'))
+        istat = parameter_list%getAsString(key = mesh_dir_path_key, string = dir_path)
         assert(istat == 0)
 
-        assert(parameter_list%isAssignable(prefix_key, 'string'))
-        istat = parameter_list%getAsString(key = prefix_key  , string = prefix)
+        assert(parameter_list%isAssignable(mesh_prefix_key, 'string'))
+        istat = parameter_list%getAsString(key = mesh_prefix_key  , string = prefix)
         assert(istat==0)
 
         ! Read geometry

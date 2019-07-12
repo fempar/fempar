@@ -34,6 +34,7 @@ module reference_fe_names
   use memor_names
   use sort_names
   use polynomial_names
+  use FPL, only: string
   
 #ifdef ENABLE_BLAS
  use blas77_interfaces_names
@@ -48,18 +49,18 @@ module reference_fe_names
 # include "debug.i90"
 
 
-  character(*), parameter, public :: field_type_scalar           = 'scalar'
-  character(*), parameter, public :: field_type_vector           = 'vector'
-  character(*), parameter, public :: field_type_tensor           = 'tensor'
-  character(*), parameter, public :: field_type_symmetric_tensor = 'symmetric_tensor'
+  character(*), parameter, public :: field_type_scalar           = "FIELD_TYPE_SCALAR"
+  character(*), parameter, public :: field_type_vector           = "FIELD_TYPE_VECTOR"
+  character(*), parameter, public :: field_type_tensor           = "FIELD_TYPE_TENSOR"
+  character(*), parameter, public :: field_type_symmetric_tensor = "FIELD_TYPE_SYMMETRIC_TENSOR"
   
-  character(*), parameter, public :: topology_hex = "hex"
-  character(*), parameter, public :: topology_tet = "tet"
-  character(*), parameter, public :: fe_type_lagrangian = "Lagrangian"
-  character(*), parameter, public :: fe_type_lagrangian_gp = "Lagrangian_gp"
-  character(*), parameter, public :: fe_type_raviart_thomas = "Raviart_Thomas"
-  character(*), parameter, public :: fe_type_nedelec = "Nedelec"
-  character(*), parameter, public :: fe_type_void = "Void"
+  character(*), parameter, public :: topology_hex           = "TOPOLOGY_HEX"
+  character(*), parameter, public :: topology_tet           = "TOPOLOGY_TET"
+  character(*), parameter, public :: fe_type_lagrangian     = "FE_TYPE_LAGRANGIAN"
+  character(*), parameter, public :: fe_type_lagrangian_gp  = "FE_TYPE_LAGRANGIAN_GP"
+  character(*), parameter, public :: fe_type_raviart_thomas = "FE_TYPE_RAVIART_THOMAS"
+  character(*), parameter, public :: fe_type_nedelec        = "FE_TYPE_NEDELEC"
+  character(*), parameter, public :: fe_type_void           = "FE_TYPE_VOID"
 
   private
 

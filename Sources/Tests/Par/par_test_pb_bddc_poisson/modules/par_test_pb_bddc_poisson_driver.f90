@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_test_pb_bddc_poisson_driver_names
   use fempar_names
-  use par_test_pb_bddc_poisson_params_names
+  use pb_bddc_poisson_params_names
   use pb_bddc_poisson_cG_discrete_integration_names
   use pb_bddc_poisson_conditions_names
   use pb_bddc_poisson_analytical_functions_names
@@ -91,7 +91,6 @@ module par_test_pb_bddc_poisson_driver_names
      procedure        , private :: print_info
      procedure        , private :: free
      procedure                  :: free_environment
-     procedure                  :: free_command_line_parameters
   end type par_test_pb_bddc_poisson_fe_driver_t
 
   ! Types
@@ -102,8 +101,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
@@ -112,19 +111,16 @@ contains
     class(vef_iterator_t), allocatable :: vef
     
     call this%triangulation%create(this%environment,this%parameter_list)
-
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+      if(vef%is_at_boundary()) then
+         call vef%set_set_id(1)
+      else
+         call vef%set_set_id(0)
+      end if
+      call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
       call this%setup_cell_set_ids() 
@@ -800,22 +796,6 @@ contains
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%compute()
-    !rhs                => this%fe_affine_operator%get_translation()
-    !matrix             => this%fe_affine_operator%get_matrix()
-
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine assemble_system
 
 
@@ -825,27 +805,9 @@ contains
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
-
-    !matrix     => this%fe_affine_operator%get_matrix()
-    !rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
          dof_values)
-
-    !select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine solve_system
 
   subroutine check_solution(this)
@@ -886,7 +848,6 @@ contains
     implicit none
     class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
-    type(parameterlist_t)                              :: parameter_list
     class(triangulation_t), pointer        :: triangulation
     class(fe_cell_iterator_t), allocatable :: fe
     real(rp),allocatable :: mypart_vector(:)
@@ -897,20 +858,17 @@ contains
           call build_set_id_cell_vector()
           call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
           mypart_vector(:) = this%environment%get_l1_rank()
-          call oh%create()
+          call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(mypart_vector,'l1_rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call parameter_list%init()
-          !istat = parameter_list%set(key=vtk_format, value='ascii');
-          call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())!, parameter_list=parameter_list)
+          call oh%open()
           call oh%write()
           call oh%close()
           call oh%free()
           call free_set_id_cell_vector()
           call memfree(mypart_vector, __FILE__, __LINE__) 
-          !call parameter_list%free()
        end if
     end if
   contains
@@ -948,7 +906,7 @@ contains
     
     if ( this%test_params%get_write_matrices() ) then
       if ( this%environment%am_i_l1_task() ) then
-        matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
+        matrix_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() 
         call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),matrix_filename)
         luout = io_open ( matrix_filename, 'write')
         matrix => this%fe_affine_operator%get_matrix()
@@ -966,7 +924,7 @@ contains
           call mapping%insert(i,real(dofs_gids(i),rp))
         end do
         
-        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
+        mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "mapping"
         call numbered_filename_compose(this%environment%get_l1_rank(),this%environment%get_l1_size(),mapping_filename)
         luout = io_open ( mapping_filename, 'write')
         call mapping%print_matrix_market(luout)
@@ -975,7 +933,7 @@ contains
         call memfree(dofs_gids, __FILE__, __LINE__)
         
         if ( this%environment%get_l1_rank() == 0 ) then
-          mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
+          mapping_filename = this%test_params%get_write_matrices_dir_path() // "/" // this%test_params%get_write_matrices_prefix() // "_" //  "num_global_dofs"
           luout = io_open ( mapping_filename, 'write')
           write(luout,*) num_global_dofs
           call io_close(luout)
@@ -1080,39 +1038,12 @@ contains
     end if
     
     call this%triangulation%free()
-    !call this%test_params%free()
   end subroutine free
-
-
-  !function get_icontxt(this)
-  !  implicit none
-  !  class(par_test_pb_bddc_poisson_fe_driver_t), intent(in) :: this
-  !  integer(ip) :: get_icontxt
-  !  class(execution_context_t), pointer :: w_context
-  !  w_context => this%environment%get_w_context()
-  !  select type(w_context)
-  !  type is (mpi_context_t)
-  !     get_icontxt = w_context%get_icontxt()
-  !  end select
-  !end function get_icontxt
-  
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
   subroutine setup_environment(this,world_context)
     implicit none
     class(par_test_pb_bddc_poisson_fe_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
-    integer(ip) :: istat
-
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
     call this%environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
 

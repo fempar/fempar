@@ -108,13 +108,11 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure        , private :: output_handler_initialize
      procedure        , private :: output_current_mesh_and_solution
      procedure        , private :: output_handler_finalize 
-     procedure        , private :: write_solution
      procedure        , private :: setup_error_estimator 
      procedure        , private :: update_error_estimator 
      procedure        , private :: setup_refinement_strategy 
      procedure                  :: run_simulation
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure                  :: set_cells_for_uniform_refinement 
      procedure                  :: set_geom_based_cells_for_refinement 
@@ -132,8 +130,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -179,8 +177,6 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
-    integer(ip) :: istat
-    istat = this%parameter_list%set(key = environment_type_key, value = p4est) ; check(istat==0)
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
  
@@ -209,17 +205,17 @@ end subroutine free_timers
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment  
     real(rp)    :: domain(6)
-    character(len=:), allocatable :: subparts_coupling_criteria
 
     ! Create a structured mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
-    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria() 
-    istat = this%parameter_list%set(key = struct_hex_triang_domain_limits_key , value = domain); check(istat==0)
-    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0) 
+    istat = this%parameter_list%set(key = p4est_triang_domain_limits_cla_name, value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_key, &
+                                    value = .true.); assert(istat==0)
+    istat = this%parameter_list%set(key = triang_identify_disconn_components_dgraph_coupling_key, & 
+                                    value = vertex_coupling); assert(istat==0)
     call this%triangulation%create(this%par_environment, this%parameter_list)
 
     environment => this%triangulation%get_environment()
-
     do i = 1, this%test_params%get_min_num_refinements() 
        call this%set_cells_for_uniform_refinement()
        call this%triangulation%refine_and_coarsen()
@@ -650,18 +646,14 @@ end subroutine check_solution
     subroutine output_handler_initialize(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    character(len=:)     , allocatable :: path
-    character(len=:)     , allocatable :: prefix
-    type(parameterlist_t)              :: parameter_list
     integer(ip)                        :: error
     real(rp)                           :: dummy_vector(1)
     real(rp)                           :: cell_vector(1)
     real(rp)                           :: fe_id(1) 
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-            
-      path = this%test_params%get_dir_path()
-      prefix = this%test_params%get_prefix()
-      call this%output_handler%create()
+      error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
+      check (error==0)
+      call this%output_handler%create(this%parameter_list)
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -670,11 +662,7 @@ end subroutine check_solution
       call this%output_handler%add_cell_vector(dummy_vector, 'subdomain')
       call this%output_handler%add_cell_vector(cell_vector, 'set_id')
       call this%output_handler%add_cell_vector(fe_id, 'fe_id')
-      call parameter_list%init()
-      error = parameter_list%set(key=oh_staticgrid, value=.false.)
-      check (error==0)
-      call this%output_handler%open(path, prefix, parameter_list)
-      call parameter_list%free()
+      call this%output_handler%open()
     end if
   end subroutine output_handler_initialize
   
@@ -712,7 +700,7 @@ end subroutine check_solution
     end if
   end subroutine output_current_mesh_and_solution
   
-    subroutine output_handler_finalize(this)
+  subroutine output_handler_finalize(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
@@ -720,51 +708,6 @@ end subroutine check_solution
       call this%output_handler%free()
     end if
   end subroutine output_handler_finalize
-   
-  subroutine write_solution(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_fe_driver_t), intent(in) :: this
-    type(output_handler_t)              :: oh
-    class(cell_iterator_t), allocatable :: cell 
-    real(rp),allocatable :: cell_vector(:)
-    real(rp),allocatable :: mypart_vector(:)
-
-    if(this%test_params%get_write_solution()) then
-      if (this%par_environment%am_i_l1_task()) then
-
-       if (this%test_params%get_use_void_fes()) then
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          call this%triangulation%create_cell_iterator(cell)
-          do while ( .not. cell%has_finished() )
-            if ( cell%is_local() ) then       
-              cell_vector(cell%get_gid()) = cell%get_set_id()
-             end if 
-             call cell%next()
-          end do 
-          call this%triangulation%free_cell_iterator(cell)
-        end if
-        
-        call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-        mypart_vector(:) = this%par_environment%get_l1_rank()
-
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'u')
-        call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
-        if ( this%test_params%get_use_void_fes() ) then 
-        call oh%add_cell_vector(cell_vector,'cell_vector')
-        end if 
-        call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
-        call oh%write()
-        call oh%close()
-        call oh%free()
-
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
-        call memfree(mypart_vector,__FILE__,__LINE__)
-      end if
-    endif
-  end subroutine write_solution
   
   subroutine setup_error_estimator(this)
     implicit none
@@ -935,13 +878,6 @@ end subroutine check_solution
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-  !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
   
   !========================================================================================
   subroutine set_cells_for_uniform_refinement(this)

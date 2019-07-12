@@ -40,9 +40,11 @@ module test_fe_cell_predicate_driver_names
      type(serial_fe_space_t)                      :: fe_space 
      type(environment_t)                          :: serial_environment
      type(fe_cell_set_id_predicate_t)             :: fe_cell_predicate
+     type(parameterlist_t), pointer               :: parameter_list
    contains
 
      procedure                     :: run_simulation
+     procedure                     :: parse_command_line_parameters
      procedure                     :: setup_environment
      procedure                     :: free_environment
      procedure, private            :: setup_triangulation
@@ -57,6 +59,14 @@ module test_fe_cell_predicate_driver_names
   public :: test_fe_cell_predicate_driver_t
 
 contains
+
+  subroutine parse_command_line_parameters(this)
+    implicit none
+    class(test_fe_cell_predicate_driver_t), intent(inout) :: this
+    call parameter_handler%process_parameters()
+    this%parameter_list => parameter_handler%get_values()
+  end subroutine parse_command_line_parameters
+
 
   subroutine run_simulation(this)
     implicit none
@@ -73,14 +83,7 @@ contains
     implicit none
     class(test_fe_cell_predicate_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
-    type(ParameterList_t)  :: parameter_list
-    integer(ip) :: istat
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = environment_type_key, value = structured)
-    check(istat==0)
-    call this%serial_environment%create(world_context, parameter_list)
-    call parameter_list%free()
+    call this%serial_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -92,18 +95,9 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_fe_cell_predicate_driver_t), intent(inout) :: this
-    type(ParameterList_t)                                          :: parameter_list
-    integer(ip)                                                    :: istat
-    class(cell_iterator_t), allocatable                            :: cell
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = struct_hex_triang_num_dims_key, value = 2)
-    istat = istat + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = [200,200,0])
-    istat = istat + parameter_list%set(key = struct_hex_triang_is_dir_periodic_key, value = [0,0,0])
-    istat = istat + parameter_list%set(key = triang_generate_key, value = triangulation_generate_structured)
-    check(istat==0)
-    call this%triangulation%create(this%serial_environment, parameter_list)
-    call parameter_list%free()
+    integer(ip) :: istat
+    class(cell_iterator_t), allocatable :: cell
+    call this%triangulation%create(this%serial_environment, this%parameter_list)
     call this%triangulation%create_cell_iterator(cell)
     do while ( .not. cell%has_finished() )
        if (mod(cell%get_gid(),2)==0) then
