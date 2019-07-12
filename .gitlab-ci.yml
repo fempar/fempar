@@ -18,7 +18,6 @@ variables:
 .base_gnu:
   before_script: 
     - source /opt/intel/mkl/bin/mklvars.sh intel64 
-    - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-fimplicit-none"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=/data/BUILD
     - FEMPAR_DIR=$BUILD_DIR/FEMPAR
@@ -31,7 +30,6 @@ variables:
 .base_intel:
    before_script: 
     - source /usr/local/Modules/init/bash 
-    - FORTRAN_EXTRA_FLAGS="-DFORTRAN_EXTRA_FLAGS=-implicitnone"
     - ROOT_DIR=$CI_PROJECT_DIR
     - BUILD_DIR=$ROOT_DIR/BUILD
     - FEMPAR_DIR=$BUILD_DIR/FEMPAR
@@ -51,11 +49,11 @@ variables:
       do
         mkdir -p $THIRDPARTY_DIR/$library;
         cd $THIRDPARTY_DIR/$library;
-        cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE $FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty/$library;
+        cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFORTRAN_EXTRA_FLAGS=$FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty/$library;
         cmake --build . -- -j8;
       done
     - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DFORTRAN_EXTRA_FLAGS=$FORTRAN_EXTRA_FLAGS -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
@@ -75,6 +73,7 @@ GNU_DEBUG_P4EST_SERIAL:
     - merge_requests
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
@@ -88,6 +87,7 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
     - experimental
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none -fprofile-arcs -ftest-coverage
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
@@ -102,6 +102,7 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL_FAST
@@ -115,6 +116,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     - merge_requests
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
@@ -128,6 +130,7 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
     - experimental
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none -fprofile-arcs -ftest-coverage
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
@@ -142,6 +145,7 @@ GNU_DEBUG_P4EST_PARALLEL_FAST:
     - experimental
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL_FAST
@@ -156,6 +160,7 @@ GNU_RELEASE_P4EST_SERIAL:
     - merge_requests
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
@@ -169,6 +174,7 @@ GNU_RELEASE_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
@@ -183,6 +189,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     - merge_requests
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
@@ -196,6 +203,7 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
     - experimental
   extends: .base_gnu
   variables:
+    FORTRAN_EXTRA_FLAGS: -fimplicit-none
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
@@ -211,6 +219,7 @@ INTEL_RELEASE_P4EST_SERIAL:
     - merge_requests
   extends: .base_intel
   variables:
+    FORTRAN_EXTRA_FLAGS: -implicitnone
     THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
@@ -227,6 +236,7 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
     - experimental
   extends: .base_intel
   variables:
+    FORTRAN_EXTRA_FLAGS: -implicitnone
     THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
@@ -244,6 +254,7 @@ INTEL_RELEASE_P4EST_PARALLEL:
     - merge_requests
   extends: .base_intel
   variables:
+    FORTRAN_EXTRA_FLAGS: -implicitnone
     THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
@@ -260,6 +271,7 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     - experimental
   extends: .base_intel
   variables:
+    FORTRAN_EXTRA_FLAGS: -implicitnone
     THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST

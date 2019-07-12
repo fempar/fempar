@@ -40,10 +40,11 @@ SET(CMAKE_MODULE_PATH "${CMAKE_PATH}/Modules") # Fempar CMake Modules path
 SET(BINARY_OUTPUT_PATH ${PROJECT_BINARY_DIR})                     # Fempar binary root path
 SET(THIRDPARTY_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/ThirdParty)      # Fempar binary thirdparty path
 SET(LIBRARY_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/lib)                # Fempar binary lib path
-SET(TESTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/tests)                # Fempar binary tests path
 SET(EXECUTABLE_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/bin)             # Fempar binary executables path
-SET(SCRIPTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/scripts)            # Fempar binary scripts path
 SET(CMAKE_Fortran_MODULE_DIRECTORY ${BINARY_OUTPUT_PATH}/modules) # Fempar binary fortran modules path
+SET(TESTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/tests)                # Fempar tests path
+SET(SCRIPTS_OUTPUT_PATH ${TESTS_OUTPUT_PATH}/Scripts)             # Fempar test scripts path
+SET(DATA_OUTPUT_PATH ${TESTS_OUTPUT_PATH}/Data)                   # Fempar test data path
 
 #################################################################
 # ADD INCLUDE DIRS
@@ -302,7 +303,7 @@ IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES
   # flags for GNU Fortran compiler
   set (FORTRAN_EXTRA_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ${OPENMP_FLAGS} ${FORTRAN_EXTRA_FLAGS}")
   set (CMAKE_Fortran_FLAGS "${FORTRAN_EXTRA_FLAGS} ${MACROS} ${INCLUDES} " CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -Wimplicit-interface " CACHE STRING "" FORCE)
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" OR Fortran_COMPILER_NAME MATCHES "ifort*")
   # flags for Intel Fortran compiler
   set (FORTRAN_EXTRA_FLAGS "-r8 -fpp -W1 -fPIC -assume realloc-lhs ${OPENMP_FLAGS}  ${FORTRAN_EXTRA_FLAGS}")
