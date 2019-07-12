@@ -1742,57 +1742,6 @@ subroutine p4est_bt_std_vector_transform_header_to_length(this,std_vector_intege
 #endif      
 end subroutine p4est_bt_std_vector_transform_header_to_length
 
-subroutine p4est_bt_allocate_and_fill_x_cell_nodal_coordinates(this)
-  implicit none
-  class(p4est_base_triangulation_t), intent(inout)    :: this
-  integer(ip) :: idime, icell, istat, num_corners, current, corner
-  real(rp) :: vxyz(SPACE_DIM)
-  type(point_t), pointer :: raw_per_cell_nodal_coordinates(:)
-  integer(ip) :: num_dims
-  
-#ifdef ENABLE_P4EST
-
-  num_dims = this%get_num_dims()
-  if ( num_dims == 2 ) then
-    num_corners = NUM_CORNERS_2D
-  else if ( num_dims == 3 ) then
-    num_corners = NUM_CORNERS_3D
-  end if
-  call this%per_cell_nodal_coordinates%resize(0)
-  call this%per_cell_nodal_coordinates%resize(this%get_num_cells()*num_corners)
-  
-  raw_per_cell_nodal_coordinates => this%per_cell_nodal_coordinates%get_pointer()
- 
-  current = 1 
-  do icell=1, this%get_num_cells()
-     do corner=0, num_corners-1
-       if ( num_dims == 2 ) then
-         call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
-                                                        int(0,P4EST_F90_TOPIDX),&
-                                                        this%quad_coords(1,icell),&
-                                                        this%quad_coords(2,icell), &
-                                                        this%quad_level(icell),&
-                                                        corner,&
-                                                        vxyz)
-       else if ( num_dims == 3 ) then
-         call F90_p8est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
-                                                        int(0,P4EST_F90_TOPIDX),&
-                                                        this%quad_coords(1,icell),&
-                                                        this%quad_coords(2,icell), &
-                                                        this%quad_coords(3,icell), &
-                                                        this%quad_level(icell),&
-                                                        corner,&
-                                                        vxyz)
-       end if
-       call raw_per_cell_nodal_coordinates(current)%init(vxyz)
-       current = current + 1 
-     end do  
-  end do
-#else
-  call this%not_enabled_error()
-#endif        
-end subroutine p4est_bt_allocate_and_fill_x_cell_nodal_coordinates
-
 subroutine p4est_bt_fill_nodal_coordinates_fe_function(this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)    :: this
@@ -1855,11 +1804,11 @@ subroutine p4est_bt_fill_nodal_coordinates_fe_function(this)
 #endif
 end subroutine p4est_bt_fill_nodal_coordinates_fe_function
 
-subroutine p4est_bt_get_vertex_coordinates_from_p4est(this, icell, nodes_coordinates)
+subroutine p4est_bt_get_vertex_coordinates_from_p4est(this, icell, vertex_coordinates)
   implicit none
   class(p4est_base_triangulation_t), intent(in)    :: this
   integer(ip)                      , intent(in)    :: icell
-  type(point_t)               , intent(inout) :: nodes_coordinates(:)
+  type(point_t)                    , intent(inout) :: vertex_coordinates(:)
   real(rp)    :: vxyz(SPACE_DIM)
   integer(ip) :: current, corner, num_corners, num_dims
   
@@ -1890,7 +1839,7 @@ subroutine p4est_bt_get_vertex_coordinates_from_p4est(this, icell, nodes_coordin
                                                     corner,&
                                                     vxyz)
    end if
-   call nodes_coordinates(current)%init(vxyz)
+   call vertex_coordinates(current)%init(vxyz)
    current = current + 1 
   end do
 end subroutine p4est_bt_get_vertex_coordinates_from_p4est
@@ -2219,80 +2168,6 @@ subroutine p4est_bt_set_nodal_coordinates_from_mapping(this,mapping_function)
   call this%set_single_octree_mesh(.false.)
 
 end subroutine p4est_bt_set_nodal_coordinates_from_mapping
-
-subroutine p4est_bt_update_per_cell_coordinates_array(this)
-  implicit none
-  class(p4est_base_triangulation_t), intent(inout)   :: this
-  class(environment_t),              pointer         :: environment
-  class(fe_cell_iterator_t),         allocatable     :: fe
-  class(vef_iterator_t),             allocatable     :: vef_of_cell
-  type(point_t),                     allocatable     :: updated_coordinates(:)
-  real(rp),                          allocatable     :: nodal_coordinates_x_cell(:)
-  integer(ip) :: num_nodes, spos, istat
-  
-  type(list_iterator_t)   :: ref_fe_own_dofs
-  integer(ip)             :: vef_lid, icomp, comp, vef_local_counter, ivef, inode, num_dims, num_corners
-
-  environment => this%get_environment()
-  if (environment%am_i_l1_task()) then
-  
-    ! Reinitialize per_cell_nodal_coordinates
-    num_dims = this%get_num_dims()
-    if ( num_dims == 2 ) then
-      num_corners = NUM_CORNERS_2D
-    else if ( num_dims == 3 ) then
-      num_corners = NUM_CORNERS_3D
-    end if
-    call this%per_cell_nodal_coordinates%resize(0)
-    call this%per_cell_nodal_coordinates%resize(this%get_num_cells()*num_corners)    
-  
-    ! Allocate cell nodal coordinates array
-    call this%nodal_coordinates_fe_space%create_fe_cell_iterator(fe)
-    do while (  (.not. fe%has_finished() )) 
-      if ( .not. fe%is_void(1) ) exit
-      call fe%next() 
-    end do
-
-    num_nodes = fe%get_num_nodes()
-    call memalloc(fe%get_num_dofs(), nodal_coordinates_x_cell, __FILE__, __LINE__ )
-    allocate (updated_coordinates(num_nodes), stat=istat)
-
-    call this%create_vef_iterator(vef_of_cell)
-
-    ! Iterate through the cells to store the new coordinates
-    call fe%first()
-    do while ( .not. fe%has_finished() )
-      if ( fe%is_local() ) then
-        ! Gather values from fe function
-        call this%nodal_coordinates_fe_function%gather_nodal_values(fe,1,nodal_coordinates_x_cell)
-         
-        do ivef = 1, fe%get_num_vefs()
-          call fe%get_vef(ivef, vef_of_cell)
-          if ( vef_of_cell%get_dim() == 0 ) then !loop of vertices
-             ref_fe_own_dofs = this%nodal_coordinates_reference_fe%create_dofs_n_face_iterator(ivef)
-             do icomp = 1, ref_fe_own_dofs%get_size()
-                comp = ref_fe_own_dofs%get_current()
-                call updated_coordinates(ivef)%set(icomp,nodal_coordinates_x_cell(comp))
-                call ref_fe_own_dofs%next()
-              end do
-          end if
-        end do
-        spos = (fe%get_gid()-1)*this%nodal_coordinates_reference_fe%get_num_nodes()
-        do inode = 1, this%nodal_coordinates_reference_fe%get_num_nodes()
-          call this%per_cell_nodal_coordinates%set(spos+inode,updated_coordinates(inode))
-        end do
-      end if 
-      call fe%next()
-    end do
-
-    ! Free local variables
-    call this%nodal_coordinates_fe_space%free_fe_cell_iterator(fe)
-    call this%free_vef_iterator(vef_of_cell)
-    call ref_fe_own_dofs%free()
-    deallocate(updated_coordinates,stat=istat); check(istat==0)
-    call memfree(nodal_coordinates_x_cell,__FILE__,__LINE__)  
-  end if  
-end subroutine p4est_bt_update_per_cell_coordinates_array
 
 subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates(this)
   implicit none

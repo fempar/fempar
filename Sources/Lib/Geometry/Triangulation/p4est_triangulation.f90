@@ -480,7 +480,6 @@ module p4est_triangulation_names
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
     real(rp)                            :: bounding_box_limits(1:SPACE_DIM,2)
-    type(std_vector_point_t)            :: per_cell_nodal_coordinates
     
     ! p4est-related data
     type(c_ptr) :: p4est_connectivity = c_null_ptr
@@ -575,7 +574,6 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: extract_local_cell_wise_vef_set_ids                => p4est_bt_extract_local_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_ghost_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_local_cells_from_cell_wise_vef_set_ids        => p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids
-    procedure, private        , non_overridable  :: fill_x_cell_nodal_coordinates                      => p4est_bt_allocate_and_fill_x_cell_nodal_coordinates
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_weights                                 => p4est_bt_clear_cell_weights
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
@@ -598,7 +596,6 @@ module p4est_triangulation_names
     procedure, private        , non_overridable :: free_workspace_to_compute_nodal_coordinates  => p4est_bt_free_workspace_to_compute_nodal_coordinates
     procedure                 , non_overridable :: refine_and_coarsen_coordinates_fe_function   => p4est_bt_refine_and_coarsen_coordinates_fe_function
     procedure                 , non_overridable :: redistribute_coordinates_fe_function         => p4est_bt_redistribute_coordinates_fe_function
-    procedure, private        , non_overridable :: update_per_cell_coordinates_array            => p4est_bt_update_per_cell_coordinates_array
     procedure, private        , non_overridable :: fill_nodal_coordinates_fe_function           => p4est_bt_fill_nodal_coordinates_fe_function
     procedure, private        , non_overridable :: get_nodes_coordinates_from_fe_function       => p4est_bt_get_nodes_coordinates_from_fe_function
     procedure                                   :: get_nodal_coordinates_reference_fe           => p4est_bt_get_nodal_coordinates_reference_fe
