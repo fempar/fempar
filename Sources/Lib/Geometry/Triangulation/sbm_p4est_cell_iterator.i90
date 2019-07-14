@@ -105,16 +105,58 @@ function p4est_cell_iterator_get_reference_fe_id (this)
   p4est_cell_iterator_get_reference_fe_id = 1 
 end function p4est_cell_iterator_get_reference_fe_id
 
+subroutine p4est_cell_iterator_get_vertex_coordinates(this, vertex_coordinates)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  type(point_t)               , intent(inout) :: vertex_coordinates(:)
+  real(rp)    :: vxyz(SPACE_DIM)
+  integer(ip) :: current, corner, num_corners, num_dims
+  integer(ip) :: icell
+  
+  icell = this%get_gid()
+  
+  num_dims = this%p4est_triangulation%get_num_dims()
+  if ( num_dims == 2 ) then
+    num_corners = NUM_CORNERS_2D
+  else if ( num_dims == 3 ) then
+    num_corners = NUM_CORNERS_3D
+  end if
+
+  current = 1
+  do corner=0, num_corners-1
+   if ( num_dims == 2 ) then
+     call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_triangulation%p4est_connectivity,&
+                                                    int(0,P4EST_F90_TOPIDX),&
+                                                    this%p4est_triangulation%quad_coords(1,icell),&
+                                                    this%p4est_triangulation%quad_coords(2,icell), &
+                                                    this%p4est_triangulation%quad_level(icell),&
+                                                    corner,&
+                                                    vxyz)
+   else if ( num_dims == 3 ) then
+     call F90_p8est_get_quadrant_vertex_coordinates(this%p4est_triangulation%p4est_connectivity,&
+                                                    int(0,P4EST_F90_TOPIDX),&
+                                                    this%p4est_triangulation%quad_coords(1,icell),&
+                                                    this%p4est_triangulation%quad_coords(2,icell), &
+                                                    this%p4est_triangulation%quad_coords(3,icell), &
+                                                    this%p4est_triangulation%quad_level(icell),&
+                                                    corner,&
+                                                    vxyz)
+   end if
+   call vertex_coordinates(current)%init(vxyz)
+   current = current + 1 
+  end do
+end subroutine p4est_cell_iterator_get_vertex_coordinates
+
 subroutine p4est_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(p4est_cell_iterator_t), intent(in)    :: this
-  type(point_t),                intent(inout) :: nodes_coordinates(:)
-
+  type(point_t)               , intent(inout) :: nodes_coordinates(:)
+  integer(ip) :: spos
+  integer(ip) :: epos
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
- 
-  ! Get nodal coordinates
-  call this%p4est_triangulation%get_nodes_coordinates_from_fe_function(this%get_gid(),nodes_coordinates)
- 
+  spos = this%base_pos_in_nodal_coords+1
+  epos = this%base_pos_in_nodal_coords+this%num_nodes
+  nodes_coordinates(1:this%num_nodes) = this%p4est_triangulation%cell_wise_nodal_coordinates%get_pointer(spos,epos)
 end subroutine p4est_cell_iterator_get_nodes_coordinates
 
 function p4est_cell_iterator_get_mypart (this)

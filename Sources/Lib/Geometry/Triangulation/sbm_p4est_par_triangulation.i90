@@ -26,11 +26,12 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine p4est_par_triangulation_create (this, environment, parameters)
+subroutine p4est_par_triangulation_create (this, environment, parameters, geom_analytical_mapping)
   implicit none
-  class(p4est_par_triangulation_t), target, intent(inout) :: this
-  type(environment_t)             , target, intent(in)    :: environment
-  type(ParameterList_t)                   , intent(inout) :: parameters
+  class(p4est_par_triangulation_t), target , intent(inout) :: this
+  type(environment_t)             , target , intent(in)    :: environment
+  type(ParameterList_t)                    , intent(inout) :: parameters
+  class(vector_function_t), optional       , intent(in)    :: geom_analytical_mapping
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t)      , pointer :: p_environment
@@ -48,8 +49,6 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
 #ifdef ENABLE_P4EST
   call this%free()
 
-    call this%set_single_octree_mesh(.true.)
-
   if( parameters%isPresent(triang_geometric_interpolation_order_key) ) then
      assert(parameters%isAssignable(triang_geometric_interpolation_order_key, geometric_interpolation_order))
      istat = parameters%get(key = triang_geometric_interpolation_order_key , value = geometric_interpolation_order)
@@ -61,16 +60,6 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
 
   call this%set_environment(environment)
   p_environment => this%get_environment()
-  ! if(present(environment)) then
-  !    call this%set_environment(environment)
-  !    p_environment => this%get_environment()
-  ! else
-  !    istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-  !    istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
-  !    call this%allocate_environment()
-  !    p_environment => this%get_environment()
-  !    call p_environment%create(parameters)
-  ! end if
 
   if( parameters%isPresent(subparts_coupling_criteria_key) ) then
      massert(parameters%isAssignable(subparts_coupling_criteria_key, dummy_string), 'Subparts coupling criteria not found or un-usable')
@@ -121,14 +110,23 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
   else
      this%k_ghost_cells = default_p4est_triang_k_ghost_cells
   end if
-
-     
+ 
+  if ( this%geom_mapping_passed ) then
+    ! NOTE: In case of use a mapping different from the scaling of the unit cube, 
+    ! the cells conforming that mesh can not be considered as the scaling and/or translation 
+    ! of a reference cell. Then, disable the optimizations to exploit the latter case.
+    call this%set_single_octree_mesh(.false.)
+  else
+    call this%set_single_octree_mesh(.true.)
+  end if
+  
   if ( p_environment%am_i_l1_task() ) then  
      call this%reference_fe_geo%create( topology_hex, &
                                         this%get_num_dims(), &
-                                        1, &
+                                        this%geometric_interpolation_order, &
                                         field_type_scalar, & 
-                                        conformity=.true.)  
+                                        conformity=.true., &
+                                        continuity=.true.)
     
      call this%allocate_and_gen_reference_fe_geo_scratch_data()
  
@@ -152,7 +150,7 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         call this%update_cell_myparts()
         call this%extend_p4est_topology_arrays_to_ghost_cells()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        !call this%fill_x_cell_nodal_coordinates()
+        call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_weights()
@@ -172,25 +170,22 @@ subroutine p4est_par_triangulation_create (this, environment, parameters)
         call this%extend_p4est_topology_arrays_to_ghost_cells()
         call this%find_missing_corner_neighbours()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        !call this%fill_x_cell_nodal_coordinates()
+        call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_weights()
         call this%clear_cell_set_ids()
         call this%clear_disconnected_cells_set_ids()
         call this%set_up_lst_itfc_vefs()
-        !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%clear_vef_set_ids()
-        ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
-        ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
-        call this%set_up_lst_itfc_vefs()
      end if
   end if
-  allocate ( par_fe_space_t :: this%nodal_coordinates_fe_space )
-  call this%setup_workspace_to_compute_nodal_coordinates()
-  if ( p_environment%am_i_l1_task() ) then  
-    call this%fill_nodal_coordinates_fe_function()
-  end if
+  if ( this%geom_mapping_passed ) then 
+    allocate ( par_fe_space_t :: this%nodal_coordinates_fe_space )
+    call this%setup_nodal_coordinates_fe_space()
+    call this%setup_nodal_coordinates_fe_function()
+    call this%nodal_coordinates_fe_function_to_cell_wise_array()
+  end if  
 #else
   call this%not_enabled_error()
 #endif
@@ -226,6 +221,7 @@ subroutine p4est_par_triangulation_free ( this)
         this%QHE                = c_null_ptr
         this%p4est_ghost        = c_null_ptr
         
+        call this%cell_wise_nodal_coordinates%free()
         call this%lst_vefs_gids%free()
         call this%cell_ggids%free()
         call this%cell_myparts%free()
@@ -332,7 +328,11 @@ subroutine p4est_par_triangulation_free ( this)
   
   ! Free nodal coordinates workspace
   call this%free_workspace_to_compute_nodal_coordinates()
-
+  
+  ! Initialize member variables related to analytical geometrical mapping
+  this%geometric_interpolation_order = 0
+  nullify(this%analytical_geom_mapping)
+  this%geom_mapping_passed = .false.
   call triangulation_free(this)
 #else
   call this%not_enabled_error()
@@ -394,7 +394,7 @@ subroutine p4est_par_triangulation_redistribute ( this )
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    !call this%fill_x_cell_nodal_coordinates()
+    call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
     !call this%redistribute_coordinates_fe_function()
     call this%update_migration_control_data(p4est_old)
     call this%set_up_lst_itfc_vefs()
@@ -413,9 +413,6 @@ subroutine p4est_par_triangulation_redistribute ( this )
       call F90_p8est_destroy(p4est_old)
     end if
   end if
-  
-   ! Refine and coarsen nodal coordinates fe function
-   call this%redistribute_coordinates_fe_function()
   
   ! Re-set up coarse_triangulation()
   if ( this%coarse_triangulation_is_set_up() ) then
