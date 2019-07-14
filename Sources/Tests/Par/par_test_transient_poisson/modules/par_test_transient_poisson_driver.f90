@@ -28,9 +28,9 @@
 module par_test_transient_poisson_driver_names
   use fempar_names
   use par_test_transient_poisson_params_names
-  use transient_poisson_discrete_integration_names
-  use transient_poisson_conditions_names
-  use transient_poisson_analytical_functions_names
+  use par_test_transient_poisson_discrete_integration_names
+  use par_test_transient_poisson_conditions_names
+  use par_test_transient_poisson_analytical_functions_names
 
 # include "debug.i90"
 
@@ -110,7 +110,6 @@ module par_test_transient_poisson_driver_names
      procedure        , private :: is_exact_solution
      procedure                  :: run_simulation
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_poisson_driver_popcorn_fun
   end type par_test_transient_poisson_fe_driver_t
@@ -123,8 +122,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
 !========================================================================================
@@ -170,12 +169,6 @@ end subroutine free_timers
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
     class(execution_context_t)         , intent(in)    :: world_context
-    integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
   
@@ -243,18 +236,16 @@ end subroutine free_timers
         call this%triangulation%free_cell_iterator(cell)
     end if
 
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if  
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+       if(vef%is_at_boundary()) then
+          call vef%set_set_id(1)
+       else
+          call vef%set_set_id(0)
+       end if
+       call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
 
     ! Set all the vefs on the interface between full/void if there are void fes
     if (this%test_params%get_use_void_fes()) then
@@ -614,7 +605,7 @@ end subroutine free_timers
         call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
         mypart_vector(:) = this%par_environment%get_l1_rank()
 
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -622,7 +613,7 @@ end subroutine free_timers
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -801,11 +792,6 @@ end subroutine free_timers
   end subroutine free_environment
 
   !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_test_transient_poisson_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
   function par_test_poisson_driver_popcorn_fun(point,num_dim) result (val)
     implicit none

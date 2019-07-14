@@ -34,9 +34,9 @@ module test_transient_poisson_driver_names
 !* Which **`use`** the following modules on its scope
   use fempar_names
   use test_transient_poisson_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use test_transient_poisson_cG_discrete_integration_names
+  use test_transient_poisson_conditions_names
+  use test_transient_poisson_analytical_functions_names
   
 !* Debug info for message output is defined in `debug.i90` and included through:
 # include "debug.i90"
@@ -51,7 +51,7 @@ module test_transient_poisson_driver_names
 
      !* Place-holder for parameter-value set provided through command-line interface
      type(test_transient_poisson_params_t)   :: test_params
-     type(ParameterList_t)                   :: parameter_list
+     type(ParameterList_t), pointer          :: parameter_list
 
      !* Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
@@ -122,8 +122,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_transient_poisson_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   !************************************************************************************************
   !* ### Environment setup
@@ -169,13 +169,10 @@ contains
 
     !* First the triangulation is made from the environment and the parameter list:
 
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%serial_environment,this%parameter_list)
     !call this%triangulation%print()
     !* In case the triangulation is *structured*, the boundary ( `set_id = 1`) is set at the dimension limit:
-    if ( this%test_params%get_triangulation_type() == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -563,16 +560,12 @@ contains
   subroutine initialize_output(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_dir_path_out()
-        prefix = this%test_params%get_prefix()
-        call this%oh%create()
+        call this%oh%create(this%parameter_list)
         call this%oh%attach_fe_space(this%fe_space)
         call this%oh%add_fe_function(this%solution, 1, 'solution')
         call this%oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        call this%oh%open(path, prefix)
+        call this%oh%open()
     endif
   end subroutine initialize_output
   !*
@@ -631,6 +624,8 @@ contains
     class(test_transient_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
+    call this%oh%free()
+        
     call this%solution%free()
 
 #ifdef ENABLE_MKL
@@ -655,8 +650,6 @@ contains
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
-    call this%test_params%free()
-    call this%oh%free()
   end subroutine free
 
 end module test_transient_poisson_driver_names

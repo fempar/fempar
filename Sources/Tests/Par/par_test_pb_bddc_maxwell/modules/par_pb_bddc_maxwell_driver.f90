@@ -113,7 +113,6 @@ module par_pb_bddc_maxwell_driver_names
      procedure        , private :: print_info 
      procedure                  :: run_simulation
      procedure        , private :: free
-     procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
   end type par_pb_bddc_maxwell_fe_driver_t
 
@@ -125,8 +124,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%create()
-    this%parameter_list => this%test_params%get_values()
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
 
   !========================================================================================
@@ -174,12 +173,6 @@ contains
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     class(execution_context_t)            , intent(in)    :: world_context
-    integer(ip) :: istat
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
-    else
-       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
-    end if
     call this%par_environment%create(world_context, this%parameter_list)
   end subroutine setup_environment
 
@@ -235,7 +228,7 @@ contains
     
     if ( .not. this%par_environment%am_i_l1_task() ) return 
 
-    if( this%test_params%get_triangulation_type()==triangulation_generate_from_mesh) then
+    if( this%test_params%get_triangulation_type()==static_triang_generate_from_mesh_data_files) then
        massert( (this%test_params%get_materials_distribution_case()==homogeneous .or. this%test_params%get_materials_distribution_case()==heterogeneous), "par_test_pb_bddc_maxwell :: Materials distribution case not valid for unstructured tetrahedral meshes") 
     else   
 
@@ -775,13 +768,13 @@ contains
     if ( this%par_environment%am_i_l1_task() ) then
        if( this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
           call build_set_ids()
-          call oh%create()
+          call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'u')
           call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
           call oh%add_cell_vector(set_id_rank, 'rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call oh%open()
           call oh%write()
           call oh%close()
           call oh%free()
@@ -938,12 +931,5 @@ contains
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
-
-  !========================================================================================
-  subroutine free_command_line_parameters(this)
-    implicit none
-    class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-    call this%test_params%free()
-  end subroutine free_command_line_parameters
 
 end module par_pb_bddc_maxwell_driver_names

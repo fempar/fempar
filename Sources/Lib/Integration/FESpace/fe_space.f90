@@ -36,10 +36,10 @@ module fe_space_names
   use hash_table_names
   use std_vector_names
   use FPL
-  use parameter_handler_names
 
   use environment_names
   use triangulation_names
+  use triangulation_parameters_names
   use conditions_names
   
   use reference_fe_names
@@ -65,6 +65,8 @@ module fe_space_names
   use iterative_linear_solver_parameters_names
   
   use piecewise_cell_map_names
+
+  use fe_space_parameters_names
   
   ! Adaptivity
   use std_vector_real_rp_names
@@ -81,39 +83,8 @@ module fe_space_names
       
   implicit none
 # include "debug.i90"
-  
-  ! These three parameter constants are thought be used as FPL keys. The corresponding pairs 
-  ! <XXXkey,.true.|.false.> in FPL let the user to control whether or not coarse vertex, edge, or 
-  ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
-  ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
-  ! class(coarse_fe_handler_t).
-  character(len=*), parameter :: coarse_space_use_vertices_key = 'coarse_space_use_vertices_key'
-  character(len=*), parameter :: coarse_space_use_edges_key    = 'coarse_space_use_edges_key'
-  character(len=*), parameter :: coarse_space_use_faces_key    = 'coarse_space_use_faces_key'
-  
-  ! Keys being used by the FE space constructor that relies on the parameter handler
-  character(len=*), parameter, public :: fes_num_fields_key = 'fe_space_num_fields_key'
-  character(len=*), parameter, public :: fes_num_ref_fes_key = 'fe_space_num_reference_fes_key'
-  character(len=*), parameter, public :: fes_field_types_key = 'fe_space_field_types_key'
-  character(len=*), parameter, public :: fe_space_field_ids_key = 'fe_space_field_ids_key'
-  character(len=*), parameter, public :: fes_field_blocks_key = 'fe_space_field_blocks_key'
-  character(len=*), parameter, public :: fes_same_ref_fes_all_cells_key = 'fes_same_ref_fes_all_cells_key'
-      
-  character(len=*), parameter, public :: fes_ref_fe_conformities_key = 'fes_ref_fe_conformities_key'
-  character(len=*), parameter, public :: fes_ref_fe_continuities_key = 'fes_ref_fe_continuities_key'
-  character(len=*), parameter, public :: fes_ref_fe_orders_key = 'reference_fe_order_key'
-  character(len=*), parameter, public :: fes_ref_fe_types_key = 'reference_fe_type_key'
-  character(len=*), parameter, public :: fes_set_ids_ref_fes_key = 'fes_set_ids_ref_fes_key'
-  
   private 
-  
-  ! These parameter constants are used in order to generate a unique (non-consecutive) 
-  ! but consistent across MPI tasks global ID (integer(igp)) of a given DoF.
-  ! See type(par_fe_space_t)%generate_non_consecutive_dof_ggid()
-  integer(ip), parameter :: cell_ggid_shift              = 44
-  integer(ip), parameter :: dofs_x_reference_fe_shift = 14
-  integer(ip), parameter :: num_fields_shift         = igp*8-(cell_ggid_shift+dofs_x_reference_fe_shift)-1
-  
+
   ! Towards having the final hierarchy of FE spaces, I moved  to a root superclass
   ! those member variables which are in common by type(serial/par_fe_space_t) and 
   ! type(coarse_fe_space_t) and in turn which are required by either type(mlbddc_t) (L1) 
@@ -1297,32 +1268,7 @@ module fe_space_names
     procedure                           :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
     procedure                           :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
   end type  Hcurl_l1_coarse_fe_handler_t
-    
-  ! Node type 
-  integer(ip), parameter :: num_node_types     = 2
-  integer(ip), parameter :: edge_boundary_node = 1
-  integer(ip), parameter :: interior_node      = 2
-  ! Fine edge direction related to coarse edge direction 
-  integer(ip), parameter :: opposite_to_coarse_edge = 0
-  integer(ip), parameter :: same_as_coarse_edge     = 1  
-  ! Coarse Edges enforced Continuity algorithm 
-  character(len=*), parameter :: bddc_edge_continuity_algorithm_key        = 'bddc_edge_continuity_algorithm'
-  character(len=*), parameter :: tangential_average                        = 'tangential_average'
-  character(len=*), parameter :: tangential_average_and_first_order_moment = 'tangential_average_and_first_order_moment'
-  character(len=*), parameter :: all_dofs_in_coarse_edges                  = 'all_dofs_in_coarse_edges'
-  ! BDDC Scaling function 
-  character(len=*), parameter :: bddc_scaling_function_case_key = 'bddc_scaling_function_case'
-  character(len=*), parameter :: average_mass_coeff_key         = 'average_mass_coeff' 
-  character(len=*), parameter :: average_curl_curl_coeff_key    = 'average_curl_curl_coeff'
-  character(len=*), parameter :: cardinality           = 'cardinality'
-  character(len=*), parameter :: curl_curl_coeff       = 'curl_curl_coeff' 
-  character(len=*), parameter :: mass_coeff            = 'mass_coeff' 
-  character(len=*), parameter :: stiffness             = 'stiffness'
-  character(len=*), parameter :: weighted_coefficients = 'weighted_coefficients'
-  
-  public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
-  public :: bddc_scaling_function_case_key, average_mass_coeff_key, average_curl_curl_coeff_key
-  public :: cardinality, curl_curl_coeff, mass_coeff, stiffness, weighted_coefficients 
+
   public :: Hcurl_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
@@ -1518,7 +1464,6 @@ module fe_space_names
  
  public :: coarse_fe_space_t, coarse_fe_cell_iterator_t, coarse_fe_vef_iterator_t
  public :: coarse_fe_object_iterator_t
- public :: coarse_space_use_vertices_key, coarse_space_use_edges_key, coarse_space_use_faces_key
  
  type, abstract :: lgt1_coarse_fe_handler_t
   contains

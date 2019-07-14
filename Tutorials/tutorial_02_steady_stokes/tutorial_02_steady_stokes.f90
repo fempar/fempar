@@ -40,8 +40,7 @@ program tutorial_02_steady_stokes
   !* 1) default values of the library, 2) the ones provided by the user through the command line (using the keys in 
   !* fempar_parameter_handler_t, 3) or overwritten by the user. Option 3) overwrites 2) which overwrites 1). In this tutorial
   !* we will explicitly provide the values in the code (option 3) but they could be provided by the command line argument instead.
-  type(fempar_parameter_handler_t)     :: parameter_handler
-  !* This is the object in parameter_handler_t that provides the list of parameters
+  !* This is the object in parameter_handler that provides the list of parameters
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
@@ -69,10 +68,12 @@ program tutorial_02_steady_stokes
   !type(error_norms_scalar_t) :: error_norm
   !* The output handler type is used to print the results
   type(output_handler_t) :: output_handler
+  !* Reference finite element types
+  type(string) :: fes_ref_fe_types(2), fes_field_types(2)
 
   !* Local variables
   real(rp) :: viscosity
-  integer(ip) :: fe_order, istat, error, i, boundary_ids
+  integer(ip) :: fe_order, istat, i, boundary_ids, num_dims
   class(vector_t), pointer :: dof_values
   class(vector_t), allocatable :: rhs
   real(rp) :: l2
@@ -86,12 +87,21 @@ program tutorial_02_steady_stokes
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
-  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_fempar_parameters)
+  call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_user_parameters)
   parameter_list => parameter_handler%get_values()
   ! call parameter_list%print()
 
   !* Determine a serial execution mode (default case)
   call serial_environment%create(world_context,parameter_list)
+
+
+  ! Update mesh generator parameters in 2D
+  call parameter_handler%get(key = struct_hex_mesh_generator_num_dims_key, value = num_dims)
+  if(num_dims == 2) then
+      call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10] )       ! Number of cells per each dimension
+      call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, value = [0.0,1.0,0.0,1.0])! Domain limits of the mesh
+      call parameter_handler%update(struct_hex_mesh_generator_is_dir_periodic_key, value = [0,0] )         ! Mesh is not periodic in any direction
+  endif
 
   !* Create triangulation (we are not changing the default parameters from FEMPAR. Thus, we are solving in a serial
   !* triangulation of hex, structured, 10x10, 2D.
@@ -128,18 +138,18 @@ program tutorial_02_steady_stokes
                                                    cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
-  error = 0
-  error = error + parameter_list%set(key = fes_num_fields_key, value = 2)
-  error = error + parameter_list%set(key = fes_num_ref_fes_key, value = 2)
-  error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian Lagrangian' )
-  error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = [2, 1])
-  error = error + parameter_list%set(key = fes_ref_fe_conformities_key, value =  [.true., .true.])
-  error = error + parameter_list%set(key = fes_ref_fe_continuities_key, value = [.true., .false.])
-  error = error + parameter_list%set(key = fes_field_types_key, value =  field_type_vector // " " // field_type_scalar)
-  error = error + parameter_list%set(key = fes_field_blocks_key, value = [1, 1])
-  mcheck(error==0,'Failed parameter set')
+
+  fes_ref_fe_types = [String(fe_type_lagrangian), String(fe_type_lagrangian)]
+  fes_field_types = [String(field_type_vector), String(field_type_scalar)]
+  call parameter_handler%update(key = fes_num_fields_key, value = 2)
+  call parameter_handler%update(key = fes_num_ref_fes_key, value = 2)
+  call parameter_handler%update(key = fes_ref_fe_types_key, value = fes_ref_fe_types)
+  call parameter_handler%update(key = fes_ref_fe_orders_key, value = [2, 1])
+  call parameter_handler%update(key = fes_ref_fe_conformities_key, value =  [.true., .true.])
+  call parameter_handler%update(key = fes_ref_fe_continuities_key, value = [.true., .false.])
+  call parameter_handler%update(key = fes_field_types_key, value =  fes_field_types)
+  call parameter_handler%update(key = fes_field_blocks_key, value = [1, 1])
   
-  !
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = stokes_conditions, &
                         parameters               = parameter_list )
@@ -149,11 +159,10 @@ program tutorial_02_steady_stokes
   ! Now, we define the source term with the function we have created in our module.
   ! Besides, we get the value of the desired value of the viscosity, possibly the one provided via
   ! the command line argument --VISCOSITY. Otherwise, defaults to 1.0. 
-  ! (see tutorial_02_steady_stokes_define_fempar_parameters subroutine below)
+  ! (see tutorial_02_steady_stokes_define_user_parameters subroutine below)
   call source_term%create(zero_function)
   call stokes_integration%set_source_term(source_term)
-  error = parameter_list%get(key = 'viscosity', value = viscosity)
-  mcheck(error==0,'Failed parameter set')
+  call parameter_handler%get(key = 'viscosity', value = viscosity)
   call stokes_integration%set_viscosity(viscosity)
 
   !* Now, we create the affine operator, i.e., b - Ax, providing the info for the matrix (storage, symmetric, etc.), and the form to
@@ -177,12 +186,10 @@ program tutorial_02_steady_stokes
 
   !* Next, we want to get the root of the operator, i.e., solve Ax = b. We are going to use an iterative solver. We overwrite the
   !* default values in the parameter list for tolerance, type of sover (Conjugate Gradient) and max number of iterations.
-  error = 0
-  error = error + parameter_list%set(key = ils_rtol_key, value = 1.0e-12_rp)
-  error = error + parameter_list%set(key = ils_max_num_iterations_key, value = 5000)
-  error = error + parameter_list%set(key = ils_output_frequency_key, value = 50)
-  error = error + parameter_list%set(key = ils_type_key, value = rgmres_name )
-  mcheck(error==0,'Failed parameter set')
+  call parameter_handler%update(key = ils_rtol_key, value = 1.0e-12_rp)
+  call parameter_handler%update(key = ils_max_num_iterations_key, value = 5000)
+  call parameter_handler%update(key = ils_output_frequency_key, value = 50)
+  call parameter_handler%update(key = ils_type_key, value = rgmres_name )
   
   !* Now, we create a serial iterative solver with the values in the parameter list.
   call iterative_linear_solver%create(fe_space%get_environment())
@@ -197,13 +204,13 @@ program tutorial_02_steady_stokes
   call iterative_linear_solver%apply(-fe_affine_operator%get_translation(), &
                                      dof_values)   
   
-  error = parameter_list%set(key = dir_path_out_key      , Value= 'tutorial_02_steady_stokes_results')
-  mcheck(error==0,'Failed parameter set')
-  call output_handler%create()
+  call parameter_handler%update(key = output_handler_dir_path_key, Value= 'tutorial_02_steady_stokes_results')
+  
+  call output_handler%create(parameter_handler%get_values())
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'velocity')
   call output_handler%add_fe_function(solution, 2, 'pressure')
-  call output_handler%open(parameter_handler%get_dir_path_out(), parameter_handler%get_prefix())
+  call output_handler%open()
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()
@@ -219,7 +226,6 @@ program tutorial_02_steady_stokes
 
 !*
 !* Free all the created objects
-  call parameter_handler%free()
   !call error_norm%free()
   call solution%free()
   call iterative_linear_solver%free()
@@ -228,25 +234,11 @@ program tutorial_02_steady_stokes
   call stokes_conditions%free()
   call triangulation%free()
   call serial_environment%free()
-  call parameter_handler%free()
   call world_context%free(.true.)
-
   call fempar_finalize()
   contains
-    subroutine tutorial_02_steady_stokes_define_fempar_parameters(this)
-    implicit none
-    class(fempar_parameter_handler_t), intent(inout) :: this
-    type(parameterlist_t), pointer :: values, switches, switches_ab, helpers, required 
-    integer(ip) :: error
-
-    values      => this%get_values()
-    switches    => this%get_switches()
-    switches_ab => this%get_switches_ab()
-    helpers     => this%get_helpers()
-
-    error = 0
-    error = error + helpers%set(key = 'viscosity'     , Value= 'Value of the viscosity')
-    error = error + switches%set(key = 'viscosity'    , Value= '--VISCOSITY')
-    error = error + values%set(key = 'viscosity'      , Value= 1.0)
-    end subroutine  tutorial_02_steady_stokes_define_fempar_parameters
+    subroutine tutorial_02_steady_stokes_define_user_parameters()
+      implicit none
+      call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
+    end subroutine  tutorial_02_steady_stokes_define_user_parameters
 end program tutorial_02_steady_stokes

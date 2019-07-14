@@ -27,10 +27,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module refinement_strategy_names
   use types_names
+  use field_names
   use environment_names
   use triangulation_names
   use fe_space_names
   use triangulation_names
+  use reference_fe_names
   use std_vector_integer_ip_names
   use error_estimator_names
   use FPL
@@ -95,16 +97,27 @@ module refinement_strategy_names
     procedure :: has_finished_refinement    => urs_has_finished_refinement
   end type uniform_refinement_strategy_t
   
-  type, extends(refinement_strategy_t) :: error_objective_refinement_strategy_t
+  type, abstract, extends(refinement_strategy_t) :: error_objective_refinement_strategy_t
+    ! RMK. The acceptability criterion implemented in the method eors_has_finished_refinement 
+    ! seeks to satisfy a bound of the global **absolute** error
     private
     real(rp)                          :: error_objective
     real(rp)                          :: objective_tolerance
     integer(ip)                       :: max_num_mesh_iterations
    contains
     procedure :: set_parameters             => eors_set_parameters
-    procedure :: update_refinement_flags    => eors_update_refinement_flags
     procedure :: has_finished_refinement    => eors_has_finished_refinement
   end type error_objective_refinement_strategy_t
+  
+  type, extends(error_objective_refinement_strategy_t) :: li_bettess_refinement_strategy_t
+   ! Implements Li and Bettess (LB) remeshing strategy described in Section 3.2 of
+   ! A unified approach to remeshing strategies for finite element h-adaptivity
+   ! P Diez, A Huerta
+   ! Comput. Methods. Appl. Mech. Engrg. 176 (1999) 215-229
+   private
+   contains
+    procedure :: update_refinement_flags    => lirs_update_refinement_flags
+  end type li_bettess_refinement_strategy_t
   
   ! Implements Algorithm for calculating coarsening and refinement thresholds
   ! in Fig 5. of the following paper:
@@ -132,8 +145,8 @@ module refinement_strategy_names
   public :: error_objective_key, objective_tolerance_key, max_num_mesh_iterations_key
   public :: refinement_fraction_key, coarsening_fraction_key
   
-  public :: refinement_strategy_t
-  public :: uniform_refinement_strategy_t, error_objective_refinement_strategy_t, fixed_fraction_refinement_strategy_t
+  public :: refinement_strategy_t, error_objective_refinement_strategy_t
+  public :: uniform_refinement_strategy_t, li_bettess_refinement_strategy_t, fixed_fraction_refinement_strategy_t
   
 contains
   
@@ -217,52 +230,94 @@ contains
     end if
   end subroutine eors_set_parameters
   
-  subroutine eors_update_refinement_flags(this,triangulation,cell_mask)
+  function eors_has_finished_refinement(this)
     class(error_objective_refinement_strategy_t), intent(inout) :: this
-    class(triangulation_t)                      , intent(inout) :: triangulation
-    logical            , optional               , intent(in)    :: cell_mask(:)
-    integer(ip)          :: i
+    logical :: eors_has_finished_refinement
+    class(environment_t), pointer :: environment
+    real(rp)                      :: sq_global_estimate
+    real(rp)                      :: sq_error_upper_bound
+    environment => this%error_estimator%get_environment()
+    sq_global_estimate   = this%error_estimator%get_global_estimate() ** 2.0_rp
+    sq_error_upper_bound = ( this%error_objective ** 2.0_rp ) * ( 1.0_rp + this%objective_tolerance )
+    eors_has_finished_refinement =                     & 
+      ( sq_global_estimate < sq_error_upper_bound .or. & 
+        this%current_mesh_iteration > this%max_num_mesh_iterations )
+    if ( environment%am_i_l1_root() ) then
+      if ( this%current_mesh_iteration > this%max_num_mesh_iterations ) then
+        mcheck(.false.,'Error objective mesh refinement strategy exceeded the maximum number of iterations')
+      end if
+    end if
+  end function eors_has_finished_refinement
+  
+  subroutine lirs_update_refinement_flags(this,triangulation,cell_mask)
+    class(li_bettess_refinement_strategy_t), intent(inout) :: this
+    class(triangulation_t)                 , intent(inout) :: triangulation
+    logical            , optional          , intent(in)    :: cell_mask(:)
+    class(cell_iterator_t)   , allocatable :: cell
+    class(serial_fe_space_t) , pointer     :: fe_space
+    class(fe_cell_iterator_t), allocatable :: fe
+    class(environment_t)     , pointer     :: environment
+    integer(ip)          :: i, num_dims, max_order
     real(rp)   , pointer :: sq_local_estimate_entries(:)
     real(rp)             :: sq_error_upper_bound, sq_error_lower_bound
-    class(cell_iterator_t), allocatable :: cell
+    real(rp)             :: estimate_num_cells_opt_mesh, aux_exp
+    logical              :: cell_mask_present
+    
+    assert ( associated(this%error_estimator) )
+    
+    cell_mask_present = .false.
+    if ( present(cell_mask) ) then 
+      assert ( size(cell_mask) == triangulation%get_num_local_cells() )
+      cell_mask_present = .true.
+    end if
+    
+    environment => this%error_estimator%get_environment()
+    if ( .not. environment%am_i_l1_task() ) return
     sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
-    sq_error_upper_bound  = ( this%error_objective * ( 1.0_rp + this%objective_tolerance ) ) ** 2.0_rp
-    sq_error_lower_bound  = ( this%error_objective * ( 1.0_rp - this%objective_tolerance ) ) ** 2.0_rp
+
+    num_dims  = triangulation%get_num_dims()
+    fe_space => this%error_estimator%get_fe_space()
+    assert( fe_space%get_num_fields() == 1 )
+    max_order = fe_space%get_max_order(); assert(max_order > 0)
+    
+    estimate_num_cells_opt_mesh = 0.0_rp
+    aux_exp = num_dims / ( 2.0_rp * max_order + num_dims )
+    call fe_space%create_fe_cell_iterator(fe)
+    do while ( .not. fe%has_finished() )
+      if ( fe%is_local() ) then
+        if ( cell_mask_present ) then
+          if ( .not. cell_mask(fe%get_gid()) ) then
+            call fe%next()
+            cycle
+          end if
+        end if
+        estimate_num_cells_opt_mesh = estimate_num_cells_opt_mesh + &
+          sq_local_estimate_entries(fe%get_gid()) ** aux_exp
+      end if
+      call fe%next()
+    end do
+    call fe_space%free_fe_cell_iterator(fe)
+    call environment%l1_sum(estimate_num_cells_opt_mesh)
+    aux_exp = ( 2.0_rp * max_order + num_dims ) / ( 2.0_rp * max_order )
+    estimate_num_cells_opt_mesh = estimate_num_cells_opt_mesh ** aux_exp
+    estimate_num_cells_opt_mesh = estimate_num_cells_opt_mesh * &
+      this%error_objective ** ( - num_dims / max_order )   
+    
+    sq_error_upper_bound = this%error_objective ** 2.0_rp / estimate_num_cells_opt_mesh
     call triangulation%create_cell_iterator(cell)
     do while ( .not. cell%has_finished() )
       if ( cell%is_local() ) then
         if ( sq_local_estimate_entries(cell%get_gid()) > sq_error_upper_bound ) then
           call cell%set_for_refinement()
-        else if ( sq_local_estimate_entries(cell%get_gid()) < sq_error_lower_bound ) then
-          ! TO-DO: It seems that the cell is coarsened, even if
-          !        one of its siblings is marked as `do_nothing`
-          !        or `refinement`. This kills the algorithm.
-          ! call cell%set_for_coarsening()
-        else
-          call cell%set_for_do_nothing()
         end if
       end if
       call cell%next()
     end do
     call triangulation%free_cell_iterator(cell)
+    
     this%current_mesh_iteration = this%current_mesh_iteration + 1
-  end subroutine eors_update_refinement_flags
-  
-  function eors_has_finished_refinement(this)
-    class(error_objective_refinement_strategy_t), intent(inout) :: this
-    logical :: eors_has_finished_refinement
-    real(rp), pointer :: sq_local_estimate_entries(:)
-    real(rp)          :: max_local_estimate
-    real(rp)          :: sq_error_upper_bound
-    sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
-    max_local_estimate = maxval(sq_local_estimate_entries)
-    sq_error_upper_bound  = ( this%error_objective * ( 1.0_rp + this%objective_tolerance ) ) ** 2.0_rp
-    eors_has_finished_refinement = ( ( this%current_mesh_iteration > 1             .and. &
-                                       max_local_estimate < sq_error_upper_bound )  .or. & 
-                                     ( this%current_mesh_iteration > this%max_num_mesh_iterations ) )
-    if ( this%current_mesh_iteration > this%max_num_mesh_iterations ) &
-      write(*,*) 'Error objective mesh refinement strategy exceeded the maximum number of iterations'
-  end function eors_has_finished_refinement
+    
+  end subroutine lirs_update_refinement_flags
   
   subroutine ffrs_set_parameters(this,parameter_list)
     implicit none

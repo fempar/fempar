@@ -114,12 +114,6 @@ private
     integer(ip), parameter, public :: XDMF_HEXAHEDRON_SPECTRAL_1331 = 72  ! p(new XdmfTopologyType(1331, 6, faces, 12, "Hexahedron_Spectral_1331", Decic, 0x48));
     integer(ip), parameter, public :: XDMF_MIXED                    = 112 ! p(new XdmfTopologyType(0, 0, faces, 0, "Mixed", Arbitrary, 0x70));
 
-    ! PARAMETERS IDENTIFIERS
-    character(*), parameter, public :: xh5_Strategy   = 'xh5_Strategy'
-    character(*), parameter, public :: xh5_GridType   = 'xh5_GridType'
-    character(*), parameter, public :: xh5_Action     = 'xh5_Action'
-    character(*), parameter, public :: xh5_Info       = 'xh5_Info'
-
     ! GRID TYPE PARAMETERS (from xh5for)
     public :: XDMF_GRID_TYPE_CURVILINEAR
     public :: XDMF_GRID_TYPE_RECTILINEAR
@@ -150,14 +144,34 @@ private
     ! ACTION PARAMETERS (from xh5for)
     public :: XDMF_ACTION_READ
     public :: XDMF_ACTION_WRITE
+    
+    ! PARAMETERS IDENTIFIERS
+    character(*), parameter, public :: xh5_GridType   = 'xh5_GridType'
+    character(*), parameter, public :: xh5_Action     = 'xh5_Action'
 
-    ! DEFAULT PARAMETERS
+    ! DEFAULT INTERNAL PARAMETERS
     logical,     parameter, public :: xh5_default_StaticGrid = .true.
-    integer(ip), parameter, public :: xh5_default_Strategy   = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
     integer(ip), parameter, public :: xh5_default_GridType   = XDMF_GRID_TYPE_UNSTRUCTURED
     integer(ip), parameter, public :: xh5_default_Action     = XDMF_ACTION_WRITE
-    integer(ip), parameter, public :: xh5_default_Info       = 0
     integer(ip), parameter, public :: xh5_default_Comm       = 0
+    
+    ! CLA PARAMETERS
+    character(*), parameter, public :: output_handler_xh5_strategy_key          = 'OUTPUT_HANDLER_XH5_STRATEGY'
+    character(*), parameter, public :: output_handler_xh5_info_key              = 'OUTPUT_HANDLER_XH5_INFO'
+    
+    character(len=*), parameter, public :: output_handler_xh5_strategy_cla_name = '--'//output_handler_xh5_strategy_key
+    character(len=*), parameter, public :: output_handler_xh5_info_cla_name     = '--'//output_handler_xh5_info_key
+
+    integer(ip), parameter, public :: output_handler_xh5_strategy_default       = XDMF_STRATEGY_CONTIGUOUS_HYPERSLAB
+    integer(ip), parameter, public :: output_handler_xh5_Info_default           = 0
+    
+    character(len=*), parameter, public :: output_handler_xh5_strategy_cla_choices  = '800,801'
+
+    character(len=*), parameter, public :: output_handler_xh5_strategy_cla_help  = "Parallel IO strategy (see XH5For docs)" // BRK_LINE // & 
+                    BULLET_FLAP_HELP_MESSAGE // "800: Contiguous hyperslabs" // BRK_LINE // & 
+                    BULLET_FLAP_HELP_MESSAGE // "801: Dataset per process)"
+
+    character(len=*), parameter, public :: output_handler_xh5_info_cla_help = 'HDF5 I/O low level configuration based on MPI info'
 
 
 end module xh5_parameters_names

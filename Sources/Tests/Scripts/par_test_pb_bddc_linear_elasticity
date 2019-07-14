@@ -6,23 +6,25 @@ MPIEXEC_NP_FLAG="$2"
 MPIEXEC_PREFLAGS="$3"
 TEST_BINARY_PATH="$4"
 TEST_INPUT_DATA_PATH="$5"
+TEST_SCRIPTS_PATH="$6"
 final_exit_code=0
 DIR=$(dirname "$TEST_BINARY_PATH")
-echo "$DIR"
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
 
 # Allowed variation (%) in the number of iterations  w.r.t. the reference solution to return a PASSED test
 allowed_variation=0.05 
 final_exit_code=0
 
-if [ -d "$DIR" ]
-then
 if [ -f "$TEST_BINARY_PATH" ]
 then
   if [ -d "$TEST_INPUT_DATA_PATH" ] 
   then
      #test 1
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc -use-vertices .false. -use-edges .false. -use-faces .true. -is_a_beam .false. -integration heterogeneous | tee tmp_output "
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -np 2 2 2 1 1 1 -n 20 20 20 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc -use-vertices .false. -use-edges .false. -use-faces .true. -is_a_beam .false. -integration heterogeneous | tee tmp_output
+     COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $struct_hex_mesh_generator_num_cells_x_dim_flag 20 20 20 $struct_hex_mesh_generator_domain_limits_flag 0 2 0 0.5 0 0.5 -j 100000000 -i 7 -nc 2 2 2 -npwc 2 2 2 -coarse-handler pb_bddc $coarse_space_use_vertices_flag .false. $coarse_space_use_edges_flag .false. $coarse_space_use_faces_flag .true. -is_a_beam .false. -integration heterogeneous | tee tmp_output"
+     echo $COMMAND
+     eval $COMMAND
 
      # Check Number of iterations is within allowed range 
      exit_code1=0
@@ -41,10 +43,7 @@ else
   echo "$0: BINARY not found! Value PROVIDED: $4."
   final_exit_code=1
 fi
-else
-  echo "$0: PART not found! Value PROVIDED: $DIR/part."
-  final_exit_code=1
-fi
+
 rm -Rf $TEST_COMBINATIONS_FILE_NAME
 exit $final_exit_code 
 

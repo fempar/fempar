@@ -65,6 +65,7 @@ USE FPL
 USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_cell_iterator_t, fe_function_t
 USE output_handler_field_generator_names
+USE output_handler_parameters_names
 USE base_output_handler_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
@@ -72,9 +73,6 @@ USE xh5_output_handler_names
 implicit none
 #include "debug.i90"
 private
-
-    character(len=*), parameter :: VTK = 'VTK'
-    character(len=*), parameter :: XH5 = 'XH5'
 
     type :: output_handler_t
     !-----------------------------------------------------------------
@@ -109,12 +107,13 @@ private
     !```
     !-----------------------------------------------------------------
     private
+        character(len=:),             allocatable :: format
+        character(len=:),             allocatable :: prefix
+        character(len=:),             allocatable :: dir_path
         class(base_output_handler_t), allocatable :: state
     contains
     private
-        procedure, non_overridable         ::                                   output_handler_create
-        procedure, non_overridable         ::                                   output_handler_create_string
-        procedure, non_overridable         ::                                   output_handler_create_mold
+        procedure, non_overridable, public :: create                         => output_handler_create
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
         procedure, non_overridable, public :: set_create_fe_cell_iterator    => output_handler_set_create_fe_cell_iterator
         procedure, non_overridable, public :: set_free_fe_cell_iterator      => output_handler_set_free_fe_cell_iterator
@@ -122,87 +121,53 @@ private
         procedure, non_overridable, public :: add_field_generator            => output_handler_add_field_generator
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
         procedure, non_overridable, public :: update_cell_vector             => output_handler_update_cell_vector
-        procedure, non_overridable, public :: open                           => output_handler_open
+        procedure, non_overridable         :: open_noargs                    => output_handler_open_noargs
+        procedure, non_overridable         :: open_dir_path_prefix           => output_handler_open_dir_path_prefix
         procedure, non_overridable, public :: append_time_step               => output_handler_append_time_step
         procedure, non_overridable, public :: write                          => output_handler_write
         procedure, non_overridable, public :: close                          => output_handler_close
         procedure, non_overridable, public :: free                           => output_handler_free
-        generic,                    public :: create                         => output_handler_create, &
-                                                                                output_handler_create_string, &
-                                                                                output_handler_create_mold
+        generic,                    public :: open                           => open_dir_path_prefix, open_noargs
     end type
 
-    class(base_output_handler_t),save, allocatable  :: output_handler_prototype
-   !$OMP THREADPRIVATE(output_handler_prototype)
-
-public :: output_handler_t
-public :: output_handler_prototype_reset, output_handler_prototype_free
-public :: VTK
-public :: XH5
+    public :: output_handler_t
 
 contains
 
-    subroutine output_handler_prototype_reset(output_handler)
+    subroutine output_handler_create(this, parameterlist)
     !-----------------------------------------------------------------
-    !< Stand-alone subroutine to initialize the default output format used
-    !<  in the prototype pattern. 
-    !< 
-    !< This subroutine is beeing called from [[FEMPAR_INIT(subroutine)]] subroutine,
-    !< user doesn't have to be aware of its existence
-    !<  
-    !< The default output format switches at compile time between
-    !< VTK and XDMF depending on the detection of the HDF5 library by 
-    !< the CMake compilation system. User can choose an alternative 
-    !< format by means of the [[output_handler_t(type):Create(bound)]] TBP.
-    !-----------------------------------------------------------------
-        class(base_output_handler_t), optional, intent(in) :: output_handler
-        integer                                  :: error
-        call output_handler_prototype_free()
-        if (present(output_handler)) then
-          allocate(output_handler_prototype, mold=output_handler, stat=error); check(error==0)
-        else
-#ifdef ENABLE_HDF5
-          allocate(xh5_output_handler_t :: output_handler_prototype)
-#else
-          allocate(vtk_output_handler_t :: output_handler_prototype)
-#endif          
-        end if
-    end subroutine output_handler_prototype_reset
-
-
-    subroutine output_handler_prototype_free()
-    !-----------------------------------------------------------------
-    !< Stand-alone subroutine to deallocate the default output handler. 
-    !< This subroutine is beeing called from [[FEMPAR_FINALIZE(subroutine)]],
-    !< user doesn't have to be aware of its existence
-    !-----------------------------------------------------------------
-       integer(ip) :: error
-       if (allocated(output_handler_prototype)) then 
-          deallocate(output_handler_prototype, stat=error); check(error==0)
-       end if   
-    end subroutine output_handler_prototype_free
-
-    subroutine output_handler_create(this)
-    !-----------------------------------------------------------------
-    !< Create the output handler **state** by means of the default output handler
+    !< Create the output handler **state** given a parameter list
     !-----------------------------------------------------------------
         class(output_handler_t), intent(inout) :: this
+        type(ParameterList_t),   intent(in)    :: parameterlist
+        integer(ip)                            :: error
     !-----------------------------------------------------------------
-        assert(allocated(output_handler_prototype))
-        call this%free()
-        allocate(this%state, mold=output_handler_prototype)
-    end subroutine output_handler_create
+        this%dir_path = output_handler_default_dir_path
+        this%prefix   = output_handler_default_prefix
+        this%format   = output_handler_default_format
 
+        ! Mandatory parameters
+        ! Get fomat value from parameterlist
+        assert(parameterlist%isPresent(output_handler_format_key))
+        assert(parameterlist%isAssignable(output_handler_format_key, 'string'))
+        error = parameterlist%getasstring(key = output_handler_format_key, string = this%format)
+        check(error==0)
 
-    subroutine output_handler_create_string(this, descriptor)
-    !-----------------------------------------------------------------
-    !< Create the output handler **state** given its descriptor string
-    !-----------------------------------------------------------------
-        class(output_handler_t), intent(inout) :: this
-        character(len=*),        intent(in)    :: descriptor
-    !-----------------------------------------------------------------
+        ! Get dir_path value from parameterlist
+        assert(parameterlist%isPresent(output_handler_dir_path_key))
+        assert(parameterlist%isAssignable(output_handler_dir_path_key, 'string'))
+        error = parameterlist%GetAsString(Key=output_handler_dir_path_key, String=this%dir_path)
+        assert(error == 0)
+
+        ! Get prefix value from parameterlist
+        assert(parameterlist%isPresent(output_handler_prefix_key))
+        assert(parameterlist%isAssignable(output_handler_prefix_key, 'string'))
+        error = parameterlist%GetAsString(Key=output_handler_prefix_key, String=this%prefix)
+        assert(error == 0)
+
+        ! Allocate state according to the given format
         call this%free()
-        select case (descriptor)
+        select case (this%format)
             case (VTK)
                 allocate(vtk_output_handler_t :: this%state)
             case (XH5)
@@ -210,19 +175,11 @@ contains
             case DEFAULT
                 check(.false.)
         end select
-    end subroutine output_handler_create_string
-    
 
-    subroutine output_handler_create_mold(this, mold)
-    !-----------------------------------------------------------------
-    !< Create the output handler **state** by means of the default output handler
-    !-----------------------------------------------------------------
-        class(output_handler_t)     , intent(inout) :: this
-        class(base_output_handler_t), intent(in)    :: mold
-    !-----------------------------------------------------------------
-        call this%free()
-        allocate(this%state, mold=mold)
-    end subroutine output_handler_create_mold
+        ! Call concrete implementation of create procedure
+        call this%state%create(parameterlist)
+    end subroutine output_handler_create
+
 
     subroutine output_handler_attach_fe_space(this, fe_space)
     !-----------------------------------------------------------------
@@ -308,10 +265,24 @@ contains
         assert(allocated(this%state))
         call this%state%update_cell_vector(cell_vector, name)
     end subroutine output_handler_update_cell_vector
-    
 
 
-    subroutine output_handler_open(this, dir_path, prefix, parameter_list)
+    subroutine output_handler_open_noargs(this)
+    !-----------------------------------------------------------------
+    !< Open procedure. 
+    !< First procedure to be called after attaching 
+    !< the [[serial_fe_space_t(type)]] and adding [[fe_function_t(type)]] and 
+    !< **cell_vector** and before starting to write data to disk.
+    !< This procedure must be called only once and out-of-the-loop
+    !< in transient simulations
+    !-----------------------------------------------------------------
+        class(output_handler_t),         intent(inout) :: this
+    !-----------------------------------------------------------------
+        call this%open(this%dir_path, this%prefix)
+    end subroutine output_handler_open_noargs
+
+
+    subroutine output_handler_open_dir_path_prefix(this, dir_path, prefix)
     !-----------------------------------------------------------------
     !< Open procedure. 
     !< First procedure to be called after attaching 
@@ -323,11 +294,10 @@ contains
         class(output_handler_t),         intent(inout) :: this
         character(len=*),                intent(in)    :: dir_path
         character(len=*),                intent(in)    :: prefix
-        type(ParameterList_t), optional, intent(in)    :: parameter_list
     !-----------------------------------------------------------------
         assert(allocated(this%state))
-        call this%state%open(dir_path, prefix, parameter_list)
-    end subroutine output_handler_open
+        call this%state%open(dir_path, prefix)
+    end subroutine output_handler_open_dir_path_prefix
 
 
     subroutine output_handler_append_time_step(this, value)

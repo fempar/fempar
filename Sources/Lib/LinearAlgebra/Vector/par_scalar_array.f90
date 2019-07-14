@@ -157,7 +157,6 @@ contains
     type(environment_t) , target, intent(in)    :: p_env
     type(dof_import_t)      , target, intent(in)    :: dof_import
     call this%free()
-    assert ( p_env%created() ) 
     this%p_env      => p_env 
     this%dof_import => dof_import
     if(.not. this%p_env%am_i_l1_task()) return
@@ -182,7 +181,6 @@ contains
     type(par_scalar_array_t)           , intent(inout)  :: t_p_vec
     
     assert ( associated(this%p_env) )
-    assert ( this%p_env%created() )
     assert ( associated(this%dof_import) )
     
     call t_p_vec%free()

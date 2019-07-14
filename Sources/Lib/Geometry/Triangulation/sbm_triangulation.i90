@@ -30,6 +30,25 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine triangulation_process_parameters(this, parameters)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  type(parameterlist_t) , intent(in)    :: parameters
+  integer(ip) :: istat
+  
+  assert (parameters%isPresent(triang_identify_disconn_components_key))
+  assert(parameters%isAssignable(triang_identify_disconn_components_key, this%identify_disconn_components))
+  istat = parameters%Get(key = triang_identify_disconn_components_key, value = this%identify_disconn_components)
+  assert(istat==0)
+  
+  if (this%identify_disconn_components) then
+    assert (parameters%isPresent(triang_identify_disconn_components_dgraph_coupling_key))
+    assert(parameters%isAssignable(triang_identify_disconn_components_dgraph_coupling_key, this%identify_disconn_components_dgraph_coupling))
+    istat = parameters%GetAsString(key = triang_identify_disconn_components_dgraph_coupling_key, string = this%identify_disconn_components_dgraph_coupling) 
+    assert(istat==0)
+  end if 
+end subroutine triangulation_process_parameters
+
 function triangulation_is_single_octree_mesh(this)
   implicit none
   class(triangulation_t), intent(in) :: this
@@ -169,32 +188,8 @@ subroutine triangulation_set_environment ( this, environment )
   class(triangulation_t), intent(inout) :: this
   class(environment_t), target, intent(in)    :: environment
   integer(ip) :: istat
-  !call this%free_environment()
   this%environment => environment
-  !this%environment_allocated = .false.
 end subroutine triangulation_set_environment 
-
-! subroutine triangulation_allocate_environment ( this )
-!   implicit none
-!   class(triangulation_t), intent(inout) :: this
-!   integer(ip) :: istat
-!   call this%free_environment()
-!   allocate(this%environment, stat=istat); check(istat == 0)
-!   this%environment_allocated = .true.
-! end subroutine triangulation_allocate_environment
-
-! subroutine triangulation_free_environment ( this )
-!   implicit none
-!   class(triangulation_t)      , intent(inout) :: this
-!   integer(ip) :: istat
-!   if ( this%environment_allocated ) then
-!     call this%environment%free()
-!     deallocate(this%environment, stat=istat)
-!     check(istat == 0)
-!   end if
-!   nullify(this%environment)
-!   this%environment_allocated = .false.
-! end subroutine triangulation_free_environment 
 
 subroutine triangulation_set_up_lst_itfc_vefs (this)
   implicit none
@@ -650,7 +645,6 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
 
   assert ( this%environment%am_i_l1_task() )
   
-  call this%allocate_and_fill_disconnected_cells_set_id() 
   ! Subparts itinerary
   if ( this%is_conforming() ) then
     call this%compute_subparts_itfc_vefs_conforming_mesh(parts_itfc_vefs,perm_itfc_vefs)
@@ -659,21 +653,10 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   end if
   call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%subparts_object,this%vefs_object)
   call this%compute_parts_object_from_subparts_object()
-  
-  ! Parts itinerary (standard one)
-  !call this%compute_parts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
-  !call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%parts_object,this%vefs_object)
 
   call memfree ( parts_itfc_vefs, __FILE__, __LINE__ )
   call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
 end subroutine triangulation_compute_vefs_and_parts_object
-
-subroutine triangulation_set_subparts_coupling_criteria( this, coupling_criteria ) 
-  implicit none 
-  class(triangulation_t), intent(inout) :: this
-  character(*)          , intent(in)    :: coupling_criteria 
-  this%subparts_coupling_criteria = coupling_criteria  
-end subroutine triangulation_set_subparts_coupling_criteria 
 
 function triangulation_get_max_cell_set_id( this ) 
   implicit none 
@@ -686,14 +669,10 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
   implicit none 
   class(triangulation_t), intent(inout) :: this
   type(list_t)                          :: dual_graph
-  integer(ip)                           :: icell 
-  integer(ip)                           :: disconnected_part_id 
   integer(ip), allocatable              :: disconnected_cells_set_id(:) 
-  class(environment_t), pointer         :: environment
 
   call memalloc(this%get_num_local_cells(), disconnected_cells_set_id, __FILE__, __LINE__)
-  
-  if ( this%subparts_coupling_criteria == all_coupled .or. this%environment%get_l1_size() <= 1 ) then 
+  if ( (.not. this%identify_disconn_components) .or. this%environment%get_l1_size() <= 1 ) then 
      disconnected_cells_set_id = 0 
   else 
      call this%generate_dual_graph(dual_graph)
@@ -701,9 +680,8 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
 
      ! Get max cell_set_ids among same level tasks 
      this%max_cell_set_id = this%compute_max_cells_set_id() 
- end if
-      
-  call this%resize_disconnected_cells_set() 
+  end if    
+  call this%resize_disconnected_cells_set()
   call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
 
   ! Free data
@@ -734,10 +712,10 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
   environment => this%get_environment()
   assert ( environment%am_i_l1_task() )
 
-  select case ( this%subparts_coupling_criteria ) 
-  case ( loose_coupling ) 
+  select case ( this%identify_disconn_components_dgraph_coupling ) 
+  case ( vertex_coupling ) 
      dim_connecting_vefs = 0 
-  case ( strong_coupling ) 
+  case ( face_coupling ) 
      dim_connecting_vefs = this%get_num_dims()-1 
   case DEFAULT 
      massert(.false., 'Coupling criteria to detect disconnected parts is not valid') 
@@ -1319,6 +1297,7 @@ subroutine triangulation_setup_coarse_triangulation ( this )
   call this%free_coarse_triangulation_lgt1_data()
 
   if ( this%environment%am_i_l1_task() ) then
+     call this%allocate_and_fill_disconnected_cells_set_id()
      call this%compute_vefs_and_parts_object()
      call this%compute_objects_dim()
      call this%compute_num_global_objects_and_their_gids()
@@ -1386,7 +1365,8 @@ subroutine triangulation_setup_coarse_triangulation ( this )
                                              ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
                                              lst_ext_neighs_gids        = lextn, &
                                              lst_ext_neighs_part_ids    = lextp, &
-                                             subparts_coupling_criteria = this%subparts_coupling_criteria )
+                                             identify_disconn_components=this%identify_disconn_components, & 
+                                             identify_disconn_components_dgraph_coupling = this%identify_disconn_components_dgraph_coupling )
   else
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_triangulation)
@@ -1523,7 +1503,7 @@ subroutine triangulation_fetch_l2_part_id_neighbours ( this, l2_part_id_neighbou
   assert ( this%environment%am_i_l1_to_l2_task() )
   if (this%environment%am_i_l1_task()) then
      num_neighbours = this%cell_import%get_num_neighbours()
-     my_l2_part_id  = this%environment%get_l2_part_id_l1_task_is_mapped_to()
+     my_l2_part_id  = this%environment%get_l2_rank_l1_rank_is_mapped_to()
      if (allocated(l2_part_id_neighbours)) call memfree ( l2_part_id_neighbours, __FILE__, __LINE__ )
      call memalloc ( num_neighbours, l2_part_id_neighbours, __FILE__, __LINE__ )
      call this%environment%l1_neighbours_exchange ( num_neighbours  = num_neighbours, &
@@ -1565,7 +1545,7 @@ subroutine triangulation_gather_coarse_dgraph_rcv_counts_and_displs ( this, &
   else
      assert ( this%environment%am_i_l1_task() )
      num_neighbours = this%cell_import%get_num_neighbours()
-     my_l2_part_id  = this%environment%get_l2_part_id_l1_task_is_mapped_to()
+     my_l2_part_id  = this%environment%get_l2_rank_l1_rank_is_mapped_to()
      num_external_l2_elements = 0
      do i = 1, num_neighbours
         if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
@@ -1624,7 +1604,7 @@ subroutine triangulation_gather_coarse_dgraph_lextn_and_lextp( this,            
      assert ( this%environment%am_i_l1_task() )
      num_neighbours =  this%cell_import%get_num_neighbours()
      neighbours_ids => this%cell_import%get_neighbours_ids()
-     my_l2_part_id  = this%environment%get_l2_part_id_l1_task_is_mapped_to()
+     my_l2_part_id  = this%environment%get_l2_rank_l1_rank_is_mapped_to()
      num_external_l2_elements = 0
      do i = 1, num_neighbours
         if ( my_l2_part_id /= l2_part_id_neighbours(i) ) then
@@ -2272,10 +2252,9 @@ recursive subroutine triangulation_free ( this )
         call this%free_coarse_triangulation_lgt1_data()
      end if
      nullify(this%environment)
-     !call this%free_environment()  
      this%coarse_triangulation_set_up = .false.
-     if (allocated(this%subparts_coupling_criteria)) then
-       deallocate(this%subparts_coupling_criteria, stat=istat); check(istat==0);
+     if (allocated(this%identify_disconn_components_dgraph_coupling)) then
+       deallocate(this%identify_disconn_components_dgraph_coupling, stat=istat); check(istat==0);
      end if 
   end if
   call this%set_single_octree_mesh(.false.)

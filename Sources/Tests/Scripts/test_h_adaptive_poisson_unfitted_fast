@@ -2,15 +2,21 @@
 SCRIPT_NAME=$(basename $0)
 TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
 final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
+
 if [ -f "$TEST_BINARY_PATH" ]
 then
- #if [ -d "$TEST_INPUT_DATA_PATH" ] 
- #  then
-      ###############################################################################################################################
-      # Scalar-valued tests
-      ###############################################################################################################################
 
+    ###############################################################################################################################
+    # Scalar-valued tests
+    ###############################################################################################################################
+
+    if [ $final_exit_code -eq 0 ] 
+    then    
       vbcs="diri"
       vmts="aggr stnd"
       vods="1 2"
@@ -19,6 +25,11 @@ then
       
       ilvs=2
       for idim in $vdim; do
+        if [ $idim -eq 2 ]; then
+          domain_limits="0.0 1.0 0.0 1.0"
+        else
+          domain_limits="0.0 1.0 0.0 1.0 0.0 1.0"
+        fi
         for iods in $vods; do
           for ibcs in $vbcs; do
             for imts in $vmts; do
@@ -46,13 +57,13 @@ then
                     dom="-1.0 1.0"
                   fi
         
-                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -o $SCRIPT_NAME -p $SCRIPT_NAME"
-        
-                  echo $cmd
-                  $cmd
+                  COMMAND="$TEST_BINARY_PATH $p4est_triang_num_dims_flag $idim $p4est_triang_domains_limits_flag $domain_limits -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst $output_handler_dir_path_flag $SCRIPT_NAME $output_handler_prefix_flag $SCRIPT_NAME --dir-path-out $SCRIPT_NAME --out-prefix $SCRIPT_NAME"
+                  echo $COMMAND
+                  eval $COMMAND
                   if [ $? -ne 0 ] 
                   then
                    final_exit_code=1
+                   break 5
                   fi
         
                 fi
@@ -61,11 +72,14 @@ then
           done
         done
       done
+    fi
 
-      ###############################################################################################################################
-      # Vector-valued tests
-      ###############################################################################################################################
-      
+    ###############################################################################################################################
+    # Vector-valued tests
+    ###############################################################################################################################
+
+    if [ $final_exit_code -eq 0 ] 
+    then          
       vbcs="diri"
       vmts="aggr stnd"
       vods="2"
@@ -74,6 +88,11 @@ then
       
       ilvs=2
       for idim in $vdim; do
+        if [ $idim -eq 2 ]; then
+          domain_limits="0.0 1.0 0.0 1.0"
+        else
+          domain_limits="0.0 1.0 0.0 1.0 0.0 1.0"
+        fi
         for iods in $vods; do
           for ibcs in $vbcs; do
             for imts in $vmts; do
@@ -101,13 +120,13 @@ then
                     dom="-1.0 1.0"
                   fi
         
-                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -lt vector -o $SCRIPT_NAME -p $SCRIPT_NAME"
-        
-                  echo $cmd
-                  $cmd
+                  COMMAND="$TEST_BINARY_PATH $p4est_triang_num_dims_flag $idim $p4est_triang_domains_limits_flag $domain_limits -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst -lt vector $output_handler_dir_path_flag $SCRIPT_NAME $output_handler_prefix_flag $SCRIPT_NAME --dir-path-out $SCRIPT_NAME --out-prefix $SCRIPT_NAME"
+                  echo $COMMAND
+                  eval $COMMAND
                   if [ $? -ne 0 ] 
                   then
                    final_exit_code=1
+                   break 5
                   fi
         
                 fi
@@ -116,13 +135,8 @@ then
           done
         done
       done
+    fi
 
-
-
-   #else
-   #   echo "$0: input data directory not found!"
-   #   final_exit_code=1
-   #fi
 else
   echo "$0: BINARY not found! Value PROVIDED: $1."
   final_exit_code=1

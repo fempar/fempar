@@ -43,8 +43,7 @@ program tutorial_01_steady_poisson
   !*   2) Values provided by the user through the command line (using the keys in fempar_parameter_handler_t).
   !*   3) the user provides the parameter values in the code.
   !* In this tutorial we will explicitly provide the values in the code (option 3), but they could be provided by the command line argument instead.
-  type(fempar_parameter_handler_t)     :: parameter_handler
-  !* This is the object in parameter_handler_t that provides the list of parameters.
+  !* This is the object in parameter_handler that provides the list of parameters.
   type(ParameterList_t), pointer       :: parameter_list
   !* The triangulation_t object provides the mesh. In this case, we consider a serial triangulation, i.e., not partitioned.
   type(serial_triangulation_t)         :: triangulation
@@ -77,20 +76,19 @@ program tutorial_01_steady_poisson
   !* parameters are defined later.
   !*  - Direct solver
   type(direct_solver_t)                :: direct_solver
-  type(ParameterList_t), pointer       :: direct_solver_params
   !*  - Iterative solver
   type(iterative_linear_solver_t)      :: iterative_linear_solver
-  type(ParameterList_t), pointer       :: iterative_solver_params    
   !* The output handler type is used to print the results
   type(output_handler_t)               :: output_handler
   !* The following object automatically compute error norms given a fe_function_t and the analytical solution.
   type(error_norms_scalar_t)           :: error_norm
   !*
   !* Local variables
-  integer(ip) :: fe_order, istat, error, i, boundary_ids
+  integer(ip) :: fe_order, istat, i, boundary_ids
   character(len=16)            :: lin_solver_type
   class(vector_t), pointer     :: dof_values
   class(vector_t), allocatable :: rhs
+  type(string)                 :: fes_ref_fe_types(1)
   !* ### Environment initialization
   real(rp) :: l2
   !*
@@ -98,20 +96,26 @@ program tutorial_01_steady_poisson
   call fempar_init()
   !* Initialize the FEMPAR context 
   call world_context%create()
+
   !* Initialize the list of parameters with all the options that are provided by FEMPAR
   !* It involves to create a parameter handler that is usually used to extract the values
   !* provided by the user through the command line. In this test, we assume that we are 
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
   call parameter_handler%process_parameters()
+
+  !* Overwrite fempar default parameters for the integration
+  fes_ref_fe_types(1) = String(fe_type_lagrangian)
+  call parameter_handler%update(struct_hex_mesh_generator_num_dims_key, value = 2 )                    ! Number of space dimensions
+  call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10] )       ! Number of cells per each dimension
+  call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, value = [0.0,1.0,0.0,1.0])! Domain limits of the mesh
+  call parameter_handler%update(struct_hex_mesh_generator_is_dir_periodic_key, value = [0,0] )         ! Mesh is not periodic in any direction
+  call parameter_handler%update(fes_ref_fe_orders_key, value = [ 1 ] )                                 ! Reference finite element orders
+  call parameter_handler%update(fes_ref_fe_types_key, value = fes_ref_fe_types )                       ! Reference finite element types
+
+  !* Obtain the list containing all fempar parameters
   parameter_list => parameter_handler%get_values()
-  !* Set parameters for the integration
-  error = 0
-  error = error + parameter_list%set(key = struct_hex_triang_num_dims_key, value = 2 )              ! Number of space dimensions
-  error = error + parameter_list%set(key = struct_hex_triang_num_cells_dir, value = [10,10,10] )    ! Number of cells per each dimension
-  error = error + parameter_list%set(key = fes_ref_fe_orders_key, value = [ 1 ] )                   ! Reference finite element orders
-  error = error + parameter_list%set(key = fes_ref_fe_types_key, value = 'Lagrangian' )             ! Reference finite element types
-  mcheck(error==0,'Failed parameter set')
+  
   !* Print the list of parameters
   !    call parameter_list%print()
   !* Determine a serial execution mode (default case)
@@ -123,6 +127,7 @@ program tutorial_01_steady_poisson
   !*   26 boundary objects (face+corners+edges) in 3D
   !* and 1 interior object  (i.e., the cell interior).
   !* A graphical example for a 2D case is presented next
+  !* ```text
   !*           6
   !*      3 - - - - 4
   !*      -         -         1,2,3,4,5,6,7,8 are id for the boundary of the domain
@@ -130,6 +135,7 @@ program tutorial_01_steady_poisson
   !*      -         -         9 is the id for the interior
   !*      1 - - - - 2
   !*           5     
+  !* ```
   call triangulation%create(serial_environment, parameter_list)
 
   !* ### Analytical expressions
@@ -184,17 +190,17 @@ program tutorial_01_steady_poisson
   !* After, we select the linear solver type. Then we set the solver parameters and solve the problem.
   lin_solver_type='pardiso'
   !*
+  !* PARDISO MKL case
   if (lin_solver_type=='pardiso') then
-    !* PARDISO MKL
-    direct_solver_params => parameter_list%NewSubList(Key=pardiso_mkl)
-    !* Set parameters of the direct solver
-    error = 0
-    error = error + direct_solver_params%set(key = dls_type_key,        value = pardiso_mkl)
-    !* Set parameters of the direct solver
-    error = error + direct_solver_params%set(key = pardiso_mkl_message_level, value = 0)
-    mcheck(error==0,'Failed parameter set')
-    call direct_solver%set_type_from_pl(direct_solver_params)
-    call direct_solver%set_parameters_from_pl(direct_solver_params)
+    !* Set Direct solver parameter to PARDISO
+    call parameter_handler%update(key = dls_type_key,        value = pardiso_mkl)
+    !* Set matrix type parameter of the direct solver to Symmetric positive definite 
+    call parameter_handler%update(key = pardiso_mkl_matrix_type, value = pardiso_mkl_spd)
+    !* Set verbosity parameter of the direct solver to default value
+    call parameter_handler%update(key = pardiso_mkl_message_level, value = pardiso_mkl_default_message_level)
+    !* Direct solver setup
+    call direct_solver%set_type_from_pl(parameter_list)
+    call direct_solver%set_parameters_from_pl(parameter_list)
     !* Next, we set the matrix in our system from the fe_affine operator
     call direct_solver%set_matrix(fe_affine_operator%get_matrix())
     !* We extract a pointer to the free nodal values of our FE function, which is the plae in which we will store the result.
@@ -203,18 +209,15 @@ program tutorial_01_steady_poisson
     !* putting the result in dof_values.
     call direct_solver%solve(fe_affine_operator%get_translation(),dof_values)
     call direct_solver%log_info()
+  !* ITERATIVE SOLVER case
   else if (lin_solver_type=='cg_solver') then
-    !* ITERATIVE SOLVER
-    iterative_solver_params => parameter_list%NewSubList(Key=cg_name)
     !* Set parameters of the direct solver
-    error = 0
-    error = error + iterative_solver_params%set(key = ils_rtol_key, value = 1.0e-12_rp)         ! Relative tolerance
-    error = error + iterative_solver_params%set(key = ils_max_num_iterations_key, value = 5000) ! Max number of iterations
-    error = error + iterative_solver_params%set(key = ils_type_key, value = cg_name )           ! Conjugate Gradient iterative solver
-    mcheck(error==0,'Failed parameter set')
+    call parameter_handler%update(key = ils_type_key, value = cg_name )           ! Conjugate Gradient iterative solver
+    call parameter_handler%update(key = ils_rtol_key, value = 1.0e-12_rp)         ! Relative tolerance
+    call parameter_handler%update(key = ils_max_num_iterations_key, value = 5000) ! Max number of iterations
     !* Now, we create a serial iterative solver with the values in the parameter list.
     call iterative_linear_solver%create(fe_space%get_environment())
-    call iterative_linear_solver%set_type_and_parameters_from_pl(iterative_solver_params)
+    call iterative_linear_solver%set_type_and_parameters_from_pl(parameter_list)
     !* Next, we set the matrix in our system from the fe_affine operator (i.e., its tangent)
     call iterative_linear_solver%set_operators(fe_affine_operator%get_tangent(), .identity. fe_affine_operator) 
     !* We extract a pointer to the free nodal values of our FE function, which is the plae in which we will store the result.
@@ -236,13 +239,12 @@ program tutorial_01_steady_poisson
   !* ### Plot results
   !* Last, we plot the results.
   !* We can set the file system path where the results files are created using
-  error = 0
-  error = error + parameter_list%set(key = dir_path_out_key      , Value= 'tutorial_01_steady_poisson_results')
-  mcheck(error==0,'Failed parameter set')
-  call output_handler%create()
+  call parameter_handler%update(key = output_handler_dir_path_key, Value= 'tutorial_01_steady_poisson_results')
+  
+  call output_handler%create(parameter_handler%get_values())
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'solution')
-  call output_handler%open(parameter_handler%get_dir_path_out(), parameter_handler%get_prefix())
+  call output_handler%open()
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()
@@ -250,7 +252,6 @@ program tutorial_01_steady_poisson
 !*  ### Free all the created objects
 !*
 !* Free all the created objects
-  call parameter_handler%free()
   call triangulation%free()
   call error_norm%free()
   call solution%free()       
@@ -261,8 +262,8 @@ program tutorial_01_steady_poisson
   call poisson_conditions%free()
   call triangulation%free()
   call serial_environment%free()
-  call parameter_handler%free()
   call world_context%free(.true.)
 
   call fempar_finalize()
 end program tutorial_01_steady_poisson
+

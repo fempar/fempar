@@ -1026,7 +1026,6 @@ subroutine bst_print ( this )
         call this%free_cells_around()
         call this%free_lst_itfc_vefs()
       end if
-      call this%geometry%free()
     end if
     call triangulation_free(this)
    end subroutine bst_free

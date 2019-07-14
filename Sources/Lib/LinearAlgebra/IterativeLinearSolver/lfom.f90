@@ -49,7 +49,7 @@ module lfom_names
   type, extends(base_iterative_linear_solver_t) :: lfom_t
      ! Parameters
      integer(ip)                    :: dkrymax
-     integer(ip)                    :: orthonorm_strat
+     character(len=:), allocatable  :: orthonorm_strat
 
      ! Working space data members
      type(multivector_t)            :: bkry
@@ -133,7 +133,8 @@ contains
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
     class(vector_t)     , pointer :: initial_solution
-    integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
+    integer(ip)                   :: max_num_iterations, output_frequency, luout
+    character(len=:), allocatable :: stopping_criteria
     real(rp)                      :: atol, rtol
     logical                       :: track_convergence_history
 
@@ -249,9 +250,9 @@ contains
             if ( environment%am_i_l1_task() ) then ! Am I a fine task ?
                 ! Orthogonalize
                 select case( this%orthonorm_strat )
-                    case ( mgsro )
+                    case ( orthonorm_strat_mgsro )
                         call modified_gs_reorthonorm  ( luout, kloc+1, this%bkry, this%hh(1,kloc), ierrc )
-                    case ( icgsro )
+                    case ( orthonorm_strat_icgsro )
                         call iterative_gs_reorthonorm ( luout, kloc+1, this%bkry, this%hh(1,kloc), ierrc )
                     case default
                         check(.false.)
@@ -355,7 +356,7 @@ contains
   function lfom_supports_stopping_criteria(this,stopping_criteria)
     implicit none
     class(lfom_t), intent(in) :: this
-    integer(ip), intent(in) :: stopping_criteria
+    character(*), intent(in) :: stopping_criteria
     logical :: lfom_supports_stopping_criteria
     lfom_supports_stopping_criteria = ( stopping_criteria == res_res .or. &
                                           stopping_criteria == res_rhs )
@@ -364,7 +365,7 @@ contains
   function lfom_get_default_stopping_criteria(this)
     implicit none
     class(lfom_t), intent(in) :: this
-    integer(ip) :: lfom_get_default_stopping_criteria
+    character(len=:), allocatable :: lfom_get_default_stopping_criteria
     lfom_get_default_stopping_criteria = default_lfom_stopping_criteria
   end function lfom_get_default_stopping_criteria
   

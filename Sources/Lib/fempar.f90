@@ -35,6 +35,7 @@ module fempar_names
   use hash_table_names
   use postpro_names
   use environment_names 
+  use environment_parameters_names 
   use execution_context_names
   use mpi_context_names
   use mpi_omp_context_names
@@ -42,7 +43,6 @@ module fempar_names
   use flap, only : command_line_interface
   use FPL
   use timer_names
-  use parameter_handler_names
   use fempar_parameter_handler_names
   use base_output_handler_names
   use output_handler_names
@@ -56,15 +56,20 @@ module fempar_names
   
 
   ! Geometry
-  use metis_interface_names
+  use metis_names
   use mesh_distribution_names
+  use mesh_partitioner_parameters_names
+  use mesh_partitioner_names
   use triangulation_names
+  use triangulation_parameters_names
   use p4est_triangulation_names
+  use p4est_triangulation_parameters_names
 
   use cell_import_names
   use mesh_names
   use geometry_names
   use uniform_hex_mesh_generator_names
+  use uniform_hex_mesh_generator_parameters_names
 
   ! Linear Algebra
   use iterative_linear_solver_names
@@ -102,6 +107,7 @@ module fempar_names
   use field_names
   use polynomial_names
   use fe_space_names
+  use fe_space_parameters_names
   use fe_cell_function_names
   use fe_cell_predicate_library_names
   use fe_facet_function_names
@@ -126,16 +132,16 @@ contains
     call the_direct_solver_creational_methods_dictionary%Init()           ! Direct solver creational methods dictionary initialization
     call the_iterative_linear_solver_creational_methods_dictionary%Init() ! Iterative linear solver creational methods dictionary initialization
     call sparse_matrix_prototype_reset()                                  ! Set to default type the sparse matrix prototype
-    call output_handler_prototype_reset()                                 ! Set to default type the output prototype
+    call parameter_handler%init()                                         ! Initialize the parameter handler
   end subroutine
 
 
   subroutine FEMPAR_FINALIZE()
+    call parameter_handler%free()                                         ! Free the parameter handler
     call FPL_Finalize()                                                   ! Free FPL Wrapper factory list
     call the_direct_solver_creational_methods_dictionary%Free()           ! Free Direct solver creational methods dictionary
     call the_iterative_linear_solver_creational_methods_dictionary%Free() ! Free Iterative linear solver creational methods dictionary
     call sparse_matrix_prototype_free()                                   ! Free the sparse matrix prototype
-    call output_handler_prototype_free()                                  ! Free the output handler prototype
     call memstatus()
   end subroutine
 

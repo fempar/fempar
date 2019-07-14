@@ -112,7 +112,8 @@ contains
     class(environment_t), pointer :: environment
     class(operator_t)   , pointer :: A, M 
     class(vector_t)     , pointer :: initial_solution
-    integer(ip)                   :: stopping_criteria, max_num_iterations, output_frequency, luout
+    integer(ip)                   :: max_num_iterations, output_frequency, luout
+    character(len=:), allocatable :: stopping_criteria
     real(rp)                      :: atol, rtol
 
     ! Pointers to freely modify/read private member variables of base class
@@ -238,8 +239,8 @@ contains
 
   function cg_supports_stopping_criteria(this,stopping_criteria)
     implicit none
-    class(cg_t), intent(in) :: this
-    integer(ip), intent(in) :: stopping_criteria
+    class(cg_t)     , intent(in) :: this
+    character(len=*), intent(in) :: stopping_criteria
     logical :: cg_supports_stopping_criteria
     cg_supports_stopping_criteria = (stopping_criteria == res_res .or. & 
                                      stopping_criteria == res_rhs .or. &
@@ -256,7 +257,7 @@ contains
   function cg_get_default_stopping_criteria(this)
     implicit none
     class(cg_t), intent(in) :: this
-    integer(ip) :: cg_get_default_stopping_criteria
+    character(len=:), allocatable :: cg_get_default_stopping_criteria
     cg_get_default_stopping_criteria = default_cg_stopping_criteria
   end function cg_get_default_stopping_criteria
   
@@ -281,7 +282,7 @@ contains
     class(vector_t) , intent(in)    :: b, r 
     real(rp)        , intent(in)    :: nrm_b_given, nrm_r_given
     real(rp)                        :: atol, rtol
-    integer(ip)                     :: stopping_criteria
+    character(len=:), allocatable   :: stopping_criteria
     real(rp)            , pointer   :: rhs_convergence_test
     real(rp)            , pointer   :: rhs_extra_convergence_test
     class(environment_t), pointer   :: environment
@@ -326,7 +327,7 @@ contains
     real(rp)        , intent(in)    :: nrm_r_given
     real(rp)        , intent(in)    :: alpha
     real(rp)                        :: atol, rtol
-    integer(ip)                     :: stopping_criteria
+    character(len=:), allocatable   :: stopping_criteria
     logical                         :: track_convergence_history
     logical             , pointer   :: did_converge
     integer(ip)         , pointer   :: num_iterations

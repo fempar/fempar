@@ -49,8 +49,8 @@ module test_poisson_driver_names
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(test_poisson_params_t)   :: test_params
-     type(ParameterList_t)         :: parameter_list
+     type(test_poisson_params_t)    :: test_params
+     type(ParameterList_t), pointer :: parameter_list
      
      ! Cells and lower dimension objects container
      type(serial_triangulation_t)              :: triangulation
@@ -111,8 +111,8 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_poisson_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
+    this%parameter_list => this%test_params%get_parameter_list()
   end subroutine parse_command_line_parameters
   
   subroutine setup_environment(this, world_context)
@@ -150,10 +150,6 @@ contains
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
 
-
-    !call this%triangulation%create(this%test_params%get_dir_path(),&
-    !                               this%test_params%get_prefix(),&
-    !                               geometry_interpolation_order=this%test_params%get_reference_fe_geo_order())
     call this%triangulation%create(this%serial_environment, this%parameter_list)
     !call this%triangulation%print()
     
@@ -194,7 +190,7 @@ contains
         call this%triangulation%fill_cells_set(this%cell_set_ids)
     end if
     
-    if ( this%test_params%get_triangulation_type() == 'structured' ) then
+    if ( this%test_params%get_triangulation_type() == static_triang_generate_from_struct_hex_mesh_generator ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
@@ -648,13 +644,9 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_dir_path_out()
-        prefix = this%test_params%get_prefix()
-        call oh%create()
+        call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
@@ -663,7 +655,7 @@ contains
            cell_vector(:) = this%cell_set_ids(:)
            call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
-        call oh%open(path, prefix)
+        call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
@@ -716,7 +708,6 @@ contains
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
-    call this%test_params%free()
   end subroutine free  
   
   function popcorn_fun(point,num_dim) result (val)

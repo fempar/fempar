@@ -28,141 +28,169 @@
 
 subroutine serial_triangulation_create ( this, environment, parameters)
   implicit none
-  class(serial_triangulation_t), target, intent(inout) :: this
-  type(environment_t)          ,  target, intent(in)   :: environment
-  type(ParameterList_t)        , intent(inout)         :: parameters
+  class(serial_triangulation_t) , target, intent(inout) :: this
+  type(environment_t)          ,  target, intent(inout) :: environment
+  type(ParameterList_t)                 , intent(in)    :: parameters
 
   type(uniform_hex_mesh_t) :: uniform_hex_mesh
-
-  type(mesh_t)                 :: mesh
-  type(list_t), pointer        :: given_vefs
-  integer(ip) , pointer        :: lst_vefs_geo(:), lst_vefs_set(:)
-  real(rp)    , allocatable    :: coordinates(:,:)
-  integer(ip)                  :: triangulation_generate
-  integer(ip)                  :: execution_context
-  integer(ip)                  :: istat
-  integer(ip)                  :: geometric_interpolation_order
-  type(p_reference_fe_t)       :: reference_fe_geo_list(1)
-  integer(ip)                  :: ivef 
-  integer(ip), allocatable     :: cells_set(:)
-  !type(environment_t), pointer :: environment
-  integer(ip)                  :: max_vefs_x_cell, num_edges, num_faces
-
-  ! Optional parameters
-  if( parameters%isPresent(triang_generate_key) ) then
-     assert(parameters%isAssignable(triang_generate_key, triangulation_generate))
-     istat = parameters%get(key = triang_generate_key, value = triangulation_generate)
-     assert(istat==0)
-  else
-     triangulation_generate = triangulation_generate_from_mesh
-  end if
-
-  if( parameters%isPresent(triang_geometric_interpolation_order_key) ) then
-     assert(parameters%isAssignable(triang_geometric_interpolation_order_key, geometric_interpolation_order))
-     istat = parameters%get(key = triang_geometric_interpolation_order_key , value = geometric_interpolation_order)
-     assert(istat==0)
-  else
-     geometric_interpolation_order = 1
-  end if
-
+  real(rp)    , allocatable     :: coordinates(:,:)
+  
   call this%free()
-
+  
+  call this%process_parameters(parameters)
   call this%set_environment(environment)
-
-  ! ! Verify (and eventually set) execution type and create serial environment
-  ! if( parameters%isPresent(execution_context_key) ) then
-  !    assert(parameters%isAssignable(execution_context_key, execution_context))
-  !    istat = parameters%get(key = execution_context_key, value = execution_context)
-  !    assert(istat==0)
-  !    check(execution_context==serial_context)
-  ! else
-  !    istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
-  ! end if
+  call environment%setup_l1_to_l2_context_all_levels(task_aggregation_among_levels=[1])
   
-  ! call this%allocate_environment()
-  ! environment => this%get_environment()
-  ! call environment%create(parameters)
-  
-  if(geometric_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
-
-  if(triangulation_generate==triangulation_generate_from_mesh) then
-     
-     call this%set_single_octree_mesh(.false.)
-  
-     call mesh%read(parameters)
-
-     ! Extract data from mesh
-     call mesh%get_sizes(this%num_dims,this%num_vertices,max_vefs_x_cell,this%num_local_cells)
-     this%num_global_cells=this%num_local_cells
-     this%num_vefs=this%num_vertices
-     this%num_ghost_cells=0
-     call mesh%move_cells(this%ptr_vefs_x_cell,this%lst_vefs_gids, cells_set)
-     call mesh%get_given_vefs(given_vefs,lst_vefs_geo,lst_vefs_set)
-
-     call mesh%move_coordinates(coordinates)
-
-     ! Generate dual mesh (at this point around vertices only)
-     call this%allocate_and_fill_cells_around()
-     call this%fill_reference_fe_geo_list(geometric_interpolation_order)
-     if (this%is_tet_mesh()) call this%orient_tet_mesh()
-     call this%generate_vefs(geometric_interpolation_order)
-     call this%allocate_and_fill_geometry_and_set(given_vefs,lst_vefs_geo,lst_vefs_set)
-     call mesh%free()
-
-  else if(triangulation_generate==triangulation_generate_structured) then
-
-     call this%set_single_octree_mesh(.true.)
-  
-     this%num_ghost_cells=0
-
-     ! Get num_dims from FPL
-     assert(parameters%isAssignable(struct_hex_triang_num_dims_key, this%num_dims ))
-     istat = parameters%get(key = struct_hex_triang_num_dims_key, value = this%num_dims)
-     assert(istat==0)
-
-     call uniform_hex_mesh%get_data_from_parameter_list(parameters)
-
-     call uniform_hex_mesh%generate_connectivities(this%num_local_cells,   &
-          &                                        this%num_vefs,          & ! All n_faces
-          &                                        this%num_vertices,      & ! All dim 0 n_faces
-          &                                        num_edges,         & ! All faces with 0<dim<n-1
-          &                                        num_faces,         & ! All dim n-1 n_faces
-          &                                        this%ptr_vefs_x_cell, &
-          &                                        this%lst_vefs_gids,     &
-          &                                        this%vefs_set,          &
-          &                                        coordinates)
-     this%num_global_cells=this%num_local_cells
-     ! Allocate and fill to default values cells_set==1 local variable
-     call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
-     cells_set = 0
-
-     call this%reference_fe_geo_index%init(1)
-     if(this%num_dims==2) then
-        call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
-        reference_fe_geo_list(1) = &
-             &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-             &                        num_dims = this%num_dims, order = geometric_interpolation_order, &
-             &                        field_type = field_type_scalar, conformity = .true. )
-     else
-        call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
-        reference_fe_geo_list(1) = &
-             &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
-             &                        num_dims = this%num_dims, order = geometric_interpolation_order, &
-             &                        field_type = field_type_scalar, conformity = .true. )
-     end if
-     ! Transfer allocated target from local variable to member variable of base_static_triangulation
-     select type(reference_fe => reference_fe_geo_list(1)%p)
-        class is(lagrangian_reference_fe_t)
-        this%reference_fe_geo_list(1)%p => reference_fe
-     end select
-     call uniform_hex_mesh%free()
+  if (this%generate_from == static_triang_generate_from_struct_hex_mesh_generator) then
+    call uniform_hex_mesh%create(parameters)
   end if
+  
+  if(this%generate_from==static_triang_generate_from_mesh_data_files) then
+    call this%create_mesh_data_files_itinerary(parameters, coordinates)
+  else if(this%generate_from==static_triang_generate_from_struct_hex_mesh_generator) then
+    call this%create_uniform_hex_mesh_itinerary(uniform_hex_mesh, coordinates)
+  end if
+  call this%create_common_itinerary(coordinates)
+  call memfree(coordinates, __FILE__, __LINE__)
+  
+  if (this%generate_from == static_triang_generate_from_struct_hex_mesh_generator) then
+    call uniform_hex_mesh%free()
+  end if
+end subroutine serial_triangulation_create
 
+subroutine serial_triangulation_create_uniform_hex_mesh_itinerary(this, uniform_hex_mesh, coordinates)
+  implicit none
+  class(serial_triangulation_t), intent(inout)  :: this
+  type(uniform_hex_mesh_t)  , intent(in)     :: uniform_hex_mesh
+  real(rp)    , allocatable , intent(inout)  :: coordinates(:,:)  
+  
+  integer(ip)                   :: istat
+  type(p_reference_fe_t)        :: reference_fe_geo_list(1)
+  integer(ip), allocatable      :: cells_set(:)
+  integer(ip)                   :: num_edges, num_faces
+  
+  call this%set_single_octree_mesh(.true.)
+
+  this%num_ghost_cells=0
+
+  this%num_dims = uniform_hex_mesh%get_num_dims()
+
+  !call uniform_hex_mesh%create(parameters)
+
+  call uniform_hex_mesh%generate_part_local_mesh(this%num_local_cells,   &
+       &                                        this%num_vefs,          & ! All n_faces
+       &                                        this%num_vertices,      & ! All dim 0 n_faces
+       &                                        num_edges,         & ! All faces with 0<dim<n-1
+       &                                        num_faces,         & ! All dim n-1 n_faces
+       &                                        this%ptr_vefs_x_cell, &
+       &                                        this%lst_vefs_gids,     &
+       &                                        this%vefs_set,          &
+       &                                        coordinates)
+  this%num_global_cells=this%num_local_cells
+  ! Allocate and fill to default values cells_set==1 local variable
+  call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
+  cells_set = 0
+  
   ! Allocate and fill this%cells_set from cells_set member variable
   call this%allocate_cells_set()
   call this%fill_cells_set(cells_set)
 
-  ! Generate dual mesh (around all vefs now)
+  call this%reference_fe_geo_index%init(1)
+  if(this%num_dims==2) then
+     call this%reference_fe_geo_index%put(key=8,val=1,stat=istat)
+     reference_fe_geo_list(1) = &
+          &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+          &                        num_dims = this%num_dims, order = this%geometric_interpolation_order, &
+          &                        field_type = field_type_scalar, conformity = .true. )
+  else
+     call this%reference_fe_geo_index%put(key=26,val=1,stat=istat)
+     reference_fe_geo_list(1) = &
+          &    make_reference_fe ( topology = topology_hex, fe_type = fe_type_lagrangian, &
+          &                        num_dims = this%num_dims, order = this%geometric_interpolation_order, &
+          &                        field_type = field_type_scalar, conformity = .true. )
+  end if
+  ! Transfer allocated target from local variable to member variable of base_static_triangulation
+  select type(reference_fe => reference_fe_geo_list(1)%p)
+  class is(lagrangian_reference_fe_t)
+     this%reference_fe_geo_list(1)%p => reference_fe
+  end select
+  call memfree(cells_set, __FILE__, __LINE__)
+end subroutine serial_triangulation_create_uniform_hex_mesh_itinerary
+
+subroutine serial_triangulation_create_mesh_data_files_itinerary(this, parameters, coordinates)
+  implicit none
+  class(serial_triangulation_t), intent(inout)  :: this
+  type(parameterlist_t)        , intent(in)     :: parameters
+  real(rp), allocatable        , intent(inout)  :: coordinates(:,:)
+  
+  type(mesh_t)                  :: mesh
+  type(list_t), pointer         :: boundary_vefs
+  integer(ip) , pointer         :: boundary_vefs_geometry_id(:), boundary_vefs_set(:)
+  integer(ip)                   :: istat
+  type(p_reference_fe_t)        :: reference_fe_geo_list(1)
+  integer(ip), allocatable      :: cells_set(:)
+  integer(ip)                   :: num_edges, num_faces
+
+  integer(ip), pointer :: mesh_vertices_x_cell_pointers(:), &
+       mesh_vertices_x_cell(:), &
+       mesh_cells_set(:)
+
+  real(rp), pointer :: mesh_vertex_coordinates(:,:)
+
+  call this%set_single_octree_mesh(.false.)
+
+  call mesh%read_fempar_gid_problem_type_format(parameters)
+
+  ! Extract data from mesh
+  this%num_dims = mesh%get_num_dims()
+  this%num_vertices = mesh%get_num_vertices()
+  this%num_local_cells = mesh%get_num_cells()
+
+  this%num_global_cells=this%num_local_cells
+  this%num_vefs=this%num_vertices
+  this%num_ghost_cells=0
+
+  mesh_vertices_x_cell_pointers => mesh%get_vertices_x_cell_pointers()
+  call memalloc (size(mesh_vertices_x_cell_pointers), this%ptr_vefs_x_cell, __FILE__, __LINE__)
+  this%ptr_vefs_x_cell = mesh_vertices_x_cell_pointers
+
+  mesh_vertices_x_cell => mesh%get_vertices_x_cell()
+  call memalloc (size(mesh_vertices_x_cell), this%lst_vefs_gids, __FILE__, __LINE__)
+  this%lst_vefs_gids = mesh_vertices_x_cell
+
+  mesh_cells_set => mesh%get_cells_set()
+  call memalloc (size(mesh_cells_set), cells_set, __FILE__, __LINE__)
+  cells_set = mesh_cells_set
+
+  boundary_vefs => mesh%get_boundary_vefs()
+  boundary_vefs_geometry_id => mesh%get_boundary_vefs_geometry_id()
+  boundary_vefs_set => mesh%get_boundary_vefs_set()
+
+  mesh_vertex_coordinates => mesh%get_vertex_coordinates()
+  call memalloc (size(mesh_vertex_coordinates,1), &
+       size(mesh_vertex_coordinates,2), &
+       coordinates, __FILE__, __LINE__)
+  coordinates = mesh_vertex_coordinates
+
+  ! Generate dual mesh (at this point around vertices only)
+  call this%allocate_and_fill_cells_around()
+  call this%fill_reference_fe_geo_list(this%geometric_interpolation_order)
+  if (this%is_tet_mesh()) call this%orient_tet_mesh()
+  call this%generate_vefs(this%geometric_interpolation_order)
+  call this%allocate_and_fill_geometry_and_set(boundary_vefs,boundary_vefs_geometry_id,boundary_vefs_set)
+  
+  ! Allocate and fill this%cells_set from cells_set member variable
+  call this%allocate_cells_set()
+  call this%fill_cells_set(cells_set)
+  call mesh%free()
+  call memfree(cells_set, __FILE__, __LINE__)
+
+end subroutine serial_triangulation_create_mesh_data_files_itinerary
+
+subroutine serial_triangulation_create_common_itinerary(this, coordinates)
+  implicit none
+  class(serial_triangulation_t), intent(inout)     :: this
+  real(rp)                     , intent(in)        :: coordinates(:,:)
   call this%allocate_and_fill_cells_around()
   call this%compute_vefs_dim()
   call this%find_vefs_at_boundary()
@@ -170,6 +198,6 @@ subroutine serial_triangulation_create ( this, environment, parameters)
   call this%set_up_lst_itfc_vefs()
   call this%allocate_and_fill_nodes()
   call this%allocate_and_fill_coordinates(coordinates)
-  call memfree(cells_set, __FILE__, __LINE__)
-  call memfree(coordinates, __FILE__, __LINE__)
-end subroutine serial_triangulation_create
+end subroutine serial_triangulation_create_common_itinerary
+
+

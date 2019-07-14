@@ -28,10 +28,10 @@
 module test_poisson_error_estimator_driver_names
   use fempar_names
   use test_poisson_error_estimator_params_names
-  use poisson_cG_discrete_integration_names
-  use poisson_conditions_names
-  use analytical_functions_names
-  use poisson_cG_error_estimator_names
+  use test_poisson_error_estimator_cG_discrete_integration_names
+  use test_poisson_error_estimator_conditions_names
+  use test_poisson_error_estimator_analytical_functions_names
+  use test_poisson_error_estimator_cG_error_estimator_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
   
@@ -44,7 +44,6 @@ module test_poisson_error_estimator_driver_names
      private 
      
      type(test_poisson_error_estimator_params_t) :: test_params
-     type(ParameterList_t)                       :: parameter_list
      
      type(p4est_serial_triangulation_t)          :: triangulation
      
@@ -96,8 +95,7 @@ contains
   subroutine parse_command_line_parameters(this)
     implicit none
     class(test_poisson_error_estimator_driver_t ), intent(inout) :: this
-    call this%test_params%create()
-    call this%test_params%parse(this%parameter_list)
+    call this%test_params%process_parameters()
   end subroutine parse_command_line_parameters
 
   subroutine setup_environment(this, world_context)
@@ -105,7 +103,7 @@ contains
     class(test_poisson_error_estimator_driver_t ), intent(inout) :: this
     class(execution_context_t)  , intent(in)    :: world_context
     integer(ip) :: ierr
-    call this%serial_environment%create(world_context, this%parameter_list)
+    call this%serial_environment%create(world_context, this%test_params%get_parameter_list())
   end subroutine setup_environment
   
   subroutine free_environment(this)
@@ -119,19 +117,17 @@ contains
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
     integer(ip)                        :: i
-    call this%triangulation%create(this%serial_environment, this%parameter_list)
-    if ( .not. this%test_params%get_use_void_fes() ) then
-      call this%triangulation%create_vef_iterator(vef)
-      do while ( .not. vef%has_finished() )
-        if(vef%is_at_boundary()) then
-          call vef%set_set_id(1)
-        else
-          call vef%set_set_id(0)
-        end if
-        call vef%next()
-      end do
-      call this%triangulation%free_vef_iterator(vef)
-    end if
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+      if(vef%is_at_boundary()) then
+        call vef%set_set_id(1)
+      else
+        call vef%set_set_id(0)
+      end if
+      call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
     call this%set_cells_for_uniform_refinement()
     call this%triangulation%refine_and_coarsen()
   end subroutine setup_triangulation
@@ -184,21 +180,18 @@ contains
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     type(poisson_cG_error_estimator_t)              :: poisson_cG_error_estimator
     class(refinement_strategy_t)      , allocatable :: refinement_strategy
-    !type(error_objective_refinement_strategy_t) :: refinement_strategy
     real(rp)              :: global_estimate(2), global_true_error(2), global_effectivity
     type(ParameterList_t) :: parameter_list
     integer(ip)           :: FPLError, istat, max_num_mesh_iterations
     logical               :: test
     real(rp)              :: theoretical_rate, tol_rate = 0.1_rp
     
-    global_estimate = 1.0_rp; global_true_error = 1.0_rp
-    
-    call poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
+    call poisson_cG_error_estimator%create(this%fe_space, this%test_params%get_parameter_list())
     call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions%get_analytical_functions())
     call poisson_cG_error_estimator%set_fe_function(this%solution)
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = error_objective_key                   , value = 0.01_rp)
+    FPLError = parameter_list%set(key = error_objective_key                   , value = 2.0_rp)
     FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
     max_num_mesh_iterations = 10
     FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
@@ -206,10 +199,10 @@ contains
     assert(FPLError == 0)
     
     if ( this%test_params%get_refinement_strategy() == 'uniform' ) then
-      theoretical_rate = 1.0_rp/(2.0_rp ** real(this%reference_fes(1)%p%get_order(),rp))
+      theoretical_rate = 1.0_rp/(2.0_rp ** real(this%test_params%get_reference_fe_order(),rp))
       allocate ( uniform_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
     else if ( this%test_params%get_refinement_strategy() == 'error_objective' ) then
-      allocate ( error_objective_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
+      allocate ( li_bettess_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
     else
       mcheck(.false.,'test_poisson_error_estimator: Refinement strategy not supported.')
     end if
@@ -218,8 +211,33 @@ contains
     
     call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
     
+    call poisson_cG_error_estimator%compute_local_estimates()
+    call poisson_cG_error_estimator%compute_global_estimate()
+    
+    call poisson_cG_error_estimator%compute_local_true_errors()
+    call poisson_cG_error_estimator%compute_global_true_error()
+    
+    global_estimate(1)   = poisson_cG_error_estimator%get_global_estimate()
+    global_true_error(1) = poisson_cG_error_estimator%get_global_true_error()
+    
     do while ( .not. refinement_strategy%has_finished_refinement() )
       
+      call refinement_strategy%update_refinement_flags(this%triangulation)
+      call this%triangulation%refine_and_coarsen()
+      call this%fe_space%refine_and_coarsen( this%solution )
+      call this%fe_space%set_up_cell_integration()
+      call this%fe_space%interpolate_dirichlet_values(this%solution)
+      call this%fe_affine_operator%reallocate_after_remesh()
+      call this%assemble_system()
+#ifdef ENABLE_MKL
+      call this%direct_solver%reallocate_after_remesh()
+#else
+      call this%iterative_linear_solver%reallocate_after_remesh()
+#endif
+      call this%solve_system()
+      !call this%check_solution()
+      call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
+    
       call poisson_cG_error_estimator%compute_local_estimates()
       call poisson_cG_error_estimator%compute_global_estimate()
       
@@ -241,8 +259,7 @@ contains
       write(*,'(a20,e32.25)') 'global_effectivity:', global_effectivity
       
       ! Some checks for the tests
-      if ( this%test_params%get_refinement_strategy() == 'uniform' .and. &
-           refinement_strategy%get_current_mesh_iteration() > 0 ) then
+      if ( this%test_params%get_refinement_strategy() == 'uniform' ) then
         test = abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate) < tol_rate
         write(*,*) abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate), tol_rate
         mcheck( test, 'Uniform refinement: Theoretical rate of convergence is not verified' )
@@ -253,23 +270,7 @@ contains
       
       global_estimate(1)   = global_estimate(2)
       global_true_error(1) = global_true_error(2)
-      
-      call refinement_strategy%update_refinement_flags(this%triangulation)
-      call this%triangulation%refine_and_coarsen()
-      call this%fe_space%refine_and_coarsen( this%solution )
-      call this%fe_space%set_up_cell_integration()
-      call this%fe_space%interpolate_dirichlet_values(this%solution)
-      call this%fe_affine_operator%reallocate_after_remesh()
-      call this%assemble_system()
-#ifdef ENABLE_MKL
-      call this%direct_solver%reallocate_after_remesh()
-#else
-      call this%iterative_linear_solver%reallocate_after_remesh()
-#endif
-      call this%solve_system()
-      !call this%check_solution()
-      call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
-      
+
     end do
     
     call parameter_list%free()
@@ -380,21 +381,16 @@ contains
   subroutine output_handler_initialize(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    character(len=:)     , allocatable :: path
-    character(len=:)     , allocatable :: prefix
-    type(parameterlist_t)              :: parameter_list
+    type(parameterlist_t), pointer :: parameter_list
     integer(ip)                        :: error
     if(this%test_params%get_write_solution()) then
-      path = this%test_params%get_dir_path_out()
-      prefix = this%test_params%get_prefix()
-      call this%output_handler%create()
+      parameter_list => this%test_params%get_parameter_list()
+      call this%output_handler%create(parameter_list)
       call this%output_handler%attach_fe_space(this%fe_space)
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-      call parameter_list%init()
-      error = parameter_list%set(key=oh_staticgrid, value=.false.)
-      check (error==0)
-      call this%output_handler%open(path, prefix, parameter_list)
+      error = parameter_list%set(key=output_handler_static_grid_key, value=.false.); check (error==0)
+      call this%output_handler%open()
       call parameter_list%free()
     endif
   end subroutine output_handler_initialize
@@ -422,7 +418,7 @@ contains
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     call this%free()
-    call this%parse_command_line_parameters()
+    !call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -458,7 +454,6 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-    call this%test_params%free()
   end subroutine free
   
 end module test_poisson_error_estimator_driver_names
