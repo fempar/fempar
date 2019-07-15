@@ -2168,6 +2168,7 @@ subroutine p4est_bt_nodal_coordinates_fe_function_to_cell_wise_array (this)
     end do 
     call this%nodal_coordinates_fe_space%free_fe_cell_iterator(fe)
     call memfree (nodal_values_coords, __FILE__, __LINE__)
+    call this%nodal_coordinates_fe_function%free()
   end if 
 end subroutine p4est_bt_nodal_coordinates_fe_function_to_cell_wise_array 
 
