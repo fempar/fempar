@@ -46,6 +46,11 @@ module par_test_h_adaptive_poisson_driver_names
      type(par_test_h_adaptive_poisson_params_t) :: test_params
      type(ParameterList_t), pointer       :: parameter_list
      
+     type(scalar_function_parser_t) :: geom_mapping_x_comp
+     type(scalar_function_parser_t) :: geom_mapping_y_comp
+     type(scalar_function_parser_t) :: geom_mapping_z_comp
+     type(vector_function_parser_t) :: geom_mapping
+     
      ! Cells and lower dimension objects container
      type(p4est_par_triangulation_t)       :: triangulation
      integer(ip), allocatable              :: cell_set_ids(:)
@@ -89,6 +94,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure                  :: report_timers
      procedure                  :: free_timers
      procedure                  :: setup_environment
+     procedure        , private :: setup_geom_mapping
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_coarse_fe_handlers
@@ -164,6 +170,38 @@ end subroutine free_timers
     call this%par_environment%create (world_context, this%parameter_list)
   end subroutine setup_environment
    
+  subroutine setup_geom_mapping(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    integer(ip) :: istat, num_dims
+    
+    type(string) :: geom_mapping_x_comp
+    type(string) :: geom_mapping_y_comp
+    type(string) :: geom_mapping_z_comp
+    
+    ! Get num_dims from parameters
+    call parameter_handler%get(key = p4est_triang_num_dims_key, value = num_dims);
+  
+    geom_mapping_x_comp = 'x'
+    geom_mapping_y_comp = 'y'
+    geom_mapping_z_comp = 'z'
+
+    call this%geom_mapping_x_comp%create(expression=geom_mapping_x_comp%chars(), & 
+                                         num_dims=num_dims)
+    call this%geom_mapping_y_comp%create(expression=geom_mapping_y_comp%chars(), & 
+                                         num_dims=num_dims)
+    call this%geom_mapping_z_comp%create(expression=geom_mapping_z_comp%chars(), & 
+                                         num_dims=num_dims)
+    if ( num_dims == 2 ) then
+      call this%geom_mapping%create(this%geom_mapping_x_comp, &
+                                    this%geom_mapping_y_comp) 
+    else
+      call this%geom_mapping%create(this%geom_mapping_x_comp, &
+                                    this%geom_mapping_y_comp, & 
+                                    this%geom_mapping_z_comp )
+    end if
+  end subroutine setup_geom_mapping
+  
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
@@ -194,7 +232,7 @@ end subroutine free_timers
                                     value = .true.); assert(istat==0)
     istat = this%parameter_list%set(key = triang_identify_disconn_components_dgraph_coupling_key, & 
                                     value = vertex_coupling); assert(istat==0)
-    call this%triangulation%create(this%par_environment,this%parameter_list)
+    call this%triangulation%create(this%par_environment,this%parameter_list, this%geom_mapping)
     
     ! Generate initial uniform mesh and set the cell ids to use void fes
     if (this%test_params%get_use_void_fes()) then
@@ -687,6 +725,8 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
 
+    call this%setup_geom_mapping()
+    
     call this%timer_triangulation%start()
     call this%setup_triangulation()
     call this%timer_triangulation%stop()
@@ -755,6 +795,10 @@ end subroutine free_timers
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
+    call this%geom_mapping%free()
+    call this%geom_mapping_x_comp%free()
+    call this%geom_mapping_y_comp%free()
+    call this%geom_mapping_z_comp%free()
   end subroutine free  
 
   !========================================================================================

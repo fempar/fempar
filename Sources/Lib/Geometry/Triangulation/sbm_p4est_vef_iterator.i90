@@ -29,6 +29,7 @@ subroutine p4est_vef_iterator_create ( this, triangulation )
   implicit none
   class(p4est_vef_iterator_t)               , intent(inout) :: this
   class(triangulation_t), target            , intent(in)    :: triangulation
+  integer(ip) :: istat
   call this%free()
   call vef_iterator_create(this,triangulation)
   select type(triangulation)
@@ -42,6 +43,7 @@ end subroutine p4est_vef_iterator_create
 subroutine p4est_vef_iterator_free ( this)
   implicit none
   class(p4est_vef_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
   call vef_iterator_free(this)
   nullify ( this%p4est_triangulation )
 end subroutine p4est_vef_iterator_free
@@ -99,13 +101,11 @@ subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(p4est_vef_iterator_t), intent(in) :: this
   type(point_t)              , intent(inout) :: nodes_coordinates(:)
-  integer(ip)                                   :: inode_within_cell
-  integer(ip)                                   :: inode_within_vef
-  integer(ip)                                   :: num_vefs, num_vertices
+  integer(ip) :: num_vefs, num_nodes
   integer(ip) :: cell_around_gid, this_get_gid, lid_in_cell_around
   integer(ip) :: i, spos, epos
   integer(ip) :: num_dims
-  type(point_t), pointer :: cell_vertex_coordinates(:)
+  type(point_t), pointer :: cell_nodes_coordinates(:)
   
   assert ( this%get_gid() <= this%p4est_triangulation%num_proper_vefs .and. .not. this%has_finished() )
   
@@ -118,14 +118,15 @@ subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
                        this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this_get_gid)))
   end if 
   
-  num_dims = this%p4est_triangulation%get_num_dims()
+  num_dims  = this%p4est_triangulation%get_num_dims()
+  num_nodes =this%p4est_triangulation%reference_fe_geo%get_num_shape_functions()
   assert ( num_dims == 2 .or. num_dims == 3 ) 
   if ( num_dims == 2 ) then
     num_vefs = NUM_VEFS_2D
-    num_vertices = NUM_CORNERS_2D
+    num_nodes = NUM_CORNERS_2D
   else
     num_vefs = NUM_VEFS_3D
-    num_vertices = NUM_CORNERS_3D
+    num_nodes = NUM_CORNERS_3D
   end if 
   
   spos=(cell_around_gid-1)*num_vefs+1
@@ -138,12 +139,12 @@ subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
   end do 
   assert(i <= epos)
   
-  inode_within_vef = 1
   spos = this%p4est_triangulation%ptr_dofs_n_face(lid_in_cell_around)
   epos = this%p4est_triangulation%ptr_dofs_n_face(lid_in_cell_around+1)-1
-  cell_vertex_coordinates => this%p4est_triangulation%per_cell_vertex_coordinates%get_pointer((cell_around_gid-1)*num_vertices+1,(cell_around_gid)*num_vertices)
-  call gather_facet_vertex_coordinates_from_cell_vertex_coordinates(this%p4est_triangulation%lst_dofs_n_face(spos:epos), &
-                                                                    cell_vertex_coordinates, &
+  cell_nodes_coordinates => this%p4est_triangulation%cell_wise_nodal_coordinates%&
+            get_pointer((cell_around_gid-1)*num_nodes+1,(cell_around_gid)*num_nodes)
+  call gather_facet_nodal_coordinates_from_cell_nodal_coordinates(this%p4est_triangulation%lst_dofs_n_face(spos:epos), &
+                                                                    cell_nodes_coordinates, &
                                                                     nodes_coordinates )
 end subroutine p4est_vef_iterator_get_nodes_coordinates
 
