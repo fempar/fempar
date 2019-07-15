@@ -222,7 +222,6 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
-    !call this%refine_and_coarsen_coordinates_fe_function()
     call this%set_up_lst_itfc_vefs() 
 
     ! Update procedures 
@@ -238,13 +237,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%fill_ghost_cells_from_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
     call cell_wise_vef_set_ids%free()
    end if 
-   
-   if (this%geom_mapping_passed) then
-    call this%nodal_coordinates_fe_space%refine_and_coarsen()
-    call this%setup_nodal_coordinates_fe_function()
-    call this%nodal_coordinates_fe_function_to_cell_wise_array()
-   end if
-   
+      
    ! Re-set up coarse_triangulation()
    if ( this%coarse_triangulation_is_set_up() ) then
      call this%setup_coarse_triangulation()
@@ -252,6 +245,13 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
    
    ! set up clear_refinement_and_coarsening_flags_pending
    this%clear_refinement_and_coarsening_flags_pending = .true.
+   
+   if (this%geom_mapping_passed) then
+    call this%nodal_coordinates_fe_space%refine_and_coarsen()
+    call this%setup_nodal_coordinates_fe_function()
+    call this%nodal_coordinates_fe_function_to_cell_wise_array()
+   end if
+   
 #else
   call this%not_enabled_error()
 #endif  
