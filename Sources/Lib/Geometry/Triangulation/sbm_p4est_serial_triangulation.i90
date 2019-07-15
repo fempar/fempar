@@ -92,7 +92,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters, geo
     call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    call this%clear_vef_set_ids()
+    call this%initialize_vef_set_ids()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
@@ -111,7 +111,7 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters, geo
     call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    call this%clear_vef_set_ids()
+    call this%initialize_vef_set_ids()
   end if
   if ( this%geom_mapping_passed ) then
     allocate ( serial_fe_space_t :: this%nodal_coordinates_fe_space )

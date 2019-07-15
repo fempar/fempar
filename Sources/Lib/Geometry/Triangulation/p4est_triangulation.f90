@@ -285,6 +285,7 @@ module p4est_triangulation_names
     procedure                                    :: compute_max_cells_set_id                             => p4est_bt_compute_max_cells_set_id
     procedure                                    :: resize_disconnected_cells_set                        => p4est_bt_resize_disconnected_cells_set
     procedure                                    :: fill_disconnected_cells_set                          => p4est_bt_fill_disconnected_cells_set
+    procedure, private        , non_overridable  :: initialize_vef_set_ids                               => p4est_bt_initialize_vef_set_ids
     procedure, private        , non_overridable  :: clear_vef_set_ids                                    => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                   => p4est_bt_update_cell_import
     procedure                                    :: get_previous_num_local_cells                         => p4est_bt_get_previous_num_local_cells 

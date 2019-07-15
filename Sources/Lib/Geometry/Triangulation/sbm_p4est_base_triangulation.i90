@@ -1947,6 +1947,36 @@ subroutine p4est_bt_clear_vef_set_ids(this)
 #endif        
 end subroutine p4est_bt_clear_vef_set_ids
 
+subroutine p4est_bt_initialize_vef_set_ids(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+  class(environment_t), pointer :: environment
+  integer(ip), pointer :: raw_lst_vef_gids(:)
+  integer(ip), pointer :: raw_proper_vefs_set_ids(:)
+  integer(ip) :: i
+#ifdef ENABLE_P4EST
+  assert ( this%num_improper_vefs == 0 )
+  assert ( this%get_num_global_cells() == 1 )
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
+    call this%improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
+    ! If am the processor which holds the entire single-octree forest
+    if ( this%get_num_local_cells() == 1 ) then
+      raw_lst_vef_gids => this%lst_vefs_gids%get_pointer()
+      raw_proper_vefs_set_ids => this%proper_vefs_set_ids%get_pointer()
+      assert ( size(raw_lst_vef_gids) == size(raw_proper_vefs_set_ids) )
+      do i=1, size(raw_lst_vef_gids)
+        raw_proper_vefs_set_ids(raw_lst_vef_gids(i)) = i
+      end do
+    end if 
+  end if
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_bt_initialize_vef_set_ids
+
 subroutine p4est_bt_update_cell_import( this )
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
