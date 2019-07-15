@@ -73,6 +73,13 @@ subroutine p4est_base_triangulation_process_parameters ( this, parameters )
     this%bounding_box_limits(:,2) = 1.0_rp
   end if
   
+  if( parameters%isPresent(key = p4est_triang_geometry_interpolation_order_key ) ) then
+    assert(parameters%isAssignable(p4est_triang_geometry_interpolation_order_key, this%geometry_interpolation_order))
+    istat = parameters%get(key = p4est_triang_geometry_interpolation_order_key, value = this%geometry_interpolation_order); check(istat==0)
+  else
+    this%geometry_interpolation_order = 1
+  end if
+  
   if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
     assert(parameters%isAssignable(p4est_triang_log_level_key, this%p4est_log_level))
     istat = parameters%get(key = p4est_triang_log_level_key, value = this%p4est_log_level); check(istat==0)
@@ -93,9 +100,6 @@ subroutine p4est_base_triangulation_process_parameters ( this, parameters )
   else
     this%k_ghost_cells = default_p4est_triang_k_ghost_cells
   end if
-  
-  this%geometric_interpolation_order = 1
-  
 end subroutine p4est_base_triangulation_process_parameters
 
 
@@ -237,7 +241,6 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%fill_ghost_cells_from_cell_wise_vef_set_ids(cell_wise_vef_set_ids)
     call cell_wise_vef_set_ids%free()
    end if 
-      
    ! Re-set up coarse_triangulation()
    if ( this%coarse_triangulation_is_set_up() ) then
      call this%setup_coarse_triangulation()
@@ -251,7 +254,6 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%setup_nodal_coordinates_fe_function()
     call this%nodal_coordinates_fe_function_to_cell_wise_array()
    end if
-   
 #else
   call this%not_enabled_error()
 #endif  
@@ -1836,11 +1838,12 @@ subroutine p4est_bt_allocate_and_fill_cell_wise_nodal_coords_pre_mapping(this)
   type(point_t),                  pointer   :: nodal_coordinates(:)
   type(quadrature_t),             pointer   :: quadrature
   type(p4est_cell_iterator_t) :: cell
+  type(hex_lagrangian_reference_fe_t) :: reference_fe_geo_linear
   integer(ip) :: epos, spos
 #ifdef ENABLE_P4EST
-  if ( this%geometric_interpolation_order > 1 ) then
-    quadrature => this%nodal_coordinates_ref_fe%get_nodal_quadrature()
-    call cell_map%create(quadrature,this%reference_fe_geo)
+  if ( this%geometry_interpolation_order > 1 ) then
+    quadrature => this%reference_fe_geo%get_nodal_quadrature()
+    call cell_map%create(quadrature,this%reference_fe_geo_linear)
     vertex_coordinates => cell_map%get_coordinates() 
   end if 
   
@@ -1852,7 +1855,7 @@ subroutine p4est_bt_allocate_and_fill_cell_wise_nodal_coords_pre_mapping(this)
     spos = cell%base_pos_in_nodal_coords+1
     epos = cell%base_pos_in_nodal_coords+cell%num_nodes
     
-    if ( this%geometric_interpolation_order == 1 ) then 
+    if ( this%geometry_interpolation_order == 1 ) then 
       ! Extract vertex coordinates directly from p4est
       call cell%get_vertex_coordinates( raw_cell_wise_nodal_coordinates(spos:epos) ) 
     else
@@ -1867,8 +1870,9 @@ subroutine p4est_bt_allocate_and_fill_cell_wise_nodal_coords_pre_mapping(this)
     call cell%next()
   end do
   call cell%free()
-  if ( this%geometric_interpolation_order > 1 ) then
+  if ( this%geometry_interpolation_order > 1 ) then
     call cell_map%free()
+    call reference_fe_geo_linear%free()
   end if
 #else
   call this%not_enabled_error()
@@ -2093,7 +2097,7 @@ subroutine p4est_bt_setup_nodal_coordinates_fe_space(this)
   ! Create reference fe
   call this%nodal_coordinates_ref_fe%create( topology_hex, &
                                              this%get_num_dims(), &
-                                             this%geometric_interpolation_order, &
+                                             this%geometry_interpolation_order, &
                                              field_type_vector, & 
                                              conformity=.true., & 
                                              continuity=.true.)

@@ -60,12 +60,18 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters, geo
   
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
-                                     this%geometric_interpolation_order, &
+                                     this%geometry_interpolation_order, &
+                                     field_type_scalar, & 
+                                     conformity=.true., &
+                                     continuity=.true.)
+  call this%allocate_and_gen_reference_fe_geo_scratch_data()
+  
+  call this%reference_fe_geo_linear%create( topology_hex, &
+                                     this%get_num_dims(), &
+                                     1, &
                                      field_type_scalar, & 
                                      conformity=.true., &
                                      continuity=.true.)  
- 
-  call this%allocate_and_gen_reference_fe_geo_scratch_data()
   
   dummy_comm = 0
   call F90_p4est_init(dummy_comm,this%p4est_log_level)
@@ -202,12 +208,12 @@ subroutine p4est_serial_triangulation_free ( this)
 
   call this%reference_fe_geo%free()
   call this%free_reference_fe_geo_scratch_data()
-  
+  call this%reference_fe_geo_linear%free()
   this%clear_refinement_and_coarsening_flags_pending = .false.
   
   call this%free_workspace_to_compute_nodal_coordinates()
   
-  this%geometric_interpolation_order = 0
+  this%geometry_interpolation_order = 0
   nullify(this%analytical_geom_mapping)
   this%geom_mapping_passed = .false.
   call triangulation_free(this)

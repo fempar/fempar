@@ -977,6 +977,11 @@ contains
            p4est_triang_domain_limits_cla_name, &
            default_p4est_triang_domain_limits, &
            p4est_triang_domain_limits_cla_help)
+      
+      call this%add(p4est_triang_geometry_interpolation_order_key, &
+           p4est_triang_geometry_interpolation_order_cla_name, &
+           default_p4est_triang_geometry_interpolation_order, &
+           p4est_triang_geometry_interpolation_order_cla_help)
 
       call this%add(p4est_triang_log_level_key, &
            p4est_triang_log_level_cla_name, &

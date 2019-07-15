@@ -127,7 +127,7 @@ module p4est_triangulation_names
   
   type, extends(vef_iterator_t) :: p4est_vef_iterator_t
     private
-    type(p4est_base_triangulation_t), pointer :: p4est_triangulation       => NULL()
+    type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
      procedure                           :: create                    => p4est_vef_iterator_create
      procedure                           :: free                      => p4est_vef_iterator_free
@@ -176,6 +176,7 @@ module p4est_triangulation_names
     logical     :: clear_refinement_and_coarsening_flags_pending = .false.
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
+    type(hex_lagrangian_reference_fe_t) :: reference_fe_geo_linear
     real(rp)                            :: bounding_box_limits(1:SPACE_DIM,2)
     type(std_vector_point_t)            :: cell_wise_nodal_coordinates
     
@@ -241,7 +242,7 @@ module p4est_triangulation_names
      type(p_reference_fe_t),              allocatable  :: nodal_coordinates_reference_fes(:)
      class(serial_fe_space_t),            allocatable  :: nodal_coordinates_fe_space
      type(fe_function_t)                               :: nodal_coordinates_fe_function
-     integer(ip)                                       :: geometric_interpolation_order
+     integer(ip)                                       :: geometry_interpolation_order
      class(vector_function_t),            pointer      :: analytical_geom_mapping
      logical                                           :: geom_mapping_passed
   contains
@@ -277,7 +278,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: fill_ghost_cells_from_cell_wise_vef_set_ids          => p4est_bt_fill_ghost_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: fill_local_cells_from_cell_wise_vef_set_ids          => p4est_bt_fill_local_cells_from_cell_wise_vef_set_ids
     procedure, private        , non_overridable  :: allocate_and_fill_cell_wise_nodal_coords_pre_mapping => p4est_bt_allocate_and_fill_cell_wise_nodal_coords_pre_mapping
-    procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags                => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure, private        , non_overridable  :: clear_refinement_and_coarsening_flags                => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_weights                                   => p4est_bt_clear_cell_weights
     procedure                 , non_overridable  :: clear_cell_set_ids                                   => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                       => p4est_bt_fill_cells_set
