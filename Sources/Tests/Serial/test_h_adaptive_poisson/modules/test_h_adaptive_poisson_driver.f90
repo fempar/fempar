@@ -52,6 +52,11 @@ module test_h_adaptive_poisson_driver_names
      ! Place-holder for parameter-value set provided through command-line interface
      type(test_poisson_params_t)    :: test_params
      
+     type(scalar_function_parser_t) :: geom_mapping_x_comp
+     type(scalar_function_parser_t) :: geom_mapping_y_comp
+     type(scalar_function_parser_t) :: geom_mapping_z_comp
+     type(vector_function_parser_t) :: geom_mapping
+     
      ! Cells and lower dim objects container
      type(p4est_serial_triangulation_t)           :: triangulation
      
@@ -86,6 +91,7 @@ module test_h_adaptive_poisson_driver_names
      procedure                  :: parse_command_line_parameters
      procedure                  :: setup_environment
      procedure                  :: free_environment
+     procedure        , private :: setup_geom_mapping
      procedure        , private :: setup_triangulation
      procedure        , private :: set_cells_for_refinement
      procedure        , private :: set_cells_for_coarsening
@@ -129,6 +135,38 @@ contains
     call this%serial_environment%free()
   end subroutine free_environment
   
+  subroutine setup_geom_mapping(this)
+    implicit none
+    class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
+    integer(ip) :: istat, num_dims
+    
+    type(string) :: geom_mapping_x_comp
+    type(string) :: geom_mapping_y_comp
+    type(string) :: geom_mapping_z_comp
+    
+    ! Get num_dims from parameters
+    call parameter_handler%get(key = p4est_triang_num_dims_key, value = num_dims);
+  
+    geom_mapping_x_comp = 'x'
+    geom_mapping_y_comp = 'y'
+    geom_mapping_z_comp = '2*z'
+
+    call this%geom_mapping_x_comp%create(expression=geom_mapping_x_comp%chars(), & 
+                                         num_dims=num_dims)
+    call this%geom_mapping_y_comp%create(expression=geom_mapping_y_comp%chars(), & 
+                                         num_dims=num_dims)
+    call this%geom_mapping_z_comp%create(expression=geom_mapping_z_comp%chars(), & 
+                                         num_dims=num_dims)
+    if ( num_dims == 2 ) then
+      call this%geom_mapping%create(this%geom_mapping_x_comp, &
+                                    this%geom_mapping_y_comp) 
+    else
+      call this%geom_mapping%create(this%geom_mapping_x_comp, &
+                                    this%geom_mapping_y_comp, & 
+                                    this%geom_mapping_z_comp )
+    end if
+  end subroutine setup_geom_mapping
+  
   subroutine setup_triangulation(this)
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
@@ -154,8 +192,7 @@ contains
     integer(ip), parameter :: num_nodes_x_cell = 4
     integer(ip) :: i
     
-    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list())
-    
+    call this%triangulation%create(this%serial_environment, this%test_params%get_parameter_list(), this%geom_mapping)
     if ( .not. this%test_params%get_use_void_fes() ) then
       call this%triangulation%create_vef_iterator(vef)
       do while ( .not. vef%has_finished() )
@@ -871,6 +908,7 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this    
     call this%free()
+    call this%setup_geom_mapping()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -885,7 +923,6 @@ contains
     end if
     call this%refine_and_coarsen()
     call this%write_solution()
-    !call this%write_filling_curve()
     call this%free()
   end subroutine run_simulation
   
@@ -912,8 +949,10 @@ contains
       check(istat==0)
     end if
     call this%triangulation%free()
-  end subroutine free  
-  
-
+    call this%geom_mapping%free()
+    call this%geom_mapping_x_comp%free()
+    call this%geom_mapping_y_comp%free()
+    call this%geom_mapping_z_comp%free()
+  end subroutine free
   
 end module test_h_adaptive_poisson_driver_names

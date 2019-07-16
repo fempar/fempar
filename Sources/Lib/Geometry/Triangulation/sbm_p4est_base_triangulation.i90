@@ -73,6 +73,13 @@ subroutine p4est_base_triangulation_process_parameters ( this, parameters )
     this%bounding_box_limits(:,2) = 1.0_rp
   end if
   
+  if( parameters%isPresent(key = p4est_triang_geometry_interpolation_order_key ) ) then
+    assert(parameters%isAssignable(p4est_triang_geometry_interpolation_order_key, this%geometry_interpolation_order))
+    istat = parameters%get(key = p4est_triang_geometry_interpolation_order_key, value = this%geometry_interpolation_order); check(istat==0)
+  else
+    this%geometry_interpolation_order = 1
+  end if
+  
   if( parameters%isPresent(key = p4est_triang_log_level_key) ) then
     assert(parameters%isAssignable(p4est_triang_log_level_key, this%p4est_log_level))
     istat = parameters%get(key = p4est_triang_log_level_key, value = this%p4est_log_level); check(istat==0)
@@ -93,7 +100,6 @@ subroutine p4est_base_triangulation_process_parameters ( this, parameters )
   else
     this%k_ghost_cells = default_p4est_triang_k_ghost_cells
   end if
-  
 end subroutine p4est_base_triangulation_process_parameters
 
 
@@ -103,6 +109,19 @@ function p4est_base_triangulation_is_conforming( this )
  logical :: p4est_base_triangulation_is_conforming
  p4est_base_triangulation_is_conforming = .false.
 end function p4est_base_triangulation_is_conforming
+
+subroutine p4est_base_triangulation_set_analytical_geom_mapping(this, analytical_geom_mapping)
+ implicit none
+ class(p4est_base_triangulation_t)          , intent(inout) :: this
+ class(vector_function_t), optional, target , intent(in)    :: analytical_geom_mapping
+ if ( present(analytical_geom_mapping) ) then
+    this%analytical_geom_mapping => analytical_geom_mapping
+    this%geom_mapping_passed = .true.
+ else
+    nullify(this%analytical_geom_mapping)
+    this%geom_mapping_passed = .false.
+ end if 
+end subroutine p4est_base_triangulation_set_analytical_geom_mapping
 
 function p4est_base_triangulation_get_num_reference_fes(this) 
   implicit none
@@ -206,7 +225,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%fill_x_cell_vertex_coordinates()
+    call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
     call this%set_up_lst_itfc_vefs() 
 
     ! Update procedures 
@@ -225,11 +244,16 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
    ! Re-set up coarse_triangulation()
    if ( this%coarse_triangulation_is_set_up() ) then
      call this%setup_coarse_triangulation()
-   end if  
+   end if
    
    ! set up clear_refinement_and_coarsening_flags_pending
    this%clear_refinement_and_coarsening_flags_pending = .true.
    
+   if (this%geom_mapping_passed) then
+    call this%nodal_coordinates_fe_space%refine_and_coarsen()
+    call this%setup_nodal_coordinates_fe_function()
+    call this%nodal_coordinates_fe_function_to_cell_wise_array()
+   end if
 #else
   call this%not_enabled_error()
 #endif  
@@ -1801,57 +1825,59 @@ subroutine p4est_bt_std_vector_transform_header_to_length(this,std_vector_intege
 #endif      
 end subroutine p4est_bt_std_vector_transform_header_to_length
 
-subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
+subroutine p4est_bt_allocate_and_fill_cell_wise_nodal_coords_pre_mapping(this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)    :: this
   integer(ip) :: idime, icell, istat, num_corners, current, corner
-  real(rp) :: vxyz(3)
-  type(point_t), pointer :: raw_per_cell_vertex_coordinates(:)
+  real(rp) :: vxyz(SPACE_DIM)
+  type(point_t), pointer :: raw_cell_wise_nodal_coordinates(:)
   integer(ip) :: num_dims
-
   
+  type(cell_map_t)                          :: cell_map
+  type(point_t),                  pointer   :: vertex_coordinates(:)
+  type(point_t),                  pointer   :: nodal_coordinates(:)
+  type(quadrature_t),             pointer   :: quadrature
+  type(p4est_cell_iterator_t) :: cell
+  type(hex_lagrangian_reference_fe_t) :: reference_fe_geo_linear
+  integer(ip) :: epos, spos
 #ifdef ENABLE_P4EST
+  if ( this%geometry_interpolation_order > 1 ) then
+    quadrature => this%reference_fe_geo%get_nodal_quadrature()
+    call cell_map%create(quadrature,this%reference_fe_geo_linear)
+    vertex_coordinates => cell_map%get_coordinates() 
+  end if 
   
-  num_dims = this%get_num_dims()
-  if ( num_dims == 2 ) then
-    num_corners = NUM_CORNERS_2D
-  else if ( num_dims == 3 ) then
-    num_corners = NUM_CORNERS_3D
-  end if
-  call this%per_cell_vertex_coordinates%resize(0)
-  call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
-  
-  raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_pointer()
- 
-  current = 1 
-  do icell=1, this%get_num_cells()
-     do corner=0, num_corners-1
-       if ( num_dims == 2 ) then
-         call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
-                                                        int(0,P4EST_F90_TOPIDX),&
-                                                        this%quad_coords(1,icell),&
-                                                        this%quad_coords(2,icell), &
-                                                        this%quad_level(icell),&
-                                                        corner,&
-                                                        vxyz)
-       else if ( num_dims == 3 ) then
-         call F90_p8est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
-                                                        int(0,P4EST_F90_TOPIDX),&
-                                                        this%quad_coords(1,icell),&
-                                                        this%quad_coords(2,icell), &
-                                                        this%quad_coords(3,icell), &
-                                                        this%quad_level(icell),&
-                                                        corner,&
-                                                        vxyz)
-       end if
-       call raw_per_cell_vertex_coordinates(current)%init(vxyz)
-       current = current + 1 
-     end do  
+  call cell%create(this)
+  call this%cell_wise_nodal_coordinates%resize(0)
+  call this%cell_wise_nodal_coordinates%resize(this%get_num_cells()*cell%num_nodes)
+  raw_cell_wise_nodal_coordinates => this%cell_wise_nodal_coordinates%get_pointer()
+  do while ( .not. cell%has_finished() )
+    spos = cell%base_pos_in_nodal_coords+1
+    epos = cell%base_pos_in_nodal_coords+cell%num_nodes
+    
+    if ( this%geometry_interpolation_order == 1 ) then 
+      ! Extract vertex coordinates directly from p4est
+      call cell%get_vertex_coordinates( raw_cell_wise_nodal_coordinates(spos:epos) ) 
+    else
+      ! Extract vertex coordinates directly from p4est
+      call cell%get_vertex_coordinates(vertex_coordinates)
+      call cell_map%update(cell_lev          = cell%get_level(), &
+                           quadrature        = quadrature,  &
+                           cell_ressemblance = no_ressemblance)
+      nodal_coordinates => cell_map%get_quadrature_points_coordinates()
+      raw_cell_wise_nodal_coordinates(spos:epos) = nodal_coordinates(:)
+    end if 
+    call cell%next()
   end do
+  call cell%free()
+  if ( this%geometry_interpolation_order > 1 ) then
+    call cell_map%free()
+    call reference_fe_geo_linear%free()
+  end if
 #else
   call this%not_enabled_error()
 #endif        
-end subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
+end subroutine p4est_bt_allocate_and_fill_cell_wise_nodal_coords_pre_mapping
 
 subroutine p4est_bt_clear_refinement_and_coarsening_flags(this)
   implicit none
@@ -1920,6 +1946,36 @@ subroutine p4est_bt_clear_vef_set_ids(this)
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_bt_clear_vef_set_ids
+
+subroutine p4est_bt_initialize_vef_set_ids(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+  class(environment_t), pointer :: environment
+  integer(ip), pointer :: raw_lst_vef_gids(:)
+  integer(ip), pointer :: raw_proper_vefs_set_ids(:)
+  integer(ip) :: i
+#ifdef ENABLE_P4EST
+  assert ( this%num_improper_vefs == 0 )
+  assert ( this%get_num_global_cells() == 1 )
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
+    call this%improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
+    ! If am the processor which holds the entire single-octree forest
+    if ( this%get_num_local_cells() == 1 ) then
+      raw_lst_vef_gids => this%lst_vefs_gids%get_pointer()
+      raw_proper_vefs_set_ids => this%proper_vefs_set_ids%get_pointer()
+      assert ( size(raw_lst_vef_gids) == size(raw_proper_vefs_set_ids) )
+      do i=1, size(raw_lst_vef_gids)
+        raw_proper_vefs_set_ids(raw_lst_vef_gids(i)) = i
+      end do
+    end if 
+  end if
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_bt_initialize_vef_set_ids
 
 subroutine p4est_bt_update_cell_import( this )
   implicit none
@@ -2060,6 +2116,111 @@ subroutine p4est_bt_free_reference_fe_geo_scratch_data(this)
     call memfree(this%lst_dofs_n_face, __FILE__, __LINE__ )
   end if  
 end subroutine p4est_bt_free_reference_fe_geo_scratch_data
+
+subroutine p4est_bt_setup_nodal_coordinates_fe_space(this)
+  implicit none
+  class(p4est_base_triangulation_t), target, intent(inout)   :: this
+  integer(ip) :: istat
+  assert ( this%geom_mapping_passed )
+  assert ( allocated(this%nodal_coordinates_fe_space) )
+    
+  ! Create reference fe
+  call this%nodal_coordinates_ref_fe%create( topology_hex, &
+                                             this%get_num_dims(), &
+                                             this%geometry_interpolation_order, &
+                                             field_type_vector, & 
+                                             conformity=.true., & 
+                                             continuity=.true.)
+    
+  allocate(this%nodal_coordinates_reference_fes(1), stat=istat); check(istat==0);
+  this%nodal_coordinates_reference_fes(1)%p => this%nodal_coordinates_ref_fe
+
+  ! Create nodal coordinates fe space  
+  select type(fe_space => this%nodal_coordinates_fe_space)
+   class is(serial_fe_space_t)
+     call fe_space%create( triangulation      = this, &
+                           reference_fes      = this%nodal_coordinates_reference_fes)
+
+   class is(par_fe_space_t)
+     call fe_space%create( triangulation      = this, &
+                             reference_fes      = this%nodal_coordinates_reference_fes )
+  end select
+end subroutine p4est_bt_setup_nodal_coordinates_fe_space
+
+subroutine p4est_bt_setup_nodal_coordinates_fe_function(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+  if ( this%geom_mapping_passed ) then
+    ! Create fe function to store nodal coordinates
+    call this%nodal_coordinates_fe_function%create(this%nodal_coordinates_fe_space)
+    if ( this%geom_mapping_passed ) then
+      assert ( associated(this%analytical_geom_mapping) )
+      call this%nodal_coordinates_fe_space%interpolate(1, & 
+                                                       this%analytical_geom_mapping, &
+                                                       this%nodal_coordinates_fe_function)
+    end if
+  end if 
+end subroutine p4est_bt_setup_nodal_coordinates_fe_function
+
+subroutine p4est_bt_nodal_coordinates_fe_function_to_cell_wise_array (this)
+  implicit none
+  class(p4est_base_triangulation_t), target, intent(inout)   :: this
+  class(fe_cell_iterator_t),    allocatable :: fe
+  class(environment_t), pointer :: environment
+  real(rp), allocatable :: nodal_values_coords(:)
+  type(point_t), pointer :: nodal_coordinates(:)
+  integer(ip) :: num_dofs, num_nodes, inode, icomp, idof, fe_gid
+  integer(ip) :: epos, spos
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    assert ( this%geom_mapping_passed )
+    assert ( associated(this%analytical_geom_mapping) )
+    num_dofs  = this%nodal_coordinates_ref_fe%get_num_shape_functions()
+    num_nodes = this%reference_fe_geo%get_num_shape_functions()
+    call memalloc ( num_dofs, nodal_values_coords, __FILE__,__LINE__)
+    call this%nodal_coordinates_fe_space%create_fe_cell_iterator(fe)
+    do while ( .not. fe%has_finished() )
+      call this%nodal_coordinates_fe_function%gather_nodal_values(fe, & 
+                                                                  field_id=1, &
+                                                                  nodal_values=nodal_values_coords )
+      fe_gid = fe%get_gid()
+      spos = (fe_gid-1)*num_nodes+1
+      epos = (fe_gid  )*num_nodes
+      nodal_coordinates => this%cell_wise_nodal_coordinates%get_pointer(spos,epos)
+        
+      ! Update nodal coordinates
+      do idof = 1,num_dofs
+        inode = this%nodal_coordinates_ref_fe%get_scalar_from_vector_node(idof)
+        icomp = this%nodal_coordinates_ref_fe%get_component_node(idof)
+        call nodal_coordinates(inode)%set(icomp, nodal_values_coords(idof))
+      end do
+      call fe%next()
+    end do 
+    call this%nodal_coordinates_fe_space%free_fe_cell_iterator(fe)
+    call memfree (nodal_values_coords, __FILE__, __LINE__)
+    call this%nodal_coordinates_fe_function%free()
+  end if 
+end subroutine p4est_bt_nodal_coordinates_fe_function_to_cell_wise_array 
+
+subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+  class(environment_t), pointer :: p_environment
+  integer(ip)  :: istat
+
+  call this%nodal_coordinates_ref_fe%free()
+  if ( allocated(this%nodal_coordinates_reference_fes) ) then
+     deallocate(this%nodal_coordinates_reference_fes, stat=istat)
+     mcheck(istat==0,'Error deallocating')
+  end if
+  call this%nodal_coordinates_fe_function%free()
+  
+  if ( allocated(this%nodal_coordinates_fe_space) ) then
+    call this%nodal_coordinates_fe_space%free()
+    deallocate(this%nodal_coordinates_fe_space, stat=istat)
+    mcheck(istat==0,'Error deallocating')
+  end if
+end subroutine p4est_bt_free_workspace_to_compute_nodal_coordinates
 
 subroutine p4est_bt_fill_cells_set (this, cells_set)
   implicit none

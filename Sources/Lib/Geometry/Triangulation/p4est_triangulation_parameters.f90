@@ -51,19 +51,19 @@ module p4est_triangulation_parameters_names
   integer(ip), parameter :: FEMPAR_SC_LP_DEFAULT = SC_LP_SILENT
   
   ! Parameter handling
-  character(len=*), parameter :: p4est_triang_num_dims_key      = 'P4EST_TRIANG_NUM_DIMS'
-  character(len=*), parameter :: p4est_triang_num_levels_key    = 'P4EST_TRIANG_NUM_LEVELS'
-  character(len=*), parameter :: p4est_triang_domain_limits_key = 'P4EST_TRIANG_DOMAIN_LIMITS'
-  character(len=*), parameter :: p4est_triang_log_level_key     = 'P4EST_TRIANG_LOG_LEVEL'
-  character(len=*), parameter :: p4est_triang_2_1_k_balance_key = 'P4EST_TRIANG_2_1_K_BALANCE'
-  character(len=*), parameter :: p4est_triang_k_ghost_cells_key = 'P4EST_TRIANG_K_GHOST_CELLS'
+  character(len=*), parameter :: p4est_triang_num_dims_key                     = 'P4EST_TRIANG_NUM_DIMS'
+  character(len=*), parameter :: p4est_triang_domain_limits_key                = 'P4EST_TRIANG_DOMAIN_LIMITS'
+  character(len=*), parameter :: p4est_triang_geometry_interpolation_order_key = 'P4EST_TRIANG_GEOMETRY_INTERPOLATION_ORDER'
+  character(len=*), parameter :: p4est_triang_log_level_key                    = 'P4EST_TRIANG_LOG_LEVEL'
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_key                = 'P4EST_TRIANG_2_1_K_BALANCE'
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_key                = 'P4EST_TRIANG_K_GHOST_CELLS'
 
-  character(len=*), parameter :: p4est_triang_num_dims_cla_name      = '--'//p4est_triang_num_dims_key
-  character(len=*), parameter :: p4est_triang_num_levels_cla_name    = '--'//p4est_triang_num_levels_key
-  character(len=*), parameter :: p4est_triang_domain_limits_cla_name = '--'//p4est_triang_domain_limits_key
-  character(len=*), parameter :: p4est_triang_log_level_cla_name     = '--'//p4est_triang_log_level_key
-  character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_name = '--'//p4est_triang_2_1_k_balance_key
-  character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_name = '--'//p4est_triang_k_ghost_cells_key
+  character(len=*), parameter :: p4est_triang_num_dims_cla_name                     = '--'//p4est_triang_num_dims_key
+  character(len=*), parameter :: p4est_triang_domain_limits_cla_name                = '--'//p4est_triang_domain_limits_key
+  character(len=*), parameter :: p4est_triang_geometry_interpolation_order_cla_name = '--'//p4est_triang_geometry_interpolation_order_key
+  character(len=*), parameter :: p4est_triang_log_level_cla_name                    = '--'//p4est_triang_log_level_key
+  character(len=*), parameter :: p4est_triang_2_1_k_balance_cla_name                = '--'//p4est_triang_2_1_k_balance_key
+  character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_name                = '--'//p4est_triang_k_ghost_cells_key
   
   character(len=*), parameter :: p4est_triang_log_level_choices         = '-1,0,1,2,3,4,5,6,7,8,9'
   character(len=*), parameter :: p4est_triang_num_dims_cla_choices      = '2,3'
@@ -71,8 +71,8 @@ module p4est_triangulation_parameters_names
   character(len=*), parameter :: p4est_triang_k_ghost_cells_cla_choices = '0,1,2'
 
   character(len=*), parameter, public ::p4est_triang_num_dims_cla_help      = 'p4est triangulation number of space dimensions'
-  character(len=*), parameter, public ::p4est_triang_num_levels_cla_help    = 'Number of levels in the triangulation hierarchy required for the MLBDDC preconditioner'
   character(len=*), parameter, public ::p4est_triang_domain_limits_cla_help = 'p4est triangulation domain interval per dimension'
+  character(len=*), parameter, public ::p4est_triang_geometry_interpolation_order_cla_help = 'p4est triangulation polynomial order of the Lagrangian FE space used to discretize the geometry of the domain'
   character(len=*), parameter, public ::p4est_triang_2_1_k_balance_cla_help = 'Value of k for 2:1 k-balanced forest-of-octrees (use with care, at present,' // BRK_LINE // &
                                                                               'only k={0,1} supported/tested)'
   character(len=*), parameter, public ::p4est_triang_k_ghost_cells_cla_help = 'Value of k for the k-ghost cells set of each processor'                   //BRK_LINE // &
@@ -93,12 +93,12 @@ module p4est_triangulation_parameters_names
                    BULLET_FLAP_HELP_MESSAGE // " 9: SC_LP_SILENT     (this never logs anything)"
   
   ! Unit square/cube by default; all points on and in the domain have space coordinates >= 0.0_rp
-  real(rp)   , parameter :: default_p4est_triang_domain_limits (*) = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]  
-  integer(ip), parameter :: default_p4est_triang_num_levels        = 1
-  integer(ip), parameter :: default_p4est_triang_log_level         = FEMPAR_SC_LP_DEFAULT
-  integer(ip), parameter :: default_p4est_triang_num_dims          = 2 
-  integer(ip), parameter :: default_p4est_triang_2_1_k_balance     = 0
-  integer(ip), parameter :: default_p4est_triang_k_ghost_cells     = 0
+  real(rp)   , parameter :: default_p4est_triang_domain_limits (*)            = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]
+  integer(ip), parameter :: default_p4est_triang_geometry_interpolation_order = 1
+  integer(ip), parameter :: default_p4est_triang_log_level                    = FEMPAR_SC_LP_DEFAULT
+  integer(ip), parameter :: default_p4est_triang_num_dims                     = 2 
+  integer(ip), parameter :: default_p4est_triang_2_1_k_balance                = 0
+  integer(ip), parameter :: default_p4est_triang_k_ghost_cells                = 0
     
   ! For 2D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_2D = 2
