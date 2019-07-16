@@ -34,7 +34,7 @@ subroutine par_fe_space_create_with_parameter_list( this,               &
   implicit none
   class(par_fe_space_t)                                , intent(inout) :: this
   class(triangulation_t)                               , intent(in)    :: triangulation
-  type(ParameterList_t)                                , intent(inout) :: parameters
+  type(ParameterList_t)                                , intent(in)    :: parameters
   class(strong_boundary_conditions_t), optional        , intent(inout) :: conditions
   logical                            , optional        , intent(in)    :: generate_global_dof_numbering
   integer(ip), allocatable :: field_blocks(:)
