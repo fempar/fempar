@@ -40,10 +40,11 @@ SET(CMAKE_MODULE_PATH "${CMAKE_PATH}/Modules") # Fempar CMake Modules path
 SET(BINARY_OUTPUT_PATH ${PROJECT_BINARY_DIR})                     # Fempar binary root path
 SET(THIRDPARTY_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/ThirdParty)      # Fempar binary thirdparty path
 SET(LIBRARY_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/lib)                # Fempar binary lib path
-SET(TESTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/tests)                # Fempar binary tests path
 SET(EXECUTABLE_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/bin)             # Fempar binary executables path
-SET(SCRIPTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/scripts)            # Fempar binary scripts path
 SET(CMAKE_Fortran_MODULE_DIRECTORY ${BINARY_OUTPUT_PATH}/modules) # Fempar binary fortran modules path
+SET(TESTS_OUTPUT_PATH ${BINARY_OUTPUT_PATH}/tests)                # Fempar tests path
+SET(SCRIPTS_OUTPUT_PATH ${TESTS_OUTPUT_PATH}/Scripts)             # Fempar test scripts path
+SET(DATA_OUTPUT_PATH ${TESTS_OUTPUT_PATH}/Data)                   # Fempar test data path
 
 #################################################################
 # ADD INCLUDE DIRS

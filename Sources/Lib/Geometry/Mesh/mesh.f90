@@ -841,10 +841,10 @@ contains
   subroutine mesh_build_dual_graph(this,pelpo,lelpo,graph)
     implicit none
     ! Parameters
-    class(mesh_t) , intent(in)    :: this                           !> Mesh
-    integer(ip)   , intent(in)    :: pelpo(this%npoin+1)            !> Dual mesh
+    class(mesh_t) , intent(in)    :: this                           ! Mesh
+    integer(ip)   , intent(in)    :: pelpo(this%npoin+1)            ! Dual mesh
     integer(ip)   , intent(in)    :: lelpo(pelpo(this%npoin+1)-1)   
-    type(list_t)  , intent(inout) :: graph                          !> Dual graph
+    type(list_t)  , intent(inout) :: graph                          ! Dual graph
     
     ! Locals
     integer(ip), allocatable :: lelem(:)

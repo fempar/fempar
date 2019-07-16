@@ -32,14 +32,14 @@ IF(MPI_FOUND)
             TARGET_LINK_LIBRARIES(${EXE_NAME} ${MPI_Fortran_LIBRARIES})
             # Link the current target with external projects and libraries
             TARGET_LINK_LIBRARIES(${EXE_NAME} ${${PROJECT_NAME}_EXTERNAL_LIBRARIES} ${${PROJECT_NAME}_EXTERNAL_PROJECTS})
-            IF(EXISTS ${SCRIPTS_TESTS_PATH}/${EXE_NAME})
+            IF(EXISTS ${SCRIPTS_OUTPUT_PATH}/${EXE_NAME})
                 # If there is an script with the name of the executable, add the current target to the Cmake-CTest system
-                ADD_TEST(${EXE_NAME}_TEST ${SCRIPTS_TESTS_PATH}/${EXE_NAME} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME} ${SCRIPTS_TESTS_PATH})
+                ADD_TEST(${EXE_NAME}_TEST ${SCRIPTS_OUTPUT_PATH}/${EXE_NAME} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_OUTPUT_PATH}/${EXE_NAME} ${SCRIPTS_OUTPUT_PATH})
                 SET_TESTS_PROPERTIES( ${EXE_NAME}_TEST PROPERTIES LABELS "SERIAL" )
             ENDIF()
-            IF(EXISTS ${SCRIPTS_TESTS_PATH}/${EXE_NAME}_fast)
+            IF(EXISTS ${SCRIPTS_OUTPUT_PATH}/${EXE_NAME}_fast)
                 # If there is an script with the name of the executable_quickly, add the current target to the Cmake-CTest system
-                ADD_TEST(${EXE_NAME}_TEST_fast ${SCRIPTS_TESTS_PATH}/${EXE_NAME}_fast ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME} ${SCRIPTS_TESTS_PATH})
+                ADD_TEST(${EXE_NAME}_TEST_fast ${SCRIPTS_OUTPUT_PATH}/${EXE_NAME}_fast ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_OUTPUT_PATH}/${EXE_NAME} ${SCRIPTS_OUTPUT_PATH})
                 SET_TESTS_PROPERTIES( ${EXE_NAME}_TEST_fast PROPERTIES LABELS "SERIAL_FAST")
             ENDIF()
         ENDFOREACH()

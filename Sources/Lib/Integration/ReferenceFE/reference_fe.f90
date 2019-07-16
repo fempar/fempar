@@ -750,13 +750,6 @@ module reference_fe_names
        integer(ip) :: get_scalar_from_vector_node_interface
      end function get_scalar_from_vector_node_interface
 
-     function get_num_nodes_scalar_interface(this) result(num_nodes_scalar)
-       import :: reference_fe_t, ip
-       implicit none
-       class(reference_fe_t), intent(in) :: this
-       integer(ip)                       :: num_nodes_scalar
-     end function get_num_nodes_scalar_interface
-
      function get_max_order_interface( this )
        import :: reference_fe_t, ip
        implicit none

@@ -315,7 +315,8 @@ contains
         if(this%cli_initialized) then
             error = values%GetAsString(key=key, String=cvalue, separator=" "); assert(error==0)
             call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-                        required=required,choices=choices,act='store',def=cvalue,error=error)
+                        required=required,choices=choices,act='store',def=cvalue,error=error, &
+                        help_color='blue', help_style='italics_on')
         endif
     end subroutine parameter_handler_add0D
 
@@ -401,7 +402,8 @@ contains
         if(this%cli_initialized) then
             error = values%GetAsString(key=key, String=cvalue, separator=" "); assert(error==0)
             call this%cli%add(group=group,switch=switch,switch_ab=switch_ab, help=help, &
-                        required=required,choices=choices,act='store',def=cvalue,error=error,nargs='+')
+                        required=required,choices=choices,act='store',def=cvalue,error=error,nargs='+', &
+                        help_color='blue', help_style='italics_on')
         endif
     end subroutine parameter_handler_add1D
 
@@ -646,7 +648,8 @@ contains
 
         call this%cli%init(progname, version, help, description, &
                          license, authors, examples, epilog, disable_hv, &
-                         usage_lun, error_lun, version_lun)
+                         usage_lun, error_lun, version_lun, &
+                         error_color='red', error_style='underline_on')
         this%cli_initialized = .true.
     end subroutine parameter_handler_init_cli  
 
@@ -977,6 +980,11 @@ contains
            p4est_triang_domain_limits_cla_name, &
            default_p4est_triang_domain_limits, &
            p4est_triang_domain_limits_cla_help)
+      
+      call this%add(p4est_triang_geometry_interpolation_order_key, &
+           p4est_triang_geometry_interpolation_order_cla_name, &
+           default_p4est_triang_geometry_interpolation_order, &
+           p4est_triang_geometry_interpolation_order_cla_help)
 
       call this%add(p4est_triang_log_level_key, &
            p4est_triang_log_level_cla_name, &

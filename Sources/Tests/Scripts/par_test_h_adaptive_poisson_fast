@@ -15,7 +15,7 @@ DIR=$(dirname "$TEST_BINARY_PATH")
 
 if [ -f "$TEST_BINARY_PATH" ]
 then
-    for order in 1
+    for order in 1 2
     do  
         if [ $order -eq 1 ] 
         then 
@@ -26,7 +26,7 @@ then
 		            for num_parts in 9 
 		            do 
 		                num_tasks=`expr "$num_parts" + 1` 
-		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 9 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+		                COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 9 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0  $p4est_triang_geometry_interpolation_order_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
                                 echo $COMMAND
                                 eval $COMMAND
 		                if [ $? -ne 0 ] 
@@ -80,7 +80,7 @@ then
             num_refinements=3
             refinement_pattern=even_cells 
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0 $p4est_triang_geometry_interpolation_order_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -89,7 +89,7 @@ then
                 break 1
             fi
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 3 $p4est_triang_geometry_interpolation_order_flag 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 

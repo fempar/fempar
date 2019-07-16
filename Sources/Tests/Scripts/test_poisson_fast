@@ -68,7 +68,7 @@ then
        do
          if [ $order -ge $gorder ]
          then
-           COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra $mesh_prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG"
+           COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag MESH_DATA_FILES $mesh_dir_path_flag $TEST_INPUT_DATA_PATH/square_tetrahedra.gid $mesh_prefix_flag square_tetrahedra -order $order -gorder $gorder -f dG"
            echo $COMMAND
            eval $COMMAND
            if [ $? -ne 0 ]

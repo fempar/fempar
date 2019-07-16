@@ -26,37 +26,53 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine p4est_serial_triangulation_create (this, environment, parameters)
+subroutine p4est_serial_triangulation_create (this, environment, parameters, geom_analytical_mapping)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
   type(environment_t)                , target, intent(inout) :: environment
   type(ParameterList_t)                      , intent(inout) :: parameters
+  class(vector_function_t), optional         , intent(in)    :: geom_analytical_mapping
+  
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   integer(ip) :: num_dims, idime 
   integer(ip), allocatable :: array_size(:)
   real(rp)   , allocatable :: bounding_box_limits(:)
   integer(ip) :: dummy_comm
-  
 #ifdef ENABLE_P4EST
   call this%free()
-  
-  call this%set_single_octree_mesh(.true.)
   
   call this%set_environment(environment)
   
   call environment%setup_l1_to_l2_context_all_levels(task_aggregation_among_levels=[1])
-
+  
+  call this%set_analytical_geom_mapping(geom_analytical_mapping)
+  if ( this%geom_mapping_passed ) then
+    ! NOTE: In case of use a mapping different from the scaling of the unit cube, 
+    ! the cells conforming that mesh can not be considered as the scaling and/or translation 
+    ! of a reference cell. Then, disable the optimizations to exploit the latter case.
+    call this%set_single_octree_mesh(.false.)
+  else
+    call this%set_single_octree_mesh(.true.)
+  end if
+  
   call this%process_parameters(parameters)
   
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
+                                     this%geometry_interpolation_order, &
+                                     field_type_scalar, & 
+                                     conformity=.true., &
+                                     continuity=.true.)
+  call this%allocate_and_gen_reference_fe_geo_scratch_data()
+  
+  call this%reference_fe_geo_linear%create( topology_hex, &
+                                     this%get_num_dims(), &
                                      1, &
                                      field_type_scalar, & 
-                                     conformity=.true.)  
- 
-  call this%allocate_and_gen_reference_fe_geo_scratch_data()
-
+                                     conformity=.true., &
+                                     continuity=.true.)  
+  
   dummy_comm = 0
   call F90_p4est_init(dummy_comm,this%p4est_log_level)
   if ( this%get_num_dims() == 2 ) then
@@ -70,13 +86,13 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     call this%update_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%fill_x_cell_vertex_coordinates()
+    call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    call this%clear_vef_set_ids()
+    call this%initialize_vef_set_ids()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
@@ -89,16 +105,19 @@ subroutine p4est_serial_triangulation_create (this, environment, parameters)
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%fill_x_cell_vertex_coordinates()
+    call this%allocate_and_fill_cell_wise_nodal_coords_pre_mapping()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    call this%clear_vef_set_ids()
-    ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
-    ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%set_up_lst_itfc_vefs()
+    call this%initialize_vef_set_ids()
+  end if
+  if ( this%geom_mapping_passed ) then
+    allocate ( serial_fe_space_t :: this%nodal_coordinates_fe_space )
+    call this%setup_nodal_coordinates_fe_space()
+    call this%setup_nodal_coordinates_fe_function()
+    call this%nodal_coordinates_fe_function_to_cell_wise_array()
   end if  
 #else
   call this%not_enabled_error()
@@ -130,8 +149,7 @@ subroutine p4est_serial_triangulation_free ( this)
   this%QHE                = c_null_ptr
   this%p4est_ghost        = c_null_ptr
   
-  call this%per_cell_vertex_coordinates%free()
-  
+  call this%cell_wise_nodal_coordinates%free()
   call this%lst_vefs_gids%free()
   call this%cell_ggids%free()
   call this%ptr_cells_around_proper_vefs%free()
@@ -186,12 +204,18 @@ subroutine p4est_serial_triangulation_free ( this)
   this%bounding_box_limits = 0.0_rp
   this%previous_num_local_cells = -1
   this%previous_num_ghost_cells = -1
+  this%bounding_box_limits = 0.0_rp
 
   call this%reference_fe_geo%free()
   call this%free_reference_fe_geo_scratch_data()
-  
+  call this%reference_fe_geo_linear%free()
   this%clear_refinement_and_coarsening_flags_pending = .false.
   
+  call this%free_workspace_to_compute_nodal_coordinates()
+  
+  this%geometry_interpolation_order = 0
+  nullify(this%analytical_geom_mapping)
+  this%geom_mapping_passed = .false.
   call triangulation_free(this)
 #else
   call this%not_enabled_error()
