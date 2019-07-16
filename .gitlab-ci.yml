@@ -16,6 +16,7 @@ variables:
 
 .script_template:
   script: &script_template
+    - $SOURCE_COMMAND
     - $CLEAN_ENV_COMMAND
     - $LOAD_ENV_COMMAND
     - rm -rf $BUILD_DIR
@@ -58,7 +59,7 @@ GNU_DEBUG_P4EST_SERIAL:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
   
   
@@ -76,7 +77,7 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -93,7 +94,7 @@ GNU_DEBUG_P4EST_SERIAL_FAST:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL_FAST
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -110,7 +111,7 @@ GNU_DEBUG_P4EST_PARALLEL:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
   
 
@@ -128,7 +129,7 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -145,7 +146,7 @@ GNU_DEBUG_P4EST_PARALLEL_FAST:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL_FAST
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -163,7 +164,7 @@ GNU_RELEASE_P4EST_SERIAL:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -180,7 +181,7 @@ GNU_RELEASE_P4EST_SERIAL_FAST:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -198,7 +199,7 @@ GNU_RELEASE_P4EST_PARALLEL:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -215,7 +216,7 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
     FORTRAN_EXTRA_FLAGS: -fimplicit-none
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
-    LOAD_ENV_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
+    SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
 
@@ -234,8 +235,9 @@ INTEL_RELEASE_P4EST_SERIAL:
     FORTRAN_EXTRA_FLAGS: -implicitnone
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
     CLEAN_ENV_COMMAND: module purge
-    LOAD_ENV_COMMAND: source /usr/local/Modules/init/bash;module load INTEL_SERIAL;
+    LOAD_ENV_COMMAND: module load INTEL_SERIAL
   script: *script_template
 
 
@@ -253,8 +255,9 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
     FORTRAN_EXTRA_FLAGS: -implicitnone
     BUILD_MODE: RELEASE
     TEST_LABEL: SERIAL_FAST
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
     CLEAN_ENV_COMMAND: module purge
-    LOAD_ENV_COMMAND: source /usr/local/Modules/init/bash;module load INTEL_SERIAL;
+    LOAD_ENV_COMMAND: module load INTEL_SERIAL
   script: *script_template
 
 
@@ -273,8 +276,9 @@ INTEL_RELEASE_P4EST_PARALLEL:
     FORTRAN_EXTRA_FLAGS: -implicitnone
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
     CLEAN_ENV_COMMAND: module purge
-    LOAD_ENV_COMMAND: source /usr/local/Modules/init/bash;module load INTEL_PARALLEL;
+    LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
 
 
@@ -292,8 +296,9 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
     FORTRAN_EXTRA_FLAGS: -implicitnone
     BUILD_MODE: RELEASE
     TEST_LABEL: PARALLEL_FAST
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
     CLEAN_ENV_COMMAND: module purge
-    LOAD_ENV_COMMAND: source /usr/local/Modules/init/bash;module load INTEL_PARALLEL;
+    LOAD_ENV_COMMAND: module load INTEL_PARALLEL
   script: *script_template
 
 
