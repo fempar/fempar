@@ -50,7 +50,6 @@ GNU_DEBUG_P4EST_SERIAL:
   stage: debug
   only:
     - merge_requests
-  extends: .base_gnu
   variables:
     ROOT_DIR: $CI_PROJECT_DIR
     BUILD_DIR: /data/BUILD
