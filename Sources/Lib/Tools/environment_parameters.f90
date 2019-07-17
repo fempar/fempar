@@ -29,13 +29,13 @@ module environment_parameters_names
   use types_names
   implicit none
   
-  character(len=*), parameter :: environment_num_levels_key_name = 'ENVIRONMENT_NUM_LEVELS'
-  character(len=*), parameter :: environment_num_levels_cla_name = '--' // environment_num_levels_key_name
+  character(len=*), parameter :: environment_num_levels_key = 'ENVIRONMENT_NUM_LEVELS'
+  character(len=*), parameter :: environment_num_levels_cla_name = '--' // environment_num_levels_key
   character(len=*), parameter :: environment_num_levels_cla_help = 'The number of levels (i.e., groups) into which tasks handled by the environment are split'
   integer(ip)     , parameter :: default_environment_num_levels  = 1 
   
-  character(len=*), parameter :: environment_num_tasks_x_level_key_name = 'ENVIRONMENT_NUM_TASKS_X_LEVEL'
-  character(len=*), parameter :: environment_num_tasks_x_level_cla_name = '--'// environment_num_tasks_x_level_key_name
+  character(len=*), parameter :: environment_num_tasks_x_level_key = 'ENVIRONMENT_NUM_TASKS_X_LEVEL'
+  character(len=*), parameter :: environment_num_tasks_x_level_cla_name = '--'// environment_num_tasks_x_level_key
   character(len=*), parameter :: environment_num_tasks_x_level_cla_help = 'The number tasks per level (i.e., per each group)'
   integer(ip)     , parameter :: default_num_tasks_x_level(*)           = [1] 
   
