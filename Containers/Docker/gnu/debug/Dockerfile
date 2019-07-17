@@ -3,6 +3,7 @@ FROM fempar/fempar-env:gnu
 USER root:root
 
 RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
+    && ROOT_DIR=/tmp \
     && INSTALL_ROOT=/opt \
 ################################################ \
 # Install json-fortran \
@@ -10,8 +11,7 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && PACKAGE=json-fortran \
     && VERSION=7.0.0 \
     && JSON_FORTRAN_INSTALL=$INSTALL_ROOT/$PACKAGE/$VERSION \
-    && URL=https://github.com/jacobwilliams/json-fortran/archive/$VERSION.tar.gz \
-    && ROOT_DIR=/tmp \
+    && URL=https://github.com/jacobwilliams/$PACKAGE/archive/$VERSION.tar.gz \
     && SOURCES_DIR=/tmp/$PACKAGE-$VERSION \
     && TAR_FILE=$SOURCES_DIR.tar.gz \
     && BUILD_DIR=$SOURCES_DIR/build \
@@ -23,6 +23,25 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && cmake --build . --target install \
     && rm -rf $TAR_FILE $SOURCES_DIR \
 ################################################ \
+# Install UMFPACK \
+################################################ \
+    && PACKAGE=SuiteSparse \
+    && PACKAGE_LOWERCASE=suitesparse \
+    && VERSION=5.4.0 \
+    && TAR_FILENAME=$PACKAGE-$VERSION.tar.gz \
+    && TAR_FILE=$ROOT_DIR/$TAR_FILENAME \
+    && SOURCES_DIR=/tmp/$PACKAGE-$VERSION \
+    && SUITESPARSE_INSTALL=$INSTALL_ROOT/$PACKAGE_LOWERCASE/$VERSION \
+    && URL=http://faculty.cse.tamu.edu/davis/$PACKAGE/$TAR_FILENAME \
+    && COMPONENTS="SuiteSparse_config AMD CAMD CCOLAMD COLAMD CHOLMOD UMFPACK" \
+    && wget -q $URL -O $TAR_FILE \
+    && mkdir -p $SOURCES_DIR \
+    && tar xzf $TAR_FILE -C $SOURCES_DIR --strip-components=1 \
+    && cd $SOURCES_DIR \
+    && for COMPONENT in $COMPONENTS; do ( cd $SOURCES_DIR/$COMPONENT && make --quiet ); done \
+    && for COMPONENT in $COMPONENTS; do ( cd $SOURCES_DIR/$COMPONENT && make --quiet install INSTALL=$SUITESPARSE_INSTALL ); done \
+    && rm -rf $TAR_FILE $SOURCES_DIR \
+################################################ \
 # Install PETSC \
 ################################################ \
     && PACKAGE=petsc \
@@ -30,7 +49,6 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && PETSC_INSTALL=$INSTALL_ROOT/$PACKAGE/$VERSION \
     && TAR_FILE=$PACKAGE-$VERSION.tar.gz \
     && URL="http://ftp.mcs.anl.gov/pub/petsc/release-snapshots" \
-    && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
     && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
@@ -53,7 +71,6 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && QHULL_INSTALL=$INSTALL_ROOT/$PACKAGE/$VERSION \
     && TAR_FILE=$PACKAGE-$VERSION.tgz \
     && URL="http://www.qhull.org/download" \
-    && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
     && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
@@ -74,7 +91,6 @@ RUN source /opt/intel/mkl/bin/mklvars.sh intel64 \
     && HDF5_INSTALL=$INSTALL_ROOT/$PACKAGE/$VERSION \
     && TAR_FILE=$PACKAGE-$VERSION.tar.gz \
     && URL="https://support.hdfgroup.org/ftp/HDF5/releases/$PACKAGE-$MAJOR.$MINOR/$PACKAGE-$VERSION/src" \
-    && ROOT_DIR=/tmp \
     && SOURCES_DIR=$ROOT_DIR/$PACKAGE-$VERSION \
     && BUILD_DIR=$SOURCES_DIR/build \
     && wget -q $URL/$TAR_FILE -O $ROOT_DIR/$TAR_FILE \
@@ -93,10 +109,8 @@ USER fempar:fempar
 # Export environment variables
 ################################################
 ENV HDF5_ROOT /opt/hdf5/1.8.21
-ENV PATH $PATH:/opt/hdf5/1.8.21/bin
-ENV PATH $PATH:/opt/qhull/2015-src-7.2.0
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/qhull/2015-src-7.2.0/lib
 ENV PETSC_DIR /opt/petsc/3.9.2
-
+ENV PATH $PATH:/opt/hdf5/1.8.21/bin:/opt/suitesparse/5.4.0:/opt/qhull/2015-src-7.2.0
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/opt/hdf5/1.8.21/lib:/opt/suitesparse/5.4.0/lib:/opt/qhull/2015-src-7.2.0/lib
 
 
