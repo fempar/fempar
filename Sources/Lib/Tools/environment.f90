@@ -221,32 +221,32 @@ contains
     character(len=:), allocatable :: error_message
     
     ! Mandatory
-    assert(parameters%isAssignable(environment_num_levels_key_name, this%num_levels))
-    istat = parameters%get(key = environment_num_levels_key_name, value = this%num_levels)
+    assert(parameters%isAssignable(environment_num_levels_key, this%num_levels))
+    istat = parameters%get(key = environment_num_levels_key, value = this%num_levels)
     assert(istat==0)
 
     ! Mandatory (array)
-    assert(parameters%isPresent(key = environment_num_tasks_x_level_key_name))
-    istat = parameters%GetShape(key = environment_num_tasks_x_level_key_name, shape = array_size); check(istat==0)
+    assert(parameters%isPresent(key = environment_num_tasks_x_level_key))
+    istat = parameters%GetShape(key = environment_num_tasks_x_level_key, shape = array_size); check(istat==0)
     
     error_message = 'The size of the ' // & 
-                    environment_num_tasks_x_level_key_name // & 
+                    environment_num_tasks_x_level_key // & 
                     ' (' // ch(array_size(1)) // ') ' // &
                     'array must match the one provided to ' // &
-                    environment_num_levels_key_name // & 
+                    environment_num_levels_key // & 
                     ' (' // ch(this%num_levels) // ') '
     massert(array_size(1)==this%num_levels, error_message)
     
     call memalloc(array_size(1), this%num_tasks_x_level,__FILE__,__LINE__)
-    istat = parameters%get(key = environment_num_tasks_x_level_key_name, value = this%num_tasks_x_level); check(istat==0)
+    istat = parameters%get(key = environment_num_tasks_x_level_key, value = this%num_tasks_x_level); check(istat==0)
     
     error_message = 'At present, only a single task & 
                    supported for the last level provided to ' // & 
-                   environment_num_tasks_x_level_key_name
+                   environment_num_tasks_x_level_key
     massert ( this%num_tasks_x_level(this%num_levels) == 1,  error_message)   
     
     error_message = 'The sum of all tasks provided to ' // & 
-                   environment_num_tasks_x_level_key_name // & 
+                   environment_num_tasks_x_level_key // & 
                    ' (' // ch(sum(this%num_tasks_x_level)) // ') ' // & 
                    'must match the total number of tasks that ENVIRONMENT is handling' // & 
                    ' (' // ch(world_context%get_num_tasks()) // ') '

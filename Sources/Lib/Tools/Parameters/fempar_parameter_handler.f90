@@ -890,12 +890,12 @@ contains
     subroutine fph_environment_define_parameters(this)
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this      
-      call this%add(environment_num_levels_key_name, &
+      call this%add(environment_num_levels_key, &
                     environment_num_levels_cla_name, &
                     default_environment_num_levels, &
                     environment_num_levels_cla_help)
       
-      call this%add(environment_num_tasks_x_level_key_name, &
+      call this%add(environment_num_tasks_x_level_key, &
                     environment_num_tasks_x_level_cla_name, &
                     default_num_tasks_x_level, &
                     environment_num_tasks_x_level_cla_help)
