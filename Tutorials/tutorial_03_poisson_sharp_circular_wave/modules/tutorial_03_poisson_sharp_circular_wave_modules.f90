@@ -34,38 +34,45 @@ module tutorial_03_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: poisson_discrete_integration_t
-     private
-     class(scalar_function_t), pointer :: source_term 
-     type(fe_function_t),      pointer :: fe_function => NULL()
-   contains
-     procedure :: set_source_term
-     procedure :: set_fe_function
-     procedure :: integrate_galerkin
-  end type poisson_discrete_integration_t
   
-  public :: poisson_discrete_integration_t
+  type, abstract, extends(discrete_integration_t) :: base_discrete_integration_t
+     private
+     class(scalar_function_t), pointer :: source_term => NULL()
+  contains
+     procedure :: set_source_term => base_discrete_integration_set_source_term
+  end type 
+  
+  
+  type, extends(base_discrete_integration_t) :: poisson_cg_discrete_integration_t
+     type(fe_function_t),      pointer :: discrete_boundary_function => NULL()
+   contains
+     procedure :: integrate_galerkin             => poisson_cg_discrete_integration_integrate_galerkin
+     procedure :: set_discrete_boundary_function => poisson_cg_discrete_integration_set_discrete_boundary_function
+  end type poisson_cg_discrete_integration_t
+  
+  type, extends(base_discrete_integration_t) :: poisson_dg_discrete_integration_t
+     class(scalar_function_t), pointer :: boundary_function => NULL()
+   contains
+     procedure :: integrate_galerkin    => poisson_dg_discrete_integration_integrate_galerkin
+     procedure :: set_boundary_function => poisson_dg_discrete_integration_set_boundary_function
+  end type poisson_dg_discrete_integration_t
+  
+  public :: poisson_cg_discrete_integration_t
+  public :: poisson_dg_discrete_integration_t
   
 contains
-  subroutine set_source_term ( this, source_term )
+  subroutine base_discrete_integration_set_source_term ( this, source_term )
      implicit none
-     class(poisson_discrete_integration_t)        , intent(inout) :: this
+     class(base_discrete_integration_t)        , intent(inout) :: this
      class(scalar_function_t),              target, intent(in)    :: source_term
      this%source_term => source_term
-  end subroutine set_source_term
+  end subroutine base_discrete_integration_set_source_term
 
-  subroutine set_fe_function (this, fe_function)
-     implicit none
-     class(poisson_discrete_integration_t), intent(inout) :: this
-     type(fe_function_t)             , target, intent(in)    :: fe_function
-     this%fe_function => fe_function
-  end subroutine set_fe_function
-
-  subroutine integrate_galerkin ( this, fe_space, assembler )
+  subroutine poisson_cg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
     implicit none
-    class(poisson_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(assembler_t)      , intent(inout) :: assembler
+    class(poisson_cg_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                , intent(inout) :: fe_space
+    class(assembler_t)                      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t), allocatable :: fe
@@ -81,25 +88,21 @@ contains
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
+    integer(ip)  :: idof, jdof, num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
     
     call fe_space%create_fe_cell_iterator(fe)
-    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+    num_dofs = fe%get_num_dofs()
+    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
 
+    quad  => fe%get_quadrature()
+    num_quad_points = quad%get_num_quadrature_points()
     do while ( .not. fe%has_finished() )
-
        if ( fe%is_local() ) then
           ! Update FE-integration related data structures
           call fe%update_integration()
-
-          ! Very important: this has to be inside the loop, as different FEs can be present!
-          quad            => fe%get_quadrature()
-          num_quad_points = quad%get_num_quadrature_points()
-          num_dofs = fe%get_num_dofs()
           
           ! Get quadrature coordinates to evaluate source_term
           quad_coords => fe%get_quadrature_points_coordinates()
@@ -124,8 +127,7 @@ contains
                 elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
              end do
           end do
-          
-          call fe%assembly( this%fe_function, elmat, elvec, assembler )
+          call fe%assembly( this%discrete_boundary_function, elmat, elvec, assembler )
        end if
        call fe%next()
     end do
@@ -134,7 +136,202 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate_galerkin
+  end subroutine poisson_cg_discrete_integration_integrate_galerkin
+  
+  subroutine poisson_cg_discrete_integration_set_discrete_boundary_function(this, discrete_boundary_function)
+     implicit none
+     class(poisson_cg_discrete_integration_t), intent(inout) :: this
+     type(fe_function_t)             , target, intent(in)    :: discrete_boundary_function
+     this%discrete_boundary_function => discrete_boundary_function
+  end subroutine poisson_cg_discrete_integration_set_discrete_boundary_function
+  
+  subroutine poisson_dg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
+    implicit none
+    class(poisson_dg_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                , intent(inout) :: fe_space
+    class(assembler_t)                      , intent(inout) :: assembler
+
+    ! FE space traversal-related data types
+    class(fe_cell_iterator_t), allocatable :: fe
+    class(fe_facet_iterator_t), allocatable :: fe_face
+    
+    ! FE integration-related data types
+    type(quadrature_t), pointer :: quad
+    type(point_t), pointer :: quad_coords(:)
+    real(rp), allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
+    type(vector_field_t), allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
+    type(vector_field_t), pointer :: shape_gradients_ineigh(:,:), shape_gradients_jneigh(:,:)
+    real(rp), pointer :: shape_values_ineigh(:,:), shape_values_jneigh(:,:)
+    
+    ! Face integration-related data types
+    type(vector_field_t)              :: normals(2)
+    real(rp)                          :: h_length
+    
+    ! FE matrix and vector i.e., A_K + f_K
+    real(rp), allocatable              :: elmat(:,:), elvec(:)
+    
+    ! FACE matrix and vector, i.e., A_F + f_F
+    real(rp), allocatable              :: facemat(:,:,:,:), facevec(:,:)
+    
+    ! dG discretization related parameters (Interior Penalty constant)
+    real(rp) :: C_IP        
+    
+    real(rp) :: source_term_value, boundary_value
+
+    integer(ip)  :: istat
+    integer(ip)  :: qpoint, num_quad_points
+    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: ineigh, jneigh
+    real(rp)     :: factor
+   
+    
+    call fe_space%create_fe_cell_iterator(fe)
+    num_dofs =  fe%get_num_dofs()
+    
+    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+    
+    C_IP = 10.0_rp * real(fe%get_order(field_id=1)**2, rp)
+    
+    quad  => fe%get_quadrature()
+    num_quad_points =  quad%get_num_quadrature_points()
+    do while ( .not. fe%has_finished())
+       if ( fe%is_local() ) then
+         ! Update FE-integration related data structures
+         call fe%update_integration()
+         
+         ! Get quadrature coordinates to evaluate source_term
+         quad_coords => fe%get_quadrature_points_coordinates()
+
+         ! Compute element matrix and vector
+         elmat = 0.0_rp
+         elvec = 0.0_rp
+         call fe%get_gradients(shape_gradients_first)
+         call fe%get_values(shape_values_first)
+         do qpoint = 1, num_quad_points
+            factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            do idof = 1, num_dofs
+               do jdof = 1, num_dofs
+                  ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                  elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients_first(jdof,qpoint) * shape_gradients_first(idof,qpoint)
+               end do
+            end do
+            
+            ! Source term
+            call this%source_term%get_value(quad_coords(qpoint),source_term_value)
+            do idof = 1, num_dofs
+               elvec(idof) = elvec(idof) + factor * source_term_value * shape_values_first(idof,qpoint)
+            end do  
+         end do
+         call fe%assembly( elmat, elvec, assembler )
+       end if   
+       call fe%next()
+    end do
+    call fe_space%free_fe_cell_iterator(fe)
+        
+    call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    call memalloc ( num_dofs,                  2, facevec, __FILE__, __LINE__ )
+    
+    call fe_space%create_fe_facet_iterator(fe_face)
+    quad => fe_face%get_quadrature()
+    num_quad_points = quad%get_num_quadrature_points()
+    do while ( .not. fe_face%has_finished() )       
+       if ( .not. fe_face%is_at_boundary()  ) then
+         facemat = 0.0_rp
+         call fe_face%update_integration()    
+         
+         call fe_face%get_values(1,shape_values_first)
+         call fe_face%get_values(2,shape_values_second)
+         call fe_face%get_gradients(1,shape_gradients_first)
+         call fe_face%get_gradients(2,shape_gradients_second)
+         
+         do qpoint = 1, num_quad_points
+            call fe_face%get_normal(qpoint,normals)
+            h_length = fe_face%compute_characteristic_length(qpoint)
+            factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            do ineigh = 1, fe_face%get_num_cells_around()
+               if (ineigh==1) then
+                 shape_values_ineigh    => shape_values_first
+                 shape_gradients_ineigh => shape_gradients_first
+               else if (ineigh==2) then
+                 shape_values_ineigh    => shape_values_second
+                 shape_gradients_ineigh => shape_gradients_second
+               end if
+               do jneigh = 1, fe_face%get_num_cells_around()
+                 if (jneigh==1) then
+                   shape_values_jneigh    => shape_values_first
+                   shape_gradients_jneigh => shape_gradients_first
+                 else if (jneigh==2) then
+                   shape_values_jneigh    => shape_values_second
+                   shape_gradients_jneigh => shape_gradients_second
+                 end if
+                 do idof = 1, num_dofs
+                     do jdof = 1, num_dofs
+                        !- mu*({{grad u}}[[v]] + (1-xi)*[[u]]{{grad v}} ) + C*mu*p^2/h * [[u]] [[v]]
+                        facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
+                             &  factor *   &
+                             &  (-0.5_rp*shape_gradients_jneigh(jdof,qpoint)*normals(ineigh)*shape_values_ineigh(idof,qpoint) - &
+                             &   0.5_rp*shape_gradients_ineigh(idof,qpoint)*normals(jneigh)*shape_values_jneigh(jdof,qpoint)   + &
+                             &   c_IP / h_length * shape_values_jneigh(jdof,qpoint)*shape_values_ineigh(idof,qpoint) *        &
+                             &   normals(ineigh)*normals(jneigh))
+                     end do
+                 end do
+               end do
+            end do
+         end do
+         call fe_face%assembly( facemat, assembler )
+       else if ( fe_face%is_at_boundary() ) then
+         ineigh  = 1
+         facemat = 0.0_rp
+         facevec = 0.0_rp
+         call fe_face%update_integration()
+         quad_coords => fe_face%get_quadrature_points_coordinates()
+         call fe_face%get_values(ineigh,shape_values_first)
+         call fe_face%get_gradients(ineigh,shape_gradients_first)
+         do qpoint = 1, num_quad_points
+            call fe_face%get_normal(qpoint,normals)
+            h_length = fe_face%compute_characteristic_length(qpoint)
+            factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call this%boundary_function%get_value(quad_coords(qpoint),boundary_value)
+            do idof = 1, num_dofs
+              do jdof = 1, num_dofs
+                 facemat(idof,jdof,ineigh,ineigh) = facemat(idof,jdof,ineigh,ineigh) + &
+                                     &  factor *   &
+                                     (-shape_gradients_first(jdof,qpoint)*normals(ineigh)*shape_values_first(idof,qpoint) - &
+                                      shape_gradients_first(idof,qpoint)*normals(ineigh)*shape_values_first(jdof,qpoint)  + &
+                                      c_IP / h_length * shape_values_first(idof,qpoint)*shape_values_first(jdof,qpoint))
+              end do
+              facevec(idof,ineigh) = facevec(idof,ineigh) + factor * &
+                                      (-boundary_value * shape_gradients_first(idof,qpoint) * normals(ineigh) + &
+                                      c_IP / h_length * boundary_value * shape_values_first(idof,qpoint) ) 
+            end do   
+         end do
+         call fe_face%assembly( facemat, facevec, assembler )
+       end if
+       call fe_face%next()
+    end do
+    call fe_space%free_fe_facet_iterator(fe_face)
+    call memfree(shape_values_first, __FILE__, __LINE__) 
+    if (allocated(shape_values_second)) then
+      call memfree(shape_values_second, __FILE__, __LINE__) 
+    end if
+    deallocate(shape_gradients_first, stat=istat); check(istat==0);
+    if (allocated(shape_gradients_second)) then 
+      deallocate(shape_gradients_second, stat=istat); check(istat==0);
+    end if
+    call memfree ( elmat, __FILE__, __LINE__ )
+    call memfree ( elvec, __FILE__, __LINE__ )
+    call memfree ( facemat, __FILE__, __LINE__ )
+    call memfree ( facevec, __FILE__, __LINE__ )
+  end subroutine poisson_dg_discrete_integration_integrate_galerkin
+  
+  subroutine poisson_dg_discrete_integration_set_boundary_function ( this, boundary_function )
+     implicit none
+     class(poisson_dg_discrete_integration_t)  , intent(inout) :: this
+     class(scalar_function_t),           target, intent(in)    :: boundary_function
+     this%boundary_function => boundary_function
+  end subroutine poisson_dg_discrete_integration_set_boundary_function
+  
   
 end module tutorial_03_discrete_integration_names
 
