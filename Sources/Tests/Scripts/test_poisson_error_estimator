@@ -18,7 +18,7 @@ then
     then
        for order in 3 4 #1 2 
         do
-            COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0"
+            COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -34,7 +34,7 @@ then
     then
        for order in 1 2
         do
-            COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 3"
+            COMMAND="$TEST_BINARY_PATH -order $order -af polynomial -rs uniform"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -48,7 +48,7 @@ then
     # Square + Quads + Adaptive refinement
     if [ $final_exit_code -eq 0 ] 
     then
-      COMMAND="$TEST_BINARY_PATH -order 2 -af shock -rs error_objective $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0"
+      COMMAND="$TEST_BINARY_PATH -order 2 -af shock -rs error_objective $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0"
       echo $COMMAND
       eval $COMMAND
       if [ $? -ne 0 ] 

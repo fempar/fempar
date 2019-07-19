@@ -42,7 +42,7 @@ module uniform_hex_mesh_generator_parameters_names
   
   character(len=*), parameter :: struct_hex_mesh_generator_num_dims_cla_choices = '2,3'  
 
-  integer(ip),               parameter :: default_struct_hex_mesh_generator_num_dims                = 2
+  integer(ip),               parameter :: default_struct_hex_mesh_generator_num_dims                = 3
   real(rp),    dimension(*), parameter :: default_struct_hex_mesh_generator_domain_limits           = [0.0,1.0,0.0,1.0,0.0,1.0]
   integer(ip), dimension(*), parameter :: default_struct_hex_mesh_generator_is_dir_periodic         = [0,0,0]
   integer(ip), dimension(*), parameter :: default_struct_hex_mesh_generator_num_cells_x_dim         = [10,10,10]
