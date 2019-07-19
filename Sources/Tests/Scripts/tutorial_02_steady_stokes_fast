@@ -1,0 +1,23 @@
+#!/bin/sh
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+TEST_SCRIPTS_PATH="$3"
+final_exit_code=0
+
+# Load FEMPAR CLAs
+. $TEST_SCRIPTS_PATH/fempar_cla_names
+
+if [ -f "$TEST_BINARY_PATH" ]
+then   
+      COMMAND="$TEST_BINARY_PATH $struct_hex_mesh_generator_num_dims_flag 2"
+      echo $COMMAND
+      eval $COMMAND
+      if [ $? -ne 0 ] 
+      then
+         final_exit_code=1
+      fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+exit $final_exit_code 
