@@ -62,8 +62,8 @@ program tutorial_04_poisson_sharp_circular_wave_amr
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                         :: discrete_solution
   !* poisson_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
-  type(poisson_cg_discrete_integration_t)     :: poisson_cg_discrete_integration
-  type(poisson_dg_discrete_integration_t)     :: poisson_dg_discrete_integration
+  type(poisson_cg_discrete_integration_t), target :: poisson_cg_discrete_integration
+  type(poisson_dg_discrete_integration_t), target :: poisson_dg_discrete_integration
   !* direct_solver_t provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK)
   type(direct_solver_t)                       :: direct_solver
   !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView
@@ -100,7 +100,9 @@ program tutorial_04_poisson_sharp_circular_wave_amr
   call solve_system()  
   call compute_error()
   call setup_refinement_strategy()
+  call output_handler_initialize()
   do
+    call output_handler_write_current_amr_step()
     if ( current_amr_step == num_amr_steps ) exit
     current_amr_step = current_amr_step + 1
     call refinement_strategy%update_refinement_flags(triangulation)
@@ -111,6 +113,7 @@ program tutorial_04_poisson_sharp_circular_wave_amr
     call solve_system()  
     call compute_error()
   end do
+  call output_handler_finalize()
   
   call free_all_objects()
   !* Finalize FEMPAR library (i.e., destruct system-wide variables)
@@ -224,14 +227,11 @@ contains
          call parameter_handler%update(p4est_triang_domain_limits_key, &
                                        [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0,1.0_rp])
        end if
-       if ( current_amr_step == 0 ) then
-         call triangulation%create(environment, parameter_handler%get_values())
-         do i=1, num_uniform_refinement_steps
-           call flag_all_cells_for_refinement()
-           call triangulation%refine_and_coarsen()
-         end do
-       else
-       end if
+       call triangulation%create(environment, parameter_handler%get_values())
+       do i=1, num_uniform_refinement_steps
+         call flag_all_cells_for_refinement()
+         call triangulation%refine_and_coarsen()
+       end do
      else
        call triangulation%refine_and_coarsen()
      end if 
@@ -307,6 +307,7 @@ contains
   end subroutine setup_discrete_solution
   
   subroutine setup_and_assemble_fe_affine_operator()
+    class(discrete_integration_t), pointer :: discrete_integration
     if ( current_amr_step == 0 ) then
       !* First, we provide to the discrete_integration all ingredients required to build the weak form of the Poisson problem.
       !* Namely, the source term of the PDE, and the function to be imposed interpolated on the Dirichlet boundary (discrete_solution)
@@ -316,22 +317,18 @@ contains
       if ( fe_formulation == "CG" ) then
          call poisson_cg_discrete_integration%set_source_term(source_term)
          call poisson_cg_discrete_integration%set_boundary_function(discrete_solution)
-         call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = fe_space, &
-                                          discrete_integration              = poisson_cg_discrete_integration )
+         discrete_integration => poisson_cg_discrete_integration
       else if ( fe_formulation == "DG" ) then 
          call poisson_dg_discrete_integration%set_source_term(source_term)
          call poisson_dg_discrete_integration%set_boundary_function(exact_solution) 
-         call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = fe_space, &
-                                          discrete_integration              = poisson_dg_discrete_integration )
+         discrete_integration => poisson_dg_discrete_integration
       end if 
+      call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                       diagonal_blocks_symmetric_storage = [ .true. ], &
+                                       diagonal_blocks_symmetric         = [ .true. ], &
+                                       diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                       fe_space                          = fe_space, &
+                                       discrete_integration              = discrete_integration )
     else
       call fe_affine_operator%reallocate_after_remesh()
     end if 
@@ -351,19 +348,24 @@ contains
       call direct_solver%set_parameters_from_pl(parameter_handler%get_values())
       !* Next, we set the matrix in our system from the fe_affine operator
       call direct_solver%set_matrix(fe_affine_operator%get_matrix())
-      !* We extract a pointer to the free nodal values of our FE function, which is the place in which we will store the result.
-      dof_values => discrete_solution%get_free_dof_values()
-      !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
-      !* putting the result in dof_values.
-      call direct_solver%solve(fe_affine_operator%get_translation(),dof_values)
     else 
       call direct_solver%reallocate_after_remesh()
     end if
+    !* We extract a pointer to the free nodal values of our FE function, which is the place in which we will store the result.
+    dof_values => discrete_solution%get_free_dof_values()
+    !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
+    !* putting the result in dof_values.
+    call direct_solver%solve(fe_affine_operator%get_translation(),dof_values)
+    !* Once we have obtained the values corresponding to DoFs which are actually free, we have to update the values corresponding to DoFs
+    !* which are hanging (constrained). This is required as, in this tutorial, we are using AMR on non-conforming meshes. We note that 
+    !* hanging DoF constraints are only present when we use a conforming continuous Galerkin finite element formulation, thus it does not
+    !* make sense to update them whenever fe_formulation == "DG" (as in this case there are not actually such hanging DoFs).
+    if ( fe_formulation == "CG" ) then
+      call fe_space%update_hanging_dof_values(discrete_solution)
+    end if  
   end subroutine solve_system
   
   subroutine compute_error()
-    type(std_vector_real_rp_t), pointer :: sq_local_true_errors
-    real(rp), pointer :: sq_local_true_errors_entries(:)
     real(rp) :: global_error_energy_norm
     if ( current_amr_step == 0 ) then
       call error_estimator%create(fe_space,parameter_handler%get_values())
@@ -375,9 +377,7 @@ contains
     end if
     call error_estimator%compute_local_true_errors()
     call error_estimator%compute_local_estimates()
-    sq_local_true_errors => error_estimator%get_sq_local_true_errors()
-    sq_local_true_errors_entries => sq_local_true_errors%get_pointer()
-    global_error_energy_norm = sqrt(sum(sq_local_true_errors_entries))
+    global_error_energy_norm = sqrt(sum(error_estimator%get_sq_local_true_error_entries()))
     write(*,'(a,i3)') 'AMR step:', current_amr_step
     write(*,'(a30,i24)') repeat(' ', 4) // 'NUM_CELLS:' // repeat(' ', 80), triangulation%get_num_cells()
     write(*,'(a30,i24)') repeat(' ', 4) // 'NUM_DOFS:' // repeat(' ', 80), fe_space%get_total_num_dofs()
@@ -406,6 +406,25 @@ contains
     call refinement_strategy%create(error_estimator,parameter_list)
     call parameter_list%free()
   end subroutine setup_refinement_strategy
+  
+  subroutine output_handler_initialize()
+    call parameter_handler%update(output_handler_static_grid_key, value=.false.)
+    call output_handler%create(parameter_handler%get_values())
+    call output_handler%attach_fe_space(fe_space)
+    call output_handler%add_fe_function(discrete_solution, 1, 'solution')
+    call output_handler%add_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
+    call output_handler%open()
+  end subroutine output_handler_initialize
+  
+  subroutine output_handler_write_current_amr_step()
+    call output_handler%update_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
+    call output_handler%append_time_step(real(current_amr_step,rp))
+    call output_handler%write()
+  end subroutine output_handler_write_current_amr_step
+  
+  subroutine output_handler_finalize()
+    call output_handler%close()
+  end subroutine output_handler_finalize
   
   subroutine free_all_objects()
     !* Free all the objects created in the course of the program

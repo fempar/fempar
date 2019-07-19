@@ -46,8 +46,8 @@ module tutorial_03_discrete_integration_names
   type, extends(base_discrete_integration_t) :: poisson_cg_discrete_integration_t
      type(fe_function_t),      pointer :: discrete_boundary_function => NULL()
    contains
-     procedure :: integrate_galerkin             => poisson_cg_discrete_integration_integrate_galerkin
-     procedure :: set_discrete_boundary_function => poisson_cg_discrete_integration_set_discrete_boundary_function
+     procedure :: integrate_galerkin     => poisson_cg_discrete_integration_integrate_galerkin
+     procedure :: set_boundary_function  => poisson_cg_discrete_integration_set_boundary_function
   end type poisson_cg_discrete_integration_t
   
   type, extends(base_discrete_integration_t) :: poisson_dg_discrete_integration_t
@@ -138,12 +138,12 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine poisson_cg_discrete_integration_integrate_galerkin
   
-  subroutine poisson_cg_discrete_integration_set_discrete_boundary_function(this, discrete_boundary_function)
+  subroutine poisson_cg_discrete_integration_set_boundary_function(this, discrete_boundary_function)
      implicit none
      class(poisson_cg_discrete_integration_t), intent(inout) :: this
      type(fe_function_t)             , target, intent(in)    :: discrete_boundary_function
      this%discrete_boundary_function => discrete_boundary_function
-  end subroutine poisson_cg_discrete_integration_set_discrete_boundary_function
+  end subroutine poisson_cg_discrete_integration_set_boundary_function
   
   subroutine poisson_dg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
     implicit none
@@ -619,7 +619,7 @@ contains
     type(point_t)             , pointer :: quad_coords(:)
     real(rp) :: factor
     integer(ip) :: qpoint, num_quad_points
-    real(rp) :: sq_local_estimate
+    real(rp) :: sq_local_true_error
     integer(ip) :: istat 
 
     assert (associated(this%exact_solution))
@@ -644,15 +644,15 @@ contains
        call this%exact_solution%get_gradients_set( quad_coords, &
                                                    this%exact_solution_gradients )
        discrete_solution_gradients => this%fe_cell_function%get_quadrature_points_gradients()
-       sq_local_estimate = 0.0_rp
+       sq_local_true_error = 0.0_rp
        do qpoint = 1, num_quad_points
           factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           this%exact_solution_gradients(qpoint) = this%exact_solution_gradients(qpoint) - &
                                                   discrete_solution_gradients(qpoint)
-          sq_local_estimate = sq_local_estimate + factor * this%exact_solution_gradients(qpoint) * &
+          sq_local_true_error = sq_local_true_error + factor * this%exact_solution_gradients(qpoint) * &
                                      this%exact_solution_gradients(qpoint)
        end do
-       sq_local_true_errors_entries(fe%get_gid()) = sq_local_estimate
+       sq_local_true_errors_entries(fe%get_gid()) = sq_local_true_error
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
@@ -660,6 +660,12 @@ contains
 
   subroutine poisson_error_estimator_compute_local_estimates(this)
     class(poisson_error_estimator_t), intent(inout) :: this
+    type(std_vector_real_rp_t), pointer :: sq_local_estimates
+    type(std_vector_real_rp_t), pointer :: sq_local_true_errors
+    sq_local_estimates   => this%get_sq_local_estimates()
+    sq_local_true_errors => this%get_sq_local_true_errors()
+    call sq_local_estimates%resize(sq_local_true_errors%size())
+    call sq_local_estimates%copy(sq_local_true_errors)
   end subroutine poisson_error_estimator_compute_local_estimates
 
   function poisson_error_estimator_get_error_norm_exponent(this)

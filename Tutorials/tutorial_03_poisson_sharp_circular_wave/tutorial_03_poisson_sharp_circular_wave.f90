@@ -62,8 +62,8 @@ program tutorial_03_poisson_sharp_circular_wave
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                     :: discrete_solution
   !* poisson_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
-  type(poisson_cg_discrete_integration_t) :: poisson_cg_discrete_integration
-  type(poisson_dg_discrete_integration_t) :: poisson_dg_discrete_integration
+  type(poisson_cg_discrete_integration_t), target :: poisson_cg_discrete_integration
+  type(poisson_dg_discrete_integration_t), target :: poisson_dg_discrete_integration
   !* direct_solver_t provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK)
   type(direct_solver_t)                   :: direct_solver
   !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView
@@ -274,6 +274,7 @@ contains
   end subroutine setup_discrete_solution
   
   subroutine setup_and_assemble_fe_affine_operator()
+    class(discrete_integration_t), pointer :: discrete_integration
     !* First, we provide to the discrete_integration all ingredients required to build the weak form of the Poisson problem.
     !* Namely, the source term of the PDE, and the function to be imposed interpolated on the Dirichlet boundary (discrete_solution)
     !* Next, we create the affine operator, i.e., Ax-b, providing the info for the matrix (storage, symmetric, etc.), and the form to
@@ -281,24 +282,19 @@ contains
     !* side.  
     if ( fe_formulation == "CG" ) then
        call poisson_cg_discrete_integration%set_source_term(source_term)
-       call poisson_cg_discrete_integration%set_discrete_boundary_function(discrete_solution)
-       call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                         diagonal_blocks_symmetric_storage = [ .true. ], &
-                                         diagonal_blocks_symmetric         = [ .true. ], &
-                                         diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                         fe_space                          = fe_space, &
-                                         discrete_integration              = poisson_cg_discrete_integration )
+       call poisson_cg_discrete_integration%set_boundary_function(discrete_solution)
+       discrete_integration => poisson_cg_discrete_integration
     else if ( fe_formulation == "DG" ) then 
        call poisson_dg_discrete_integration%set_source_term(source_term)
        call poisson_dg_discrete_integration%set_boundary_function(exact_solution) 
-       call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                        diagonal_blocks_symmetric_storage = [ .true. ], &
-                                        diagonal_blocks_symmetric         = [ .true. ], &
-                                        diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                        fe_space                          = fe_space, &
-                                        discrete_integration              = poisson_dg_discrete_integration )
-    end if 
-    
+       discrete_integration => poisson_dg_discrete_integration
+    end if
+    call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                       diagonal_blocks_symmetric_storage = [ .true. ], &
+                                       diagonal_blocks_symmetric         = [ .true. ], &
+                                       diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                       fe_space                          = fe_space, &
+                                       discrete_integration              = discrete_integration )
     !* Now, we can compute the entries of the affine operator Ax-b by assembling the discrete weak form of the Poisson problem
     call fe_affine_operator%compute()
   end subroutine setup_and_assemble_fe_affine_operator
@@ -322,16 +318,12 @@ contains
   end subroutine solve_system
   
   subroutine compute_error()
-    type(std_vector_real_rp_t), pointer :: sq_local_true_errors
-    real(rp), pointer :: sq_local_true_errors_entries(:)
     real(rp) :: global_error_energy_norm
     call error_estimator%create(fe_space,parameter_handler%get_values())
     call error_estimator%set_exact_solution(exact_solution)
     call error_estimator%set_discrete_solution(discrete_solution)
     call error_estimator%compute_local_true_errors()
-    sq_local_true_errors => error_estimator%get_sq_local_true_errors()
-    sq_local_true_errors_entries => sq_local_true_errors%get_pointer()
-    global_error_energy_norm = sqrt(sum(sq_local_true_errors_entries))
+    global_error_energy_norm = sqrt(sum(error_estimator%get_sq_local_true_error_entries()))
     write(*,'(a54)')  repeat('=', 54)
     write(*,'(a54)') tutorial_name // ' results'
     write(*,'(a54)')  repeat('=', 54)
@@ -341,16 +333,12 @@ contains
   end subroutine compute_error
   
   subroutine write_postprocess_data_files()
-    type(std_vector_real_rp_t), pointer :: sq_local_true_errors
-    real(rp), pointer :: sq_local_true_errors_entries(:)
     if ( write_postprocess_data ) then
-      sq_local_true_errors => error_estimator%get_sq_local_true_errors()
-      sq_local_true_errors_entries => sq_local_true_errors%get_pointer()
       call output_handler%create(parameter_handler%get_values())
       call output_handler%attach_fe_space(fe_space)
       ! call fe_space%interpolate(1, exact_solution, discrete_solution)
       call output_handler%add_fe_function(discrete_solution, 1, 'solution')
-      call output_handler%add_cell_vector(sq_local_true_errors_entries,'cell_energy_norm_squared')
+      call output_handler%add_cell_vector(error_estimator%get_sq_local_true_error_entries(),'cell_energy_norm_squared')
       call output_handler%open()
       call output_handler%write()
       call output_handler%close()
