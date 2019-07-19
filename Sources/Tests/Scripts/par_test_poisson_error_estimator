@@ -24,7 +24,7 @@ then
     then
        for order in 1 2 3
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0 "
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0 "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -40,7 +40,7 @@ then
     then
        for order in 1
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af polynomial -rs uniform $p4est_triang_num_dims_flag 3"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af polynomial -rs uniform"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -56,7 +56,7 @@ then
     then
        for order in 1
         do
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af shock -rs error_objective $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0 "
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 4 1 -order $order -af shock -rs error_objective $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0 "
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
