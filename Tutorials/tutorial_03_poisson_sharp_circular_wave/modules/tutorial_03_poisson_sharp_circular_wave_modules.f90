@@ -407,7 +407,7 @@ contains
     real(rp)    :: x_minus_xc_2, y_minus_yc_2, z_minus_zc_2
     real(rp)    :: xc, yc, zc
     real(rp)    :: x, y, z, r
-    real(rp)    :: dx2, dy2, dz2
+    real(rp)    :: dx2, dy2, dz2, denom1, denom2, denom3
     integer(ip) :: num_dims
     num_dims = this%get_num_dims()
     alpha = this%alpha
@@ -425,12 +425,15 @@ contains
       sqrt_term1 = sqrt(term1)
       term2   = sqrt_term1-r
       term2_2 = term2*term2
-      dx2 = alpha                              /(sqrt_term1*(alpha_2*term2_2+1.0_rp)) - & 
-            (alpha*x_minus_xc_2)               /((term1**1.5_rp)*(alpha_2*term2_2+1.0_rp)) - &
-            (2.0_rp*alpha_3*x_minus_xc_2*term2)/(term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp))
-      dy2 = alpha                              /(sqrt_term1*(alpha_2*term2_2+1.0_rp)) - & 
-            (alpha*y_minus_yc_2)               /((term1**1.5_rp)*(alpha_2*term2_2+1.0_rp)) - &
-            (2.0_rp*alpha_3*y_minus_yc_2*term2)/(term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp))
+      denom1 = (sqrt_term1*(alpha_2*term2_2+1.0_rp))
+      denom2 = ((term1**1.5_rp)*(alpha_2*term2_2+1.0_rp))
+      denom3 = (term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp))
+      dx2 = alpha                              /denom1 - & 
+            (alpha*x_minus_xc_2)               /denom2 - &
+            (2.0_rp*alpha_3*x_minus_xc_2*term2)/denom3
+      dy2 = alpha                              /denom1 - & 
+            (alpha*y_minus_yc_2)               /denom2- &
+            (2.0_rp*alpha_3*y_minus_yc_2*term2)/denom3
       result = -dx2-dy2
     else
       z  = point%get(3); call assert_if_not_within_range(y)  
@@ -442,15 +445,18 @@ contains
       sqrt_term1 = sqrt(term1)
       term2   = sqrt_term1-r
       term2_2 = term2*term2
-      dx2 = alpha                              /(sqrt_term1*(alpha_2*term2_2+1.0_rp)) - & 
-            (alpha*x_minus_xc_2)               /((term1**1.5_rp)*(alpha_2*term2_2+1.0_rp)) - &
-            (2.0_rp*alpha_3*x_minus_xc_2*term2)/(term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp))
-      dy2 = alpha                              /(sqrt_term1*(alpha_2*term2_2+1.0_rp)) - & 
-            (alpha*y_minus_yc_2)               /((term1**1.5_rp)*(alpha_2*term2_2+1.0_rp)) - &
-            (2.0_rp*alpha_3*y_minus_yc_2*term2)/(term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp))
-      dz2 = alpha                              /(sqrt_term1*(alpha_2*term2_2+1.0_rp)) - & 
-            (alpha*z_minus_zc_2)               /((term1**1.5_rp)*(alpha_2*term2_2+1.0_rp)) - &
-            (2.0_rp*alpha_3*z_minus_zc_2*term2)/(term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp))      
+      denom1  = sqrt_term1*(alpha_2*term2_2+1.0_rp)
+      denom2  = (term1**1.5_rp)*(alpha_2*term2_2+1.0_rp)
+      denom3  = term1*(alpha_2*term2_2+1.0_rp)*(alpha_2*term2_2+1.0_rp)
+      dx2 = alpha                              /denom1 - & 
+            (alpha*x_minus_xc_2)               /denom2 - &
+            (2.0_rp*alpha_3*x_minus_xc_2*term2)/denom3
+      dy2 = alpha                              /denom1 - & 
+            (alpha*y_minus_yc_2)               /denom2 - &
+            (2.0_rp*alpha_3*y_minus_yc_2*term2)/denom3
+      dz2 = alpha                              /denom1 - & 
+            (alpha*z_minus_zc_2)               /denom2 - &
+            (2.0_rp*alpha_3*z_minus_zc_2*term2)/denom3     
       result = -dx2-dy2-dz2
     end if
   end subroutine sharp_circular_wave_source_term_get_value_space

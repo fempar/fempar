@@ -190,6 +190,7 @@ contains
     call parameter_handler%getasarray("CIRCLE_CENTER", circle_center)
     call parameter_handler%get("NUM_UNIFORM_REFINEMENT_STEPS", num_uniform_refinement_steps)
     call parameter_handler%get("NUM_AMR_STEPS", num_amr_steps)
+    call parameter_handler%get("WRITE_POSTPROCESS_DATA", write_postprocess_data)
     write(*,'(a54)')  repeat('=', 54)
     write(*,'(a54)') tutorial_name // ' CLA values'
     write(*,'(a54)')  repeat('=', 54)
@@ -392,10 +393,10 @@ contains
     real(rp) :: ref_fraction, coarse_fraction
     integer(ip) :: istat
     if ( triangulation%get_num_dims() == 2 ) then
-      ref_fraction    = 0.10_rp
+      ref_fraction    = 0.05_rp
       coarse_fraction = 0.05_rp
     else 
-      ref_fraction    = 0.10_rp
+      ref_fraction    = 0.05_rp
       coarse_fraction = 0.05_rp
     end if  
     call parameter_list%init()
@@ -408,22 +409,28 @@ contains
   end subroutine setup_refinement_strategy
   
   subroutine output_handler_initialize()
-    call parameter_handler%update(output_handler_static_grid_key, value=.false.)
-    call output_handler%create(parameter_handler%get_values())
-    call output_handler%attach_fe_space(fe_space)
-    call output_handler%add_fe_function(discrete_solution, 1, 'solution')
-    call output_handler%add_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
-    call output_handler%open()
+    if (write_postprocess_data) then
+      call parameter_handler%update(output_handler_static_grid_key, value=.false.)
+      call output_handler%create(parameter_handler%get_values())
+      call output_handler%attach_fe_space(fe_space)
+      call output_handler%add_fe_function(discrete_solution, 1, 'solution')
+      call output_handler%add_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
+      call output_handler%open()
+    end if   
   end subroutine output_handler_initialize
   
   subroutine output_handler_write_current_amr_step()
-    call output_handler%update_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
-    call output_handler%append_time_step(real(current_amr_step,rp))
-    call output_handler%write()
+    if (write_postprocess_data) then
+      call output_handler%update_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
+      call output_handler%append_time_step(real(current_amr_step,rp))
+      call output_handler%write()
+    end if  
   end subroutine output_handler_write_current_amr_step
   
   subroutine output_handler_finalize()
-    call output_handler%close()
+    if (write_postprocess_data) then
+      call output_handler%close()
+    end if  
   end subroutine output_handler_finalize
   
   subroutine free_all_objects()
