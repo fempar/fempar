@@ -96,7 +96,7 @@ module p4est_triangulation_parameters_names
   real(rp)   , parameter :: default_p4est_triang_domain_limits (*)            = [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0_rp,1.0_rp]
   integer(ip), parameter :: default_p4est_triang_geometry_interpolation_order = 1
   integer(ip), parameter :: default_p4est_triang_log_level                    = FEMPAR_SC_LP_DEFAULT
-  integer(ip), parameter :: default_p4est_triang_num_dims                     = 2 
+  integer(ip), parameter :: default_p4est_triang_num_dims                     = 3 
   integer(ip), parameter :: default_p4est_triang_2_1_k_balance                = 0
   integer(ip), parameter :: default_p4est_triang_k_ghost_cells                = 0
     

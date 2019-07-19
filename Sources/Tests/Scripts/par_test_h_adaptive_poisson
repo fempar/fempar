@@ -37,7 +37,7 @@ then
                             break 4
                         fi
 
-                        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag $num_parts 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0  -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter"
+                        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag $num_parts 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0  -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case quarter"
                         echo $COMMAND
                         eval $COMMAND
                         if [ $? -ne 0 ] 
@@ -46,7 +46,7 @@ then
                             break 4
                         fi
 
-                        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag $num_parts 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0  -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
+                        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag $num_parts 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0  -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
                         echo $COMMAND
                         eval $COMMAND
                         if [ $? -ne 0 ] 
@@ -65,7 +65,7 @@ then
             num_refinements=3
             refinement_pattern=even_cells 
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domains_limits_flag 0.0 1.0 0.0 1.0  -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 2 $p4est_triang_domain_limits_flag 0.0 1.0 0.0 1.0  -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -74,7 +74,7 @@ then
                 break 1
             fi
 
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case popcorn"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
@@ -83,7 +83,7 @@ then
                 break 1
             fi
       
-            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 $p4est_triang_num_dims_flag 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case quarter"
+            COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 5 1 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern -use-voids T -use-voids-case quarter"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
