@@ -20,7 +20,7 @@ then
     then
        for order in 1 2 3
         do
-            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -in_space .true. -order $order"
+            COMMAND="$TEST_BINARY_PATH $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_dims_flag 2 $struct_hex_mesh_generator_num_cells_x_dim_flag 4 4 $struct_hex_mesh_generator_domain_limits_flag 0.0 1.0 0.0 1.0 -in_space .true. -order $order"
             echo $COMMAND
             eval $COMMAND
             if [ $? -ne 0 ] 
