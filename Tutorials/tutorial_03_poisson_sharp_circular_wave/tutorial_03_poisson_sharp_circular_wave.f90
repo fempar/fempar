@@ -327,6 +327,7 @@ contains
     write(*,'(a54)')  repeat('=', 54)
     write(*,'(a54)') tutorial_name // ' results'
     write(*,'(a54)')  repeat('=', 54)
+    write(*,'(a30,i24)') 'NUM_CELLS:' // repeat(' ', 80), triangulation%get_num_cells()
     write(*,'(a30,i24)') 'NUM_DOFS:' // repeat(' ', 80), fe_space%get_total_num_dofs()
     write(*,'(a30,e24.10)') 'GLOBAL ERROR ENERGY NORM:'// repeat(' ', 80), global_error_energy_norm
     write(*,'(a54)')  repeat('=', 54)
