@@ -393,7 +393,7 @@ contains
     real(rp) :: ref_fraction, coarse_fraction
     integer(ip) :: istat
     if ( triangulation%get_num_dims() == 2 ) then
-      ref_fraction    = 0.05_rp
+      ref_fraction    = 0.10_rp
       coarse_fraction = 0.05_rp
     else 
       ref_fraction    = 0.05_rp
