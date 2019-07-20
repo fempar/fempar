@@ -157,7 +157,7 @@ contains
                                "Scalar parameter which determines the sharpness of the solution's &
                                circular wave front")
     call parameter_handler%add("CIRCLE_RADIUS",   & 
-                               "--CIRCLE-RADIUS", & 
+                               "--CIRCLE_RADIUS", & 
                                0.7_rp, & 
                                "Radius of the circle/sphere that defines the solution's & 
                                circular wave front")
