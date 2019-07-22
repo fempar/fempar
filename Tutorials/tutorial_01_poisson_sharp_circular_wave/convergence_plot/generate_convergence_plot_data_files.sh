@@ -2,8 +2,8 @@
 #Absolute PATH to the root directory of FEMPAR's Git repository
 FEMPAR_SOURCES_ROOT=~/git-repos/fempar
 
-#Absolute PATH to the compiled tutorial_03 program (for performance reasons, highly recommended that it is compiled in RELEASE mode)
-TUTORIAL_03_PATH=~/git-repos/build-gnu9-release/TUTORIAL_03/bin/tutorial_03_poisson_sharp_circular_wave
+#Absolute PATH to the compiled tutorial_01 program (for performance reasons, highly recommended that it is compiled in RELEASE mode)
+TUTORIAL_01_PATH=~/git-repos/build-gnu9-release/TUTORIAL_01/bin/tutorial_01_poisson_sharp_circular_wave
 
 #Load file from FEMPAR's Git repository with all the names of FEMPAR Command-Line-Arguments (CLAs)
 . $FEMPAR_SOURCES_ROOT/Sources/Tests/Scripts/fempar_cla_names
@@ -23,7 +23,7 @@ do
     do
       let NX=$i*$j
       let NY=$i*$j
-      command="$TUTORIAL_03_PATH $struct_hex_mesh_generator_num_dims_flag 2 \
+      command="$TUTORIAL_01_PATH $struct_hex_mesh_generator_num_dims_flag 2 \
        	       $struct_hex_mesh_generator_num_cells_x_dim_flag $NX $NY \
                $fes_ref_fe_orders_flag $order \
                --FE_FORMULATION CG --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE"

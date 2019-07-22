@@ -28,7 +28,7 @@
 
 !****************************************************************************************************
 
-module tutorial_03_discrete_integration_names
+module tutorial_01_discrete_integration_names
   use fempar_names
   
   implicit none
@@ -333,9 +333,9 @@ contains
   end subroutine poisson_dg_discrete_integration_set_boundary_function
   
   
-end module tutorial_03_discrete_integration_names
+end module tutorial_01_discrete_integration_names
 
-module tutorial_03_functions_names
+module tutorial_01_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -541,9 +541,9 @@ contains
     massert (x >= 0.0_rp .and. x <= 1.0_rp, "sharp_circular_wave_solution_t :: this function only works with unit cube/square")
   end subroutine assert_if_not_within_range
   
-end module tutorial_03_functions_names
+end module tutorial_01_functions_names
 
-module tutorial_03_error_estimator_names
+module tutorial_01_error_estimator_names
   use fempar_names
   
   implicit none
@@ -680,5 +680,5 @@ contains
     poisson_error_estimator_get_error_norm_exponent = 0.5_rp
   end function poisson_error_estimator_get_error_norm_exponent
 
-end module tutorial_03_error_estimator_names
+end module tutorial_01_error_estimator_names
 

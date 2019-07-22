@@ -2,7 +2,7 @@
 # !!!NOTE: This bash shell script requires gnuplot and epstopdf
 
 echo "set term postscript eps enhanced color" > plot.plot
-echo "set output \"amr_mesh_error.eps\"" >> plot.plot
+echo "set output \"amr_error.eps\"" >> plot.plot
 echo "set grid" >> plot.plot
 echo "set yrange [1e-06:100]" >> plot.plot
 echo "set xrange [0:1000]" >> plot.plot
@@ -21,6 +21,6 @@ plot_command="plot 'amr_error_order_1' title 'order 1 AMR' with linespoints ps 1
 echo $plot_command >> plot.plot
 
 gnuplot plot.plot
-epstopdf amr_mesh_error.eps
-rm -f amr_mesh_error.eps
+epstopdf amr_error.eps
+rm -f amr_error.eps
 rm -f plot.plot

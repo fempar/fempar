@@ -2,8 +2,8 @@
 #Absolute PATH to the root directory of FEMPAR's Git repository
 FEMPAR_SOURCES_ROOT=~/git-repos/fempar
 
-#Absolute PATH to the compiled tutorial_04 program (for performance reasons, highly recommended that it is compiled in RELEASE mode)
-TUTORIAL_04_PATH=~/git-repos/build-gnu9-release/TUTORIAL_04/bin/tutorial_04_poisson_sharp_circular_wave_amr
+#Absolute PATH to the compiled tutorial_02 program (for performance reasons, highly recommended that it is compiled in RELEASE mode)
+TUTORIAL_02_PATH=~/git-repos/build-gnu9-release/TUTORIAL_02/bin/tutorial_02_poisson_sharp_circular_wave_amr
 
 #Load file from FEMPAR's Git repository with all the names of FEMPAR Command-Line-Arguments (CLAs)
 . $FEMPAR_SOURCES_ROOT/Sources/Tests/Scripts/fempar_cla_names
@@ -25,7 +25,7 @@ for order in 1 2 4 8
 do
   data_file_name="$prefix_data_files""$order"
   rm -f $data_file_name    
-  command="$TUTORIAL_04_PATH $p4est_triang_num_dims_flag 2 --NUM_UNIFORM_REFINEMENT_STEPS 4 --NUM_AMR_STEPS ${num_amr_steps[$order]} \
+  command="$TUTORIAL_02_PATH $p4est_triang_num_dims_flag 2 --NUM_UNIFORM_REFINEMENT_STEPS 4 --NUM_AMR_STEPS ${num_amr_steps[$order]} \
            $fes_ref_fe_orders_flag $order --FE_FORMULATION CG --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE"
   echo $command
   eval $command | tee /tmp/data
