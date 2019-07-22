@@ -142,7 +142,7 @@ program tutorial_02_steady_stokes
   fes_ref_fe_types(1) = String(fe_type_lagrangian)
   fes_ref_fe_types(2) = String(fe_type_lagrangian)
   fes_field_types(1) = String(field_type_vector)
-  fes_field_types(2) = String(field_type_scalar)]
+  fes_field_types(2) = String(field_type_scalar)
 
   call parameter_handler%update(key = fes_num_fields_key, value = 2)
   call parameter_handler%update(key = fes_num_ref_fes_key, value = 2)
