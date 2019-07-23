@@ -139,8 +139,11 @@ program tutorial_02_steady_stokes
   call stokes_conditions%insert_boundary_condition(boundary_id=6, field_id=1, &
                                                    cond_type=component_1, boundary_function=one_function)
 
-  fes_ref_fe_types = [String(fe_type_lagrangian), String(fe_type_lagrangian)]
-  fes_field_types = [String(field_type_vector), String(field_type_scalar)]
+  fes_ref_fe_types(1) = String(fe_type_lagrangian)
+  fes_ref_fe_types(2) = String(fe_type_lagrangian)
+  fes_field_types(1) = String(field_type_vector)
+  fes_field_types(2) = String(field_type_scalar)
+
   call parameter_handler%update(key = fes_num_fields_key, value = 2)
   call parameter_handler%update(key = fes_num_ref_fes_key, value = 2)
   call parameter_handler%update(key = fes_ref_fe_types_key, value = fes_ref_fe_types)
