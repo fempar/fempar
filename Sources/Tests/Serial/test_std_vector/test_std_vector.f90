@@ -57,7 +57,12 @@ program test_std_vector
   do i=1, v%size()
     check ( v%get(i) == i )
   end do
-  
+
+  call v2%copy([(i,i=1,27)])
+  do i=1, v2%size()
+    check ( v2%get(i) == i )
+  end do
+
   call v2%copy(v)
   check (v2%size() == v%size())
   do i=1, v2%size()
