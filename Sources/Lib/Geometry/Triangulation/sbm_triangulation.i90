@@ -46,6 +46,13 @@ subroutine triangulation_process_parameters(this, parameters)
     assert (parameters%isAssignable(triang_identify_disconn_components_dgraph_coupling_key,"string"))
     istat = parameters%GetAsString(key = triang_identify_disconn_components_dgraph_coupling_key, string = this%identify_disconn_components_dgraph_coupling) 
     assert(istat==0)
+  else 
+    ! Initialize identify_disconn_components_dgraph_coupling with a dummy string.
+    ! When this%identify_disconn_components is .false, this member variable is not
+    ! actually consumed. However, the INTEL Fortran compiler with DEBUG (check) flags activated requires 
+    ! that this member variable is allocated (as it is passed as an actual argument to a dummy argument
+    ! which does not have the allocatable attribute)
+    this%identify_disconn_components_dgraph_coupling = ""
   end if 
 end subroutine triangulation_process_parameters
 
@@ -711,6 +718,7 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
 
   environment => this%get_environment()
   assert ( environment%am_i_l1_task() )
+  assert ( this%identify_disconn_components )
 
   select case ( this%identify_disconn_components_dgraph_coupling ) 
   case ( vertex_coupling ) 
@@ -841,7 +849,9 @@ subroutine triangulation_compute_disconnected_cells_set_id(this, dual_graph, dis
   type(list_iterator_t)    :: adjacent_cells
   integer(ip)              :: cell_lid 
   integer(ip)              :: disconnected_set_id
-  integer(ip)              :: initial_cell  
+  integer(ip)              :: initial_cell 
+  
+  assert ( this%identify_disconn_components )
 
   ! Initialize disconnected_cells_set_id to an unassigned state 
   disconnected_cells_set_id=-1 
