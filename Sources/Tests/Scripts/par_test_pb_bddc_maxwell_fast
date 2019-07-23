@@ -30,7 +30,7 @@ then
 
 
         #test 2 - Unknown solution w/ checkerboard distrib. of materials ------------------------------
-        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 8 8 8 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $coarse_space_use_faces_flag .false. -order 1 -wsolution .false. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee $TMP_OUTPUT"
+        COMMAND="$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH $environment_num_levels_flag 2 $environment_num_tasks_x_level_flag 8 1 $static_triang_generate_from_flag STRUCT_HEX_MESH_GENERATOR $struct_hex_mesh_generator_num_dims_flag 3 $struct_hex_mesh_generator_num_cells_x_dim_flag 8 8 8 $struct_hex_mesh_generator_num_parts_x_dim_x_level_flag 2 2 2 1 1 1 $coarse_space_use_faces_flag .false. -order 1 $output_handler_dir_path_flag $TMP_OUTPUT -wsolution .true. -edge_cont tangential_average_and_first_order_moment -mass_coeff_white 1.0 -curl_curl_coeff_white 1e2 -mass_coeff_black 1e-2 -curl_curl_coeff_black 1e4 -materials_case checkerboard $bddc_scaling_function_case_flag curl_curl_coeff -bmass_trick .true. -coefficient_case constant | tee $TMP_OUTPUT"
         echo $COMMAND
         eval $COMMAND
 
