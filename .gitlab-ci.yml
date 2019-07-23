@@ -219,10 +219,10 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
     SOURCE_COMMAND: source /opt/intel/mkl/bin/mklvars.sh intel64
   script: *script_template
 
+
 INTEL_DEBUG_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: debug
-  when: always
   except:
     - experimental
   variables:
@@ -242,7 +242,6 @@ INTEL_DEBUG_P4EST_SERIAL_FAST:
 INTEL_DEBUG_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: debug
-  when: always
   except:
     - experimental
   variables:
@@ -262,7 +261,6 @@ INTEL_DEBUG_P4EST_PARALLEL_FAST:
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   only:
     - experimental
     - merge_requests
@@ -283,7 +281,6 @@ INTEL_RELEASE_P4EST_SERIAL:
 INTEL_RELEASE_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   except:
     - experimental
   variables:
@@ -303,7 +300,6 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   only:
     - experimental
     - merge_requests
@@ -324,7 +320,6 @@ INTEL_RELEASE_P4EST_PARALLEL:
 INTEL_RELEASE_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   except:
     - experimental
   variables:
