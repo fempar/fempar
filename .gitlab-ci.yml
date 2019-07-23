@@ -73,7 +73,7 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
     BUILD_DIR: /data/BUILD
     FEMPAR_DIR: $BUILD_DIR/FEMPAR
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
-    FORTRAN_EXTRA_FLAGS: -fimplicit-none -fprofile-arcs -ftest-coverage
+    FORTRAN_EXTRA_FLAGS: "-fimplicit-none -fprofile-arcs -ftest-coverage"
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
@@ -125,7 +125,7 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
     BUILD_DIR: /data/BUILD
     FEMPAR_DIR: $BUILD_DIR/FEMPAR
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
-    FORTRAN_EXTRA_FLAGS: -fimplicit-none -fprofile-arcs -ftest-coverage
+    FORTRAN_EXTRA_FLAGS: "-fimplicit-none -fprofile-arcs -ftest-coverage"
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
@@ -220,10 +220,47 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
   script: *script_template
 
 
+INTEL_DEBUG_P4EST_SERIAL_FAST:
+  image: registry.gitlab.com/fempar/fempar-beta:latest
+  stage: debug
+  except:
+    - experimental
+  variables:
+    ROOT_DIR: $CI_PROJECT_DIR
+    BUILD_DIR: /data/BUILD
+    FEMPAR_DIR: $BUILD_DIR/FEMPAR
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    FORTRAN_EXTRA_FLAGS: -implicitnone
+    BUILD_MODE: DEBUG
+    TEST_LABEL: SERIAL_FAST
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_SERIAL
+  script: *script_template
+
+
+INTEL_DEBUG_P4EST_PARALLEL_FAST:
+  image: registry.gitlab.com/fempar/fempar-beta:latest
+  stage: debug
+  except:
+    - experimental
+  variables:
+    ROOT_DIR: $CI_PROJECT_DIR
+    BUILD_DIR: /data/BUILD
+    FEMPAR_DIR: $BUILD_DIR/FEMPAR
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    FORTRAN_EXTRA_FLAGS: -implicitnone
+    BUILD_MODE: DEBUG
+    TEST_LABEL: PARALLEL_FAST
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_PARALLEL
+  script: *script_template
+
+
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   only:
     - experimental
     - merge_requests
@@ -244,7 +281,6 @@ INTEL_RELEASE_P4EST_SERIAL:
 INTEL_RELEASE_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   except:
     - experimental
   variables:
@@ -264,7 +300,6 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   only:
     - experimental
     - merge_requests
@@ -285,7 +320,6 @@ INTEL_RELEASE_P4EST_PARALLEL:
 INTEL_RELEASE_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   except:
     - experimental
   variables:
