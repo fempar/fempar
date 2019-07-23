@@ -43,7 +43,7 @@ subroutine triangulation_process_parameters(this, parameters)
   
   if (this%identify_disconn_components) then
     assert (parameters%isPresent(triang_identify_disconn_components_dgraph_coupling_key))
-    assert(parameters%isAssignable(triang_identify_disconn_components_dgraph_coupling_key, this%identify_disconn_components_dgraph_coupling))
+    assert (parameters%isAssignable(triang_identify_disconn_components_dgraph_coupling_key,"string"))
     istat = parameters%GetAsString(key = triang_identify_disconn_components_dgraph_coupling_key, string = this%identify_disconn_components_dgraph_coupling) 
     assert(istat==0)
   end if 
