@@ -989,21 +989,26 @@ contains
     implicit none
     class(stokes_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    real(rp),allocatable :: cell_vector(:)
-    real(rp),allocatable :: cell_vector_set_ids(:)
-    real(rp), allocatable :: cell_rel_pos(:)
-    real(rp), allocatable :: cell_in_aggregate(:)
+    type(std_vector_real_rp_t)  :: cell_vector
+    type(std_vector_real_rp_t)  :: cell_vector_set_ids
+    type(std_vector_real_rp_t)  :: cell_rel_pos
+    type(std_vector_real_rp_t)  :: cell_in_aggregate
+
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     
-    real(rp),allocatable :: aggrs_ids(:)
-    real(rp),allocatable :: aggrs_ids_color(:)
-    integer(ip), pointer :: aggregate_ids(:)
-    integer(ip), allocatable :: aggregate_ids_color(:)
+    type(std_vector_real_rp_t)  :: aggrs_ids
+    type(std_vector_real_rp_t)  :: aggrs_ids_color
+    type(std_vector_real_rp_t)  :: aggregate_size
+
+    real(rp), pointer           :: tmp_ptr(:)
+    integer(ip), pointer        :: aggregate_ids(:)
+    integer(ip), allocatable    :: aggregate_ids_color(:)
+    real(rp), pointer           :: aggregate_size_ptr(:)
     
     type(unfitted_vtk_writer_t) :: vtk_writer
-    real(rp), pointer :: aggregate_size_ptr(:)
-    real(rp), allocatable :: aggregate_size(:)
+
+
 
     if(this%test_params%get_write_solution()) then
         call oh%create(this%test_params%get_parameter_list())
@@ -1011,21 +1016,20 @@ contains
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'grad_u', grad_diff_operator)
         call oh%add_fe_function(this%solution, P_FIELD_ID, 'p')
-        call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),cell_rel_pos,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),cell_in_aggregate,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
-        call memalloc(this%triangulation%get_num_cells(),aggregate_size,__FILE__,__LINE__)
+
+        call memalloc(this%triangulation%get_num_cells(), aggregate_ids_color, __FILE__, __LINE__)
+        call cell_vector%resize(this%triangulation%get_num_cells())
+        call cell_vector_set_ids%resize(this%triangulation%get_num_cells())
+        call cell_rel_pos%resize(this%triangulation%get_num_cells(), 0.0_rp)
+        call cell_in_aggregate%resize(this%triangulation%get_num_cells(), 0.0_rp)
+        call aggregate_size%resize(this%triangulation%get_num_cells())
         
         if (this%test_params%get_use_constraints()) then
           aggregate_ids => this%fe_space%get_aggregate_ids()
-          aggrs_ids(:) = real(aggregate_ids,kind=rp)
           aggregate_ids_color(:) = aggregate_ids
           call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
-          aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+          call aggrs_ids%copy(real(aggregate_ids,kind=rp))
+          call aggrs_ids_color%copy(real(aggregate_ids_color,kind=rp))
         end if
         
         N=this%triangulation%get_num_cells()
@@ -1034,23 +1038,22 @@ contains
         do pid=0, P-1
             i=0
             do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-              cell_vector(cell%get_gid()) = pid 
+              call cell_vector%set(cell%get_gid(), real(pid, kind=rp))
               call cell%next()
               i=i+1
             end do
         end do
         call this%triangulation%free_cell_iterator(cell)
 
-        cell_rel_pos(:) = 0.0_rp
         call this%triangulation%create_cell_iterator(cell)
         do while (.not. cell%has_finished())
-          cell_vector_set_ids(cell%get_gid()) = cell%get_set_id()
+          call cell_vector_set_ids%set(cell%get_gid(), real(cell%get_set_id(), kind=rp))
           if (cell%is_cut()) then
-            cell_rel_pos(cell%get_gid()) = 0.0_rp
+            call cell_rel_pos%set(cell%get_gid(), 0.0_rp)
           else if (cell%is_interior()) then
-            cell_rel_pos(cell%get_gid()) = -1.0_rp
+            call cell_rel_pos%set(cell%get_gid(), -1.0_rp)
           else if (cell%is_exterior()) then
-            cell_rel_pos(cell%get_gid()) = 1.0_rp
+            call cell_rel_pos%set(cell%get_gid(), 1.0_rp)
           else
             mcheck(.false.,'Cell can only be either interior, exterior or cut')
           end if
@@ -1058,12 +1061,11 @@ contains
         end do
         
         if (this%test_params%get_use_constraints()) then
-          cell_in_aggregate(:) = 0.0_rp
           call cell%first()
           do while (.not. cell%has_finished())
             if (cell%is_cut()) then
-              cell_in_aggregate(cell%get_gid()) = 1.0_rp
-              cell_in_aggregate(aggregate_ids(cell%get_gid())) = 1.0_rp
+              call cell_in_aggregate%set(cell%get_gid(), 1.0_rp)
+              call cell_in_aggregate%set(aggregate_ids(cell%get_gid()), 1.0_rp)
             end if
             call cell%next()
           end do
@@ -1078,9 +1080,9 @@ contains
         if (this%test_params%get_use_constraints()) then
           call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
           aggregate_size_ptr => this%fe_space%get_aggregate_size()
-          aggregate_size(:) = aggregate_size_ptr(:)
+          tmp_ptr =>  aggregate_size%get_pointer()
+          tmp_ptr(:) = aggregate_size_ptr(:)
           call oh%add_cell_vector(aggregate_size,'aggregate_size')
-        
           call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
         end if
@@ -1089,14 +1091,14 @@ contains
         call oh%write()
         call oh%close()
         call oh%free()
-        call memfree(cell_vector,__FILE__,__LINE__)
-        call memfree(cell_vector_set_ids,__FILE__,__LINE__)
-        call memfree(cell_rel_pos,__FILE__,__LINE__)
-        call memfree(cell_in_aggregate,__FILE__,__LINE__)
-        call memfree(aggrs_ids,__FILE__,__LINE__)
-        call memfree(aggrs_ids_color,__FILE__,__LINE__)
-        call memfree(aggregate_ids_color,__FILE__,__LINE__)
-        call memfree(aggregate_size,__FILE__,__LINE__)
+        call cell_vector%free()
+        call cell_vector_set_ids%free()
+        call cell_rel_pos%free()
+        call cell_in_aggregate%free()
+        call aggrs_ids%free()
+        call aggrs_ids_color%free()
+        call aggregate_size%free()
+        call memfree(aggregate_ids_color, __FILE__, __LINE__)
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)

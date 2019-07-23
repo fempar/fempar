@@ -850,14 +850,15 @@ contains
     type(output_handler_t)                             :: oh
     class(triangulation_t), pointer        :: triangulation
     class(fe_cell_iterator_t), allocatable :: fe
-    real(rp),allocatable :: mypart_vector(:)
-    real(rp), allocatable                              :: set_id_cell_vector(:)
-    integer(ip)                                        :: i, istat
+    type(std_vector_real_rp_t)             :: mypart_vector
+    type(std_vector_real_rp_t)             :: set_id_cell_vector
+    integer(ip)                            :: i, istat
+
     if(this%test_params%get_write_solution()) then
        if ( this%environment%am_i_l1_task() ) then
           call build_set_id_cell_vector()
-          call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-          mypart_vector(:) = this%environment%get_l1_rank()
+          call mypart_vector%resize(this%triangulation%get_num_local_cells())
+          call mypart_vector%init(real(this%environment%get_l1_rank(), kind=rp))
           call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
@@ -868,18 +869,19 @@ contains
           call oh%close()
           call oh%free()
           call free_set_id_cell_vector()
-          call memfree(mypart_vector, __FILE__, __LINE__) 
+          call mypart_vector%free()
        end if
     end if
+
   contains
     subroutine build_set_id_cell_vector()
       triangulation => this%fe_space%get_triangulation()
-      call memalloc(triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+      call set_id_cell_vector%resize(triangulation%get_num_local_cells())
       i = 1
       call this%fe_space%create_fe_cell_iterator(fe)  
       do while ( .not. fe%has_finished())
          if (fe%is_local()) then
-            set_id_cell_vector(i) = fe%get_set_id()
+            call set_id_cell_vector%set(i, real(fe%get_set_id(), kind=rp))
             i = i + 1
          end if
          call fe%next()
@@ -888,7 +890,7 @@ contains
     end subroutine build_set_id_cell_vector
 
     subroutine free_set_id_cell_vector()
-      call memfree(set_id_cell_vector, __FILE__, __LINE__)
+      call set_id_cell_vector%free()
     end subroutine free_set_id_cell_vector
   end subroutine write_solution
 
