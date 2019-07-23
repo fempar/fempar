@@ -163,7 +163,7 @@ contains
                                circular wave front")
     call parameter_handler%add("CIRCLE_CENTER",     & 
                                "--CIRCLE_CENTER",   & 
-                               [-0.05_rp,-0.05_rp], & 
+                               [-0.05_rp,-0.05_rp,-0.05_rp], & 
                                "Cartesian coordinates of the center of the circle/sphere that & 
                                defines the solution's circular wave front")
     call parameter_handler%add("WRITE_POSTPROCESS_DATA",   & 
