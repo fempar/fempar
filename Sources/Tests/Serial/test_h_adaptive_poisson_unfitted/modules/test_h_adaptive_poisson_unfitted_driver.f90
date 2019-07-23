@@ -914,7 +914,6 @@ contains
     type(std_vector_real_rp_t) :: aggrs_ids
     type(std_vector_real_rp_t) :: aggrs_ids_color
 
-    real(rp), pointer          :: tmp_ptr(:)
     integer(ip), pointer       :: aggregate_ids(:)
     integer(ip), allocatable   :: aggregate_ids_color(:)
     
@@ -929,19 +928,15 @@ contains
         call cell_vector%resize(this%triangulation%get_num_cells())
         call cell_rel_pos%resize(this%triangulation%get_num_cells(), 0.0_rp)
         call cell_in_aggregate%resize(this%triangulation%get_num_cells(), 0.0_rp)
-        call aggrs_ids%resize(this%triangulation%get_num_cells())
-        call aggrs_ids_color%resize(this%triangulation%get_num_cells())
 
         call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
         
         if (this%test_params%get_use_constraints()) then
           aggregate_ids => this%fe_space%get_aggregate_ids()
-          tmp_ptr => aggrs_ids%get_pointer()
-          tmp_ptr(:) = real(aggregate_ids,kind=rp)
           aggregate_ids_color(:) = aggregate_ids
           call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
-          tmp_ptr => aggrs_ids_color%get_pointer()
-          tmp_ptr(:) = real(aggregate_ids_color,kind=rp)
+          call aggrs_ids%copy(real(aggregate_ids,kind=rp))
+          call aggrs_ids_color%copy(real(aggregate_ids_color,kind=rp))
         end if
         
         N=this%triangulation%get_num_cells()

@@ -1054,8 +1054,7 @@ contains
        if (this%par_environment%am_i_l1_task()) then
           call build_set_id_cell_vector()
           call mypart_vector%resize(this%triangulation%get_num_local_cells())
-          tmp_ptr => mypart_vector%get_pointer()
-          tmp_ptr(:) = this%par_environment%get_l1_rank()
+          call mypart_vector%init(real(this%par_environment%get_l1_rank(), kind=rp))
 
           call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)

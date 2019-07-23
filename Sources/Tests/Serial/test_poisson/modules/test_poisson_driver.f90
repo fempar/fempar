@@ -652,9 +652,7 @@ contains
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         if (this%test_params%get_use_void_fes()) then
-           call cell_vector%resize(this%triangulation%get_num_local_cells())
-           tmp_cell_vector => cell_vector%get_pointer()
-           tmp_cell_vector(:) = this%cell_set_ids(:)
+           call cell_vector%copy(real(this%cell_set_ids, kind=rp))
            call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%open()

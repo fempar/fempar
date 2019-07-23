@@ -852,15 +852,13 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
     type(std_vector_real_rp_t)             :: mypart_vector
     type(std_vector_real_rp_t)             :: set_id_cell_vector
-    real(rp), pointer                      :: tmp_ptr(:)
     integer(ip)                            :: i, istat
 
     if(this%test_params%get_write_solution()) then
        if ( this%environment%am_i_l1_task() ) then
           call build_set_id_cell_vector()
           call mypart_vector%resize(this%triangulation%get_num_local_cells())
-          tmp_ptr => mypart_vector%get_pointer()
-          tmp_ptr(:) = this%environment%get_l1_rank()
+          call mypart_vector%init(real(this%environment%get_l1_rank(), kind=rp))
           call oh%create(this%parameter_list)
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')

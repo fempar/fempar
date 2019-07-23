@@ -633,7 +633,6 @@ end subroutine free_timers
     type(output_handler_t)                          :: oh
     type(std_vector_real_rp_t)          :: cell_vector
     type(std_vector_real_rp_t)          :: mypart_vector
-    real(rp), pointer                   :: tmp_ptr(:)
     class(cell_iterator_t), allocatable :: cell 
 
     if(this%test_params%get_write_solution()) then
@@ -652,8 +651,7 @@ end subroutine free_timers
         end if
 
         call mypart_vector%resize(this%triangulation%get_num_local_cells())
-        tmp_ptr => mypart_vector%get_pointer()
-        tmp_ptr(:) = this%par_environment%get_l1_rank()
+        call mypart_vector%init(real(this%par_environment%get_l1_rank(), kind=rp))
 
         call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)

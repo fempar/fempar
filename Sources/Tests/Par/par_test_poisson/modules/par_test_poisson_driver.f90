@@ -594,20 +594,16 @@ end subroutine free_timers
     type(output_handler_t)     :: oh
     type(std_vector_real_rp_t) :: cell_vector
     type(std_vector_real_rp_t) :: mypart_vector
-    real(rp), pointer          :: tmp_ptr(:)
 
     if(this%test_params%get_write_solution()) then
       if (this%par_environment%am_i_l1_task()) then
 
         if (this%test_params%get_use_void_fes()) then
-          call cell_vector%resize(this%triangulation%get_num_local_cells())
-          tmp_ptr => cell_vector%get_pointer()
-          tmp_ptr(:) = this%cell_set_ids(:)
+          call cell_vector%copy(real(this%cell_set_ids, kind=rp))
         end if
 
         call mypart_vector%resize(this%triangulation%get_num_local_cells())
-        tmp_ptr => mypart_vector%get_pointer()
-        tmp_ptr(:) = this%par_environment%get_l1_rank()
+        call mypart_vector%init(real(this%par_environment%get_l1_rank(), kind=rp))
 
         call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)

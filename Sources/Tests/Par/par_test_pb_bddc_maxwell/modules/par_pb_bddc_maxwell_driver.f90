@@ -763,7 +763,6 @@ contains
     type(output_handler_t)                             :: oh
     type(std_vector_real_rp_t)                         :: set_id_cell_vector
     type(std_vector_real_rp_t)                         :: set_id_rank
-    real(rp), pointer                                  :: tmp_ptr(:)
     integer(ip)                                        :: i, istat
 
     if ( this%par_environment%am_i_l1_task() ) then
