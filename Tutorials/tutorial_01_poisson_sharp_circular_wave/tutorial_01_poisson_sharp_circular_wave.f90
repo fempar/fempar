@@ -339,7 +339,7 @@ contains
       call output_handler%attach_fe_space(fe_space)
       ! call fe_space%interpolate(1, exact_solution, discrete_solution)
       call output_handler%add_fe_function(discrete_solution, 1, 'solution')
-      call output_handler%add_cell_vector(error_estimator%get_sq_local_true_error_entries(),'cell_energy_norm_squared')
+      call output_handler%add_cell_vector(error_estimator%get_sq_local_true_errors(),'cell_error_energy_norm_squared')
       call output_handler%open()
       call output_handler%write()
       call output_handler%close()

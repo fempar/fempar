@@ -414,14 +414,13 @@ contains
       call output_handler%create(parameter_handler%get_values())
       call output_handler%attach_fe_space(fe_space)
       call output_handler%add_fe_function(discrete_solution, 1, 'solution')
-      call output_handler%add_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
+      call output_handler%add_cell_vector(error_estimator%get_sq_local_estimates(), 'cell_error_energy_norm_squared')
       call output_handler%open()
     end if   
   end subroutine output_handler_initialize
   
   subroutine output_handler_write_current_amr_step()
     if (write_postprocess_data) then
-      call output_handler%update_cell_vector(error_estimator%get_sq_local_estimate_entries(), 'cell_energy_norm_squared')
       call output_handler%append_time_step(real(current_amr_step,rp))
       call output_handler%write()
     end if  
