@@ -64,6 +64,7 @@ module output_handler_names
 USE FPL
 USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_cell_iterator_t, fe_function_t
+USE std_vector_real_rp_names
 USE output_handler_field_generator_names
 USE output_handler_parameters_names
 USE base_output_handler_names
@@ -242,7 +243,7 @@ contains
     !< added **cell_vector**.
     !-----------------------------------------------------------------
         class(output_handler_t),    intent(inout) :: this
-        real(rp)               ,    intent(in)    :: cell_vector(:)
+        type(std_vector_real_rp_t), intent(in)    :: cell_vector
         character(len=*),           intent(in)    :: name
     !-----------------------------------------------------------------
         assert(allocated(this%state))
@@ -259,7 +260,7 @@ contains
     !< attached and the updated **cell_vector**.
     !-----------------------------------------------------------------
         class(output_handler_t),    intent(inout) :: this
-        real(rp)               ,    intent(in)    :: cell_vector(:)
+        type(std_vector_real_rp_t), intent(in)    :: cell_vector
         character(len=*),           intent(in)    :: name
     !-----------------------------------------------------------------
         assert(allocated(this%state))

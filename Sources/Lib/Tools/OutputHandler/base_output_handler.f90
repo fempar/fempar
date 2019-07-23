@@ -585,7 +585,7 @@ contains
     !< added **cell_vector**.
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
-        real(rp)                    ,       intent(in)    :: cell_vector(:)
+        type(std_vector_real_rp_t),         intent(in)    :: cell_vector
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
@@ -604,7 +604,7 @@ contains
     !< attached and the updated **cell_vector**.
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
-        real(rp)                    ,       intent(in)    :: cell_vector(:)
+        type(std_vector_real_rp_t),         intent(in)    :: cell_vector
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
         integer(ip) :: i
@@ -1109,7 +1109,7 @@ contains
         type(output_handler_cell_vector_t),       intent(in)    :: cell_vector
         integer(ip),                              intent(in)    :: num_subcells
         type(std_vector_real_rp_t),               intent(inout) :: patch_cell_vector
-        real(rp), pointer                                       :: cell_vector_values(:)
+        type(std_vector_real_rp_t), pointer                     :: cell_vector_values
         real(rp), pointer                                       :: patch_cell_vector_values(:)
         class(fe_cell_iterator_t),                pointer       :: current_fe
     !-----------------------------------------------------------------
@@ -1118,7 +1118,7 @@ contains
         cell_vector_values => cell_vector%get_cell_vector()
         call patch_cell_vector%resize(num_subcells)
         patch_cell_vector_values => patch_cell_vector%get_pointer()
-        patch_cell_vector_values = cell_vector_values(current_fe%get_gid())
+        patch_cell_vector_values = cell_vector_values%get_pointer(current_fe%get_gid())
     end subroutine fill_patch_cell_vector
 
     subroutine base_output_handler_fill_data(this, update_mesh)
