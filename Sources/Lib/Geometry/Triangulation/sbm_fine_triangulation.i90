@@ -36,7 +36,7 @@ subroutine fine_triangulation_process_parameters ( this, parameters )
   call triangulation_process_parameters(this, parameters)
   
   assert (parameters%isPresent(static_triang_generate_from_key) )
-  assert(parameters%isAssignable(static_triang_generate_from_key, this%generate_from))
+  assert (parameters%isAssignable(static_triang_generate_from_key, "string"))
   istat = parameters%GetAsString(key = static_triang_generate_from_key, string = this%generate_from)
   assert(istat==0)
   
