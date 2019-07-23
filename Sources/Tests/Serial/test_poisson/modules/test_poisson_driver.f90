@@ -644,22 +644,22 @@ contains
     implicit none
     class(test_poisson_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    real(rp),allocatable :: cell_vector(:)
+    type(std_vector_real_rp_t)               :: cell_vector
+    real(rp), pointer                        :: tmp_cell_vector(:)
     if(this%test_params%get_write_solution()) then
         call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         if (this%test_params%get_use_void_fes()) then
-           call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-           cell_vector(:) = this%cell_set_ids(:)
+           call cell_vector%copy(real(this%cell_set_ids, kind=rp))
            call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%open()
         call oh%write()
         call oh%close()
         call oh%free()
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
+        call cell_vector%free()
     endif
   end subroutine write_solution
   

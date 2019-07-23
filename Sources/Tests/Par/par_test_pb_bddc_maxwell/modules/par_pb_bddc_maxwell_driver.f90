@@ -761,8 +761,8 @@ contains
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(in) :: this
     type(output_handler_t)                             :: oh
-    real(rp), allocatable                              :: set_id_cell_vector(:)
-    real(rp), allocatable                              :: set_id_rank(:)
+    type(std_vector_real_rp_t)                         :: set_id_cell_vector
+    type(std_vector_real_rp_t)                         :: set_id_rank
     integer(ip)                                        :: i, istat
 
     if ( this%par_environment%am_i_l1_task() ) then
@@ -788,15 +788,15 @@ contains
       class(cell_iterator_t), allocatable :: cell 
 
       ! Allocate set ids 
-      call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
-      call memalloc(this%triangulation%get_num_local_cells(), set_id_rank, __FILE__, __LINE__)
+      call set_id_cell_vector%resize(this%triangulation%get_num_local_cells())
+      call set_id_rank%resize(this%triangulation%get_num_local_cells())
 
       ! Fill Set ids 
       call this%triangulation%create_cell_iterator(cell) 
       do while ( .not. cell%has_finished() ) 
          if ( cell%is_local() ) then 
-            set_id_cell_vector(cell%get_gid()) = cell%get_set_id()
-            set_id_rank(cell%get_gid())        = this%par_environment%get_l1_rank() + 1
+            call set_id_cell_vector%set(cell%get_gid(), real(cell%get_set_id(), kind=rp))
+            call set_id_rank%set (cell%get_gid(), real(this%par_environment%get_l1_rank() + 1, kind=rp))
          end if
          call cell%next() 
       enddo
@@ -804,8 +804,8 @@ contains
     end subroutine build_set_ids
 
     subroutine free_set_ids()
-      call memfree(set_id_cell_vector, __FILE__, __LINE__)
-      call memfree(set_id_rank, __FILE__, __LINE__)
+      call set_id_cell_vector%free()
+      call set_id_rank%free()
     end subroutine free_set_ids
 
   end subroutine write_solution

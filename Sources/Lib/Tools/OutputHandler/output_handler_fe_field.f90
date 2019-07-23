@@ -57,6 +57,7 @@ USE types_names
 USE memor_names
 USE fe_space_names,              only: fe_function_t
 USE reference_fe_names,          only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
+USE std_vector_real_rp_names
 USE output_handler_parameters_names
 
 implicit none
@@ -108,8 +109,8 @@ private
     ! Associate the info related with a cell field contained in a **cell_vector**
     !-----------------------------------------------------------------
     private
-        character(len=:),  allocatable :: name
-        real(rp), pointer              :: cell_vector(:) => NULL()
+        character(len=:),       allocatable :: name
+        type(std_vector_real_rp_t), pointer :: cell_vector => NULL()
     contains
     private
         procedure, non_overridable         ::                          output_handler_cell_vector_assign
@@ -358,7 +359,7 @@ contains
     !----------------------------------------------------------------- 
         class(output_handler_cell_vector_t), intent(inout) :: this
         type(output_handler_cell_vector_t),  intent(in)    :: output_handler_cell_vector
-        real(rp), pointer                                  :: cell_vector(:)
+        type(std_vector_real_rp_t), pointer                :: cell_vector
         character(len=:), allocatable                      :: name
     !----------------------------------------------------------------- 
         call this%free()
@@ -368,12 +369,12 @@ contains
     end subroutine output_handler_cell_vector_assign
 
 
-    subroutine output_handler_cell_vector_set(this, cell_Vector, name)
+    subroutine output_handler_cell_vector_set(this, cell_vector, name)
     !-----------------------------------------------------------------
     !< Associate a fe_function with a field name
     !-----------------------------------------------------------------
         class(output_handler_cell_vector_t),  intent(inout) :: this
-        real(rp),               target,       intent(in)    :: cell_vector(:)
+        type(std_vector_real_rp_t), target,   intent(in)    :: cell_vector
         character(len=*),                     intent(in)    :: name
     !-----------------------------------------------------------------
         call this%free()
@@ -399,7 +400,7 @@ contains
     !< Returns a pointer to the cell_vector member variable
     !-----------------------------------------------------------------
         class(output_handler_cell_vector_t), target, intent(in) :: this
-        real(rp), pointer                                       :: cell_vector(:)
+        type(std_vector_real_rp_t), pointer                     :: cell_vector
     !-----------------------------------------------------------------
         assert(associated(this%cell_vector))
         cell_vector => this%cell_vector
@@ -410,8 +411,8 @@ contains
     !< Sets the pointer member variable cell_vector s.t. it points to 
     !< the cell_vector dummy argument
     !-----------------------------------------------------------------
-        class(output_handler_cell_vector_t)        , intent(inout) :: this
-        real(rp)                           , target, intent(in)    :: cell_vector(:)
+        class(output_handler_cell_vector_t), intent(inout) :: this
+        type(std_vector_real_rp_t), target,  intent(in)    :: cell_vector
     !-----------------------------------------------------------------
         this%cell_vector => cell_vector
     end subroutine output_handler_cell_vector_set_cell_vector

@@ -48,7 +48,7 @@ module par_test_h_adaptive_maxwell_driver_names
      type(ParameterList_t), pointer             :: parameter_list
      
      ! Cells and lower dimension objects container
-     type(p4est_par_triangulation_t)       :: triangulation
+     type(p4est_par_triangulation_t)            :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
@@ -62,24 +62,29 @@ module par_test_h_adaptive_maxwell_driver_names
      type(fixed_fraction_refinement_strategy_t)  :: refinement_strategy
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_affine_operator_t)                  :: fe_affine_operator
+     type(fe_affine_operator_t)      :: fe_affine_operator
      
-     type(std_vector_logical_t)                  :: cell_mask
+     type(std_vector_logical_t)      :: cell_mask
      
 #ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
-     type(mlbddc_t)                            :: mlbddc
+     type(mlbddc_t)                  :: mlbddc
 #endif  
     
      ! Iterative linear solvers data type
-     type(iterative_linear_solver_t)           :: iterative_linear_solver
+     type(iterative_linear_solver_t) :: iterative_linear_solver
  
      ! maxwell problem solution FE function
-     type(fe_function_t)                   :: solution
-     type(output_handler_t)                :: output_handler
+     type(fe_function_t)             :: solution
+     type(output_handler_t)          :: output_handler
+
+     ! Cell vectors
+     type(std_vector_real_rp_t)      :: mypart_vector
+     type(std_vector_real_rp_t)      :: cell_vector
+     type(std_vector_real_rp_t)      :: fe_id
          
      ! Environment required for fe_affine_operator + vtk_handler
-     type(environment_t)                    :: par_environment
+     type(environment_t)             :: par_environment
 
      ! Timers
      type(timer_t) :: timer_triangulation
@@ -646,11 +651,11 @@ end subroutine check_solution
     subroutine output_handler_initialize(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    integer(ip)                        :: error
-    real(rp)                           :: dummy_vector(1)
-    real(rp)                           :: cell_vector(1)
-    real(rp)                           :: fe_id(1) 
+    integer(ip)                :: error
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
+      call this%mypart_vector%resize(1, 0.0_rp)
+      call this%cell_vector%resize(1, 0.0_rp)
+      call this%fe_id%resize(1, 0.0_rp)
       error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
       check (error==0)
       call this%output_handler%create(this%parameter_list)
@@ -658,10 +663,11 @@ end subroutine check_solution
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
       call this%output_handler%add_fe_function(this%solution, 1, 'curl_solution', curl_diff_operator)
-      call this%output_handler%add_cell_vector(this%maxwell_analytical_error_estimator%get_sq_local_estimate_entries(), 'error_estimator')
-      call this%output_handler%add_cell_vector(dummy_vector, 'subdomain')
-      call this%output_handler%add_cell_vector(cell_vector, 'set_id')
-      call this%output_handler%add_cell_vector(fe_id, 'fe_id')
+      
+      call this%output_handler%add_cell_vector(this%maxwell_analytical_error_estimator%get_sq_local_estimates(), 'error_estimator')
+      call this%output_handler%add_cell_vector(this%mypart_vector, 'subdomain')
+      call this%output_handler%add_cell_vector(this%cell_vector, 'set_id')
+      call this%output_handler%add_cell_vector(this%fe_id, 'fe_id')
       call this%output_handler%open()
     end if
   end subroutine output_handler_initialize
@@ -671,32 +677,25 @@ end subroutine check_solution
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     integer(ip)                                 , intent(in) :: current_step
     class(cell_iterator_t), allocatable :: cell 
-    real(rp),allocatable :: mypart_vector(:), cell_vector(:), fe_id(:) 
+
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-      call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-      mypart_vector(:) = this%par_environment%get_l1_rank()
+      call this%mypart_vector%resize(this%triangulation%get_num_local_cells())
+      call this%mypart_vector%init(real(this%par_environment%get_l1_rank(), kind=rp))
               
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          call memalloc(this%triangulation%get_num_local_cells(),fe_id,__FILE__,__LINE__)
-          call this%triangulation%create_cell_iterator(cell)
-          do while ( .not. cell%has_finished() )
-            if ( cell%is_local() ) then       
-              cell_vector(cell%get_gid()) = cell%get_set_id()
-              fe_id(cell%get_gid())       = cell%get_gid() 
-             end if 
-             call cell%next()
-          end do 
-          call this%triangulation%free_cell_iterator(cell)
+      call this%cell_vector%resize(this%triangulation%get_num_local_cells())
+      call this%fe_id%resize(this%triangulation%get_num_local_cells())
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. cell%has_finished() )
+        if ( cell%is_local() ) then       
+          call this%cell_vector%set(cell%get_gid(), real(cell%get_set_id(), kind=rp))
+          call this%fe_id%set(cell%get_gid(), real(cell%get_gid(), kind=rp))
+        end if 
+        call cell%next()
+      end do 
+      call this%triangulation%free_cell_iterator(cell)
       
-      call this%output_handler%update_cell_vector(this%maxwell_analytical_error_estimator%get_sq_local_estimate_entries(), 'error_estimator')
-      call this%output_handler%update_cell_vector(mypart_vector, 'subdomain')
-      call this%output_handler%update_cell_vector(cell_vector, 'set_id')
-      call this%output_handler%update_cell_vector(fe_id, 'fe_id') 
       call this%output_handler%append_time_step(real(current_step,rp))
       call this%output_handler%write()
-      call memfree(mypart_vector,__FILE__,__LINE__)
-      call memfree(cell_vector, __FILE__, __LINE__ )
-      call memfree(fe_id, __FILE__, __LINE__ )
     end if
   end subroutine output_current_mesh_and_solution
   
@@ -870,6 +869,11 @@ end subroutine check_solution
     end if
     call this%triangulation%free()
     call this%cell_mask%free()
+
+    call this%mypart_vector%free()
+    call this%cell_vector%free()
+    call this%fe_id%free()
+
   end subroutine free  
 
   !========================================================================================

@@ -792,7 +792,7 @@ contains
     implicit none
     class(test_h_adaptive_poisson_driver_t), intent(in) :: this
     type(output_handler_t)                   :: oh
-    real(rp),allocatable :: cell_vector(:)
+    type(std_vector_real_rp_t) :: cell_vector
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     if(this%test_params%get_write_solution()) then
@@ -800,12 +800,12 @@ contains
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
+        call cell_vector%resize(this%triangulation%get_num_cells())
         
         call this%triangulation%create_cell_iterator(cell)
         if (this%test_params%get_use_void_fes()) then
           do while( .not. cell%has_finished() )
-            cell_vector(cell%get_gid()) = cell%get_set_id()
+            call cell_vector%set(cell%get_gid(), real(cell%get_set_id(), kind=rp))
             call cell%next()
           end do
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
@@ -815,7 +815,7 @@ contains
           do pid=0, P-1
               i=0
               do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-                cell_vector(cell%get_gid()) = pid 
+                call cell_vector%set(cell%get_gid(), real(pid, kind=rp) )
                 call cell%next()
                 i=i+1
               end do
@@ -827,7 +827,7 @@ contains
         call oh%write()
         call oh%close()
         call oh%free()
-        call memfree(cell_vector,__FILE__,__LINE__)
+        call cell_vector%free()
     endif
   end subroutine write_solution
 

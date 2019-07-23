@@ -591,25 +591,21 @@ end subroutine free_timers
     implicit none
     class(par_test_transient_poisson_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
-    real(rp),allocatable :: cell_vector(:)
-    real(rp),allocatable :: mypart_vector(:)
+    type(std_vector_real_rp_t) :: cell_vector
+    type(std_vector_real_rp_t) :: mypart_vector
 
     if(this%test_params%get_write_solution()) then
       if (this%par_environment%am_i_l1_task()) then
 
-        if (this%test_params%get_use_void_fes()) then
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          cell_vector(:) = this%cell_set_ids(:)
-        end if
-
-        call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-        mypart_vector(:) = this%par_environment%get_l1_rank()
+        call mypart_vector%resize(this%triangulation%get_num_local_cells())
+        call mypart_vector%init(real(this%par_environment%get_l1_rank(), kind=rp))
 
         call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         if (this%test_params%get_use_void_fes()) then
+          call cell_vector%copy(real(this%cell_set_ids, kind=rp))
           call oh%add_cell_vector(cell_vector,'cell_set_ids')
         end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
@@ -618,8 +614,8 @@ end subroutine free_timers
         call oh%close()
         call oh%free()
 
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
-        call memfree(mypart_vector,__FILE__,__LINE__)
+        call cell_vector%free()
+        call mypart_vector%free()
 
       end if
     endif
