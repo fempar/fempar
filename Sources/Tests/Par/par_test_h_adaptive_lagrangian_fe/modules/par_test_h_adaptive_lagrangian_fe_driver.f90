@@ -631,27 +631,29 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
-    real(rp),allocatable :: cell_vector(:)
-    real(rp),allocatable :: mypart_vector(:)
+    type(std_vector_real_rp_t)          :: cell_vector
+    type(std_vector_real_rp_t)          :: mypart_vector
+    real(rp), pointer                   :: tmp_ptr(:)
     class(cell_iterator_t), allocatable :: cell 
 
     if(this%test_params%get_write_solution()) then
       if (this%par_environment%am_i_l1_task()) then
 
         if (this%test_params%get_use_void_fes()) then
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
+          call cell_vector%resize(this%triangulation%get_num_local_cells())
           call this%triangulation%create_cell_iterator(cell)
           do while ( .not. cell%has_finished() )
             if ( cell%is_local() ) then       
-              cell_vector(cell%get_gid()) = cell%get_set_id()
+              call cell_vector%set(cell%get_gid(), real(cell%get_set_id(), kind=rp))
              end if 
              call cell%next()
           end do 
           call this%triangulation%free_cell_iterator(cell)
         end if
 
-        call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-        mypart_vector(:) = this%par_environment%get_l1_rank()
+        call mypart_vector%resize(this%triangulation%get_num_local_cells())
+        tmp_ptr => mypart_vector%get_pointer()
+        tmp_ptr(:) = this%par_environment%get_l1_rank()
 
         call oh%create(this%parameter_list)
         call oh%attach_fe_space(this%fe_space)
@@ -668,8 +670,8 @@ end subroutine free_timers
         call oh%close()
         call oh%free()
 
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
-        call memfree(mypart_vector,__FILE__,__LINE__)
+        call cell_vector%free()
+        call mypart_vector%free()
 
       end if
     endif

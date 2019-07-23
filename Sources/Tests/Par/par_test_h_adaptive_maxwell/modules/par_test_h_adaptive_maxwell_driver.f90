@@ -646,11 +646,17 @@ end subroutine check_solution
     subroutine output_handler_initialize(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    integer(ip)                        :: error
-    real(rp)                           :: dummy_vector(1)
-    real(rp)                           :: cell_vector(1)
-    real(rp)                           :: fe_id(1) 
+    integer(ip)                :: error
+    type(std_vector_real_rp_t) :: dummy_vector
+    type(std_vector_real_rp_t) :: cell_vector
+    type(std_vector_real_rp_t) :: fe_id
+    type(std_vector_real_rp_t) :: sq_local_estimate_entries
+    real(rp), pointer          :: tmp_sq_local_estimate_entries(:)
+    real(rp), pointer          :: tmp_ptr(:)
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
+      call dummy_vector%resize(1, 0.0_rp)
+      call cell_vector%resize(1, 0.0_rp)
+      call fe_id%resize(1, 0.0_rp)
       error = this%parameter_list%set(key=output_handler_static_grid_key, value=.false.)
       check (error==0)
       call this%output_handler%create(this%parameter_list)
@@ -658,7 +664,13 @@ end subroutine check_solution
       call this%output_handler%add_fe_function(this%solution, 1, 'solution')
       call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
       call this%output_handler%add_fe_function(this%solution, 1, 'curl_solution', curl_diff_operator)
-      call this%output_handler%add_cell_vector(this%maxwell_analytical_error_estimator%get_sq_local_estimate_entries(), 'error_estimator')
+
+      tmp_sq_local_estimate_entries => this%maxwell_analytical_error_estimator%get_sq_local_estimate_entries()
+      call sq_local_estimate_entries%resize(size(tmp_sq_local_estimate_entries))
+      tmp_ptr => sq_local_estimate_entries%get_pointer()
+      tmp_ptr(:) = tmp_sq_local_estimate_entries(:)
+      
+      call this%output_handler%add_cell_vector(sq_local_estimate_entries, 'error_estimator')
       call this%output_handler%add_cell_vector(dummy_vector, 'subdomain')
       call this%output_handler%add_cell_vector(cell_vector, 'set_id')
       call this%output_handler%add_cell_vector(fe_id, 'fe_id')
@@ -671,32 +683,45 @@ end subroutine check_solution
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     integer(ip)                                 , intent(in) :: current_step
     class(cell_iterator_t), allocatable :: cell 
-    real(rp),allocatable :: mypart_vector(:), cell_vector(:), fe_id(:) 
+    type(std_vector_real_rp_t) :: mypart_vector
+    type(std_vector_real_rp_t) :: cell_vector
+    type(std_vector_real_rp_t) :: fe_id
+    type(std_vector_real_rp_t) :: sq_local_estimate_entries
+    real(rp), pointer          :: tmp_sq_local_estimate_entries(:)
+    real(rp), pointer          :: tmp_ptr(:)
+
     if(this%test_params%get_write_solution() .and. this%par_environment%am_i_l1_task()) then
-      call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-      mypart_vector(:) = this%par_environment%get_l1_rank()
+      call mypart_vector%resize(this%triangulation%get_num_local_cells())
+      tmp_ptr => mypart_vector%get_pointer()
+      tmp_ptr(:) = this%par_environment%get_l1_rank()
               
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          call memalloc(this%triangulation%get_num_local_cells(),fe_id,__FILE__,__LINE__)
+          call cell_vector%resize(this%triangulation%get_num_local_cells())
+          call fe_id%resize(this%triangulation%get_num_local_cells())
           call this%triangulation%create_cell_iterator(cell)
           do while ( .not. cell%has_finished() )
             if ( cell%is_local() ) then       
-              cell_vector(cell%get_gid()) = cell%get_set_id()
-              fe_id(cell%get_gid())       = cell%get_gid() 
+              call cell_vector%set(cell%get_gid(), real(cell%get_set_id(), kind=rp))
+              call fe_id%set(cell%get_gid(), real(cell%get_gid(), kind=rp))
              end if 
              call cell%next()
           end do 
           call this%triangulation%free_cell_iterator(cell)
       
-      call this%output_handler%update_cell_vector(this%maxwell_analytical_error_estimator%get_sq_local_estimate_entries(), 'error_estimator')
+      tmp_sq_local_estimate_entries => this%maxwell_analytical_error_estimator%get_sq_local_estimate_entries()
+      call sq_local_estimate_entries%resize(size(tmp_sq_local_estimate_entries))
+      tmp_ptr => sq_local_estimate_entries%get_pointer()
+      tmp_ptr(:) = tmp_sq_local_estimate_entries(:)
+      call this%output_handler%update_cell_vector(sq_local_estimate_entries, 'error_estimator')
       call this%output_handler%update_cell_vector(mypart_vector, 'subdomain')
       call this%output_handler%update_cell_vector(cell_vector, 'set_id')
       call this%output_handler%update_cell_vector(fe_id, 'fe_id') 
       call this%output_handler%append_time_step(real(current_step,rp))
       call this%output_handler%write()
-      call memfree(mypart_vector,__FILE__,__LINE__)
-      call memfree(cell_vector, __FILE__, __LINE__ )
-      call memfree(fe_id, __FILE__, __LINE__ )
+
+      call sq_local_estimate_entries%free()
+      call mypart_vector%free()
+      call cell_vector%free()
+      call fe_id%free()
     end if
   end subroutine output_current_mesh_and_solution
   
