@@ -35,7 +35,7 @@ implicit none
 
   character(len=*), parameter :: urs_num_uniform_refinements_key   = 'UNIFORM_REFINEMENT_STRATEGY_NUM_UNIFORM_REFINEMENTS'
   
-  character(len=*), parameter :: eors_error_objective_key          = 'ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJETIVE'
+  character(len=*), parameter :: eors_error_objective_key          = 'ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJECTIVE'
   character(len=*), parameter :: eors_objective_tolerance_key      = 'ERROR_OBJECTIVE_REFINEMENT_STRATEGY_OBJETIVE_TOLERANCE'
   character(len=*), parameter :: eors_max_num_mesh_iterations_key  = 'ERROR_OBJECTIVE_REFINEMENT_STRATEGY_MAX_NUM_MESH_ITERATIONS'
   
@@ -59,16 +59,25 @@ implicit none
 
   ! Parameter help messages
 
-  character(len=*), parameter :: urs_num_uniform_refinements_help  = 'help message'
+  character(len=*), parameter :: urs_num_uniform_refinements_help  = 'Number of uniform mesh refinement steps to be' // BRK_LINE // &
+                                                                     'performed using the uniform refinement strategy.'
   
-  character(len=*), parameter :: eors_error_objective_help         = 'help message'
-  character(len=*), parameter :: eors_objective_tolerance_help     = 'help message'
-  character(len=*), parameter :: eors_max_num_mesh_iterations_help = 'help message'
+  character(len=*), parameter :: eors_error_objective_help         = 'Real quantity expressing the ABSOLUTE global error value' // BRK_LINE //  &
+                                                                     'to be achieved by the error objective refinement strategy.'
+  character(len=*), parameter :: eors_objective_tolerance_help     = 'Real quantity that increments ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJECTIVE' // BRK_LINE //  &
+                                                                     'to facilitate convergence of the error objective refinement strategy.'
+  character(len=*), parameter :: eors_max_num_mesh_iterations_help = 'Maximum number of iterations allowed to the error objective refinement' // BRK_LINE //  &
+                                                                     'strategy to find a mesh with ABSOLUTE global error below' // BRK_LINE //  &
+                                                                     'ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJECTIVE.' 
   
-  character(len=*), parameter :: ffrs_refinement_fraction_help     = 'help message'
-  character(len=*), parameter :: ffrs_coarsening_fraction_help     = 'help message'
-  character(len=*), parameter :: ffrs_max_num_mesh_iterations_help = 'help message'
-  character(len=*), parameter :: ffrs_print_info_help              = 'help message'
+  character(len=*), parameter :: ffrs_refinement_fraction_help     = 'Fraction of total number of cells to be set for REFINEMENT' // BRK_LINE //  &
+                                                                     'in a single mesh adaptation step of the fixed fraction refinement strategy.'
+  character(len=*), parameter :: ffrs_coarsening_fraction_help     = 'Fraction of total number of cells to be set for COARSENING' // BRK_LINE //  &
+                                                                     'in a single mesh adaptation step of the fixed fraction refinement strategy.'
+  character(len=*), parameter :: ffrs_max_num_mesh_iterations_help = 'Number of mesh adaptation steps to be performed' // BRK_LINE //  &
+                                                                     'within the fixed fraction refinement strategy.'
+  character(len=*), parameter :: ffrs_print_info_help              = 'Print convergence status and computed thresholds of' // BRK_LINE //  &
+                                                                     'a single step of the fixed fraction refinement strategy.'
 
   ! Parameter default values
 
