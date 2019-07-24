@@ -538,11 +538,16 @@ contains
       this%sq_coarsening_threshold = coarsening_min_estimate*coarsening_min_estimate
       
       if ( this%print_info .and. environment%am_i_l1_root() ) then
-        write(*,*) "ffrs_update_refinement_flags converged in",  num_iterations, " iterations"
-        write(*,*) "Computed refinement threshold squared = ", this%sq_refinement_threshold
-        write(*,*) "% cells to be refined = ", real(current_num_cells_to_be_refined_coarsened(1),rp)/real(num_global_cells,rp)
-        write(*,*) "Computed coarsening threshold squared = ", this%sq_coarsening_threshold
-        write(*,*) "% cells to be coarsened = ", real(current_num_cells_to_be_refined_coarsened(2),rp)/real(num_global_cells,rp)
+        write(*,'(a54)')  repeat('=', 54)
+        write(*,'(a54)') "Fixed Fraction Refinement Strategy:"
+        write(*,'(a54)')  repeat('=', 54)
+        write(*,'(a30,i24)') "CURRENT MESH ITERATION:" // repeat(' ', 80),  this%current_mesh_iteration
+        write(*,'(a30,i24)') "ITERATIONS:" // repeat(' ', 80),  num_iterations
+        write(*,'(a30,e24.10,a1)') "REFINEMENT THRESHOLD:" // repeat(' ', 80), sqrt(this%sq_refinement_threshold)
+        write(*,'(a30,f22.3,a2)') "CELLS TO BE REFINED (%):" // repeat(' ', 80), real(current_num_cells_to_be_refined_coarsened(1),rp)/real(num_global_cells,rp)*100, ' %'
+        write(*,'(a30,e24.10,a2)') "COARSENING THRESHOLD:" // repeat(' ', 80), sqrt(this%sq_coarsening_threshold
+        write(*,'(a30,f22.3,a2)') "CELLS TO BE COARSENED (%):" // repeat(' ', 80), real(current_num_cells_to_be_refined_coarsened(2),rp)/real(num_global_cells,rp)*100, ' %'
+        write(*,'(a54)')  repeat('=', 54)
       end if
     end if
   end subroutine ffrs_compute_thresholds
