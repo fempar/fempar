@@ -3180,6 +3180,28 @@ function serial_fe_space_get_max_num_dofs_on_a_cell( this ) result (max_dofs)
    end if
 end function serial_fe_space_get_max_num_dofs_on_a_cell
 
+function serial_fe_space_get_max_num_dofs_per_field_on_a_cell( this, field_id ) result (max_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip),              intent(in) :: field_id
+  integer(ip) :: i, max_dofs
+  class(fe_cell_iterator_t), allocatable :: fe
+  
+  assert(field_id <= this%get_num_fields())
+  ! If (same) set of reference FEs on top of all cells ...
+  if ( this%same_reference_fes_on_all_cells ) then 
+    max_dofs = this%reference_fes(field_id)%p%get_num_shape_functions()
+  else
+    max_dofs = 0
+    call this%create_fe_cell_iterator(fe)
+    do while (.not. fe%has_finished())
+      max_dofs = max(max_dofs,fe%get_num_dofs_field(field_id))
+      call fe%next()
+    end do
+    call this%free_fe_cell_iterator(fe)
+   end if
+end function serial_fe_space_get_max_num_dofs_per_field_on_a_cell
+
 function serial_fe_space_get_max_num_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
