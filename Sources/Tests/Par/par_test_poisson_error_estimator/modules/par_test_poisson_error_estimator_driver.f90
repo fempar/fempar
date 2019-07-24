@@ -231,15 +231,14 @@ contains
     call poisson_cG_error_estimator%set_fe_function(this%solution)
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = error_objective_key                   , value = 2.0_rp)
-    FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
+    FPLError = parameter_list%set(key = eors_error_objective_key                   , value = 2.0_rp)
+    FPLError = FPLError + parameter_list%set(key = eors_objective_tolerance_key    , value = 0.1_rp)
     max_num_mesh_iterations = 10
-    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
-    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
+    FPLError = FPLError + parameter_list%set(key = eors_max_num_mesh_iterations_key, value = max_num_mesh_iterations)
+    FPLError = FPLError + parameter_list%set(key = urs_num_uniform_refinements_key, value = 2)
     assert(FPLError == 0)
-    FPLError = FPLError + parameter_list%set(key = refinement_fraction_key, value = 0.30_rp)
-    FPLError = FPLError + parameter_list%set(key = coarsening_fraction_key, value = 0.10_rp)
-    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
+    FPLError = FPLError + parameter_list%set(key = ffrs_refinement_fraction_key, value = 0.30_rp)
+    FPLError = FPLError + parameter_list%set(key = ffrs_coarsening_fraction_key, value = 0.10_rp)
     assert(FPLError == 0)
     
     if ( this%par_test_params%get_refinement_strategy() == 'uniform') then
