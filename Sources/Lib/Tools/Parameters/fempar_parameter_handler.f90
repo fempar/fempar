@@ -40,6 +40,7 @@ module fempar_parameter_handler_names
     use fe_space_parameters_names
     use reference_fe_names
     use output_handler_parameters_names
+    use refinement_strategy_parameters_names
     use FPL
     use flap, only : Command_Line_Interface
 # include "debug.i90"
@@ -118,6 +119,7 @@ module fempar_parameter_handler_names
         procedure, private, non_overridable :: fph_nls_define_parameters
         procedure, private, non_overridable :: fph_dls_define_parameters
         procedure, private, non_overridable :: fph_output_handler_define_parameters
+        procedure, private, non_overridable :: fph_refinement_strategy_parameters
         
         procedure         :: process_parameters => fph_process_parameters
         procedure         :: print_values       => fph_print_values
@@ -874,7 +876,8 @@ contains
         call this%fph_dls_define_parameters()
         call this%fph_nls_define_parameters()
         call this%fph_coarse_fe_handler_define_parameters()
-        call this%fph_output_handler_define_parameters()        
+        call this%fph_output_handler_define_parameters()   
+        call this%fph_refinement_strategy_parameters()     
     end subroutine fph_define_fempar_parameters
 
     subroutine fph_define_parameters(this)
@@ -1356,6 +1359,52 @@ contains
            output_handler_xh5_info_cla_help)
       
     end subroutine fph_output_handler_define_parameters
+
+    subroutine fph_refinement_strategy_parameters(this)
+      implicit none
+      class(fempar_parameter_handler_t), intent(inout) :: this
+
+      call this%add(urs_num_uniform_refinements_key, &
+           urs_num_uniform_refinements_cla_name,     & 
+           urs_num_uniform_refinements_default,      & 
+           urs_num_uniform_refinements_help)
+
+      call this%add(eors_error_objective_key, &
+           eors_error_objective_cla_name,     & 
+           eors_error_objective_default,      & 
+           eors_error_objective_help)
+
+      call this%add(eors_objective_tolerance_key, &
+           eors_objective_tolerance_cla_name,     & 
+           eors_objective_tolerance_default,      & 
+           eors_objective_tolerance_help)
+
+      call this%add(eors_max_num_mesh_iterations_key, &
+           eors_max_num_mesh_iterations_cla_name,     & 
+           eors_max_num_mesh_iterations_default,      & 
+           eors_max_num_mesh_iterations_help)
+
+      call this%add(ffrs_refinement_fraction_key, &
+           ffrs_refinement_fraction_cla_name,     & 
+           ffrs_refinement_fraction_default,      & 
+           ffrs_refinement_fraction_help)
+
+      call this%add(ffrs_coarsening_fraction_key, &
+           ffrs_coarsening_fraction_cla_name,     & 
+           ffrs_coarsening_fraction_default,      & 
+           ffrs_coarsening_fraction_help)
+
+      call this%add(ffrs_max_num_mesh_iterations_key, &
+           ffrs_max_num_mesh_iterations_cla_name,     & 
+           ffrs_max_num_mesh_iterations_default,      & 
+           ffrs_max_num_mesh_iterations_help)
+
+      call this%add(ffrs_print_info_key, &
+           ffrs_print_info_cla_name,     & 
+           ffrs_print_info_default,      & 
+           ffrs_print_info_help)
+
+    end subroutine fph_refinement_strategy_parameters
      
     subroutine fph_Get_0D(this, key, value)
     !------------------------------------------------------------------

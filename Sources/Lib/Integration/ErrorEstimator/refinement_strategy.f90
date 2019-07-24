@@ -34,22 +34,13 @@ module refinement_strategy_names
   use triangulation_names
   use reference_fe_names
   use std_vector_integer_ip_names
+  use refinement_strategy_parameters_names
   use error_estimator_names
   use FPL
   
   implicit none
 # include "debug.i90"
   private
-  
-  character(len=*), parameter :: num_uniform_refinements_key        = 'num_uniform_refinements'
-  
-  character(len=*), parameter :: error_objective_key                = 'error_objective'
-  character(len=*), parameter :: objective_tolerance_key            = 'objective_tolerance'
-  character(len=*), parameter :: max_num_mesh_iterations_key        = 'max_num_mesh_iterations'
-  
-  character(len=*), parameter :: refinement_fraction_key            = 'refinement_fraction'
-  character(len=*), parameter :: coarsening_fraction_key            = 'coarsening_fraction'
-  character(len=*), parameter :: threshold_tolerance_key            = 'threshold_tolerance_key'
   
   type, abstract :: refinement_strategy_t
     private
@@ -140,11 +131,6 @@ module refinement_strategy_names
     procedure :: has_finished_refinement    => ffrs_has_finished_refinement
   end type fixed_fraction_refinement_strategy_t
   
-  
-  public :: num_uniform_refinements_key
-  public :: error_objective_key, objective_tolerance_key, max_num_mesh_iterations_key
-  public :: refinement_fraction_key, coarsening_fraction_key
-  
   public :: refinement_strategy_t, error_objective_refinement_strategy_t
   public :: uniform_refinement_strategy_t, li_bettess_refinement_strategy_t, fixed_fraction_refinement_strategy_t
   
@@ -182,9 +168,9 @@ contains
     class(uniform_refinement_strategy_t), intent(inout) :: this
     type(parameterlist_t)               , intent(in)    :: parameter_list
     integer(ip) :: FPLerror
-    assert(parameter_list%isPresent(num_uniform_refinements_key))
-    assert(parameter_list%isAssignable(num_uniform_refinements_key,this%num_uniform_refinements))
-    FPLerror = parameter_list%get(key = num_uniform_refinements_key, value = this%num_uniform_refinements)
+    assert(parameter_list%isPresent(urs_num_uniform_refinements_key))
+    assert(parameter_list%isAssignable(urs_num_uniform_refinements_key,this%num_uniform_refinements))
+    FPLerror = parameter_list%get(key = urs_num_uniform_refinements_key, value = this%num_uniform_refinements)
     assert(FPLerror==0)
   end subroutine urs_set_parameters
   
@@ -214,16 +200,17 @@ contains
     class(error_objective_refinement_strategy_t), intent(inout) :: this
     type(parameterlist_t)                       , intent(in)    :: parameter_list
     integer(ip) :: FPLerror
-    assert(parameter_list%isPresent(error_objective_key))
-    assert(parameter_list%isAssignable(error_objective_key,this%error_objective))
-    FPLerror = parameter_list%get(key = error_objective_key, value = this%error_objective)
+    assert(parameter_list%isPresent(eors_error_objective_key))
+    assert(parameter_list%isAssignable(eors_error_objective_key,this%error_objective))
+    FPLerror = parameter_list%get(key = eors_error_objective_key, value = this%error_objective)
     assert(FPLerror==0)
-    assert(parameter_list%isPresent(objective_tolerance_key))
-    assert(parameter_list%isAssignable(objective_tolerance_key,this%objective_tolerance))
-    FPLerror = parameter_list%get(key = objective_tolerance_key, value = this%objective_tolerance)
+    assert(parameter_list%isPresent(eors_objective_tolerance_key))
+    assert(parameter_list%isAssignable(eors_objective_tolerance_key,this%objective_tolerance))
+    FPLerror = parameter_list%get(key = eors_objective_tolerance_key, value = this%objective_tolerance)
     assert(FPLerror==0)
-    if ( parameter_list%isPresent(max_num_mesh_iterations_key) ) then
-      FPLerror = parameter_list%get(key = max_num_mesh_iterations_key, value = this%max_num_mesh_iterations)
+    if ( parameter_list%isPresent(eors_max_num_mesh_iterations_key) ) then
+      assert(parameter_list%isAssignable(eors_max_num_mesh_iterations_key,this%max_num_mesh_iterations))
+      FPLerror = parameter_list%get(key = eors_max_num_mesh_iterations_key, value = this%max_num_mesh_iterations)
       assert(FPLerror==0)
     else
       this%max_num_mesh_iterations = 100
@@ -325,20 +312,21 @@ contains
     type(parameterlist_t)                       , intent(in)    :: parameter_list
     integer(ip) :: FPLerror
     ! Parse refinement/coarsening fraction
-    assert(parameter_list%isPresent(refinement_fraction_key))
-    assert(parameter_list%isAssignable(refinement_fraction_key,this%refinement_fraction))
-    FPLerror = parameter_list%get(key = refinement_fraction_key, value = this%refinement_fraction)
+    assert(parameter_list%isPresent(ffrs_refinement_fraction_key))
+    assert(parameter_list%isAssignable(ffrs_refinement_fraction_key,this%refinement_fraction))
+    FPLerror = parameter_list%get(key = ffrs_refinement_fraction_key, value = this%refinement_fraction)
     assert(FPLerror==0)
     assert ( this%refinement_fraction >= 0.0_rp .and. this%refinement_fraction <= 1.0_rp )
     
-    assert(parameter_list%isPresent(coarsening_fraction_key))
-    assert(parameter_list%isAssignable(coarsening_fraction_key,this%coarsening_fraction))
-    FPLerror = parameter_list%get(key = coarsening_fraction_key, value = this%coarsening_fraction)
+    assert(parameter_list%isPresent(ffrs_coarsening_fraction_key))
+    assert(parameter_list%isAssignable(ffrs_coarsening_fraction_key,this%coarsening_fraction))
+    FPLerror = parameter_list%get(key = ffrs_coarsening_fraction_key, value = this%coarsening_fraction)
     assert(FPLerror==0)
     assert ( this%coarsening_fraction >= 0.0_rp .and. this%coarsening_fraction <= 1.0_rp )
        
-    if ( parameter_list%isPresent(max_num_mesh_iterations_key) ) then
-      FPLerror = parameter_list%get(key = max_num_mesh_iterations_key, value = this%max_num_mesh_iterations)
+    if ( parameter_list%isPresent(ffrs_max_num_mesh_iterations_key) ) then
+      assert(parameter_list%isAssignable(ffrs_max_num_mesh_iterations_key,this%max_num_mesh_iterations))
+      FPLerror = parameter_list%get(key = ffrs_max_num_mesh_iterations_key, value = this%max_num_mesh_iterations)
       assert(FPLerror==0)
     else
       this%max_num_mesh_iterations = 10
