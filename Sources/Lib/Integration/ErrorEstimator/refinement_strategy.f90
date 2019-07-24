@@ -124,6 +124,7 @@ module refinement_strategy_names
     real(rp)                          :: sq_refinement_threshold
     real(rp)                          :: sq_coarsening_threshold
     integer(ip)                       :: max_num_mesh_iterations
+    logical                           :: print_info
    contains
     procedure :: set_parameters             => ffrs_set_parameters
     procedure :: compute_thresholds         => ffrs_compute_thresholds
@@ -331,6 +332,14 @@ contains
     else
       this%max_num_mesh_iterations = 10
     end if
+
+    if ( parameter_list%isPresent(ffrs_print_info_key) ) then
+      assert(parameter_list%isAssignable(ffrs_print_info_key,this%print_info))
+      FPLerror = parameter_list%get(key = ffrs_print_info_key, value = this%print_info)
+      assert(FPLerror==0)
+    else
+        this%print_info = ffrs_print_info_default
+    endif
     
   end subroutine ffrs_set_parameters
   
@@ -528,7 +537,7 @@ contains
       this%sq_refinement_threshold = ref_min_estimate*ref_min_estimate
       this%sq_coarsening_threshold = coarsening_min_estimate*coarsening_min_estimate
       
-      if ( environment%am_i_l1_root() ) then
+      if ( this%print_info .and. environment%am_i_l1_root() ) then
         write(*,*) "ffrs_update_refinement_flags converged in",  num_iterations, " iterations"
         write(*,*) "Computed refinement threshold squared = ", this%sq_refinement_threshold
         write(*,*) "% cells to be refined = ", real(current_num_cells_to_be_refined_coarsened(1),rp)/real(num_global_cells,rp)
