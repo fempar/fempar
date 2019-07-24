@@ -389,23 +389,18 @@ contains
   end subroutine compute_error
     
   subroutine setup_refinement_strategy()
-    type(ParameterList_t) :: parameter_list
     real(rp) :: ref_fraction, coarse_fraction
-    integer(ip) :: istat
     if ( triangulation%get_num_dims() == 2 ) then
       ref_fraction    = 0.10_rp
       coarse_fraction = 0.05_rp
     else 
-      ref_fraction    = 0.05_rp
+      ref_fraction    = 0.10_rp
       coarse_fraction = 0.05_rp
     end if  
-    call parameter_list%init()
-    istat = parameter_list%set(key = refinement_fraction_key, value = ref_fraction)
-    istat = istat + parameter_list%set(key = coarsening_fraction_key, value = coarse_fraction)
-    istat = istat + parameter_list%set(key = max_num_mesh_iterations_key, value = num_amr_steps )
-    assert(istat == 0)
-    call refinement_strategy%create(error_estimator,parameter_list)
-    call parameter_list%free()
+    call parameter_handler%update(key = ffrs_refinement_fraction_key, value = ref_fraction)
+    call parameter_handler%update(key = ffrs_coarsening_fraction_key, value = coarse_fraction)
+    call parameter_handler%update(key = ffrs_max_num_mesh_iterations_key, value = num_amr_steps )
+    call refinement_strategy%create(error_estimator,parameter_handler%get_values())
   end subroutine setup_refinement_strategy
   
   subroutine output_handler_initialize()
