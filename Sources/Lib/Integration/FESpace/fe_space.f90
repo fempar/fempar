@@ -786,6 +786,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_offset_component                => serial_fe_space_update_get_field_offset_component
      procedure, non_overridable          :: get_max_num_shape_functions               => serial_fe_space_get_max_num_shape_functions
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
+     procedure, non_overridable          :: get_max_num_dofs_per_field_on_a_cell      => serial_fe_space_get_max_num_dofs_per_field_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
      procedure, non_overridable          :: get_max_num_nodal_quadrature_points       => serial_fe_space_get_max_num_nodal_quadrature_points
      procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points   

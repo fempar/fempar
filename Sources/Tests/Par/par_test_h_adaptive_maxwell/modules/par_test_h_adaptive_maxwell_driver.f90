@@ -739,9 +739,9 @@ end subroutine check_solution
     end if  
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = refinement_fraction_key, value = ref_fraction)
-    FPLError = FPLError + parameter_list%set(key = coarsening_fraction_key, value = coarse_fraction)
-    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = this%test_params%get_num_refinements() )
+    FPLError = parameter_list%set(key = ffrs_refinement_fraction_key, value = ref_fraction)
+    FPLError = FPLError + parameter_list%set(key = ffrs_coarsening_fraction_key, value = coarse_fraction)
+    FPLError = FPLError + parameter_list%set(key = ffrs_max_num_mesh_iterations_key, value = this%test_params%get_num_refinements() )
     assert(FPLError == 0)
     
     call this%refinement_strategy%create(this%maxwell_analytical_error_estimator,parameter_list)
