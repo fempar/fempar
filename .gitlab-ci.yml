@@ -358,10 +358,10 @@ SINGULARITY:
   script: 
     - echo $SYLABS_TOKEN > $CI_PROJECT_DIR/sylabs-token
     - singularity remote login SylabsCloud --tokenfile $CI_PROJECT_DIR/sylabs-token
-    - singularity build -d -F -r library://fempar/default/fempar:$CI_COMMIT_TAG_gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
-    - singularity build -d -F -r library://fempar/default/fempar:$CI_COMMIT_TAG_gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
-    - singularity build -d -F -r library://fempar/default/fempar:$CI_COMMIT_TAG_gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
-    - singularity build -d -F -r library://fempar/default/fempar:$CI_COMMIT_TAG_gnu-release_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-release_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
     - rm $CI_PROJECT_DIR/sylabs-token
   only:
     - tags
