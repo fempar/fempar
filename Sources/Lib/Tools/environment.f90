@@ -174,6 +174,20 @@ module environment_names
      procedure :: l1_sum_vector_igp           => environment_l1_sum_vector_igp
      generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp, l1_sum_scalar_igp, l1_sum_vector_igp
      generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp, l1_max_scalar_ip
+     
+     procedure :: w_sum_scalar_ip            => environment_w_sum_scalar_ip
+     procedure :: w_max_scalar_ip            => environment_w_max_scalar_ip
+     procedure :: w_sum_scalar_rp            => environment_w_sum_scalar_rp
+     procedure :: w_max_scalar_rp            => environment_w_max_scalar_rp
+     procedure :: w_sum_vector_rp            => environment_w_sum_vector_rp
+     procedure :: w_max_vector_rp            => environment_w_max_vector_rp
+     procedure :: w_sum_scalar_igp           => environment_w_sum_scalar_igp
+     procedure :: w_max_scalar_igp           => environment_w_max_scalar_igp
+     procedure :: w_sum_vector_igp           => environment_w_sum_vector_igp
+     procedure :: w_max_vector_igp           => environment_w_max_vector_igp
+     generic  :: w_sum                       => w_sum_scalar_ip, w_sum_scalar_rp, w_sum_vector_rp, w_sum_scalar_igp, w_sum_vector_igp
+     generic  :: w_max                       => w_max_scalar_ip, w_max_scalar_rp, w_max_vector_rp, w_max_scalar_igp, w_max_vector_igp    
+
   end type environment_t
 
   ! Types
@@ -602,15 +616,63 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_scalar_rp(alpha)
   end subroutine environment_l1_sum_scalar_rp
+  
+  !=============================================================================
+  subroutine environment_w_sum_scalar_ip(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: alpha
+    call this%world_context%sum_scalar_ip(alpha)
+  end subroutine environment_w_sum_scalar_ip
+  
+  !=============================================================================
+  subroutine environment_w_max_scalar_ip(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: alpha
+    call this%world_context%max_scalar_ip(alpha)
+  end subroutine environment_w_max_scalar_ip
+  
+  !=============================================================================
+  subroutine environment_w_sum_scalar_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha
+    call this%world_context%sum_scalar_rp(alpha)
+  end subroutine environment_w_sum_scalar_rp
+
+  !=============================================================================
+  subroutine environment_w_max_scalar_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha
+    call this%world_context%max_scalar_rp(alpha)
+  end subroutine environment_w_max_scalar_rp
 
   !=============================================================================
   subroutine environment_l1_sum_vector_rp(this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
-    real(rp)                 , intent(inout) :: alpha(:) 
+    real(rp)             , intent(inout) :: alpha(:) 
     assert (this%am_i_l1_task())
     call this%l1_context%sum_vector_rp(alpha)
   end subroutine environment_l1_sum_vector_rp
+  
+  !=============================================================================
+  subroutine environment_w_sum_vector_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha(:) 
+    call this%world_context%sum_vector_rp(alpha)
+  end subroutine environment_w_sum_vector_rp
+  
+  !=============================================================================
+  subroutine environment_w_max_vector_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha(:) 
+    call this%world_context%max_vector_rp(alpha)
+  end subroutine environment_w_max_vector_rp
 
   !=============================================================================
   subroutine environment_l1_max_scalar_rp (this,alpha)
@@ -649,6 +711,22 @@ contains
   end subroutine environment_l1_sum_scalar_igp
   
   !=============================================================================
+  subroutine environment_w_sum_scalar_igp (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n
+    call this%world_context%sum_scalar_igp(n)
+  end subroutine environment_w_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine environment_w_max_scalar_igp (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n
+    call this%world_context%max_scalar_igp(n)
+  end subroutine environment_w_max_scalar_igp
+  
+  !=============================================================================
   subroutine environment_l1_sum_vector_igp (this,n)
     implicit none
     class(environment_t) , intent(in)    :: this
@@ -656,6 +734,22 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_vector_igp(n)
   end subroutine environment_l1_sum_vector_igp
+  
+  !=============================================================================
+  subroutine environment_w_sum_vector_igp(this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    call this%world_context%sum_vector_igp(n)
+  end subroutine environment_w_sum_vector_igp
+  
+  !=============================================================================
+  subroutine environment_w_max_vector_igp(this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    call this%world_context%max_vector_igp(n)
+  end subroutine environment_w_max_vector_igp  
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_rp ( this, & 
