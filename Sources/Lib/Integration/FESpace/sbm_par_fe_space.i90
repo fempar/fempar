@@ -4806,28 +4806,19 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
   environment   => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then 
      if ( present(fe_function ) ) then 
-        num_snd  =  this%triangulation%get_migration_num_snd()     
-        if ( this%triangulation%get_num_cells() > 0 .or. num_snd>0 ) then      
-
-           call this%update_after_redistribute(old_ptr_dofs_x_fe, old_lst_dofs_gids)
-           call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
-
-           call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
-                                                                    old_lst_dofs_gids, &
-                                                                    fe_function)
-
-           ! Free local arrays
-           do field_id = 1,this%num_fields
-              call old_ptr_dofs_x_fe(field_id)%free()
-           end do
-           deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
-           call old_lst_dofs_gids%free()
-        end if
+       call this%update_after_redistribute(old_ptr_dofs_x_fe, old_lst_dofs_gids)
+       call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
+       call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
+                                                                old_lst_dofs_gids, &
+                                                                fe_function)
+       ! Free local arrays
+       do field_id = 1,this%num_fields
+          call old_ptr_dofs_x_fe(field_id)%free()
+       end do
+       deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
+       call old_lst_dofs_gids%free()
      else
-        num_snd  =  this%triangulation%get_migration_num_snd()
-        if ( this%triangulation%get_num_cells() > 0 .or. num_snd > 0) then
-           call this%update_after_redistribute()
-        end if
+        call this%update_after_redistribute()
      end if
   end if
   ! Re-set up coarse_fe_space()
@@ -4855,24 +4846,18 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
 #ifdef ENABLE_P4EST
   environment   => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then   
-    num_snd     =  this%triangulation%get_migration_num_snd()    
-    if ( this%triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
-
       call this%update_after_redistribute(old_ptr_dofs_x_fe,old_lst_dofs_gids)
       call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
-
       do ifunc = 1,size(fe_functions)
            call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
                                                                     old_lst_dofs_gids, &
                                                                     fe_functions(ifunc)%p)           
       end do
-
       do field_id = 1,this%num_fields
         call old_ptr_dofs_x_fe(field_id)%free()
       end do
       deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
       call old_lst_dofs_gids%free()
-    end if 
   end if
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then
