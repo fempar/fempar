@@ -53,7 +53,6 @@ module triangulation_names
   ! Geometry modules
   use sisl_names
   use geometry_names
-  use gid_geometry_reader_names
 
   ! Triangulation Parameters
   use triangulation_parameters_names
