@@ -77,14 +77,17 @@ module execution_context_names
      procedure (execution_context_am_i_root         ) , deferred :: am_i_root
      procedure (execution_context_barrier           ) , deferred :: barrier         
      procedure (execution_context_time              ) , deferred :: time         
+     procedure (execution_context_sum_scalar_ip     ) , deferred :: sum_scalar_ip
      procedure (execution_context_sum_scalar_rp     ) , deferred :: sum_scalar_rp
      procedure (execution_context_sum_vector_rp     ) , deferred :: sum_vector_rp
      procedure (execution_context_max_scalar_rp     ) , deferred :: max_scalar_rp
      procedure (execution_context_max_vector_rp     ) , deferred :: max_vector_rp
      procedure (execution_context_min_scalar_rp     ) , deferred :: min_scalar_rp
      procedure (execution_context_max_scalar_ip     ) , deferred :: max_scalar_ip
+     procedure (execution_context_max_scalar_igp    ) , deferred :: max_scalar_igp
      procedure (execution_context_sum_scalar_igp    ) , deferred :: sum_scalar_igp
      procedure (execution_context_sum_vector_igp    ) , deferred :: sum_vector_igp
+     procedure (execution_context_max_vector_igp    ) , deferred :: max_vector_igp
      procedure (execution_context_bcast_subcontext  ) , deferred :: bcast_subcontext
      
      procedure (execution_context_scatter_scalar_ip ) , deferred :: scatter_ip
@@ -265,6 +268,14 @@ module execution_context_names
      end function execution_context_time
 
      !=============================================================================
+     subroutine execution_context_sum_scalar_ip (this,alpha)
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       integer(ip)                , intent(inout) :: alpha
+     end subroutine execution_context_sum_scalar_ip
+
+     !=============================================================================
      subroutine execution_context_sum_scalar_rp (this,alpha)
        import :: execution_context_t, rp
        implicit none
@@ -305,6 +316,14 @@ module execution_context_names
      end subroutine execution_context_max_scalar_ip
      
      !=============================================================================
+     subroutine execution_context_max_scalar_igp (this,n)
+       import :: execution_context_t, igp
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       integer(igp)               , intent(inout) :: n
+     end subroutine execution_context_max_scalar_igp
+     
+     !=============================================================================
      subroutine execution_context_sum_scalar_igp (this,n)
        import :: execution_context_t, igp
        implicit none
@@ -319,6 +338,14 @@ module execution_context_names
        class(execution_context_t) , intent(in)    :: this
        integer(igp)               , intent(inout) :: n(:)
      end subroutine execution_context_sum_vector_igp
+     
+     !=============================================================================
+     subroutine execution_context_max_vector_igp (this,n)
+       import :: execution_context_t, igp
+       implicit none
+       class(execution_context_t) , intent(in)    :: this
+       integer(igp)               , intent(inout) :: n(:)
+     end subroutine execution_context_max_vector_igp
 
      !=============================================================================
      subroutine execution_context_max_vector_rp(this,alpha)
