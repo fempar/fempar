@@ -1084,7 +1084,7 @@ end subroutine check_solution
     if (environment%am_i_l1_task()) then
        num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
        num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
-       num_owned_dofs   = real(this%fe_space%get_field_num_owned_dofs(1),kind=rp)
+       num_owned_dofs   = real(this%fe_space%get_block_num_owned_dofs(1),kind=rp)
        num_fixed_dofs   = real(this%fe_space%get_num_fixed_dofs(),kind=rp)
        call environment%l1_sum(num_total_cells )
        call environment%l1_sum(num_dofs        )

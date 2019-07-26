@@ -433,6 +433,7 @@ subroutine par_fe_space_generate_global_dof_numbering( this )
   if ( environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%generate_global_dof_numbering()
      call this%compute_blocks_dof_import()
+     call this%fill_num_global_dofs_x_block()
      ! Step required by the MLBDDC preconditioner
      call this%renum_dofs_first_interior_then_interface()
   else
@@ -667,6 +668,21 @@ end subroutine par_fe_space_renum_dofs_first_interior_then_interface
   end if 
  end subroutine  par_fe_space_set_up_facet_integration 
   
+subroutine par_fe_space_fill_num_global_dofs_x_block ( this ) 
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(environment_t), pointer :: environment 
+  integer(ip) :: i 
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    do i=1, this%block_layout%get_num_blocks()
+      this%num_global_dofs_x_block(i)=this%get_block_num_owned_dofs(i)
+      call environment%l1_sum(this%num_global_dofs_x_block(i))
+    end do 
+  end if 
+end subroutine par_fe_space_fill_num_global_dofs_x_block 
+ 
+ 
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
