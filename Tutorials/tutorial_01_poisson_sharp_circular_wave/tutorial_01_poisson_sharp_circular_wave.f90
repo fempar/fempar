@@ -62,8 +62,8 @@ program tutorial_01_poisson_sharp_circular_wave
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                     :: discrete_solution
   !* poisson_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
-  type(poisson_cg_discrete_integration_t), target :: poisson_cg_discrete_integration
-  type(poisson_dg_discrete_integration_t), target :: poisson_dg_discrete_integration
+  type(cg_discrete_integration_t), target :: cg_discrete_integration
+  type(dg_discrete_integration_t), target :: dg_discrete_integration
   !* direct_solver_t provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK)
   type(direct_solver_t)                   :: direct_solver
   !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView
@@ -227,42 +227,45 @@ contains
   
   subroutine setup_strong_boundary_conditions()
     integer(ip) :: i, boundary_ids
-    boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
-    call strong_boundary_conditions%create()
-    do i = 1, boundary_ids
-      call strong_boundary_conditions%insert_boundary_condition(boundary_id=i, &
-                                                                field_id=1, &
-                                                                cond_type=component_1, &
-                                                                boundary_function=exact_solution)
-    end do
+    if ( fe_formulation == "CG" ) then
+      boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
+      call strong_boundary_conditions%create()
+      do i = 1, boundary_ids
+        call strong_boundary_conditions%insert_boundary_condition(boundary_id=i, &
+                                                                  field_id=1, &
+                                                                  cond_type=component_1, &
+                                                                  boundary_function=exact_solution)
+      end do
+    end if 
   end subroutine setup_strong_boundary_conditions
   
   subroutine setup_fe_space()
-    type(string) :: fes_ref_fe_types(1)
-    type(string) :: fes_field_types(1)
-    call parameter_handler%update(fes_num_fields_key, value = 1 )
+    type(string) :: fes_field_types(1), fes_ref_fe_types(1)
+    call parameter_handler%update(fes_num_fields_key, 1 )
+    call parameter_handler%update(fes_same_ref_fes_all_cells_key, .true.)
+    call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
+    fes_field_types(1) = String(field_type_scalar); 
+    call parameter_handler%update(fes_field_types_key,fes_field_types)  
     fes_ref_fe_types(1) = String(fe_type_lagrangian)
-    call parameter_handler%update(fes_ref_fe_types_key, value = fes_ref_fe_types )
-    fes_field_types(1) = String(field_type_scalar)
-    call parameter_handler%update(fes_field_types_key, value = fes_field_types )
-    if ( fe_formulation == "CG" ) then
-       call parameter_handler%update(fes_ref_fe_conformities_key, value = [.true.] )
-       call parameter_handler%update(fes_ref_fe_continuities_key, value = [.true.] )
-    else if ( fe_formulation == "DG" ) then
-       call parameter_handler%update(fes_ref_fe_conformities_key, value = [.false.] )
-       call parameter_handler%update(fes_ref_fe_continuities_key, value = [.true.] )
-    end if
+    call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
     !* Next, we build the global FE space. It only requires to know:
     !*   The triangulation
     !*   The Dirichlet data
     !*   The reference FE to be used (extracted from parameter_handler).
-    call fe_space%create( triangulation            = triangulation, &
-                          conditions               = strong_boundary_conditions, &
-                          parameters               = parameter_handler%get_values() )
+    if ( fe_formulation == "CG" ) then
+       call parameter_handler%update(fes_ref_fe_conformities_key, [.true.] )
+       call fe_space%create( triangulation  = triangulation, &
+                             conditions     = strong_boundary_conditions, &
+                             parameters     = parameter_handler%get_values())
+    else if ( fe_formulation == "DG" ) then
+       call parameter_handler%update(fes_ref_fe_conformities_key, [.false.] )
+       call fe_space%create( triangulation  = triangulation, &
+                             parameters     = parameter_handler%get_values())
+    end if
     ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
     call fe_space%set_up_cell_integration()
     if ( fe_formulation == "DG" ) then
-       call fe_space%set_up_facet_integration()
+      call fe_space%set_up_facet_integration()
     end if
   end subroutine setup_fe_space
   
@@ -281,30 +284,26 @@ contains
     !* be used to fill it, e.g., the bilinear form related that represents the weak form of the Poisson problem and the right hand
     !* side.  
     if ( fe_formulation == "CG" ) then
-       call poisson_cg_discrete_integration%set_source_term(source_term)
-       call poisson_cg_discrete_integration%set_boundary_function(discrete_solution)
-       discrete_integration => poisson_cg_discrete_integration
+       call cg_discrete_integration%set_source_term(source_term)
+       call cg_discrete_integration%set_boundary_function(discrete_solution)
+       discrete_integration => cg_discrete_integration
     else if ( fe_formulation == "DG" ) then 
-       call poisson_dg_discrete_integration%set_source_term(source_term)
-       call poisson_dg_discrete_integration%set_boundary_function(exact_solution) 
-       discrete_integration => poisson_dg_discrete_integration
+       call dg_discrete_integration%set_source_term(source_term)
+       call dg_discrete_integration%set_boundary_function(exact_solution) 
+       discrete_integration => dg_discrete_integration
     end if
     call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                       diagonal_blocks_symmetric_storage = [ .true. ], &
-                                       diagonal_blocks_symmetric         = [ .true. ], &
-                                       diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                       fe_space                          = fe_space, &
-                                       discrete_integration              = discrete_integration )
+                                     diagonal_blocks_symmetric_storage = [ .true. ], &
+                                     diagonal_blocks_symmetric         = [ .true. ], &
+                                     diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                     fe_space                          = fe_space, &
+                                     discrete_integration              = discrete_integration )
     !* Now, we can compute the entries of the affine operator Ax-b by assembling the discrete weak form of the Poisson problem
     call fe_affine_operator%compute()
   end subroutine setup_and_assemble_fe_affine_operator
   
   subroutine solve_system()
     class(vector_t), pointer :: dof_values
-    !* Force direct solver type to PARDISO
-    call parameter_handler%update(key = dls_type_key, value = pardiso_mkl)
-    !* Force matrix type parameter of PARDISO to Symmetric Positive Definite (SPD)
-    call parameter_handler%update(key = pardiso_mkl_matrix_type, value = pardiso_mkl_spd)
     !* Direct solver setup
     call direct_solver%set_type_from_pl(parameter_handler%get_values())
     call direct_solver%set_parameters_from_pl(parameter_handler%get_values())

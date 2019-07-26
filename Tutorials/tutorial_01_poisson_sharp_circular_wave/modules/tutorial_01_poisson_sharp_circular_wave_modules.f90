@@ -43,22 +43,22 @@ module tutorial_01_discrete_integration_names
   end type 
   
   
-  type, extends(base_discrete_integration_t) :: poisson_cg_discrete_integration_t
+  type, extends(base_discrete_integration_t) :: cg_discrete_integration_t
      type(fe_function_t),      pointer :: discrete_boundary_function => NULL()
    contains
-     procedure :: integrate_galerkin     => poisson_cg_discrete_integration_integrate_galerkin
-     procedure :: set_boundary_function  => poisson_cg_discrete_integration_set_boundary_function
-  end type poisson_cg_discrete_integration_t
+     procedure :: integrate_galerkin     => cg_discrete_integration_integrate_galerkin
+     procedure :: set_boundary_function  => cg_discrete_integration_set_boundary_function
+  end type cg_discrete_integration_t
   
-  type, extends(base_discrete_integration_t) :: poisson_dg_discrete_integration_t
+  type, extends(base_discrete_integration_t) :: dg_discrete_integration_t
      class(scalar_function_t), pointer :: boundary_function => NULL()
    contains
-     procedure :: integrate_galerkin    => poisson_dg_discrete_integration_integrate_galerkin
-     procedure :: set_boundary_function => poisson_dg_discrete_integration_set_boundary_function
-  end type poisson_dg_discrete_integration_t
+     procedure :: integrate_galerkin    => dg_discrete_integration_integrate_galerkin
+     procedure :: set_boundary_function => dg_discrete_integration_set_boundary_function
+  end type dg_discrete_integration_t
   
-  public :: poisson_cg_discrete_integration_t
-  public :: poisson_dg_discrete_integration_t
+  public :: cg_discrete_integration_t
+  public :: dg_discrete_integration_t
   
 contains
   subroutine base_discrete_integration_set_source_term ( this, source_term )
@@ -68,9 +68,9 @@ contains
      this%source_term => source_term
   end subroutine base_discrete_integration_set_source_term
 
-  subroutine poisson_cg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
+  subroutine cg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
     implicit none
-    class(poisson_cg_discrete_integration_t), intent(in)    :: this
+    class(cg_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                , intent(inout) :: fe_space
     class(assembler_t)                      , intent(inout) :: assembler
 
@@ -136,18 +136,18 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine poisson_cg_discrete_integration_integrate_galerkin
+  end subroutine cg_discrete_integration_integrate_galerkin
   
-  subroutine poisson_cg_discrete_integration_set_boundary_function(this, discrete_boundary_function)
+  subroutine cg_discrete_integration_set_boundary_function(this, discrete_boundary_function)
      implicit none
-     class(poisson_cg_discrete_integration_t), intent(inout) :: this
+     class(cg_discrete_integration_t), intent(inout) :: this
      type(fe_function_t)             , target, intent(in)    :: discrete_boundary_function
      this%discrete_boundary_function => discrete_boundary_function
-  end subroutine poisson_cg_discrete_integration_set_boundary_function
+  end subroutine cg_discrete_integration_set_boundary_function
   
-  subroutine poisson_dg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
+  subroutine dg_discrete_integration_integrate_galerkin ( this, fe_space, assembler )
     implicit none
-    class(poisson_dg_discrete_integration_t), intent(in)    :: this
+    class(dg_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                , intent(inout) :: fe_space
     class(assembler_t)                      , intent(inout) :: assembler
 
@@ -323,14 +323,14 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
-  end subroutine poisson_dg_discrete_integration_integrate_galerkin
+  end subroutine dg_discrete_integration_integrate_galerkin
   
-  subroutine poisson_dg_discrete_integration_set_boundary_function ( this, boundary_function )
+  subroutine dg_discrete_integration_set_boundary_function ( this, boundary_function )
      implicit none
-     class(poisson_dg_discrete_integration_t)  , intent(inout) :: this
+     class(dg_discrete_integration_t)  , intent(inout) :: this
      class(scalar_function_t),           target, intent(in)    :: boundary_function
      this%boundary_function => boundary_function
-  end subroutine poisson_dg_discrete_integration_set_boundary_function
+  end subroutine dg_discrete_integration_set_boundary_function
   
   
 end module tutorial_01_discrete_integration_names
@@ -681,4 +681,3 @@ contains
   end function poisson_error_estimator_get_error_norm_exponent
 
 end module tutorial_01_error_estimator_names
-
