@@ -642,7 +642,6 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
   real(rp)                          , intent(in)    :: vertices_coordinates(:,:)
   type(bst_cell_iterator_t) :: cell
   type(bst_vef_iterator_t)  :: vef
-  type(line_t), pointer     :: line
   type(list_t), pointer     :: vertices_of_vefs
   integer(ip)   :: istat, inode, l_node, order
   integer(ip)   :: vertex1, vertex2, ivef_pos_in_cell, ivef 
@@ -691,7 +690,6 @@ subroutine fine_triangulation_free ( this )
   if (allocated(this%dir_path)) deallocate(this%dir_path)
   if (allocated(this%prefix)) deallocate(this%prefix)
   this%geometric_interpolation_order = 0
-  call this%geometry%free()
   call this%base_static_triangulation_t%free() 
 end subroutine fine_triangulation_free
 

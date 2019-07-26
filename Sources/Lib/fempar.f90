@@ -67,7 +67,6 @@ module fempar_names
 
   use cell_import_names
   use mesh_names
-  use geometry_names
   use uniform_hex_mesh_generator_names
   use uniform_hex_mesh_generator_parameters_names
 
