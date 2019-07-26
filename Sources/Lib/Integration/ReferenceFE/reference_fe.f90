@@ -1159,8 +1159,6 @@ contains
   procedure (fill_interp_restricted_to_facet_interface) , private, deferred :: fill_interp_restricted_to_facet
   procedure (fill_interp_restricted_to_edget_interface) , private, deferred :: fill_interp_restricted_to_edget
   procedure (compute_num_quadrature_points_interface), private, deferred :: compute_num_quadrature_points
-  ! Blending function to generate interpolations in the interior (given values on the boundary)
-  procedure(blending_interface), deferred :: blending
 
   procedure :: create                    => lagrangian_reference_fe_create
   procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
@@ -1319,12 +1317,6 @@ abstract interface
     integer(ip) :: compute_num_quadrature_points_interface
   end function compute_num_quadrature_points_interface
 
-  subroutine blending_interface( this,values)
-    import :: lagrangian_reference_fe_t, point_t
-    implicit none
-    class(lagrangian_reference_fe_t), intent(in)    :: this 
-    type(point_t)                   , intent(inout) :: values(:)     
-  end subroutine blending_interface
 end interface
 
 public :: lagrangian_reference_fe_t, p_lagrangian_reference_fe_t 
@@ -1338,7 +1330,6 @@ contains
 procedure :: create                           => raviart_thomas_create
 procedure :: free                             => raviart_thomas_free
 procedure :: create_facet_interpolation  => raviart_thomas_create_facet_interpolation
-procedure :: blending                         => raviart_thomas_blending
 procedure :: create_data_out_quadrature       => raviart_thomas_create_data_out_quadrature
 procedure :: get_num_subcells              => raviart_thomas_get_num_subcells
 procedure :: get_subcells_connectivity        => raviart_thomas_get_subcells_connectivity
@@ -1395,7 +1386,6 @@ contains
 
 procedure :: create                          => nedelec_create
 procedure :: free                            => nedelec_free
-procedure :: blending                        => nedelec_blending
 procedure :: create_data_out_quadrature      => nedelec_create_data_out_quadrature
 procedure :: get_num_subcells             => nedelec_get_num_subcells
 procedure :: get_subcells_connectivity       => nedelec_get_subcells_connectivity
@@ -1474,8 +1464,6 @@ contains
              &  => tet_lagrangian_reference_fe_get_num_subcells
    procedure :: get_subcells_connectivity                                               &
              &  => tet_lagrangian_reference_fe_get_subcells_connectivity
-   procedure :: blending                                                                &
-             &  => tet_lagrangian_reference_fe_blending 
    procedure :: generate_own_dofs_cell_permutations                                               &
              &  => tet_lagrangian_reference_fe_generate_own_dofs_cell_permutations
    procedure :: fill_qpoints_permutations                                               &
@@ -1590,8 +1578,6 @@ procedure :: get_num_subcells                                         &
 &   => hex_lagrangian_reference_fe_get_num_subcells
 procedure :: get_subcells_connectivity                                   &
 &   => hex_lagrangian_reference_fe_get_subcells_connectivity
-procedure :: blending                                                    &
-&   => hex_lagrangian_reference_fe_blending           
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 procedure          :: create_data_out_quadrature                         & 
     => hex_lagrangian_create_data_out_quadrature

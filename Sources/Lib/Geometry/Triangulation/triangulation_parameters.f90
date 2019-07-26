@@ -55,8 +55,6 @@ module triangulation_parameters_names
   character(len=*), parameter :: static_triang_generate_from_struct_hex_mesh_generator = "STRUCT_HEX_MESH_GENERATOR"
   
   character(len=*), parameter :: static_triang_generate_from_key                      = 'STATIC_TRIANG_GENERATE_FROM'
-  character(len=*), parameter :: static_triang_geometric_interpolation_order_key      = 'STATIC_TRIANG_GEOMETRIC_INTERPOLATION_ORDER'
-  character(len=*), parameter :: static_triang_geometric_interpolation_order_cla_name = '--'//static_triang_geometric_interpolation_order_key
   character(len=*), parameter :: static_triang_generate_cla_name                      = '--'//static_triang_generate_from_key
   character(len=*), parameter :: static_triang_generate_cla_choices                   = static_triang_generate_from_mesh_data_files // ',' // &
                                                                                         static_triang_generate_from_struct_hex_mesh_generator
@@ -67,8 +65,6 @@ module triangulation_parameters_names
                                      BULLET_FLAP_HELP_MESSAGE // static_triang_generate_from_struct_hex_mesh_generator // ": Static triangulation is directly generated in" // & 
                                                                  " memory by means of a uniform/structured hexaedral mesh generator"
 
-  character(len=*), parameter :: static_triang_geometric_interpolation_order_cla_help = 'Interpolation order static triangulation geometrical mapping' // BRK_LINE // &
-                                                                                        '(only partial/unstable support for order>1)'
                                                                                
   character(len=*), parameter :: triang_identify_disconn_components_key = 'TRIANG_IDENTIFY_DISCONNECTED_COMPONENTS'
   character(len=*), parameter :: triang_identify_disconn_components_cla_name = '--'// triang_identify_disconn_components_key
@@ -89,6 +85,5 @@ module triangulation_parameters_names
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 
   integer(ip), parameter :: do_nothing = 0   
-  integer(ip), parameter :: default_static_triang_geometric_interpolation_order = 1
   
 end module triangulation_parameters_names

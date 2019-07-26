@@ -25,7 +25,7 @@ variables:
     - git submodule update --init --recursive
     - mkdir -p $FEMPAR_DIR $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
-    - for library in FPL F3PHT FLAP VTKIO SISL XH5For FortranParser;
+    - for library in FPL F3PHT FLAP VTKIO XH5For FortranParser;
       do
         mkdir -p $THIRDPARTY_DIR/$library;
         cd $THIRDPARTY_DIR/$library;
