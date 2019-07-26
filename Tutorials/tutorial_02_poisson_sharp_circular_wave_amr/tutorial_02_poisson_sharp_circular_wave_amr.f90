@@ -382,7 +382,7 @@ contains
     write(*,'(a30,i24)') repeat(' ', 4) // 'NUM_CELLS:' // repeat(' ', 80), triangulation%get_num_cells()
     write(*,'(a30,i24)') repeat(' ', 4) // 'NUM_DOFS:' // repeat(' ', 80), fe_space%get_total_num_dofs()
     write(*,'(a30,e24.10)') repeat(' ', 4) // 'GLOBAL ERROR ENERGY NORM:'// repeat(' ', 80), global_error_energy_norm
-    if (current_amr_step == num_amr_steps-1) then
+    if (current_amr_step == num_amr_steps) then
       write(*,'(a54)')  repeat('=', 54)
     end if
   end subroutine compute_error
