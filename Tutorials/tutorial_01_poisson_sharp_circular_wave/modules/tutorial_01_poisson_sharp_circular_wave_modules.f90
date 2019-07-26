@@ -100,35 +100,33 @@ contains
     quad  => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
     do while ( .not. fe%has_finished() )
-       if ( fe%is_local() ) then
-          ! Update FE-integration related data structures
-          call fe%update_integration()
-          
-          ! Get quadrature coordinates to evaluate source_term
-          quad_coords => fe%get_quadrature_points_coordinates()
-                    
-          ! Compute element matrix and vector
-          elmat = 0.0_rp
-          elvec = 0.0_rp
-          call fe%get_gradients(shape_gradients)
-          call fe%get_values(shape_values)
-          do qpoint = 1, num_quad_points
-             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-             do idof = 1, num_dofs
-                do jdof = 1, num_dofs
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
-                end do
-             end do
-             
-             ! Source term
-             call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
-             do idof = 1, num_dofs
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
+       ! Update FE-integration related data structures
+       call fe%update_integration()
+       
+       ! Get quadrature coordinates to evaluate source_term
+       quad_coords => fe%get_quadrature_points_coordinates()
+       
+       ! Compute element matrix and vector
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+       call fe%get_gradients(shape_gradients)
+       call fe%get_values(shape_values)
+       do qpoint = 1, num_quad_points
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof = 1, num_dofs
+             do jdof = 1, num_dofs
+                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
              end do
           end do
-          call fe%assembly( this%discrete_boundary_function, elmat, elvec, assembler )
-       end if
+          
+          ! Source term
+          call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+          do idof = 1, num_dofs
+             elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
+          end do
+       end do
+       call fe%assembly( this%discrete_boundary_function, elmat, elvec, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
@@ -196,39 +194,37 @@ contains
     quad  => fe%get_quadrature()
     num_quad_points =  quad%get_num_quadrature_points()
     do while ( .not. fe%has_finished())
-       if ( fe%is_local() ) then
-         ! Update FE-integration related data structures
-         call fe%update_integration()
+       ! Update FE-integration related data structures
+       call fe%update_integration()
          
-         ! Get quadrature coordinates to evaluate source_term
-         quad_coords => fe%get_quadrature_points_coordinates()
-
-         ! Compute element matrix and vector
-         elmat = 0.0_rp
-         elvec = 0.0_rp
-         call fe%get_gradients(shape_gradients_first)
-         call fe%get_values(shape_values_first)
-         do qpoint = 1, num_quad_points
-            factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-            do idof = 1, num_dofs
-               do jdof = 1, num_dofs
-                  ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                  elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients_first(jdof,qpoint) * shape_gradients_first(idof,qpoint)
-               end do
-            end do
-            
-            ! Source term
-            call this%source_term%get_value(quad_coords(qpoint),source_term_value)
-            do idof = 1, num_dofs
-               elvec(idof) = elvec(idof) + factor * source_term_value * shape_values_first(idof,qpoint)
-            end do  
-         end do
-         call fe%assembly( elmat, elvec, assembler )
-       end if   
+       ! Get quadrature coordinates to evaluate source_term
+       quad_coords => fe%get_quadrature_points_coordinates()
+       
+       ! Compute element matrix and vector
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+       call fe%get_gradients(shape_gradients_first)
+       call fe%get_values(shape_values_first)
+       do qpoint = 1, num_quad_points
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof = 1, num_dofs
+             do jdof = 1, num_dofs
+                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients_first(jdof,qpoint) * shape_gradients_first(idof,qpoint)
+             end do
+          end do
+          
+          ! Source term
+          call this%source_term%get_value(quad_coords(qpoint),source_term_value)
+          do idof = 1, num_dofs
+             elvec(idof) = elvec(idof) + factor * source_term_value * shape_values_first(idof,qpoint)
+          end do
+       end do
+       call fe%assembly( elmat, elvec, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
-        
+    
     call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
     call memalloc ( num_dofs,                  2, facevec, __FILE__, __LINE__ )
     
