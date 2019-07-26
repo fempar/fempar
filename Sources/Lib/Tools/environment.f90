@@ -254,17 +254,19 @@ contains
     call memalloc(array_size(1), this%num_tasks_x_level,__FILE__,__LINE__)
     istat = parameters%get(key = environment_num_tasks_x_level_key, value = this%num_tasks_x_level); check(istat==0)
     
-    error_message = 'At present, only a single task & 
-                   supported for the last level provided to ' // & 
-                   environment_num_tasks_x_level_key
-    massert ( this%num_tasks_x_level(this%num_levels) == 1,  error_message)   
-    
     error_message = 'The sum of all tasks provided to ' // & 
                    environment_num_tasks_x_level_key // & 
                    ' (' // ch(sum(this%num_tasks_x_level)) // ') ' // & 
                    'must match the total number of tasks that ENVIRONMENT is handling' // & 
                    ' (' // ch(world_context%get_num_tasks()) // ') '
     massert ( world_context%get_num_tasks() == sum(this%num_tasks_x_level), error_message)
+
+    if ( this%num_levels > 1 ) then
+      error_message = 'At present, only a single task & 
+                      supported for the last level provided to ' // & 
+                      environment_num_tasks_x_level_key
+      massert ( this%num_tasks_x_level(this%num_levels) == 1,  error_message)
+    end if
   end subroutine environment_process_parameters
   
   !=============================================================================
