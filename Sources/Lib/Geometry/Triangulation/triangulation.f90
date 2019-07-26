@@ -49,9 +49,6 @@ module triangulation_names
   use FPL
   use uniform_hex_mesh_generator_names
   use uniform_hex_mesh_generator_parameters_names
-  
-  ! Geometry modules
-  use sisl_names
 
   ! Triangulation Parameters
   use triangulation_parameters_names

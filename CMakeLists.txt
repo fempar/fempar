@@ -252,7 +252,7 @@ ENDIF()
 #################################################################
 
 UNSET(${PROJECT_NAME}_EXTERNAL_PROJECTS CACHE)
-SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO SISL XH5For FortranParser) # List of Fempar external projects
+SET(EXTERNAL_PROJECTS FPL F3PHT FLAP VTKIO XH5For FortranParser) # List of Fempar external projects
 
 # Enable HDF5 by default
 IF(NOT DEFINED ${PROJECT_NAME}_ENABLE_HDF5 OR "${${PROJECT_NAME}_ENABLE_HDF5}" STREQUAL "")

@@ -1,7 +1,3 @@
-[submodule "ThirdParty/SISL"]
-	path = ThirdParty/SISL
-	url = https://gitlab.com/fempar/SISL.git
-	branch = master
 [submodule "ThirdParty/FPL"]
 	path = ThirdParty/FPL
 	url = https://gitlab.com/fempar/FPL.git
