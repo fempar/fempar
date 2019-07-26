@@ -743,8 +743,8 @@ contains
       endif
       ! Stopping criterias
       if(parameter_list%isPresent(ils_stopping_criterium_key)) then
-          assert(parameter_list%isAssignable(ils_stopping_criterium_key, this%stopping_criteria))
-          FPLError   = parameter_list%Get(Key=ils_stopping_criterium_key, Value=this%stopping_criteria)
+          assert(parameter_list%isAssignable(ils_stopping_criterium_key, "string"))
+          FPLError   = parameter_list%GetAsString(Key=ils_stopping_criterium_key, String=this%stopping_criteria)
           assert(FPLError == 0)
       endif
       ! Output frequency
