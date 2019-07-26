@@ -720,15 +720,6 @@ subroutine nedelec_evaluate_fe_function_tensor( this,                      &
 
 end subroutine nedelec_evaluate_fe_function_tensor
 
-! ===========================================================================================================
-subroutine nedelec_blending(this,values)
-  implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this
-  type(point_t)                , intent(inout) :: values(:)
-  write(0,*) 'Nedelec Reference FE cannot be used for geometry blending'
-  check(.false.)
-end subroutine nedelec_blending
-
 subroutine nedelec_create_data_out_quadrature ( this, num_refinements, quadrature )
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this

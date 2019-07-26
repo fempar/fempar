@@ -87,14 +87,6 @@ subroutine tet_raviart_thomas_get_subelements_connectivity ( this, connectivity 
 
 end subroutine tet_raviart_thomas_get_subelements_connectivity
 
-!==================================================================================================
-subroutine tet_raviart_thomas_blending(this,values)
-  implicit none
-  class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
-  type(point_t)                       , intent(inout) :: values(:)
-  check(.false.)
-end subroutine tet_raviart_thomas_blending
-
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
