@@ -884,34 +884,3 @@ subroutine hex_lagrangian_free_projection_operator(this)
        call memfree ( this%coarsening_projection_operator, __FILE__, __LINE__ ) 
 end subroutine hex_lagrangian_free_projection_operator
 
-!**************************************************************************************************
-! Support functions
-!**************************************************************************************************
-
-! Subroutine to deal with high order parametrizations of the boundary
-! Only implemented in 2D
-!==================================================================================================
-subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
-  implicit none
-  real(rp), intent(in)  :: r,s
-  type(point_t), intent(in)  :: x1,x2,x3,x4,x5,x6,x7,x8
-  type(point_t), intent(out) :: x
-
-  !     3---6---------4
-  !     |   .         |
-  !     |   .         |
-  !     |   .         |
-  !     7...x........ 8
-  !     |   .         |
-  !     1---5---------2
-
-  x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
-       & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
-       & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
-       & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
-       & + ( 0.5_rp * (1-s)) * x5 &
-       & + ( 0.5_rp * (1+s)) * x6 &
-       & + ( 0.5_rp * (1-r)) * x7 &
-       & + ( 0.5_rp * (1+r)) * x8
-
-end subroutine blend_2D
