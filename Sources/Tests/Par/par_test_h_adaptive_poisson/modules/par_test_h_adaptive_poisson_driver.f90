@@ -755,14 +755,12 @@ end subroutine free_timers
     call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
     call this%fe_space%refine_and_coarsen(this%solution)
-    call this%fe_space%set_up_cell_integration()
     
     call this%check_solution()
     
     call this%set_cells_weights()
     call this%triangulation%redistribute()
     call this%fe_space%redistribute(this%solution)
-    call this%fe_space%set_up_cell_integration()
     
     call this%check_solution()
     

@@ -272,7 +272,6 @@ contains
       call this%fe_space%refine_and_coarsen( this%solution )
       call this%triangulation%redistribute()
       call this%fe_space%redistribute( this%solution )
-      call this%fe_space%set_up_cell_integration()
       call this%fe_space%interpolate_dirichlet_values(this%solution)
       call this%fe_affine_operator%reallocate_after_remesh()
       call this%assemble_system()

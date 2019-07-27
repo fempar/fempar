@@ -4836,6 +4836,12 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
      else
         call this%update_after_redistribute()
      end if
+     if ( this%cell_integration_is_set_up ) then
+       call this%set_up_cell_integration()
+     end if 
+     if ( this%facet_integration_is_set_up ) then
+       call this%set_up_facet_integration()
+     end if
   end if
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then
@@ -4874,6 +4880,12 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
       end do
       deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
       call old_lst_dofs_gids%free()
+      if ( this%cell_integration_is_set_up ) then
+       call this%set_up_cell_integration()
+      end if 
+      if ( this%facet_integration_is_set_up ) then
+       call this%set_up_facet_integration()
+      end if
   end if
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then

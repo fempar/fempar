@@ -595,8 +595,6 @@ end subroutine free_timers
     type(error_norms_vector_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, hc, hc_s, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: tol 
-
-    call this%fe_space%set_up_cell_integration() 
     
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
@@ -816,9 +814,6 @@ end subroutine check_solution
       call this%timer_fe_space%start()
       call this%fe_space%redistribute(this%solution)
       call this%timer_fe_space%stop()
-            
-      ! If not called BUG 
-      call this%fe_space%set_up_cell_integration()
       
       ! Re-assemble system
       call this%timer_assemply%start()  

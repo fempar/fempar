@@ -4320,6 +4320,12 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
      else
         call this%update_after_refine_coarsen()
      end if
+     if ( this%cell_integration_is_set_up ) then
+       call this%set_up_cell_integration()
+     end if 
+     if ( this%facet_integration_is_set_up ) then
+       call this%set_up_facet_integration()
+     end if
   end if
 #else  
   call this%not_enabled_error()
@@ -4357,6 +4363,12 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
      end do
      deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
      call old_lst_dofs_gids%free()  
+     if ( this%cell_integration_is_set_up ) then
+       call this%set_up_cell_integration()
+     end if 
+     if ( this%facet_integration_is_set_up ) then
+       call this%set_up_facet_integration()
+     end if
   end if
 #else  
   call this%not_enabled_error()
