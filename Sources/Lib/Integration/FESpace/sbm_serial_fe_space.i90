@@ -316,7 +316,10 @@ subroutine serial_fe_space_free (this)
   this%num_total_free_dofs  = 0
   this%num_total_free_ghost_dofs = 0
   this%num_fixed_dofs = 0
-  if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
+  if (allocated(this%num_dofs_x_field)) & 
+     call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
+  if (allocated(this%num_global_dofs_x_block)) & 
+     call memfree( this%num_global_dofs_x_block, __FILE__, __LINE__ )
   call this%free_gen_dof_num_scratch_data()
   call this%free_fe_integration()
   call this%free_facet_integration()
@@ -2420,13 +2423,13 @@ end subroutine serial_fe_space_create_dof_values
 subroutine serial_fe_space_generate_global_dof_numbering( this )
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
-  logical :: perform_numbering
-  
   call this%allocate_num_dofs_x_field()
+  call this%allocate_num_global_dofs_x_block()
   if ( this%num_fields > 1 ) then 
     call this%count_dofs()
   end if  
   call this%list_dofs()
+  call this%fill_num_global_dofs_x_block()
   call this%setup_hanging_node_constraints()
 end subroutine serial_fe_space_generate_global_dof_numbering
 
@@ -2918,8 +2921,6 @@ end subroutine generate_dofs_on_proper_vefs_of_coarse_cell
   
 end subroutine serial_fe_space_list_dofs 
 
-
-
 subroutine serial_fe_space_allocate_num_dofs_x_field( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
@@ -2927,6 +2928,27 @@ subroutine serial_fe_space_allocate_num_dofs_x_field( this )
      call memalloc( this%get_num_fields(), this%num_dofs_x_field, __FILE__, __LINE__ )
   assert ( size(this%num_dofs_x_field) == this%get_num_fields() )
 end subroutine serial_fe_space_allocate_num_dofs_x_field
+
+subroutine serial_fe_space_allocate_num_global_dofs_x_block( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if ( .not. allocated(this%num_global_dofs_x_block) ) & 
+     call memalloc( this%block_layout%get_num_blocks(), this%num_global_dofs_x_block, __FILE__, __LINE__ )
+  assert ( size(this%num_global_dofs_x_block) == this%block_layout%get_num_blocks() )
+end subroutine serial_fe_space_allocate_num_global_dofs_x_block
+
+subroutine serial_fe_space_fill_num_global_dofs_x_block ( this ) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip) :: i
+  assert ( allocated(this%num_global_dofs_x_block) )
+  assert ( size(this%num_global_dofs_x_block) == this%block_layout%get_num_blocks() )
+  this%num_global_dofs_x_block(:) = 0
+  do i = 1, this%num_fields
+     this%num_global_dofs_x_block(this%block_layout%get_block_id(i)) = this%num_global_dofs_x_block(this%block_layout%get_block_id(i)) + &
+                   this%num_dofs_x_field(i) 
+  end do
+end subroutine serial_fe_space_fill_num_global_dofs_x_block 
 
 subroutine serial_fe_space_renum_dofs_block (this, block_id, perm_old2new)
   implicit none
