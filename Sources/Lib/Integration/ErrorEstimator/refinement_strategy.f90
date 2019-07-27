@@ -365,20 +365,19 @@ contains
     logical :: ref_converged
     logical :: coarsening_converged
     logical :: cell_mask_present
-
     assert ( associated(this%error_estimator) )
     
     fe_space      => this%error_estimator%get_fe_space()
     environment   => triangulation%get_environment()
     
-    cell_mask_present = .false.
-    if ( present(cell_mask) ) then 
-      assert ( size(cell_mask) == triangulation%get_num_local_cells() )
-      cell_mask_present = .true.
-    end if
-    
     if ( environment%am_i_l1_task() ) then
+      cell_mask_present = .false.
+      if ( present(cell_mask) ) then 
+        assert ( size(cell_mask) == triangulation%get_num_local_cells() )
+        cell_mask_present = .true.
+      end if
       sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
+      assert ( size(sq_local_estimate_entries) == triangulation%get_num_local_cells() ) 
       if ( cell_mask_present ) then 
        num_local_cells  = count(cell_mask)
        num_global_cells = num_local_cells
