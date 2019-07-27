@@ -293,13 +293,13 @@ contains
         call fe_space%create( triangulation  = triangulation, &
                               parameters     = parameter_handler%get_values())
       end if
+      ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
+      call fe_space%set_up_cell_integration()
+      if ( fe_formulation == "DG" ) then
+        call fe_space%set_up_facet_integration()
+      end if
     else
       call fe_space%refine_and_coarsen()
-    end if 
-    ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
-    call fe_space%set_up_cell_integration()
-    if ( fe_formulation == "DG" ) then
-      call fe_space%set_up_facet_integration()
     end if
   end subroutine setup_fe_space
   

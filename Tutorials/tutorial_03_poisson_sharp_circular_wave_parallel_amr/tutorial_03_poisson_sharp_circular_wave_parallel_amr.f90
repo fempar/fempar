@@ -279,16 +279,15 @@ contains
        call fe_space%create( triangulation  = triangulation, &
                              conditions     = strong_boundary_conditions, &
                              parameters     = parameter_handler%get_values())
+       call fe_space%set_up_cell_integration()
     else
        call fe_space%refine_and_coarsen()
     end if
-    call fe_space%set_up_cell_integration()
  end subroutine setup_fe_space
  
  subroutine redistribute_triangulation_and_fe_space()
    call triangulation%redistribute()
    call fe_space%redistribute()
-   call fe_space%set_up_cell_integration()
    if ( write_postprocess_data ) then
      ! Re-adjust the size and contents of my_rank_cell_array to reflect the current status of the triangulation
      call setup_my_rank_cell_array()
