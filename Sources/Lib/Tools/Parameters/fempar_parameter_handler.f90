@@ -1166,20 +1166,20 @@ contains
       implicit none
       class(fempar_parameter_handler_t), intent(inout) :: this
 
-      call this%add(coarse_space_use_vertices_key, &
-           coarse_space_use_vertices_cla_name, &
-           default_coarse_space_use_vertices, &
-           coarse_space_use_vertices_cla_help)
+      call this%add(coarse_fe_handler_use_vertices_key, &
+           coarse_fe_handler_use_vertices_cla_name, &
+           default_coarse_fe_handler_use_vertices, &
+           coarse_fe_handler_use_vertices_cla_help)
 
-      call this%add(coarse_space_use_edges_key, &
-           coarse_space_use_edges_cla_name, &
-           default_coarse_space_use_edges, &
-           coarse_space_use_edges_cla_help)
+      call this%add(coarse_fe_handler_use_edges_key, &
+           coarse_fe_handler_use_edges_cla_name, &
+           default_coarse_fe_handler_use_edges, &
+           coarse_fe_handler_use_edges_cla_help)
 
-      call this%add(coarse_space_use_faces_key, &
-           coarse_space_use_faces_cla_name, &
-           default_coarse_space_use_faces, &
-           coarse_space_use_faces_cla_help)
+      call this%add(coarse_fe_handler_use_faces_key, &
+           coarse_fe_handler_use_faces_cla_name, &
+           default_coarse_fe_handler_use_faces, &
+           coarse_fe_handler_use_faces_cla_help)
 
       ! H-curl COARSE FE HANDLER BDDC
       call this%add(bddc_scaling_function_case_key, &

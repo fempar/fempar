@@ -194,9 +194,9 @@ contains
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
-    istat = this%parameter_list%set(key = coarse_space_use_vertices_key, value = .true.) ; check(istat==0)
-    istat = this%parameter_list%set(key = coarse_space_use_edges_key, value = .true.) ; check(istat==0)
-    istat = this%parameter_list%set(key = coarse_space_use_faces_key, value = .true.) ; check(istat==0)
+    istat = this%parameter_list%set(key = coarse_fe_handler_use_vertices_key, value = .true.) ; check(istat==0)
+    istat = this%parameter_list%set(key = coarse_fe_handler_use_edges_key, value = .true.) ; check(istat==0)
+    istat = this%parameter_list%set(key = coarse_fe_handler_use_faces_key, value = .true.) ; check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
     call this%coarse_fe_handler%create(this%parameter_list)
   end subroutine setup_coarse_fe_handlers
