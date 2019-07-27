@@ -69,10 +69,8 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   type(cg_discrete_integration_t)             :: cg_discrete_integration
   !* iterative_linear_solver_t provides native implementations of a bunch of preconditioner Krylov subspace iterative solvers
   type(iterative_linear_solver_t)             :: iterative_linear_solver
-  
-  
-  type(mlbddc_t)                                            :: mlbddc
-  
+  type(parameterlist_t)                       :: mlbddc_parameters
+  type(mlbddc_t)                              :: mlbddc
   !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView.
   type(output_handler_t)                      :: output_handler
   !* The following object is used to compute the (square) of the error energy norm for all cells, i.e., ||u-u_h||_E,K.
@@ -105,6 +103,7 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   call setup_fe_space()
   call setup_discrete_solution()
   call setup_and_assemble_fe_affine_operator()
+  call setup_preconditioner()
   call solve_system()  
   call compute_error()
   call setup_refinement_strategy()
@@ -346,6 +345,10 @@ contains
   end subroutine setup_coarse_fe_handler
   
   subroutine setup_preconditioner()
+    call setup_mlbddc_parameters_from_reference_parameters(environment, &
+                                                           parameter_handler%get_values(), &
+                                                           mlbddc_parameters)
+    call mlbddc%create( fe_affine_operator, mlbddc_parameters )
   end subroutine setup_preconditioner
  
  
@@ -357,7 +360,7 @@ contains
       call iterative_linear_solver%set_type_from_pl(parameter_handler%get_values())
       call iterative_linear_solver%set_parameters_from_pl(parameter_handler%get_values())
       !* Next, we set the coefficient matrix and preconditioner to be used by iterative linear solver
-      call iterative_linear_solver%set_operators(fe_affine_operator%get_matrix(), .identity. fe_affine_operator%get_matrix())
+      call iterative_linear_solver%set_operators(fe_affine_operator%get_matrix(), mlbddc)
    else 
       call iterative_linear_solver%reallocate_after_remesh()
    end if
@@ -469,6 +472,8 @@ contains
     call output_handler%free()
     call error_estimator%free()
     call iterative_linear_solver%free()
+    call mlbddc%free()
+    call mlbddc_parameters%free()
     call fe_affine_operator%free()
     call discrete_solution%free()
     call fe_space%free()
@@ -476,6 +481,7 @@ contains
     call source_term%free()
     call exact_solution%free()
     call triangulation%free()
+    call my_rank_cell_array%free()
     call environment%free()
     call world_context%free(.true.)  
   end subroutine free_all_objects
