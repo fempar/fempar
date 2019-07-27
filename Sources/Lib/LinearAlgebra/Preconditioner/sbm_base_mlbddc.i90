@@ -151,10 +151,6 @@ subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params ( this, &
   end if
 end subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params
 
-
-
-
-
 subroutine base_mlbddc_assert_coarse_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this

@@ -340,9 +340,46 @@ end type base_mlbddc_t
  public :: mlbddc_t
  public :: mlbddc_dirichlet_solver_params, mlbddc_neumann_solver_params, mlbddc_coarse_solver_params
  public :: mlbddc_coarse_matrix_params, mlbddc_coarse_matrix_symmetric_storage, mlbddc_coarse_matrix_is_symmetric, mlbddc_coarse_matrix_sign
+ public :: setup_mlbddc_parameters_from_reference_parameters
 
 contains
-
+    subroutine setup_mlbddc_parameters_from_reference_parameters(environment, reference_parameters, mlbddc_parameters)
+      implicit none
+      type(environment_t)          , intent(in)    :: environment
+      type(parameterlist_t)        , intent(in)    :: reference_parameters
+      type(parameterlist_t), target, intent(inout) :: mlbddc_parameters
+      integer(ip) :: ilev
+      type(parameterlist_t), pointer :: current
+      type(parameterlist_t), pointer :: dirichlet
+      type(parameterlist_t), pointer :: neumann
+      type(parameterlist_t), pointer :: coarse
+      call mlbddc_parameters%free()
+      call mlbddc_parameters%init()
+      current => mlbddc_parameters
+      if ( environment%get_l1_size() == 1 ) then
+         ! When there is a single task at level L1, the stiffness matrix 
+         ! is not actually distributed among processors. In such a degenerated 
+         ! case mlbddc extracts the parameters to be used for the solver of the
+         ! (non-distributed) matrix directly from the list, i.e., it does not extract it
+         ! from the sublist corresponding to neither dirichlet_..., neumann_..., and coarse_solver
+         ! parameters
+         current = reference_parameters
+      end if
+      do ilev=1, environment%get_num_levels()-1
+         ! Set current level Dirichlet solver parameters
+         dirichlet => current%NewSubList(key=mlbddc_dirichlet_solver_params)
+         dirichlet = reference_parameters
+         ! Set current level Neumann solver parameters
+         neumann   => current%NewSubList(key=mlbddc_neumann_solver_params)
+         neumann   = reference_parameters
+         ! Generate a new sublist for the next level
+         coarse    => current%NewSubList(key=mlbddc_coarse_solver_params) 
+         current   => coarse 
+      end do
+      ! Set coarsest-grid solver parameters
+      coarse = reference_parameters
+    end subroutine setup_mlbddc_parameters_from_reference_parameters
+    
 #include "sbm_base_mlbddc.i90"
 #include "sbm_mlbddc.i90"
 #include "sbm_mlbddc_coarse.i90"

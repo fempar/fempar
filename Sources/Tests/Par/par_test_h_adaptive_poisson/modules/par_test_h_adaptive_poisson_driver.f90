@@ -69,6 +69,7 @@ module par_test_h_adaptive_poisson_driver_names
      type(fe_affine_operator_t)            :: fe_affine_operator
      
      ! MLBDDC preconditioner
+     type(parameterlist_t)                     :: mlbddc_params
      type(mlbddc_t)                            :: mlbddc
      ! Jacobi preconditioner
      type(jacobi_preconditioner_t)             :: jacobi_preconditioner 
@@ -528,59 +529,18 @@ end subroutine free_timers
         call this%jacobi_preconditioner%numerical_setup()
         call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%jacobi_preconditioner )
       case ('mlbddc')
-        ! See https://software.intel.com/en-us/node/470298 for details
-        iparm      = 0 ! Init all entries to zero
-        iparm(1)   = 1 ! no solver default
-        iparm(2)   = 2 ! fill-in reordering from METIS
-        iparm(8)   = 2 ! numbers of iterative refinement steps
-        iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-        iparm(11)  = 1 ! use scaling 
-        iparm(13)  = 1 ! use maximum weighted matching algorithm 
-        iparm(21)  = 1 ! 1x1 + 2x2 pivots
-
-        plist => this%parameter_list 
-        if ( this%par_environment%get_l1_size() == 1 ) then
-           FPLError = plist%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-           FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-           FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-           FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-        end if
-        do ilev=1, this%par_environment%get_num_levels()-1
-           ! Set current level Dirichlet solver parameters
-           dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-           FPLError = dirichlet%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-           FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-           FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-           FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-           
-           ! Set current level Neumann solver parameters
-           neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-           FPLError = neumann%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-           FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-           FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-           FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-         
-           coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
-           plist  => coarse 
-        end do
-        ! Set coarsest-grid solver parameters
-        FPLError = coarse%set(key=dls_type_key, value=pardiso_mkl); assert(FPLError == 0)
-        FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-        FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-        FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
+        call setup_mlbddc_parameters_from_reference_parameters(this%par_environment, &
+                                                               this%parameter_list, &
+                                                               this%mlbddc_params)
         ! Set-up MLBDDC preconditioner
-        call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+        call this%mlbddc%create(this%fe_affine_operator, this%mlbddc_params)
         call this%mlbddc%symbolic_setup()
-        call this%mlbddc%numerical_setup()
-        
+        call this%mlbddc%numerical_setup()      
         call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
       case default
         mcheck(.false.,'Wrong type of preconditioner. Possible values: `identity`, `jacobi`, `mlbddc`.')
     end select
-    
     call parameter_list%free()
-    
   end subroutine setup_solver
   
   
@@ -772,9 +732,9 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
-    
     call this%solution%free()
-    call this%mlbddc%free()  
+    call this%mlbddc%free()
+    call this%mlbddc_params%free()
     call this%jacobi_preconditioner%free() 
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
