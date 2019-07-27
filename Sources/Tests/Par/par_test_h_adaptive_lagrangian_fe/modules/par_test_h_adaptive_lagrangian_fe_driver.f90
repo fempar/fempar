@@ -742,7 +742,6 @@ end subroutine free_timers
     call this%set_cells_weights()
     call this%triangulation%redistribute()
     call this%fe_space%redistribute(this%solution)
-    call this%fe_space%set_up_cell_integration()
     if ( this%par_environment%am_i_l1_root() ) then
        write (*,*) "ERROR NORMS AFTER REDISTRIBUTE"
     end if    
@@ -755,21 +754,15 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_lagrangian_fe_driver_t), intent(inout) :: this
     integer(ip) :: i
-    
     do i=1,3
-       
        if ( i == 2 ) then
          call this%set_cells_for_coarsening()
        else
          call this%set_cells_for_refinement()
        end if
-
        call this%triangulation%refine_and_coarsen()
        call this%fe_space%refine_and_coarsen( this%solution ) 
-       call this%fe_space%set_up_cell_integration()
-
     end do  
-    
   end subroutine refine_and_coarsen  
   
   subroutine free(this)
