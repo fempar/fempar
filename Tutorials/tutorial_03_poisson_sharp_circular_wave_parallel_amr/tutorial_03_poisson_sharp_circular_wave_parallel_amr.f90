@@ -51,6 +51,8 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   !* The triangulation_t object provides the mesh. In this case, we consider a serial p4est triangulation, i.e., 
   ! a triangulation that is distributed among processors, and that can be h-adapted and re-partitioned during the simulation.
   type(p4est_par_triangulation_t)             :: triangulation
+  type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
+  type(h_adaptive_algebraic_l1_coarse_fe_handler_t), target :: coarse_fe_handler
   !* The fe_space_t is the global finite element space to be used.
   type(par_fe_space_t)                        :: fe_space
   type(strong_boundary_conditions_t)          :: strong_boundary_conditions 
@@ -65,8 +67,12 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   type(fe_function_t)                         :: discrete_solution
   !* cg_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
   type(cg_discrete_integration_t)             :: cg_discrete_integration
-  !* direct_solver_t provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK).
+  !* iterative_linear_solver_t provides native implementations of a bunch of preconditioner Krylov subspace iterative solvers
   type(iterative_linear_solver_t)             :: iterative_linear_solver
+  
+  
+  type(mlbddc_t)                                            :: mlbddc
+  
   !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView.
   type(output_handler_t)                      :: output_handler
   !* The following object is used to compute the (square) of the error energy norm for all cells, i.e., ||u-u_h||_E,K.
@@ -95,6 +101,7 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   call setup_triangulation()
   call setup_problem_functions()
   call setup_strong_boundary_conditions()
+  call setup_coarse_fe_handler()
   call setup_fe_space()
   call setup_discrete_solution()
   call setup_and_assemble_fe_affine_operator()
@@ -225,6 +232,7 @@ contains
          call triangulation%refine_and_coarsen()
          call triangulation%redistribute()
        end do
+       call triangulation%setup_coarse_triangulation()
      else
        call triangulation%refine_and_coarsen()
      end if 
@@ -280,6 +288,7 @@ contains
                              conditions     = strong_boundary_conditions, &
                              parameters     = parameter_handler%get_values())
        call fe_space%set_up_cell_integration()
+       call fe_space%setup_coarse_fe_space(coarse_fe_handlers)
     else
        call fe_space%refine_and_coarsen()
     end if
@@ -327,6 +336,19 @@ contains
    
  end subroutine setup_and_assemble_fe_affine_operator
   
+  subroutine setup_coarse_fe_handler()
+    implicit none
+    integer(ip) :: istat
+    allocate(coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+    call coarse_fe_handler%create(parameter_handler%get_values()) 
+    coarse_fe_handlers(1)%p => coarse_fe_handler
+  end subroutine setup_coarse_fe_handler
+  
+  subroutine setup_preconditioner()
+  end subroutine setup_preconditioner
+ 
+ 
  subroutine solve_system()
    class(vector_t), pointer :: dof_values
    if ( current_amr_step == 0 ) then
@@ -351,6 +373,8 @@ contains
  
  subroutine compute_error()
    real(rp) :: global_error_energy_norm
+   type(coarse_triangulation_t), pointer :: coarse_triangulation
+   type(coarse_fe_space_t), pointer :: coarse_fe_space
    if ( current_amr_step == 0 ) then
       call error_estimator%create(fe_space,parameter_handler%get_values())
       call error_estimator%set_exact_solution(exact_solution)
@@ -376,11 +400,23 @@ contains
         write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_CELLS:' // repeat(' ', 80), triangulation%get_num_global_cells()
         write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_DOFS:' // repeat(' ', 80), fe_space%get_num_global_dofs()
         write(*,'(a46,e24.10)') repeat(' ', 4) // 'GLOBAL ERROR ENERGY NORM:'// repeat(' ', 80), global_error_energy_norm
+      end if 
+   end if
+   call world_context%barrier() ! Synchronize all tasks
+   if (environment%am_i_lgt1_task()) then
+     coarse_triangulation => triangulation%get_coarse_triangulation()
+     coarse_fe_space => fe_space%get_coarse_fe_space()
+     write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_COARSE_CELLS: ' // repeat(' ', 80), coarse_triangulation%get_num_cells()
+     write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_COARSE_DOFS:'// repeat(' ', 80)   , coarse_fe_space%get_total_num_dofs()
+   end if
+   call world_context%barrier() ! Synchronize all tasks
+   if ( environment%am_i_l1_task() ) then
+      if ( environment%am_i_l1_root() ) then
         if (current_amr_step == num_amr_steps) then
           write(*,'(a70)')  repeat('=', 70)
         end if
       end if 
-   end if 
+   end if
   end subroutine compute_error
   
   subroutine setup_refinement_strategy()
