@@ -223,6 +223,7 @@ contains
        do i=1, num_uniform_refinement_steps
          call flag_all_cells_for_refinement()
          call triangulation%refine_and_coarsen()
+         call triangulation%redistribute()
        end do
      else
        call triangulation%refine_and_coarsen()
@@ -236,8 +237,10 @@ contains
   subroutine flag_all_cells_for_refinement()
     class(cell_iterator_t), allocatable :: cell
     call triangulation%create_cell_iterator(cell)
-    do while ( .not. cell%has_finished() )  
-      call cell%set_for_refinement()
+    do while ( .not. cell%has_finished() ) 
+      if ( cell%is_local() ) then
+        call cell%set_for_refinement()
+      end if  
       call cell%next()
     end do
     call triangulation%free_cell_iterator(cell)
@@ -360,6 +363,8 @@ contains
           write(*,'(a70)')  repeat('=', 70)
         end if  
       end if
+   else 
+      call error_estimator%reallocate_after_remesh()
    end if 
    call error_estimator%compute_local_true_errors()
    call error_estimator%compute_local_estimates()
@@ -395,10 +400,8 @@ contains
   end subroutine setup_refinement_strategy
   
   subroutine setup_my_rank_cell_array()
-    if ( environment%am_i_l1_task() ) then
-      call my_rank_cell_array%resize(triangulation%get_num_local_cells())
-      call my_rank_cell_array%init(real(environment%get_l1_rank(),rp))
-    end if 
+    call my_rank_cell_array%resize(triangulation%get_num_local_cells())
+    call my_rank_cell_array%init(real(environment%get_l1_rank()+1,rp))
   end subroutine setup_my_rank_cell_array
     
   subroutine output_handler_initialize()
@@ -408,7 +411,6 @@ contains
       call output_handler%attach_fe_space(fe_space)
       call output_handler%add_fe_function(discrete_solution, 1, 'solution')
       call output_handler%add_cell_vector(error_estimator%get_sq_local_estimates(), 'cell_error_energy_norm_squared')
-      call setup_my_rank_cell_array() 
       call output_handler%add_cell_vector(my_rank_cell_array, 'subdomain_partition')
       call output_handler%open()
     end if   
@@ -417,7 +419,6 @@ contains
   subroutine output_handler_write_current_amr_step()
     if (write_postprocess_data) then
       call output_handler%append_time_step(real(current_amr_step,rp))
-      call setup_my_rank_cell_array() ! Re-adjust the size and contents of my_rank_cell_array to reflect the current status of the triangulation
       call output_handler%write()
     end if  
   end subroutine output_handler_write_current_amr_step
