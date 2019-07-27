@@ -35,9 +35,9 @@ module fe_space_parameters_names
   ! face DoFs are to be included into coarse_fe_space_t. These parameters might be used during 
   ! coarse_fe_space_t set-up, as well as by the deferred TBP methods corresponding to 
   ! class(coarse_fe_handler_t).
-  character(len=*), parameter :: coarse_space_use_vertices_key = 'FES_COARSE_SPACE_USE_VERTICES'
-  character(len=*), parameter :: coarse_space_use_edges_key    = 'FES_COARSE_SPACE_USE_EDGES'
-  character(len=*), parameter :: coarse_space_use_faces_key    = 'FES_COARSE_SPACE_USE_FACES'
+  character(len=*), parameter :: coarse_fe_handler_use_vertices_key = 'COARSE_FE_HANDLER_USE_VERTICES'
+  character(len=*), parameter :: coarse_fe_handler_use_edges_key    = 'COARSE_FE_HANDLER_USE_EDGES'
+  character(len=*), parameter :: coarse_fe_handler_use_faces_key    = 'COARSE_FE_HANDLER_USE_FACES'
   
   ! Keys being used by the FE space constructor that relies on the parameter handler
   character(len=*), parameter, public :: fes_num_fields_key = 'FES_NUM_FIELDS'
@@ -55,9 +55,9 @@ module fe_space_parameters_names
 
   ! These three parameter constants are thought be used as CLA names. 
 
-  character(len=*), parameter, public :: coarse_space_use_vertices_cla_name          = '--'//coarse_space_use_vertices_key
-  character(len=*), parameter, public :: coarse_space_use_edges_cla_name             = '--'//coarse_space_use_edges_key
-  character(len=*), parameter, public :: coarse_space_use_faces_cla_name             = '--'//coarse_space_use_faces_key
+  character(len=*), parameter, public :: coarse_fe_handler_use_vertices_cla_name  = '--'//coarse_fe_handler_use_vertices_key
+  character(len=*), parameter, public :: coarse_fe_handler_use_edges_cla_name     = '--'//coarse_fe_handler_use_edges_key
+  character(len=*), parameter, public :: coarse_fe_handler_use_faces_cla_name     = '--'//coarse_fe_handler_use_faces_key
   character(len=*), parameter, public :: fes_num_fields_cla_name             = '--'//fes_num_fields_key
   character(len=*), parameter, public :: fes_num_ref_fes_cla_name            = '--'//fes_num_ref_fes_key
   character(len=*), parameter, public :: fes_field_types_cla_name            = '--'//fes_field_types_key
@@ -72,9 +72,9 @@ module fe_space_parameters_names
 
   ! CLA defaults
 
-  logical,                   parameter, public :: default_coarse_space_use_vertices  = .true.
-  logical,                   parameter, public :: default_coarse_space_use_edges     = .true.
-  logical,                   parameter, public :: default_coarse_space_use_faces     = .true.
+  logical,                   parameter, public :: default_coarse_fe_handler_use_vertices  = .true.
+  logical,                   parameter, public :: default_coarse_fe_handler_use_edges     = .true.
+  logical,                   parameter, public :: default_coarse_fe_handler_use_faces     = .true.
   integer(ip),               parameter, public :: default_fes_num_fields             = 1
   integer(ip),               parameter, public :: default_fes_num_ref_fes            = 1
   integer(ip), dimension(*), parameter, public :: default_fes_set_ids_ref_fes        = [1]
@@ -92,9 +92,9 @@ module fe_space_parameters_names
 
   ! CLA help  
 
-  character(len=*), parameter, public :: coarse_space_use_vertices_cla_help  = 'Coarse-space shape functions on vertices'
-  character(len=*), parameter, public :: coarse_space_use_edges_cla_help     = 'Coarse-space shape functions on edges'
-  character(len=*), parameter, public :: coarse_space_use_faces_cla_help     = 'Coarse-space shape functions on faces'
+  character(len=*), parameter, public :: coarse_fe_handler_use_vertices_cla_help  = 'Enable/Disable coarse FE space DOFs on coarse triangulation vertices'
+  character(len=*), parameter, public :: coarse_fe_handler_use_edges_cla_help     = 'Enable/Disable coarse FE space DOFs on coarse triangulation edges'
+  character(len=*), parameter, public :: coarse_fe_handler_use_faces_cla_help     = 'Enable/Disable coarse FE space DOFs on coarse triangulation faces'
   character(len=*), parameter, public :: fes_num_fields_cla_help             = 'Finite element space number of fields'
   character(len=*), parameter, public :: fes_num_ref_fes_cla_help            = 'Finite element space number of fields'
   character(len=*), parameter, public :: fes_set_ids_ref_fes_cla_help        = 'Set IDs to reference FEs for every field'
