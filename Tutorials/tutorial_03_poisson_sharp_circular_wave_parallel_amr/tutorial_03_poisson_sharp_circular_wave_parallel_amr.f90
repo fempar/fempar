@@ -26,31 +26,35 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-program tutorial_02_poisson_sharp_circular_wave_amr
+program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   use fempar_names
-  use tutorial_01_discrete_integration_names
-  use tutorial_01_functions_names
-  use tutorial_01_error_estimator_names
+  use tutorial_03_discrete_integration_names
+  use tutorial_03_functions_names
+  use tutorial_03_error_estimator_names
   implicit none
 #include "debug.i90"
   
-  character(*), parameter :: tutorial_name = "tutorial_02_poisson_sharp_circular_wave_amr"
+  character(*), parameter :: tutorial_name = "tutorial_03_poisson_sharp_circular_wave_parallel_amr"
   character(*), parameter :: tutorial_version = "v1.0.0"
-  character(*), parameter :: tutorial_description = "Solves a 2D/3D Poisson problem on the unit &
+  character(*), parameter :: tutorial_description = "MPI-parallel program that solves a 2D/3D Poisson problem on the unit &
                                                      square/cube, where the solution has a sharp circular & 
                                                      wave front parametrizable via command-line arguments. &
-                                                     The discretization of the domain is performed using a p4est &
-                                                     triangulation, i.e., a mesh which can by h-adapted  & 
-                                                     during the simulation."
+                                                     The discretization of the domain is performed using an MPI-parallel p4est &
+                                                     triangulation, i.e., a mesh which can by h-adapted and re-partitioned &
+                                                     (re-distributed) among the MPI tasks during the simulation. For the linear &
+                                                     solver step, it uses a Krylov subspace solver preconditioned with a highly &
+                                                     scalable implementation of the 2-level BDDC preconditioner available at FEMPAR."
   character(*), parameter :: tutorial_authors = "Santiago Badia and Alberto F. Martín"
   
-  type(serial_context_t)                      :: world_context
+  type(mpi_context_t)                         :: world_context
   type(environment_t)                         :: environment
   !* The triangulation_t object provides the mesh. In this case, we consider a serial p4est triangulation, i.e., 
-  ! a triangulation that is not distributed among processors, and that can be h-adapted during the simulation.
-  type(p4est_serial_triangulation_t)          :: triangulation
+  ! a triangulation that is distributed among processors, and that can be h-adapted and re-partitioned during the simulation.
+  type(p4est_par_triangulation_t)             :: triangulation
+  type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
+  type(h_adaptive_algebraic_l1_coarse_fe_handler_t), target :: coarse_fe_handler
   !* The fe_space_t is the global finite element space to be used.
-  type(serial_fe_space_t)                     :: fe_space
+  type(par_fe_space_t)                        :: fe_space
   type(strong_boundary_conditions_t)          :: strong_boundary_conditions 
   !* A scalar-valued function with the right hand side of the PDE problem at hand.
   type(sharp_circular_wave_source_term_t)     :: source_term
@@ -61,42 +65,45 @@ program tutorial_02_poisson_sharp_circular_wave_amr
   type(fe_affine_operator_t)                  :: fe_affine_operator
   !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                         :: discrete_solution
-  !* poisson_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
-  type(cg_discrete_integration_t), target     :: cg_discrete_integration
-  type(dg_discrete_integration_t), target     :: dg_discrete_integration
-  !* direct_solver_t provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK)
-  type(direct_solver_t)                       :: direct_solver
-  !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView
+  !* cg_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
+  type(cg_discrete_integration_t)             :: cg_discrete_integration
+  !* iterative_linear_solver_t provides native implementations of a bunch of preconditioner Krylov subspace iterative solvers
+  type(iterative_linear_solver_t)             :: iterative_linear_solver
+  type(parameterlist_t)                       :: mlbddc_parameters
+  type(mlbddc_t)                              :: mlbddc
+  !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView.
   type(output_handler_t)                      :: output_handler
-  !* The following object is used to compute the (square) of the error energy norm for all cells, i.e., ||u-u_h||_E,K
+  !* The following object is used to compute the (square) of the error energy norm for all cells, i.e., ||u-u_h||_E,K.
   type(poisson_error_estimator_t)             :: error_estimator
-  
   type(fixed_fraction_refinement_strategy_t)  :: refinement_strategy
+  type(std_vector_real_rp_t)                  :: my_rank_cell_array
   
   !* Variables to store the values of the command-line arguments which are particular to this tutorial.
   !* Execute the tutorial with the "-h" command-line flag for more details
   real(rp)                  :: alpha
   real(rp)                  :: circle_radius
   real(rp), allocatable     :: circle_center(:)
-  character(:), allocatable :: fe_formulation
   logical                   :: write_postprocess_data
   integer(ip)               :: num_uniform_refinement_steps
   integer(ip)               :: num_amr_steps
   integer(ip)               :: current_amr_step
   
+  
   !* Initialize FEMPAR library (i.e., construct system-wide variables)
   call fempar_init()
   call setup_parameter_handler()
-  call get_tutorial_cla_values()
   call setup_context_and_environment()
+  call get_tutorial_cla_values()
   
   current_amr_step = 0
   call setup_triangulation()
   call setup_problem_functions()
   call setup_strong_boundary_conditions()
+  call setup_coarse_fe_handler()
   call setup_fe_space()
   call setup_discrete_solution()
   call setup_and_assemble_fe_affine_operator()
+  call setup_preconditioner()
   call solve_system()  
   call compute_error()
   call setup_refinement_strategy()
@@ -108,6 +115,7 @@ program tutorial_02_poisson_sharp_circular_wave_amr
     call refinement_strategy%update_refinement_flags(triangulation)
     call setup_triangulation()
     call setup_fe_space()
+    call redistribute_triangulation_and_fe_space()
     call setup_discrete_solution()
     call setup_and_assemble_fe_affine_operator()
     call solve_system()  
@@ -138,19 +146,6 @@ contains
   end subroutine setup_parameter_handler
 
   subroutine define_tutorial_clas()
-    !* In this subroutine we use parameter_handler in order to add and describe the command-line arguments 
-    !* which are particular to this tutorial program. Describing a command-line argument involves
-    !* defining a parameterlist_t dictionary key (e.g., "FE_FORMULATION"), a command-line argument name 
-    !* (e.g., --FE_FORMULATION), a default value for the command-line argument in case it is not passed 
-    !* (e.g., "CG"), a help message, and (optionally) a set of admissible choices for the command-line argument.
-    !* The dictionary key can be used later on in order to get the value of the corresponding command-line argument
-    !* or to override (update) it with a fixed value, thus ignoring the value provided to the command-line argument
-    call parameter_handler%add("FE_FORMULATION",   &
-                               "--FE_FORMULATION", & 
-                               "CG",  & 
-                               "Select Finite Element formulation for the problem at hand; & 
-                               either Continuous (CG) or Discontinuous Galerkin (DG)", &
-                               choices="CG,DG")
     call parameter_handler%add("ALPHA",   &
                                "--ALPHA", & 
                                200.0_rp,  & 
@@ -184,25 +179,27 @@ contains
   subroutine get_tutorial_cla_values()
     !* In this subroutine we use parameter_handler to obtain the values of the command-line arguments 
     !* which are particular to this tutorial
-    call parameter_handler%getasstring("FE_FORMULATION", fe_formulation)
     call parameter_handler%get("ALPHA", alpha)
     call parameter_handler%get("CIRCLE_RADIUS", circle_radius)
     call parameter_handler%getasarray("CIRCLE_CENTER", circle_center)
     call parameter_handler%get("NUM_UNIFORM_REFINEMENT_STEPS", num_uniform_refinement_steps)
     call parameter_handler%get("NUM_AMR_STEPS", num_amr_steps)
     call parameter_handler%get("WRITE_POSTPROCESS_DATA", write_postprocess_data)
-    write(*,'(a54)')  repeat('=', 54)
-    write(*,'(a54)') tutorial_name // ' CLA values'
-    write(*,'(a54)')  repeat('=', 54)
-    write(*,'(a30,a24)') 'FE_FORMULATION:' // repeat(' ', 80), fe_formulation
-    write(*,'(a30,f24.4)') 'ALPHA:'// repeat(' ', 80), alpha
-    write(*,'(a30,f24.4)') 'CIRCLE_RADIUS:' // repeat(' ', 80), circle_radius
-    if (size(circle_center) == 2) write(*,'(a30,3f12.4)') 'CIRCLE_CENTER:'// repeat(' ', 80), circle_center
-    if (size(circle_center) == 3) write(*,'(a30,3f8.4)') 'CIRCLE_CENTER:' // repeat(' ', 80), circle_center
-    write(*,'(a30,l24)') 'WRITE_POSTPROCESS_DATA:' // repeat(' ', 80), write_postprocess_data
-    write(*,'(a30,i24)') 'NUM_UNIFORM_REFINEMENT_STEPS:' // repeat(' ', 80), num_uniform_refinement_steps
-    write(*,'(a30,i24)') 'NUM_AMR_STEPS:' // repeat(' ', 80), num_amr_steps
-    write(*,'(a54)')  repeat('=', 54)
+    if ( environment%am_i_l1_task() ) then
+      if ( environment%am_i_l1_root() ) then
+        write(*,'(a70)')  repeat('=', 70)
+        write(*,'(a70)') tutorial_name // ' CLA values'
+        write(*,'(a70)')  repeat('=', 70)
+        write(*,'(a46,f24.4)') 'ALPHA:'// repeat(' ', 80), alpha
+        write(*,'(a46,f24.4)') 'CIRCLE_RADIUS:' // repeat(' ', 80), circle_radius
+        if (size(circle_center) == 2) write(*,'(a46,3f12.4)') 'CIRCLE_CENTER:'// repeat(' ', 80), circle_center
+        if (size(circle_center) == 3) write(*,'(a46,3f8.4)') 'CIRCLE_CENTER:' // repeat(' ', 80), circle_center
+        write(*,'(a46,l24)') 'WRITE_POSTPROCESS_DATA:' // repeat(' ', 80), write_postprocess_data
+        write(*,'(a46,i24)') 'NUM_UNIFORM_REFINEMENT_STEPS:' // repeat(' ', 80), num_uniform_refinement_steps
+        write(*,'(a46,i24)') 'NUM_AMR_STEPS:' // repeat(' ', 80), num_amr_steps
+        write(*,'(a)')  repeat('=', 70)
+      end if
+    end if   
   end subroutine get_tutorial_cla_values
 
   subroutine setup_context_and_environment()
@@ -211,8 +208,8 @@ contains
     !* Force the environment to split world_context into a single group of 
     !* tasks (level) composed by a single task. As world_context is of type serial_context_t, 
     !* any other environment configuration is not possible
-    call parameter_handler%update(environment_num_levels_key, 1)
-    call parameter_handler%update(environment_num_tasks_x_level_key, [1])
+    !call parameter_handler%update(environment_num_levels_key, 1)
+    !call parameter_handler%update(environment_num_tasks_x_level_key, [1])
     call environment%create(world_context, parameter_handler%get_values())
   end subroutine setup_context_and_environment
   
@@ -232,17 +229,25 @@ contains
        do i=1, num_uniform_refinement_steps
          call flag_all_cells_for_refinement()
          call triangulation%refine_and_coarsen()
+         call triangulation%redistribute()
        end do
+       call triangulation%setup_coarse_triangulation()
      else
        call triangulation%refine_and_coarsen()
+     end if 
+     if ( write_postprocess_data ) then
+       ! Re-adjust the size and contents of my_rank_cell_array to reflect the current status of the triangulation
+       call setup_my_rank_cell_array()
      end if 
   end subroutine setup_triangulation
   
   subroutine flag_all_cells_for_refinement()
     class(cell_iterator_t), allocatable :: cell
     call triangulation%create_cell_iterator(cell)
-    do while ( .not. cell%has_finished() )  
-      call cell%set_for_refinement()
+    do while ( .not. cell%has_finished() ) 
+      if ( cell%is_local() ) then
+        call cell%set_for_refinement()
+      end if  
       call cell%next()
     end do
     call triangulation%free_cell_iterator(cell)
@@ -257,136 +262,166 @@ contains
   
   subroutine setup_strong_boundary_conditions()
     integer(ip) :: i, boundary_ids
-    if ( fe_formulation == "CG" ) then
-      boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
-      call strong_boundary_conditions%create()
-      do i = 1, boundary_ids
-        call strong_boundary_conditions%insert_boundary_condition(boundary_id=i, &
-                                                                  field_id=1, &
-                                                                  cond_type=component_1, &
-                                                                  boundary_function=exact_solution)
-      end do
-    end if 
+    boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
+    call strong_boundary_conditions%create()
+    do i = 1, boundary_ids
+       call strong_boundary_conditions%insert_boundary_condition(boundary_id=i, &
+                                                                 field_id=1, &
+                                                                 cond_type=component_1, &
+                                                                 boundary_function=exact_solution)
+    end do
   end subroutine setup_strong_boundary_conditions
   
   subroutine setup_fe_space()
     type(string) :: fes_field_types(1), fes_ref_fe_types(1)
     if ( current_amr_step == 0 ) then
-      call parameter_handler%update(fes_num_fields_key, 1 )
-      call parameter_handler%update(fes_same_ref_fes_all_cells_key, .true.)
-      call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
-      fes_field_types(1) = String(field_type_scalar); 
-      call parameter_handler%update(fes_field_types_key,fes_field_types)  
-      fes_ref_fe_types(1) = String(fe_type_lagrangian)
-      call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
-      !* Next, we build the global FE space. It only requires to know:
-      !*   The triangulation
-      !*   The Dirichlet data
-      !*   The reference FE to be used (extracted from parameter_handler).
-      if ( fe_formulation == "CG" ) then
-        call parameter_handler%update(fes_ref_fe_conformities_key, [.true.] )
-        call fe_space%create( triangulation  = triangulation, &
-                              conditions     = strong_boundary_conditions, &
-                              parameters     = parameter_handler%get_values())
-      else if ( fe_formulation == "DG" ) then
-        call parameter_handler%update(fes_ref_fe_conformities_key, [.false.] )
-        call fe_space%create( triangulation  = triangulation, &
-                              parameters     = parameter_handler%get_values())
-      end if
-      ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
-      call fe_space%set_up_cell_integration()
-      if ( fe_formulation == "DG" ) then
-        call fe_space%set_up_facet_integration()
-      end if
+       call parameter_handler%update(fes_num_fields_key, 1 )
+       call parameter_handler%update(fes_same_ref_fes_all_cells_key, .true.)
+       call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
+       fes_field_types(1) = String(field_type_scalar)
+       call parameter_handler%update(fes_field_types_key,fes_field_types)  
+       fes_ref_fe_types(1) = String(fe_type_lagrangian)
+       call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
+       call parameter_handler%update(fes_ref_fe_conformities_key, [.true.] )
+       call fe_space%create( triangulation  = triangulation, &
+                             conditions     = strong_boundary_conditions, &
+                             parameters     = parameter_handler%get_values())
+       call fe_space%set_up_cell_integration()
+       call fe_space%setup_coarse_fe_space(coarse_fe_handlers)
     else
-      call fe_space%refine_and_coarsen()
+       call fe_space%refine_and_coarsen()
     end if
-  end subroutine setup_fe_space
+ end subroutine setup_fe_space
+ 
+ subroutine redistribute_triangulation_and_fe_space()
+   call triangulation%redistribute()
+   call fe_space%redistribute()
+   if ( write_postprocess_data ) then
+     ! Re-adjust the size and contents of my_rank_cell_array to reflect the current status of the triangulation
+     call setup_my_rank_cell_array()
+   end if
+ end subroutine redistribute_triangulation_and_fe_space
   
-  subroutine setup_discrete_solution()
-    call discrete_solution%create(fe_space) 
-    if ( fe_formulation == "CG" ) then
-      call fe_space%interpolate_dirichlet_values(discrete_solution)
-    end if  
-  end subroutine setup_discrete_solution
+ subroutine setup_discrete_solution()
+   call discrete_solution%create(fe_space) 
+   call fe_space%interpolate_dirichlet_values(discrete_solution)
+ end subroutine setup_discrete_solution
   
-  subroutine setup_and_assemble_fe_affine_operator()
-    class(discrete_integration_t), pointer :: discrete_integration
-    if ( current_amr_step == 0 ) then
-      !* First, we provide to the discrete_integration all ingredients required to build the weak form of the Poisson problem.
-      !* Namely, the source term of the PDE, and the function to be imposed interpolated on the Dirichlet boundary (discrete_solution)
-      !* Next, we create the affine operator, i.e., Ax-b, providing the info for the matrix (storage, symmetric, etc.), and the form to
-      !* be used to fill it, e.g., the bilinear form related that represents the weak form of the Poisson problem and the right hand
-      !* side.
-      if ( fe_formulation == "CG" ) then
-        call cg_discrete_integration%set_source_term(source_term)
-        call cg_discrete_integration%set_boundary_function(discrete_solution)
-        discrete_integration => cg_discrete_integration
-      else if ( fe_formulation == "DG" ) then 
-        call dg_discrete_integration%set_source_term(source_term)
-        call dg_discrete_integration%set_boundary_function(exact_solution)
-        discrete_integration => dg_discrete_integration
-      end if
+ subroutine setup_and_assemble_fe_affine_operator()
+   class(matrix_t)                  , pointer       :: matrix
+   class(vector_t)                  , pointer       :: rhs
+   type(par_sparse_matrix_t)        , pointer       :: sparse_matrix
+ 
+   if ( current_amr_step == 0 ) then
+      call cg_discrete_integration%set_source_term(source_term)
+      call cg_discrete_integration%set_boundary_function(discrete_solution)
       call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                        diagonal_blocks_symmetric_storage = [ .true. ], &
                                        diagonal_blocks_symmetric         = [ .true. ], &
                                        diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                        fe_space                          = fe_space, &
-                                       discrete_integration              = discrete_integration )
-    else
+                                       discrete_integration              = cg_discrete_integration )
+   else
       call fe_affine_operator%reallocate_after_remesh()
-    end if 
-    !* Now, we can compute the entries of the affine operator Ax-b by assembling the discrete weak form of the Poisson problem
-    call fe_affine_operator%compute()
-  end subroutine setup_and_assemble_fe_affine_operator
+   end if
+   !* Now, we can compute the entries of the affine operator Ax-b by assembling the discrete weak form of the Poisson problem
+   call fe_affine_operator%compute()
+   rhs                => fe_affine_operator%get_translation()
+   matrix             => fe_affine_operator%get_matrix()
+   select type(matrix)
+   class is (par_sparse_matrix_t)
+     sparse_matrix => matrix
+   end select
+   
+ end subroutine setup_and_assemble_fe_affine_operator
   
-  subroutine solve_system()
-    class(vector_t), pointer :: dof_values
-    if ( current_amr_step == 0 ) then
-      !* Direct solver setup
-      call direct_solver%set_type_from_pl(parameter_handler%get_values())
-      call direct_solver%set_parameters_from_pl(parameter_handler%get_values())
-      !* Next, we set the matrix in our system from the fe_affine operator
-      call direct_solver%set_matrix(fe_affine_operator%get_matrix())
-    else 
-      call direct_solver%reallocate_after_remesh()
-    end if
-    !* We extract a pointer to the free nodal values of our FE function, which is the place in which we will store the result.
-    dof_values => discrete_solution%get_free_dof_values()
-    !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
-    !* putting the result in dof_values.
-    call direct_solver%solve(fe_affine_operator%get_translation(),dof_values)
-    !* Once we have obtained the values corresponding to DoFs which are actually free, we have to update the values corresponding to DoFs
-    !* which are hanging (constrained). This is required as, in this tutorial, we are using AMR on non-conforming meshes. We note that 
-    !* hanging DoF constraints are only present when we use a conforming continuous Galerkin finite element formulation, thus it does not
-    !* make sense to update them whenever fe_formulation == "DG" (as in this case there are not actually such hanging DoFs).
-    if ( fe_formulation == "CG" ) then
-      call fe_space%update_hanging_dof_values(discrete_solution)
-    end if  
-  end subroutine solve_system
+  subroutine setup_coarse_fe_handler()
+    implicit none
+    integer(ip) :: istat
+    allocate(coarse_fe_handlers(1), stat=istat)
+    check(istat==0)
+    call coarse_fe_handler%create(parameter_handler%get_values()) 
+    coarse_fe_handlers(1)%p => coarse_fe_handler
+  end subroutine setup_coarse_fe_handler
   
-  subroutine compute_error()
-    real(rp) :: global_error_energy_norm
-    if ( current_amr_step == 0 ) then
+  subroutine setup_preconditioner()
+    call setup_mlbddc_parameters_from_reference_parameters(environment, &
+                                                           parameter_handler%get_values(), &
+                                                           mlbddc_parameters)
+    call mlbddc%create( fe_affine_operator, mlbddc_parameters )
+  end subroutine setup_preconditioner
+ 
+ 
+ subroutine solve_system()
+   class(vector_t), pointer :: dof_values
+   if ( current_amr_step == 0 ) then
+      !* Iterative linear solver setup
+      call iterative_linear_solver%create(environment)
+      call iterative_linear_solver%set_type_from_pl(parameter_handler%get_values())
+      call iterative_linear_solver%set_parameters_from_pl(parameter_handler%get_values())
+      !* Next, we set the coefficient matrix and preconditioner to be used by iterative linear solver
+      call iterative_linear_solver%set_operators(fe_affine_operator%get_matrix(), mlbddc)
+   else 
+      call iterative_linear_solver%reallocate_after_remesh()
+   end if
+   !* We extract a pointer to the free nodal values of our FE function, which is the place in which we will store the result.
+   dof_values => discrete_solution%get_free_dof_values()
+   !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
+   !* putting the result in dof_values.
+   call iterative_linear_solver%solve(fe_affine_operator%get_translation(),dof_values)
+   !* Once we have obtained the values corresponding to DoFs which are actually free, we have to update the values corresponding to DoFs
+   !* which are hanging (constrained). This is required as, in this tutorial, we are using AMR on non-conforming meshes.
+   call fe_space%update_hanging_dof_values(discrete_solution)
+ end subroutine solve_system
+ 
+ subroutine compute_error()
+   real(rp) :: global_error_energy_norm
+   type(coarse_triangulation_t), pointer :: coarse_triangulation
+   type(coarse_fe_space_t), pointer :: coarse_fe_space
+   if ( current_amr_step == 0 ) then
       call error_estimator%create(fe_space,parameter_handler%get_values())
       call error_estimator%set_exact_solution(exact_solution)
       call error_estimator%set_discrete_solution(discrete_solution)
-      write(*,'(a54)')  repeat('=', 54)
-      write(*,'(a54)') tutorial_name // ' results'
-      write(*,'(a54)')  repeat('=', 54)
-    end if
-    call error_estimator%compute_local_true_errors()
-    call error_estimator%compute_local_estimates()
-    global_error_energy_norm = sqrt(sum(error_estimator%get_sq_local_true_error_entries()))
-    write(*,'(a,i3)') 'AMR step:', current_amr_step
-    write(*,'(a30,i24)') repeat(' ', 4) // 'NUM_CELLS:' // repeat(' ', 80), triangulation%get_num_cells()
-    write(*,'(a30,i24)') repeat(' ', 4) // 'NUM_DOFS:' // repeat(' ', 80), fe_space%get_total_num_dofs()
-    write(*,'(a30,e24.10)') repeat(' ', 4) // 'GLOBAL ERROR ENERGY NORM:'// repeat(' ', 80), global_error_energy_norm
-    if (current_amr_step == num_amr_steps) then
-      write(*,'(a54)')  repeat('=', 54)
-    end if
+      if ( environment%am_i_l1_task() ) then
+        if ( environment%am_i_l1_root() ) then
+          write(*,'(a70)')  repeat('=', 70)
+          write(*,'(a70)') tutorial_name // ' results'
+          write(*,'(a70)')  repeat('=', 70)
+        end if  
+      end if
+   else 
+      call error_estimator%reallocate_after_remesh()
+   end if 
+   call error_estimator%compute_local_true_errors()
+   call error_estimator%compute_local_estimates()
+   global_error_energy_norm = sum(error_estimator%get_sq_local_true_error_entries())
+   call environment%w_sum(global_error_energy_norm)
+   global_error_energy_norm = sqrt(global_error_energy_norm)
+   if ( environment%am_i_l1_task() ) then
+      if ( environment%am_i_l1_root() ) then
+        write(*,'(a,i3)') 'AMR step:', current_amr_step
+        write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_CELLS:' // repeat(' ', 80), triangulation%get_num_global_cells()
+        write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_DOFS:' // repeat(' ', 80), fe_space%get_num_global_dofs()
+        write(*,'(a46,e24.10)') repeat(' ', 4) // 'GLOBAL ERROR ENERGY NORM:'// repeat(' ', 80), global_error_energy_norm
+      end if 
+   end if
+   call world_context%barrier() ! Synchronize all tasks
+   if (environment%am_i_lgt1_task()) then
+     coarse_triangulation => triangulation%get_coarse_triangulation()
+     coarse_fe_space => fe_space%get_coarse_fe_space()
+     write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_COARSE_CELLS: ' // repeat(' ', 80), coarse_triangulation%get_num_cells()
+     write(*,'(a46,i24)') repeat(' ', 4) // 'NUM_COARSE_DOFS:'// repeat(' ', 80)   , coarse_fe_space%get_total_num_dofs()
+   end if
+   call world_context%barrier() ! Synchronize all tasks
+   if ( environment%am_i_l1_task() ) then
+      if ( environment%am_i_l1_root() ) then
+        if (current_amr_step == num_amr_steps) then
+          write(*,'(a70)')  repeat('=', 70)
+        end if
+      end if 
+   end if
   end subroutine compute_error
-    
+  
   subroutine setup_refinement_strategy()
     real(rp) :: ref_fraction, coarse_fraction
     if ( triangulation%get_num_dims() == 2 ) then
@@ -402,6 +437,11 @@ contains
     call refinement_strategy%create(error_estimator,parameter_handler%get_values())
   end subroutine setup_refinement_strategy
   
+  subroutine setup_my_rank_cell_array()
+    call my_rank_cell_array%resize(triangulation%get_num_local_cells())
+    call my_rank_cell_array%init(real(environment%get_l1_rank()+1,rp))
+  end subroutine setup_my_rank_cell_array
+    
   subroutine output_handler_initialize()
     if (write_postprocess_data) then
       call parameter_handler%update(output_handler_static_grid_key, value=.false.)
@@ -409,6 +449,7 @@ contains
       call output_handler%attach_fe_space(fe_space)
       call output_handler%add_fe_function(discrete_solution, 1, 'solution')
       call output_handler%add_cell_vector(error_estimator%get_sq_local_estimates(), 'cell_error_energy_norm_squared')
+      call output_handler%add_cell_vector(my_rank_cell_array, 'subdomain_partition')
       call output_handler%open()
     end if   
   end subroutine output_handler_initialize
@@ -430,7 +471,9 @@ contains
     !* Free all the objects created in the course of the program
     call output_handler%free()
     call error_estimator%free()
-    call direct_solver%free()
+    call iterative_linear_solver%free()
+    call mlbddc%free()
+    call mlbddc_parameters%free()
     call fe_affine_operator%free()
     call discrete_solution%free()
     call fe_space%free()
@@ -438,8 +481,9 @@ contains
     call source_term%free()
     call exact_solution%free()
     call triangulation%free()
+    call my_rank_cell_array%free()
     call environment%free()
     call world_context%free(.true.)  
   end subroutine free_all_objects
   
-end program tutorial_02_poisson_sharp_circular_wave_amr
+end program tutorial_03_poisson_sharp_circular_wave_parallel_amr
