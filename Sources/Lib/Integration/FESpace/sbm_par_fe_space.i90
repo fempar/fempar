@@ -433,6 +433,7 @@ subroutine par_fe_space_generate_global_dof_numbering( this )
   if ( environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%generate_global_dof_numbering()
      call this%compute_blocks_dof_import()
+     call this%fill_num_global_dofs_x_block()
      ! Step required by the MLBDDC preconditioner
      call this%renum_dofs_first_interior_then_interface()
   else
@@ -667,6 +668,21 @@ end subroutine par_fe_space_renum_dofs_first_interior_then_interface
   end if 
  end subroutine  par_fe_space_set_up_facet_integration 
   
+subroutine par_fe_space_fill_num_global_dofs_x_block ( this ) 
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(environment_t), pointer :: environment 
+  integer(ip) :: i 
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    do i=1, this%block_layout%get_num_blocks()
+      this%num_global_dofs_x_block(i)=this%get_block_num_owned_dofs(i)
+      call environment%l1_sum(this%num_global_dofs_x_block(i))
+    end do 
+  end if 
+end subroutine par_fe_space_fill_num_global_dofs_x_block 
+ 
+ 
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
@@ -4806,28 +4822,25 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
   environment   => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then 
      if ( present(fe_function ) ) then 
-        num_snd  =  this%triangulation%get_migration_num_snd()     
-        if ( this%triangulation%get_num_cells() > 0 .or. num_snd>0 ) then      
-
-           call this%update_after_redistribute(old_ptr_dofs_x_fe, old_lst_dofs_gids)
-           call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
-
-           call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
-                                                                    old_lst_dofs_gids, &
-                                                                    fe_function)
-
-           ! Free local arrays
-           do field_id = 1,this%num_fields
-              call old_ptr_dofs_x_fe(field_id)%free()
-           end do
-           deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
-           call old_lst_dofs_gids%free()
-        end if
+       call this%update_after_redistribute(old_ptr_dofs_x_fe, old_lst_dofs_gids)
+       call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
+       call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
+                                                                old_lst_dofs_gids, &
+                                                                fe_function)
+       ! Free local arrays
+       do field_id = 1,this%num_fields
+          call old_ptr_dofs_x_fe(field_id)%free()
+       end do
+       deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
+       call old_lst_dofs_gids%free()
      else
-        num_snd  =  this%triangulation%get_migration_num_snd()
-        if ( this%triangulation%get_num_cells() > 0 .or. num_snd > 0) then
-           call this%update_after_redistribute()
-        end if
+        call this%update_after_redistribute()
+     end if
+     if ( this%cell_integration_is_set_up ) then
+       call this%set_up_cell_integration()
+     end if 
+     if ( this%facet_integration_is_set_up ) then
+       call this%set_up_facet_integration()
      end if
   end if
   ! Re-set up coarse_fe_space()
@@ -4855,24 +4868,24 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
 #ifdef ENABLE_P4EST
   environment   => this%triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then   
-    num_snd     =  this%triangulation%get_migration_num_snd()    
-    if ( this%triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
-
       call this%update_after_redistribute(old_ptr_dofs_x_fe,old_lst_dofs_gids)
       call this%update_fe_function_nodal_values_arrays_after_redistribute(old_ptr_dofs_x_fe)
-
       do ifunc = 1,size(fe_functions)
            call this%transfer_and_retrieve_fe_function_nodal_values(old_ptr_dofs_x_fe, &
                                                                     old_lst_dofs_gids, &
                                                                     fe_functions(ifunc)%p)           
       end do
-
       do field_id = 1,this%num_fields
         call old_ptr_dofs_x_fe(field_id)%free()
       end do
       deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
       call old_lst_dofs_gids%free()
-    end if 
+      if ( this%cell_integration_is_set_up ) then
+       call this%set_up_cell_integration()
+      end if 
+      if ( this%facet_integration_is_set_up ) then
+       call this%set_up_facet_integration()
+      end if
   end if
   ! Re-set up coarse_fe_space()
   if ( this%coarse_fe_space_is_set_up() ) then

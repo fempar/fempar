@@ -38,7 +38,6 @@ module mesh_names
   use mesh_partitioner_parameters_names
   use metis_names
   use rcm_renumbering_names
-  use postpro_names
   use FPL
   use environment_names
 

@@ -552,16 +552,19 @@ contains
         integer(ip),                        intent(in)    :: field_id
         character(len=*),                   intent(in)    :: name
         character(len=*), optional,         intent(in)    :: diff_operator
-        class(serial_fe_space_t), pointer                 :: fe_space
         character(:), allocatable                         :: field_type
+        type(environment_t), pointer                      :: environment
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         assert(associated(this%fe_space))
-        assert(field_id >=1 .and. field_id <= this%fe_space%get_num_fields())
-        field_type = this%fe_space%get_field_type(field_id)
-        call this%resize_fe_fields_if_needed(this%num_fields+1)
-        this%num_fields = this%num_fields + 1
-        call this%fe_fields(this%num_fields)%set(fe_function, field_id, name, field_type, diff_operator)
+        environment => this%fe_space%get_environment()
+        if ( environment%am_i_l1_task() ) then
+          assert(field_id >=1 .and. field_id <= this%fe_space%get_num_fields())
+          field_type = this%fe_space%get_field_type(field_id)
+          call this%resize_fe_fields_if_needed(this%num_fields+1)
+          this%num_fields = this%num_fields + 1
+          call this%fe_fields(this%num_fields)%set(fe_function, field_id, name, field_type, diff_operator)
+        end if   
     end subroutine base_output_handler_add_fe_function
     
     subroutine base_output_handler_add_field_generator(this, name, output_handler_field_generator)
@@ -569,11 +572,15 @@ contains
         character(len=*)                       ,    intent(in)    :: name
         class(output_handler_field_generator_t),    intent(in)    :: output_handler_field_generator
     !-----------------------------------------------------------------
+        type(environment_t), pointer :: environment
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         assert(associated(this%fe_space))
-        call this%resize_field_generators_if_needed(this%num_field_generators+1)
-        this%num_field_generators = this%num_field_generators + 1
-        call this%field_generators(this%num_field_generators)%create(name, output_handler_field_generator)
+        environment => this%fe_space%get_environment()
+        if ( environment%am_i_l1_task() ) then
+          call this%resize_field_generators_if_needed(this%num_field_generators+1)
+          this%num_field_generators = this%num_field_generators + 1
+          call this%field_generators(this%num_field_generators)%create(name, output_handler_field_generator)
+        end if
     end subroutine base_output_handler_add_field_generator
 
     subroutine base_output_handler_add_cell_vector(this, cell_vector, name)
@@ -587,10 +594,15 @@ contains
         type(std_vector_real_rp_t),         intent(in)    :: cell_vector
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
+        type(environment_t), pointer :: environment
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
-        call this%resize_cell_vectors_if_needed(this%num_cell_vectors+1)
-        this%num_cell_vectors = this%num_cell_vectors + 1
-        call this%cell_vectors(this%num_cell_vectors)%set(cell_vector, name)
+        assert(associated(this%fe_space))
+        environment => this%fe_space%get_environment()
+        if ( environment%am_i_l1_task() ) then
+          call this%resize_cell_vectors_if_needed(this%num_cell_vectors+1)
+          this%num_cell_vectors = this%num_cell_vectors + 1
+          call this%cell_vectors(this%num_cell_vectors)%set(cell_vector, name)
+        end if
     end subroutine base_output_handler_add_cell_Vector
 
     subroutine base_output_handler_configure_patch_field_strategy(this)

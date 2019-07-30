@@ -33,7 +33,6 @@ module fempar_names
   use allocatable_array_names
   use stdio_names
   use hash_table_names
-  use postpro_names
   use environment_names 
   use environment_parameters_names 
   use execution_context_names
@@ -67,7 +66,6 @@ module fempar_names
 
   use cell_import_names
   use mesh_names
-  use geometry_names
   use uniform_hex_mesh_generator_names
   use uniform_hex_mesh_generator_parameters_names
 
@@ -121,6 +119,7 @@ module fempar_names
   use error_norms_names
   use error_estimator_names
   use refinement_strategy_names
+  use refinement_strategy_parameters_names
   use block_layout_names
   use time_stepping_names
   

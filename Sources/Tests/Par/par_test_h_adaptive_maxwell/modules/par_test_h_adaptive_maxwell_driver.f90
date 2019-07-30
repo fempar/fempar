@@ -595,8 +595,6 @@ end subroutine free_timers
     type(error_norms_vector_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, hc, hc_s, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: tol 
-
-    call this%fe_space%set_up_cell_integration() 
     
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
@@ -739,9 +737,9 @@ end subroutine check_solution
     end if  
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = refinement_fraction_key, value = ref_fraction)
-    FPLError = FPLError + parameter_list%set(key = coarsening_fraction_key, value = coarse_fraction)
-    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = this%test_params%get_num_refinements() )
+    FPLError = parameter_list%set(key = ffrs_refinement_fraction_key, value = ref_fraction)
+    FPLError = FPLError + parameter_list%set(key = ffrs_coarsening_fraction_key, value = coarse_fraction)
+    FPLError = FPLError + parameter_list%set(key = ffrs_max_num_mesh_iterations_key, value = this%test_params%get_num_refinements() )
     assert(FPLError == 0)
     
     call this%refinement_strategy%create(this%maxwell_analytical_error_estimator,parameter_list)
@@ -816,9 +814,6 @@ end subroutine check_solution
       call this%timer_fe_space%start()
       call this%fe_space%redistribute(this%solution)
       call this%timer_fe_space%stop()
-            
-      ! If not called BUG 
-      call this%fe_space%set_up_cell_integration()
       
       ! Re-assemble system
       call this%timer_assemply%start()  
@@ -1084,7 +1079,7 @@ end subroutine check_solution
     if (environment%am_i_l1_task()) then
        num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
        num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
-       num_owned_dofs   = real(this%fe_space%get_field_num_owned_dofs(1),kind=rp)
+       num_owned_dofs   = real(this%fe_space%get_block_num_owned_dofs(1),kind=rp)
        num_fixed_dofs   = real(this%fe_space%get_num_fixed_dofs(),kind=rp)
        call environment%l1_sum(num_total_cells )
        call environment%l1_sum(num_dofs        )

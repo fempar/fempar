@@ -38,7 +38,10 @@ module mesh_partitioner_names
   use mesh_distribution_names
   use mesh_partitioner_parameters_names
   use environment_names
-  use postpro_names
+  use lib_vtk_io
+  use vtk_utils_names
+  use vtk_parameters_names
+  use std_vector_names
   use FPL
   implicit none
 # include "debug.i90"
@@ -66,6 +69,7 @@ module mesh_partitioner_names
      integer(ip)                   :: metis_option_ctype 
      integer(ip)                   :: metis_option_iptype
      integer(ip)                   :: metis_option_debug
+     character(len=:), allocatable :: vtk_format
   contains 
      procedure, non_overridable                   :: create         => mesh_partitioner_create
      procedure, non_overridable                   :: partition_mesh => mesh_partitioner_partition_mesh
@@ -97,11 +101,12 @@ module mesh_partitioner_names
                                                        => write_mesh_parts_gid_postprocess_format_dir_path_prefix, &
                                                           write_mesh_parts_gid_postprocess_format_pl
                                                           
-     procedure, non_overridable, private          :: write_mesh_partition_gid_postprocess_format_dir_path_prefix
-     procedure, non_overridable, private          :: write_mesh_partition_gid_postprocess_format_pl
-     generic                                      :: write_mesh_partition_gid_postprocess_format &
-                                                        => write_mesh_partition_gid_postprocess_format_dir_path_prefix, &
-                                                           write_mesh_partition_gid_postprocess_format_pl
+     procedure, non_overridable, private          :: vtk_output_handler_write_vtu
+     procedure, non_overridable, private          :: write_mesh_partition_vtk_format_dir_path_prefix
+     procedure, non_overridable, private          :: write_mesh_partition_vtk_format_pl
+     generic                                      :: write_mesh_partition_vtk_format &
+                                                        => write_mesh_partition_vtk_format_dir_path_prefix, &
+                                                           write_mesh_partition_vtk_format_pl
                                                            
      procedure, non_overridable          :: free                                  => mesh_partitioner_free
      procedure, non_overridable, nopass  :: get_dir_path_and_prefix_from_pl       => mesh_partitioner_get_dir_path_and_prefix_from_pl
@@ -376,6 +381,13 @@ contains
        istat = parameter_list%get(key = mesh_partitioner_metis_option_ctype_key  , value = this%metis_option_ctype)
        assert(istat==0)
     end if
+
+    this%vtk_format = mesh_partitioner_default_vtk_format
+    if(parameter_list%isPresent(mesh_partitioner_vtk_format_key)) then
+        assert(parameter_list%isAssignable(mesh_partitioner_vtk_format_key, 'string'))
+        istat = parameter_list%GetAsString(Key=mesh_partitioner_vtk_format_key, String=this%vtk_format)
+        assert(istat == 0)
+    endif
   end subroutine set_parameters_from_pl
   
   !=============================================================================
@@ -499,32 +511,127 @@ contains
   end subroutine   write_environment_related_data_file_unit 
   
   !=============================================================================
-  subroutine write_mesh_partition_gid_postprocess_format_pl(this, parameter_list)
+    subroutine vtk_output_handler_write_vtu(this, dir_path, prefix, task_id)
+    !-----------------------------------------------------------------
+    !< Write the vtu mesh partitions file 
+    !-----------------------------------------------------------------
+        class(mesh_partitioner_t),       intent(in) :: this
+        character(len=*),                intent(in) :: dir_path
+        character(len=*),                intent(in) :: prefix
+        integer(ip),                     intent(in) :: task_id
+        character(len=:), allocatable               :: filename
+        integer(ip)                                 :: num_components
+        integer(ip)                                 :: file_id
+        real(rp), pointer                           :: FieldValue(:,:)
+        real(rp), pointer                           :: CellValue(:)
+        integer(ip)                                 :: E_IO, i
+
+        integer(ip)                                 :: ndim
+        integer(ip)                                 :: ielem, nelem
+        integer(ip)                                 :: inode, nnode, nnodes
+        real(rp),      pointer                      :: coord(:,:)
+        integer(ip),   pointer                      :: pnods(:), lnods(:), conn(:)
+        integer(ip), allocatable                    :: offset(:)
+        integer(1),  allocatable                    :: celltypes(:)
+        type(std_vector_integer_ip_t)               :: connectivities
+    !-----------------------------------------------------------------
+        ! Create dir_path directory if needed
+        E_IO = 0
+        E_IO = create_directory(dir_path, 0)
+        assert(E_IO == 0)
+
+        filename = dir_path//'/'//prefix//'.post.vtu'
+
+        ndim =  this%mesh%get_num_dims()
+        nnodes = this%mesh%get_num_vertices()
+        nelem = this%mesh%get_num_cells()
+
+        ! Write VTU
+        E_IO = VTK_INI_XML(output_format = this%vtk_format,    &
+                           filename = filename,                &
+                           mesh_topology = 'UnstructuredGrid', &
+                           cf=file_id)
+        assert(E_IO == 0)
+
+        ! Write coordinates
+        coord => this%mesh%get_vertex_coordinates()
+        E_IO = VTK_GEO_XML(NN = nnodes, &
+                           NC = nelem, &
+                           X  = coord(1,:),                  &
+                           Y  = coord(2,:),                  &
+                           Z  = coord(3,:),                  &
+                           cf = file_id)
+        assert(E_IO == 0)
+
+        lnods => this%mesh%get_vertices_x_cell()
+        pnods => this%mesh%get_vertices_x_cell_pointers()
+
+        call memalloc(nelem+1,   offset,       __FILE__, __LINE__, valin=0, lb1=0)
+        call memalloc(nelem,   celltypes,      __FILE__, __LINE__)
+
+        ! Build connectivities from mesh
+        do ielem=1, nelem
+            nnode = pnods(ielem+1)-pnods(ielem)
+            celltypes(ielem) = nnodes_to_vtk_celltype(nnode, ndim)
+            offset(ielem) = offset(ielem-1) + nnode
+            do inode=1, nnode
+                call connectivities%push_back(lnods(pnods(ielem)+inode-1)-1)
+            enddo
+        end do
+
+        call connectivities%shrink_to_fit()
+        conn => connectivities%get_pointer()
+
+        ! Write connectivities
+        E_IO = VTK_CON_XML(NC        = nelem,      &
+                           connect   = conn,       &
+                           offset    = offset(1:), &
+                           cell_type = cellTypes,  &
+                           cf        = file_id)
+        assert(E_IO == 0)
+
+
+        call memfree(offset,         __FILE__, __LINE__)
+        call memfree(celltypes,      __FILE__, __LINE__)
+        call connectivities%free()
+
+
+        ! Write colored partition cell field
+        E_IO = VTK_DAT_XML(var_location='Cell',var_block_action='OPEN', cf=file_id)
+        assert(E_IO == 0)
+        E_IO = VTK_VAR_XML(NC_NN=nelem, varname='partitions', var=this%cells_part(1)%a, cf=file_id)
+        assert(E_IO == 0)
+        E_IO = VTK_DAT_XML(var_location='Cell', var_block_action='CLOSE', cf=file_id)
+        assert(E_IO == 0)
+
+        E_IO = VTK_GEO_XML(cf=file_id)
+        assert(E_IO == 0)
+        E_IO = VTK_END_XML(cf=file_id)
+        assert(E_IO == 0)
+    end subroutine vtk_output_handler_write_vtu
+
+  !=============================================================================
+  subroutine write_mesh_partition_vtk_format_pl(this, parameter_list)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
     type(ParameterList_t)    , intent(in)    :: parameter_list 
     character(len=:), allocatable :: dir_path
     character(len=:), allocatable :: prefix
     call this%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
-    call this%write_mesh_partition_gid_postprocess_format_dir_path_prefix(dir_path,prefix)
-  end subroutine write_mesh_partition_gid_postprocess_format_pl
+    call this%write_mesh_partition_vtk_format_dir_path_prefix(dir_path,prefix)
+  end subroutine write_mesh_partition_vtk_format_pl
   
   !=============================================================================
-  subroutine write_mesh_partition_gid_postprocess_format_dir_path_prefix(this, dir_path, prefix)
+  subroutine write_mesh_partition_vtk_format_dir_path_prefix(this, dir_path, prefix)
     implicit none
     class(mesh_partitioner_t), intent(inout) :: this
     character(len=*)         , intent(in)    :: dir_path
     character(len=*)         , intent(in)    :: prefix  
     ! Locals
-    type(post_file_t) :: lupos
     character(len=:), allocatable :: file_path
     assert ( associated(this%mesh) )
-    file_path = trim(dir_path)// '/' // trim(prefix) // '.post.res'
-    call postpro_open_file(1,file_path,lupos)
-    call postpro_gp_init(lupos,1,this%mesh%get_num_vertices(),this%mesh%get_num_dims())
-    call postpro_gp(lupos,this%mesh%get_num_dims(),this%mesh%get_num_vertices(),this%cells_part(1)%a,"MESH_PARTITION",1,1.0)
-    call postpro_close_file(lupos)
-  end subroutine write_mesh_partition_gid_postprocess_format_dir_path_prefix
+    call this%vtk_output_handler_write_vtu(dir_path, prefix,1)
+  end subroutine write_mesh_partition_vtk_format_dir_path_prefix
   
   !=============================================================================
   subroutine mesh_partitioner_get_dir_path_and_prefix_from_pl( parameter_list, dir_path, prefix ) 

@@ -25,15 +25,15 @@ variables:
     - git submodule update --init --recursive
     - mkdir -p $FEMPAR_DIR $THIRDPARTY_DIR
     - cd $THIRDPARTY_DIR
-    - for library in FPL F3PHT FLAP VTKIO SISL XH5For FortranParser;
+    - for library in FPL F3PHT FLAP VTKIO XH5For FortranParser;
       do
         mkdir -p $THIRDPARTY_DIR/$library;
         cd $THIRDPARTY_DIR/$library;
-        cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFORTRAN_EXTRA_FLAGS=$FORTRAN_EXTRA_FLAGS $ROOT_DIR/ThirdParty/$library;
+        cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFORTRAN_EXTRA_FLAGS="$FORTRAN_EXTRA_FLAGS" $ROOT_DIR/ThirdParty/$library;
         cmake --build . -- -j8;
       done
     - cd $FEMPAR_DIR
-    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DFORTRAN_EXTRA_FLAGS=$FORTRAN_EXTRA_FLAGS -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
+    - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DFORTRAN_EXTRA_FLAGS="$FORTRAN_EXTRA_FLAGS" -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
     - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
@@ -73,7 +73,7 @@ GNU_DEBUG_P4EST_SERIAL_MEM_COV:
     BUILD_DIR: /data/BUILD
     FEMPAR_DIR: $BUILD_DIR/FEMPAR
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
-    FORTRAN_EXTRA_FLAGS: -fimplicit-none -fprofile-arcs -ftest-coverage
+    FORTRAN_EXTRA_FLAGS: "-fimplicit-none -fprofile-arcs -ftest-coverage"
     BUILD_MODE: DEBUG
     TEST_LABEL: SERIAL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
@@ -125,7 +125,7 @@ GNU_DEBUG_P4EST_PARALLEL_MEM_COV:
     BUILD_DIR: /data/BUILD
     FEMPAR_DIR: $BUILD_DIR/FEMPAR
     THIRDPARTY_DIR: $BUILD_DIR/cache/gnu/debug/THIRDPARTY
-    FORTRAN_EXTRA_FLAGS: -fimplicit-none -fprofile-arcs -ftest-coverage
+    FORTRAN_EXTRA_FLAGS: "-fimplicit-none -fprofile-arcs -ftest-coverage"
     BUILD_MODE: DEBUG
     TEST_LABEL: PARALLEL
     EXTRA_DASHBOARDS: "-D ExperimentalCoverage -D ExperimentalMemCheck"
@@ -220,10 +220,47 @@ GNU_RELEASE_P4EST_PARALLEL_FAST:
   script: *script_template
 
 
+INTEL_DEBUG_P4EST_SERIAL_FAST:
+  image: registry.gitlab.com/fempar/fempar-beta:latest
+  stage: debug
+  except:
+    - experimental
+  variables:
+    ROOT_DIR: $CI_PROJECT_DIR
+    BUILD_DIR: /data/BUILD
+    FEMPAR_DIR: $BUILD_DIR/FEMPAR
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    FORTRAN_EXTRA_FLAGS: -implicitnone
+    BUILD_MODE: DEBUG
+    TEST_LABEL: SERIAL_FAST
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_SERIAL
+  script: *script_template
+
+
+INTEL_DEBUG_P4EST_PARALLEL_FAST:
+  image: registry.gitlab.com/fempar/fempar-beta:latest
+  stage: debug
+  except:
+    - experimental
+  variables:
+    ROOT_DIR: $CI_PROJECT_DIR
+    BUILD_DIR: /data/BUILD
+    FEMPAR_DIR: $BUILD_DIR/FEMPAR
+    THIRDPARTY_DIR: $BUILD_DIR/cache/intel/release/THIRDPARTY
+    FORTRAN_EXTRA_FLAGS: -implicitnone
+    BUILD_MODE: DEBUG
+    TEST_LABEL: PARALLEL_FAST
+    SOURCE_COMMAND: source /usr/local/Modules/init/bash
+    CLEAN_ENV_COMMAND: module purge
+    LOAD_ENV_COMMAND: module load INTEL_PARALLEL
+  script: *script_template
+
+
 INTEL_RELEASE_P4EST_SERIAL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   only:
     - experimental
     - merge_requests
@@ -244,7 +281,6 @@ INTEL_RELEASE_P4EST_SERIAL:
 INTEL_RELEASE_P4EST_SERIAL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   except:
     - experimental
   variables:
@@ -264,7 +300,6 @@ INTEL_RELEASE_P4EST_SERIAL_FAST:
 INTEL_RELEASE_P4EST_PARALLEL:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   only:
     - experimental
     - merge_requests
@@ -285,7 +320,6 @@ INTEL_RELEASE_P4EST_PARALLEL:
 INTEL_RELEASE_P4EST_PARALLEL_FAST:
   image: registry.gitlab.com/fempar/fempar-beta:latest
   stage: release
-  when: always
   except:
     - experimental
   variables:
@@ -302,13 +336,21 @@ INTEL_RELEASE_P4EST_PARALLEL_FAST:
   script: *script_template
 
 
+EXPERIMENTAL_DOCUMENTATION:
+  image: appropriate/curl:latest
+  stage: deploy
+  script: 
+    - curl -X POST -F token=${EXPERIMENTAL_DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/13484168/trigger/pipeline
+  only:
+    - experimental@fempar/fempar
+
 DOCUMENTATION:
   image: appropriate/curl:latest
   stage: deploy
   script: 
     - curl -X POST -F token=${DOCUMENTATION_TOKEN} -F ref=master https://gitlab.com/api/v4/projects/2293176/trigger/pipeline
   only:
-    - experimental@fempar/fempar
+    - tags
 
 SINGULARITY:
   image: fempar/fempar-env:golang_stretch-singularity
@@ -316,10 +358,10 @@ SINGULARITY:
   script: 
     - echo $SYLABS_TOKEN > $CI_PROJECT_DIR/sylabs-token
     - singularity remote login SylabsCloud --tokenfile $CI_PROJECT_DIR/sylabs-token
-    - singularity build -d -F -r library://fempar/default/fempar:gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
-    - singularity build -d -F -r library://fempar/default/fempar:gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
-    - singularity build -d -F -r library://fempar/default/fempar:gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
-    - singularity build -d -F -r library://fempar/default/fempar:gnu-release_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-debug_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-debug_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-debug_p4est-parallel
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-release_p4est-serial $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-serial
+    - singularity build -d -F -r library://fempar/default/fempar:${CI_COMMIT_TAG}_gnu-release_p4est-parallel $CI_PROJECT_DIR/Containers/Singularity/Singularity.gnu-release_p4est-parallel
     - rm $CI_PROJECT_DIR/sylabs-token
   only:
-    - experimental@fempar/fempar
+    - tags

@@ -97,6 +97,7 @@ module fe_space_names
     integer(ip)                                 :: num_fields
     integer(ip) , allocatable                   :: fe_space_type_x_field(:)
     integer(ip) , allocatable                   :: num_dofs_x_field(:)
+    integer(igp), allocatable                   :: num_global_dofs_x_block(:)
     type(dof_import_t)            , allocatable :: blocks_dof_import(:)
     logical                                     :: coarse_fe_space_set_up = .false.
     ! Pointer to data structure which is in charge of coarse DoF handling.
@@ -114,7 +115,9 @@ module fe_space_names
     procedure                                  :: get_field_coupling                           => base_fe_space_get_field_coupling
     procedure, non_overridable                 :: get_total_num_dofs                           => base_fe_space_get_total_num_dofs
     procedure, non_overridable                 :: get_field_num_dofs                           => base_fe_space_get_field_num_dofs
-    procedure, non_overridable                 :: get_field_num_owned_dofs                     => base_fe_space_get_field_num_owned_dofs 
+    procedure, non_overridable                 :: get_num_global_dofs                          => base_fe_space_get_num_global_dofs
+    procedure, non_overridable                 :: get_block_num_global_dofs                    => base_fe_space_get_block_num_global_dofs
+    procedure, non_overridable                 :: get_block_num_owned_dofs                     => base_fe_space_get_block_num_owned_dofs 
     procedure, non_overridable                 :: set_field_num_dofs                           => base_fe_space_set_field_num_dofs
     procedure                                  :: get_block_num_dofs                           => base_fe_space_get_block_num_dofs
     procedure, non_overridable                 :: get_total_num_interior_dofs                  => base_fe_space_get_total_num_interior_dofs
@@ -770,6 +773,8 @@ module fe_space_names
      procedure                           :: create_dof_values                          => serial_fe_space_create_dof_values
      procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
      procedure                           :: allocate_num_dofs_x_field                  => serial_fe_space_allocate_num_dofs_x_field
+     procedure                           :: allocate_num_global_dofs_x_block           => serial_fe_space_allocate_num_global_dofs_x_block
+     procedure                           :: fill_num_global_dofs_x_block               => serial_fe_space_fill_num_global_dofs_x_block
      procedure                           :: count_dofs                                 => serial_fe_space_count_dofs
      procedure                           :: list_dofs                                  => serial_fe_space_list_dofs
      procedure                 , private :: renum_dofs_block                           => serial_fe_space_renum_dofs_block
@@ -786,6 +791,7 @@ module fe_space_names
      procedure, non_overridable          :: get_field_offset_component                => serial_fe_space_update_get_field_offset_component
      procedure, non_overridable          :: get_max_num_shape_functions               => serial_fe_space_get_max_num_shape_functions
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
+     procedure, non_overridable          :: get_max_num_dofs_per_field_on_a_cell      => serial_fe_space_get_max_num_dofs_per_field_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
      procedure, non_overridable          :: get_max_num_nodal_quadrature_points       => serial_fe_space_get_max_num_nodal_quadrature_points
      procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points   
@@ -993,7 +999,7 @@ module fe_space_names
    procedure                                   :: set_up_cell_integration                         => par_fe_space_set_up_cell_integration
    procedure                                   :: set_up_facet_integration                        => par_fe_space_set_up_facet_integration
    
-   
+   procedure                                   :: fill_num_global_dofs_x_block                                 => par_fe_space_fill_num_global_dofs_x_block
    procedure        , non_overridable, private :: compute_blocks_dof_import                                    => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                                           => par_fe_space_compute_dof_import
    procedure        , non_overridable, private :: compute_dof_import_non_conforming_mesh                       => par_fe_space_compute_dof_import_non_conforming_mesh

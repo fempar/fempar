@@ -299,14 +299,14 @@ subroutine standard_get_coarse_space_use_vertices_edges_faces ( parameter_list, 
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   logical                               , intent(out)   :: use_vertices, use_edges, use_faces
   integer(ip) :: FPLError
-  assert(parameter_list%isAssignable(coarse_space_use_vertices_key, use_vertices))
-  FPLError   = parameter_list%Get(coarse_space_use_vertices_key, use_vertices)
+  assert(parameter_list%isAssignable(coarse_fe_handler_use_vertices_key, use_vertices))
+  FPLError   = parameter_list%Get(coarse_fe_handler_use_vertices_key, use_vertices)
   assert(FPLError == 0)
-  assert(parameter_list%isAssignable(coarse_space_use_edges_key, use_edges))
-  FPLError   = parameter_list%Get(coarse_space_use_edges_key, use_edges)
+  assert(parameter_list%isAssignable(coarse_fe_handler_use_edges_key, use_edges))
+  FPLError   = parameter_list%Get(coarse_fe_handler_use_edges_key, use_edges)
   assert(FPLError == 0)
-  assert(parameter_list%isAssignable(coarse_space_use_faces_key, use_faces))
-  FPLError   = parameter_list%Get(coarse_space_use_faces_key, use_faces)
+  assert(parameter_list%isAssignable(coarse_fe_handler_use_faces_key, use_faces))
+  FPLError   = parameter_list%Get(coarse_fe_handler_use_faces_key, use_faces)
   assert(FPLError == 0)
 end subroutine standard_get_coarse_space_use_vertices_edges_faces 
 

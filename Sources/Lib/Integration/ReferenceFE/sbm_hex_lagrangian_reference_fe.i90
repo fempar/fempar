@@ -345,52 +345,6 @@ subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadratur
   
 end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
 
-! Subroutine to deal with high order parametrizations of the boundary
-!==================================================================================================
-subroutine hex_lagrangian_reference_fe_blending(this,values)
-  implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  type(point_t)                       , intent(inout) :: values(:)
-
-  integer(ip) :: i,j, ipoin, nlocs, ndime,nnode
-
-  assert(size(values) == this%node_array%num_nodes)
-
-  ndime = this%num_dims
-  nnode = this%node_array%num_nodes
-
-  if(ndime==1) then
-     nlocs=nnode
-  else if(ndime==2) then
-     nlocs=nint(sqrt(real(nnode,rp)))
-  else
-     nlocs=nint(real(nnode,rp)**(1.0_rp/3.0_rp))
-  end if
-
-  if(ndime==2) then
-     !ipoin=0
-     do j = 2, nlocs - 1
-        do i = 2, nlocs - 1
-           ipoin = nlocs*(j-1)+i
-           !ipoin = ipoin + 1
-           call blend_2D(this%nodal_quadrature%coordinates(1,ipoin), & ! reference coordinates
-                &        this%nodal_quadrature%coordinates(2,ipoin), &
-                &        values(1), &                 ! value at vertex 1
-                &        values(nlocs), &             ! value at vertex 2
-                &        values(nlocs*(nlocs-1)+1), & ! value at vertex 3
-                &        values(nlocs*nlocs), &       ! value at vertex 4
-                &        values(i), &                 ! value at edge 5
-                &        values(nlocs*(nlocs-1)+i), & ! value at edge 6
-                &        values(nlocs*(j-1)+1), &     ! value at edge 7
-                &        values(nlocs*j), &           ! value at edge 8
-                &        values(ipoin))               ! interpolated value
-
-        end do
-     end do
-  end if
-
-end subroutine hex_lagrangian_reference_fe_blending
-
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
@@ -930,34 +884,3 @@ subroutine hex_lagrangian_free_projection_operator(this)
        call memfree ( this%coarsening_projection_operator, __FILE__, __LINE__ ) 
 end subroutine hex_lagrangian_free_projection_operator
 
-!**************************************************************************************************
-! Support functions
-!**************************************************************************************************
-
-! Subroutine to deal with high order parametrizations of the boundary
-! Only implemented in 2D
-!==================================================================================================
-subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
-  implicit none
-  real(rp), intent(in)  :: r,s
-  type(point_t), intent(in)  :: x1,x2,x3,x4,x5,x6,x7,x8
-  type(point_t), intent(out) :: x
-
-  !     3---6---------4
-  !     |   .         |
-  !     |   .         |
-  !     |   .         |
-  !     7...x........ 8
-  !     |   .         |
-  !     1---5---------2
-
-  x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
-       & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
-       & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
-       & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
-       & + ( 0.5_rp * (1-s)) * x5 &
-       & + ( 0.5_rp * (1+s)) * x6 &
-       & + ( 0.5_rp * (1-r)) * x7 &
-       & + ( 0.5_rp * (1+r)) * x8
-
-end subroutine blend_2D

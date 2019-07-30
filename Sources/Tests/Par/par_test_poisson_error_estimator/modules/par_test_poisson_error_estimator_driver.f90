@@ -194,9 +194,9 @@ contains
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
-    istat = this%parameter_list%set(key = coarse_space_use_vertices_key, value = .true.) ; check(istat==0)
-    istat = this%parameter_list%set(key = coarse_space_use_edges_key, value = .true.) ; check(istat==0)
-    istat = this%parameter_list%set(key = coarse_space_use_faces_key, value = .true.) ; check(istat==0)
+    istat = this%parameter_list%set(key = coarse_fe_handler_use_vertices_key, value = .true.) ; check(istat==0)
+    istat = this%parameter_list%set(key = coarse_fe_handler_use_edges_key, value = .true.) ; check(istat==0)
+    istat = this%parameter_list%set(key = coarse_fe_handler_use_faces_key, value = .true.) ; check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
     call this%coarse_fe_handler%create(this%parameter_list)
   end subroutine setup_coarse_fe_handlers
@@ -231,15 +231,14 @@ contains
     call poisson_cG_error_estimator%set_fe_function(this%solution)
     
     call parameter_list%init()
-    FPLError = parameter_list%set(key = error_objective_key                   , value = 2.0_rp)
-    FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
+    FPLError = parameter_list%set(key = eors_error_objective_key                   , value = 2.0_rp)
+    FPLError = FPLError + parameter_list%set(key = eors_objective_tolerance_key    , value = 0.1_rp)
     max_num_mesh_iterations = 10
-    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
-    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
+    FPLError = FPLError + parameter_list%set(key = eors_max_num_mesh_iterations_key, value = max_num_mesh_iterations)
+    FPLError = FPLError + parameter_list%set(key = urs_num_uniform_refinements_key, value = 2)
     assert(FPLError == 0)
-    FPLError = FPLError + parameter_list%set(key = refinement_fraction_key, value = 0.30_rp)
-    FPLError = FPLError + parameter_list%set(key = coarsening_fraction_key, value = 0.10_rp)
-    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
+    FPLError = FPLError + parameter_list%set(key = ffrs_refinement_fraction_key, value = 0.30_rp)
+    FPLError = FPLError + parameter_list%set(key = ffrs_coarsening_fraction_key, value = 0.10_rp)
     assert(FPLError == 0)
     
     if ( this%par_test_params%get_refinement_strategy() == 'uniform') then
@@ -273,7 +272,6 @@ contains
       call this%fe_space%refine_and_coarsen( this%solution )
       call this%triangulation%redistribute()
       call this%fe_space%redistribute( this%solution )
-      call this%fe_space%set_up_cell_integration()
       call this%fe_space%interpolate_dirichlet_values(this%solution)
       call this%fe_affine_operator%reallocate_after_remesh()
       call this%assemble_system()

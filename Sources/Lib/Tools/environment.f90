@@ -174,6 +174,20 @@ module environment_names
      procedure :: l1_sum_vector_igp           => environment_l1_sum_vector_igp
      generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp, l1_sum_scalar_igp, l1_sum_vector_igp
      generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp, l1_max_scalar_ip
+     
+     procedure :: w_sum_scalar_ip            => environment_w_sum_scalar_ip
+     procedure :: w_max_scalar_ip            => environment_w_max_scalar_ip
+     procedure :: w_sum_scalar_rp            => environment_w_sum_scalar_rp
+     procedure :: w_max_scalar_rp            => environment_w_max_scalar_rp
+     procedure :: w_sum_vector_rp            => environment_w_sum_vector_rp
+     procedure :: w_max_vector_rp            => environment_w_max_vector_rp
+     procedure :: w_sum_scalar_igp           => environment_w_sum_scalar_igp
+     procedure :: w_max_scalar_igp           => environment_w_max_scalar_igp
+     procedure :: w_sum_vector_igp           => environment_w_sum_vector_igp
+     procedure :: w_max_vector_igp           => environment_w_max_vector_igp
+     generic  :: w_sum                       => w_sum_scalar_ip, w_sum_scalar_rp, w_sum_vector_rp, w_sum_scalar_igp, w_sum_vector_igp
+     generic  :: w_max                       => w_max_scalar_ip, w_max_scalar_rp, w_max_vector_rp, w_max_scalar_igp, w_max_vector_igp    
+
   end type environment_t
 
   ! Types
@@ -240,17 +254,19 @@ contains
     call memalloc(array_size(1), this%num_tasks_x_level,__FILE__,__LINE__)
     istat = parameters%get(key = environment_num_tasks_x_level_key, value = this%num_tasks_x_level); check(istat==0)
     
-    error_message = 'At present, only a single task & 
-                   supported for the last level provided to ' // & 
-                   environment_num_tasks_x_level_key
-    massert ( this%num_tasks_x_level(this%num_levels) == 1,  error_message)   
-    
     error_message = 'The sum of all tasks provided to ' // & 
                    environment_num_tasks_x_level_key // & 
                    ' (' // ch(sum(this%num_tasks_x_level)) // ') ' // & 
                    'must match the total number of tasks that ENVIRONMENT is handling' // & 
                    ' (' // ch(world_context%get_num_tasks()) // ') '
     massert ( world_context%get_num_tasks() == sum(this%num_tasks_x_level), error_message)
+
+    if ( this%num_levels > 1 ) then
+      error_message = 'At present, only a single task & 
+                      supported for the last level provided to ' // & 
+                      environment_num_tasks_x_level_key
+      massert ( this%num_tasks_x_level(this%num_levels) == 1,  error_message)
+    end if
   end subroutine environment_process_parameters
   
   !=============================================================================
@@ -602,15 +618,63 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_scalar_rp(alpha)
   end subroutine environment_l1_sum_scalar_rp
+  
+  !=============================================================================
+  subroutine environment_w_sum_scalar_ip(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: alpha
+    call this%world_context%sum_scalar_ip(alpha)
+  end subroutine environment_w_sum_scalar_ip
+  
+  !=============================================================================
+  subroutine environment_w_max_scalar_ip(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(ip)          , intent(inout) :: alpha
+    call this%world_context%max_scalar_ip(alpha)
+  end subroutine environment_w_max_scalar_ip
+  
+  !=============================================================================
+  subroutine environment_w_sum_scalar_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha
+    call this%world_context%sum_scalar_rp(alpha)
+  end subroutine environment_w_sum_scalar_rp
+
+  !=============================================================================
+  subroutine environment_w_max_scalar_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha
+    call this%world_context%max_scalar_rp(alpha)
+  end subroutine environment_w_max_scalar_rp
 
   !=============================================================================
   subroutine environment_l1_sum_vector_rp(this,alpha)
     implicit none
     class(environment_t) , intent(in)    :: this
-    real(rp)                 , intent(inout) :: alpha(:) 
+    real(rp)             , intent(inout) :: alpha(:) 
     assert (this%am_i_l1_task())
     call this%l1_context%sum_vector_rp(alpha)
   end subroutine environment_l1_sum_vector_rp
+  
+  !=============================================================================
+  subroutine environment_w_sum_vector_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha(:) 
+    call this%world_context%sum_vector_rp(alpha)
+  end subroutine environment_w_sum_vector_rp
+  
+  !=============================================================================
+  subroutine environment_w_max_vector_rp(this,alpha)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    real(rp)             , intent(inout) :: alpha(:) 
+    call this%world_context%max_vector_rp(alpha)
+  end subroutine environment_w_max_vector_rp
 
   !=============================================================================
   subroutine environment_l1_max_scalar_rp (this,alpha)
@@ -649,6 +713,22 @@ contains
   end subroutine environment_l1_sum_scalar_igp
   
   !=============================================================================
+  subroutine environment_w_sum_scalar_igp (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n
+    call this%world_context%sum_scalar_igp(n)
+  end subroutine environment_w_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine environment_w_max_scalar_igp (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n
+    call this%world_context%max_scalar_igp(n)
+  end subroutine environment_w_max_scalar_igp
+  
+  !=============================================================================
   subroutine environment_l1_sum_vector_igp (this,n)
     implicit none
     class(environment_t) , intent(in)    :: this
@@ -656,6 +736,22 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_vector_igp(n)
   end subroutine environment_l1_sum_vector_igp
+  
+  !=============================================================================
+  subroutine environment_w_sum_vector_igp(this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    call this%world_context%sum_vector_igp(n)
+  end subroutine environment_w_sum_vector_igp
+  
+  !=============================================================================
+  subroutine environment_w_max_vector_igp(this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    call this%world_context%max_vector_igp(n)
+  end subroutine environment_w_max_vector_igp  
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_rp ( this, & 

@@ -49,11 +49,6 @@ module triangulation_names
   use FPL
   use uniform_hex_mesh_generator_names
   use uniform_hex_mesh_generator_parameters_names
-  
-  ! Geometry modules
-  use sisl_names
-  use geometry_names
-  use gid_geometry_reader_names
 
   ! Triangulation Parameters
   use triangulation_parameters_names
@@ -1203,7 +1198,6 @@ module triangulation_names
      integer(ip)                   :: geometric_interpolation_order
      character(len=:), allocatable :: dir_path
      character(len=:), allocatable :: prefix
-     type(geometry_t)              :: geometry
   contains
      procedure                           :: process_parameters                  => fine_triangulation_process_parameters
      ! Private methods to create vefs (these functions make use of the reference fe and therefore are not bounded
