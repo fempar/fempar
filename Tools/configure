@@ -47,14 +47,12 @@ OPTIONS:
    --without-umfpack
    --with-metis (default)
    --without-metis
-   --with-gidpost
-   --without-gidpost (default)
    --with-tests (default)
    --without-tests
 EOF
 }
 # NOTE: This requires GNU getopt.
-TEMP=`getopt -o hc:b:d:s: --long help,compiler:,build-type:,driver:,sources:,fflags:,cflags:,with-openmp,without-openmp,with-blas,without-blas,with-lapack,without-lapack,with-mkl,without-mkl,with-p4est,without-p4est,with-umfpack,without-umfpack,with-metis,without-metis,with-gidpost,without-gidpost,with-tests,without-tests -n 'configure' -- "$@"`
+TEMP=`getopt -o hc:b:d:s: --long help,compiler:,build-type:,driver:,sources:,fflags:,cflags:,with-openmp,without-openmp,with-blas,without-blas,with-lapack,without-lapack,with-mkl,without-mkl,with-p4est,without-p4est,with-umfpack,without-umfpack,with-metis,without-metis,with-tests,without-tests -n 'configure' -- "$@"`
 
 if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
 
@@ -75,7 +73,6 @@ MKL=ON
 P4EST=ON
 UMFPACK=ON
 METIS=ON
-GIDPOST=OFF
 TESTS=ON
  
 c_flag_present=0
@@ -121,8 +118,6 @@ while true; do
 	--without-umfpack ) UMFPACK=OFF; shift ;;
 	--with-metis )      METIS=ON; shift ;;
 	--without-metis )   METIS=FF; shift ;;
-	--with-gidpost )    GIDPOST=ON; shift ;;
-	--without-gidpost ) GIDPOST=OFF; shift ;;
 	--with-tests )      TESTS=ON; shift ;;
 	--without-tests )   TESTS=OFF; shift ;;
 	-- ) shift; break ;;
@@ -150,10 +145,9 @@ echo MKL = $MKL
 echo P4EST = $P4EST 
 echo UMFPACK = $UMFPACK
 echo METIS = $METIS
-echo GIDPOST = $GIDPOST
 echo TESTS = $TESTS
 
-MACROS="-DFEMPAR_ENABLE_BLAS=$BLAS -DFEMPAR_ENABLE_LAPACK=$LAPACK -DFEMPAR_ENABLE_MKL=$MKL -DFEMPAR_ENABLE_P4EST=$P4EST -DFEMPAR_ENABLE_UMFPACK=$UMFPACK -DFEMPAR_ENABLE_METIS=$METIS -DFEMPAR_ENABLE_GIDPOST=$GIDPOST"
+MACROS="-DFEMPAR_ENABLE_BLAS=$BLAS -DFEMPAR_ENABLE_LAPACK=$LAPACK -DFEMPAR_ENABLE_MKL=$MKL -DFEMPAR_ENABLE_P4EST=$P4EST -DFEMPAR_ENABLE_UMFPACK=$UMFPACK -DFEMPAR_ENABLE_METIS=$METIS "
 
 MPIEXEC_PREFLAGS=
 NUM=`mpirun --version 2>&1 | grep -c "Open MPI"`
