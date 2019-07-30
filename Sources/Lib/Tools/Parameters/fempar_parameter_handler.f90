@@ -1052,6 +1052,12 @@ contains
            metis_part_kway, &
            mesh_partitioner_strategy_cla_help) 
 
+      call this%add(mesh_partitioner_vtk_format_key, &
+           mesh_partitioner_vtk_format_cla_name, &
+           mesh_partitioner_default_vtk_format, &
+           mesh_partitioner_vtk_format_cla_help, &
+           choices = mesh_partitioner_vtk_format_cla_choices) 
+
       call this%add(mesh_partitioner_metis_option_debug_key, &
            mesh_partitioner_metis_option_debug_cla_name, &
            mesh_partitioner_default_metis_option_debug, &
