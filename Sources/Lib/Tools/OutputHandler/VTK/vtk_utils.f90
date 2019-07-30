@@ -85,6 +85,7 @@ private
 
 public :: create_directory
 public :: topology_to_vtk_celltype
+public :: nnodes_to_vtk_celltype
 public :: get_vtk_output_directory_name
 public :: get_vtk_output_path
 public :: get_pvd_output_path
@@ -134,6 +135,40 @@ contains
             check(.false.)    
         endif
     end function topology_to_vtk_celltype
+
+
+    function nnodes_to_vtk_celltype(nnodes, dimension) result(cell_type)
+    !-----------------------------------------------------------------
+    !< Translate the nnodes into VTK cell type
+    !-----------------------------------------------------------------
+        integer(ip),                 intent(in)    :: nnodes
+        integer(ip),                 intent(in)    :: dimension
+        integer(I1P)                               :: cell_type
+    !-----------------------------------------------------------------
+
+        if(dimension == 2) then
+            if(nnodes == 3) then 
+                cell_type = vtk_triangle
+            elseif(nnodes == 4) then
+                cell_type = vtk_pixel
+            else
+                write(error_unit,*) 'nnodes_to_vtk_CellType: Nnodes not supported: ', nnodes
+                check(.false.)    
+            endif
+        elseif(dimension == 3) then
+            if(nnodes == 4) then 
+                cell_type = vtk_tetra
+            elseif(nnodes == 8) then
+                cell_type = vtk_voxel
+            else
+                write(error_unit,*) 'nnodes_to_vtk_CellType: Nnodes not supported: ', nnodes
+                check(.false.)    
+            endif
+        else
+            write(error_unit,*) 'nnodes_to_vtk_CellType: Dimension not supported: ', dimension
+            check(.false.)    
+        endif
+    end function nnodes_to_vtk_celltype
 
 
     function get_vtk_output_directory_name(time_step) result(path)

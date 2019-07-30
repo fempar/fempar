@@ -299,7 +299,9 @@ if (NOT MATH_LIBRARY)
     # we could instead fallback to default library (via FindOpenMP.cmake)
     ##list(APPEND _MKL_MISSING_LIBRARIES MATH)
     ### If MATH_LIBRARY is not found, display a warning instead of mark it as missing
-    message(STATUS "FindMKL: MATH library not found")
+    if (MKL_FIND_DEBUG)
+        message(STATUS "FindMKL: MATH library not found")
+    endif()
 else()
     list(APPEND MKL_LIBRARIES ${MATH_LIBRARY})
     if (MKL_FIND_DEBUG)
@@ -335,7 +337,7 @@ elseif (_MKL_MISSING_LIBRARIES)
 endif()
 
 if (MKL_FOUND)
-    if (NOT MKL_FIND_QUIETLY OR MKL_FIND_DEBUG)
+    if (MKL_FIND_DEBUG)
         message(STATUS
             "Intel(R) MKL was found:\n"
             "  MKL_INCLUDE_DIRS: ${MKL_INCLUDE_DIRS}\n"

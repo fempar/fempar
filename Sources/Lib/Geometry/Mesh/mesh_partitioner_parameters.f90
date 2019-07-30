@@ -28,6 +28,9 @@
 module mesh_partitioner_parameters_names
   use types_names
   use metis_names
+  use vtk_parameters_names, only: output_handler_vtk_format_cla_choices, &
+                                  output_handler_vtk_format_default,     &
+                                  output_handler_vtk_format_cla_help
   implicit none
 
   ! ---------------------------------------------------------------------------
@@ -39,6 +42,7 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_strategy_key          = 'MESH_PARTITIONER_STRATEGY'
   character(len=*), parameter :: mesh_partitioner_dir_path_key          = 'MESH_PARTITIONER_DIR_PATH'
   character(len=*), parameter :: mesh_partitioner_prefix_key            = 'MESH_PARTITIONER_PREFIX'
+  character(len=*), parameter :: mesh_partitioner_vtk_format_key        = 'MESH_PARTITIONER_VTK_FORMAT'
   
   character(len=*), parameter :: mesh_partitioner_metis_option_debug_key   = 'MESH_PARTITIONER_METIS_DEBUG'
   character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_key = 'MESH_PARTITIONER_METIS_OPTION_UFACTOR'
@@ -56,6 +60,7 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_strategy_cla_name           = '--'//mesh_partitioner_strategy_key
   character(len=*), parameter :: mesh_partitioner_dir_path_cla_name           = '--'//mesh_partitioner_dir_path_key
   character(len=*), parameter :: mesh_partitioner_prefix_cla_name             = '--'//mesh_partitioner_prefix_key
+  character(len=*), parameter :: mesh_partitioner_vtk_format_cla_name         = '--'//mesh_partitioner_vtk_format_key
 
   character(len=*), parameter :: mesh_partitioner_metis_option_debug_cla_name   = '--'//mesh_partitioner_metis_option_debug_key
   character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_cla_name = '--'//mesh_partitioner_metis_option_ufactor_key
@@ -78,6 +83,8 @@ module mesh_partitioner_parameters_names
                                                                          part_strip           // ',' // &
                                                                          part_rcm_strip 
 
+  character(len=*), parameter :: mesh_partitioner_vtk_format_cla_choices = output_handler_vtk_format_cla_choices
+
   character(len=*), parameter :: mesh_partitioner_metis_option_iptype_cla_choices = '0,1,2,3,4'
   character(len=*), parameter :: mesh_partitioner_metis_option_ctype_cla_choices   = '0,1'
   character(len=*), parameter :: mesh_partitioner_metis_option_minconn_cla_choices = '0,1'
@@ -90,6 +97,7 @@ module mesh_partitioner_parameters_names
   character(len=*),          parameter :: mesh_partitioner_default_strat = metis_part_kway
   character(len=*),          parameter :: mesh_partitioner_default_dir_path_output = '.'  
   character(len=*),          parameter :: mesh_partitioner_default_prefix_output   = 'mesh_partition'
+  character(len=*),          parameter :: mesh_partitioner_default_vtk_format = output_handler_vtk_format_default
   character(len=*),          parameter :: default_dir_path                              ='.'
   character(len=*),          parameter :: default_prefix                                ='A'
   integer(ip),               parameter :: default_mesh_partitioner_num_levels           = 1
@@ -126,6 +134,7 @@ module mesh_partitioner_parameters_names
   character(len=*), parameter :: mesh_partitioner_num_levels_cla_help           = "Number of levels in the triangulation hierarchy required for the "               // BRK_LINE // &
                                                                                   "MLBDDC preconditioner"
   character(len=*), parameter :: mesh_partitioner_num_parts_x_level_cla_help    = "Number of parts per level"
+  character(len=*), parameter :: mesh_partitioner_vtk_format_cla_help           = output_handler_vtk_format_cla_help
   character(len=*), parameter :: mesh_partitioner_metis_option_debug_cla_help   = "METIS_OPTION_DBGLVL (see METIS users' manual for additional details)"
   character(len=*), parameter :: mesh_partitioner_metis_option_ufactor_cla_help = "METIS_OPTION_UFACTOR, (see METIS users' manual for additional details)."         // BRK_LINE // &
                                                                                   "The special value -1 sets the METIS defaults for part_kway and part_recursive"

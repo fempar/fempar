@@ -33,7 +33,6 @@ module fempar_names
   use allocatable_array_names
   use stdio_names
   use hash_table_names
-  use postpro_names
   use environment_names 
   use environment_parameters_names 
   use execution_context_names

@@ -92,7 +92,6 @@ ENDIF(NOT ${PROJECT_NAME}_BUILD_LABEL)
 # BUT LIBRARIES ARE NOT LINKED
 SET(EXTERNAL_LIBRARIES MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZLIB QHULL)
 SET(MKL_USE_STATIC_LIBS ON)
-MESSAGE(MKL_USE_STATIC_LIBS: ${MKL_USE_STATIC_LIBS})
 
 #################################################################
 # Find REQUIRED MPI library and check MPI.mod compatibility
@@ -132,6 +131,7 @@ ENDIF()
 # Find external libraries
 #################################################################
 
+MESSAGE("\n ------------------------ \n | External Libraries   | \n ------------------------ \n")
 # Loop over the list of external libraries 
 FOREACH(EXT_LIB ${EXTERNAL_LIBRARIES})
     # If external library is enabled but not found yet
@@ -215,7 +215,9 @@ FOREACH(EXT_LIB ${EXTERNAL_LIBRARIES})
             ENDIF()
         ENDIF()
       ENDIF()
-      MESSAGE(STATUS "EXTLIB  " ${EXT_LIB}  ${${EXT_LIB}_LIBRARIES})
+      IF(${EXT_LIB}_FOUND) 
+          MESSAGE(STATUS "[${EXT_LIB}] ${${EXT_LIB}_LIBRARIES}")
+      ENDIF()
     SET(${PROJECT_NAME}_EXTERNAL_LIBRARIES ${${PROJECT_NAME}_EXTERNAL_LIBRARIES} ${${EXT_LIB}_LIBRARIES})
 ENDFOREACH ()
 
@@ -259,8 +261,7 @@ IF(NOT DEFINED ${PROJECT_NAME}_ENABLE_HDF5 OR "${${PROJECT_NAME}_ENABLE_HDF5}" S
     SET(${PROJECT_NAME}_ENABLE_HDF5 ON) 
 ENDIF()
 
-MESSAGE("EXTERNAL_PROJECTS:  ${EXTERNAL_PROJECTS}") # List of Fempar external projects
-
+MESSAGE("\n ------------------------ \n | External Projects    | \n ------------------------ \n")
 # Loop over all (required) external projects
 # ${EXT_PROJ}_DIR is used as a clue to find every external project
 FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
@@ -273,6 +274,7 @@ FOREACH(EXT_PROJ ${EXTERNAL_PROJECTS})
     ENDIF() 
     SET(${EXT_PROJ}_DIR ${${EXT_PROJ}_DIR} CACHE STRING "${EXT_PROJ} root directory")
     FIND_PACKAGE(${EXT_PROJ} REQUIRED)                    # Look for the external project
+    MESSAGE(STATUS "[${EXT_PROJ}] ${${EXT_PROJ}_LIBS}")
     SET(${PROJECT_NAME}_EXTERNAL_PROJECTS ${${PROJECT_NAME}_EXTERNAL_PROJECTS} ${${EXT_PROJ}_LIBS})    
     INCLUDE_DIRECTORIES(${${EXT_PROJ}_INCLUDES})          # Include directory of the external project
     SET(${PROJECT_NAME}_INCLUDE_DIRS ${${PROJECT_NAME}_INCLUDE_DIRS} ${${EXT_PROJ}_INCLUDES})
@@ -287,6 +289,8 @@ ENDIF()
 #################################################################
 # FFLAGS depend on the compiler and the build type
 #################################################################
+
+MESSAGE("\n ------------------------ \n | Compiler Options     | \n ------------------------ \n")
 
 GET_FILENAME_COMPONENT(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 
@@ -330,6 +334,8 @@ message (STATUS "CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
 message (STATUS "CMAKE_Fortran_FLAGS: " ${CMAKE_Fortran_FLAGS})
 message (STATUS "CMAKE_Fortran_FLAGS_RELEASE: " ${CMAKE_Fortran_FLAGS_RELEASE})
 message (STATUS "CMAKE_Fortran_FLAGS_DEBUG: " ${CMAKE_Fortran_FLAGS_DEBUG})
+
+MESSAGE("\n ------------------------ \n")
 
 #################################################################
 # STATIC LIBRARIES
