@@ -42,7 +42,6 @@ module mesh_partitioner_names
   use vtk_utils_names
   use vtk_parameters_names
   use std_vector_names
-  use postpro_names
   use FPL
   implicit none
 # include "debug.i90"
@@ -102,12 +101,6 @@ module mesh_partitioner_names
                                                        => write_mesh_parts_gid_postprocess_format_dir_path_prefix, &
                                                           write_mesh_parts_gid_postprocess_format_pl
                                                           
-     procedure, non_overridable, private          :: write_mesh_partition_gid_postprocess_format_dir_path_prefix
-     procedure, non_overridable, private          :: write_mesh_partition_gid_postprocess_format_pl
-     generic                                      :: write_mesh_partition_gid_postprocess_format &
-                                                        => write_mesh_partition_gid_postprocess_format_dir_path_prefix, &
-                                                           write_mesh_partition_gid_postprocess_format_pl
-
      procedure, non_overridable, private          :: vtk_output_handler_write_vtu
      procedure, non_overridable, private          :: write_mesh_partition_vtk_format_dir_path_prefix
      procedure, non_overridable, private          :: write_mesh_partition_vtk_format_pl
@@ -518,33 +511,6 @@ contains
   end subroutine   write_environment_related_data_file_unit 
   
   !=============================================================================
-  subroutine write_mesh_partition_gid_postprocess_format_pl(this, parameter_list)
-    implicit none
-    class(mesh_partitioner_t), intent(inout) :: this
-    type(ParameterList_t)    , intent(in)    :: parameter_list 
-    character(len=:), allocatable :: dir_path
-    character(len=:), allocatable :: prefix
-    call this%get_dir_path_and_prefix_from_pl(parameter_list, dir_path, prefix)
-    call this%write_mesh_partition_gid_postprocess_format_dir_path_prefix(dir_path,prefix)
-  end subroutine write_mesh_partition_gid_postprocess_format_pl
-  
-  !=============================================================================
-  subroutine write_mesh_partition_gid_postprocess_format_dir_path_prefix(this, dir_path, prefix)
-    implicit none
-    class(mesh_partitioner_t), intent(inout) :: this
-    character(len=*)         , intent(in)    :: dir_path
-    character(len=*)         , intent(in)    :: prefix  
-    ! Locals
-    type(post_file_t) :: lupos
-    character(len=:), allocatable :: file_path
-    assert ( associated(this%mesh) )
-    file_path = trim(dir_path)// '/' // trim(prefix) // '.post.res'
-    call postpro_open_file(1,file_path,lupos)
-    call postpro_gp_init(lupos,1,this%mesh%get_num_vertices(),this%mesh%get_num_dims())
-    call postpro_gp(lupos,this%mesh%get_num_dims(),this%mesh%get_num_vertices(),this%cells_part(1)%a,"MESH_PARTITION",1,1.0)
-    call postpro_close_file(lupos)
-  end subroutine write_mesh_partition_gid_postprocess_format_dir_path_prefix
-
     subroutine vtk_output_handler_write_vtu(this, dir_path, prefix, task_id)
     !-----------------------------------------------------------------
     !< Write the vtu mesh partitions file 
@@ -662,7 +628,6 @@ contains
     character(len=*)         , intent(in)    :: dir_path
     character(len=*)         , intent(in)    :: prefix  
     ! Locals
-    type(post_file_t) :: lupos
     character(len=:), allocatable :: file_path
     assert ( associated(this%mesh) )
     call this%vtk_output_handler_write_vtu(dir_path, prefix,1)
