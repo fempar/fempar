@@ -1,0 +1,4 @@
+mpirun -np 5 tutorial_03_poisson_sharp_circular_wave_parallel_amr --ENVIRONMENT_NUM_LEVELS 2 --ENVIRONMENT_NUM_TASKS_X_LEVEL 4 1
+mpirun -np 5 tutorial_03_poisson_sharp_circular_wave_parallel_amr --ENVIRONMENT_NUM_LEVELS 2 --ENVIRONMENT_NUM_TASKS_X_LEVEL 4 1 --FES_REF_FE_ORDERS 2
+mpirun -np 5 tutorial_03_poisson_sharp_circular_wave_parallel_amr --ENVIRONMENT_NUM_LEVELS 2 --ENVIRONMENT_NUM_TASKS_X_LEVEL 4 1 --P4EST_TRIANG_NUM_DIMS 2 --CIRCLE_CENTER 0.0 0.0  --P4EST_TRIANG_LOG_LEVEL 0
+
