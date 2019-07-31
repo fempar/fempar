@@ -203,13 +203,12 @@ contains
   end subroutine get_tutorial_cla_values
 
   subroutine setup_context_and_environment()
-    !* Create a single-task group of tasks (as world_context is of type serial_context_t)
+    !* Create a group of tasks (as many as specified to mpirun)
     call world_context%create()
-    !* Force the environment to split world_context into a single group of 
-    !* tasks (level) composed by a single task. As world_context is of type serial_context_t, 
-    !* any other environment configuration is not possible
-    !call parameter_handler%update(environment_num_levels_key, 1)
-    !call parameter_handler%update(environment_num_tasks_x_level_key, [1])
+    !* Force environment to split world_context into two subgroups of tasks (levels)
+    !* composed by "world_context%get_num_tasks()-1" and a single task, resp.
+    call parameter_handler%update(environment_num_levels_key, 2)
+    call parameter_handler%update(environment_num_tasks_x_level_key, [world_context%get_num_tasks()-1,1])
     call environment%create(world_context, parameter_handler%get_values())
   end subroutine setup_context_and_environment
   
@@ -357,6 +356,8 @@ contains
    if ( current_amr_step == 0 ) then
       !* Iterative linear solver setup
       call iterative_linear_solver%create(environment)
+      ! Force Conjugate Gradients Iterative Solver to solve the Poisson problem
+      call parameter_handler%update(ils_type_key, cg_name)
       call iterative_linear_solver%set_type_from_pl(parameter_handler%get_values())
       call iterative_linear_solver%set_parameters_from_pl(parameter_handler%get_values())
       !* Next, we set the coefficient matrix and preconditioner to be used by iterative linear solver
@@ -378,20 +379,16 @@ contains
    real(rp) :: global_error_energy_norm
    type(coarse_triangulation_t), pointer :: coarse_triangulation
    type(coarse_fe_space_t), pointer :: coarse_fe_space
-   if ( current_amr_step == 0 ) then
-      call error_estimator%create(fe_space,parameter_handler%get_values())
-      call error_estimator%set_exact_solution(exact_solution)
-      call error_estimator%set_discrete_solution(discrete_solution)
-      if ( environment%am_i_l1_task() ) then
-        if ( environment%am_i_l1_root() ) then
-          write(*,'(a70)')  repeat('=', 70)
-          write(*,'(a70)') tutorial_name // ' results'
-          write(*,'(a70)')  repeat('=', 70)
-        end if  
-      end if
-   else 
-      call error_estimator%reallocate_after_remesh()
-   end if 
+   call error_estimator%create(fe_space,parameter_handler%get_values())
+   call error_estimator%set_exact_solution(exact_solution)
+   call error_estimator%set_discrete_solution(discrete_solution)
+   if ( environment%am_i_l1_task() ) then
+     if ( environment%am_i_l1_root() ) then
+        write(*,'(a70)')  repeat('=', 70)
+        write(*,'(a70)') tutorial_name // ' results'
+        write(*,'(a70)')  repeat('=', 70)
+      end if  
+   end if
    call error_estimator%compute_local_true_errors()
    call error_estimator%compute_local_estimates()
    global_error_energy_norm = sum(error_estimator%get_sq_local_true_error_entries())
@@ -423,16 +420,8 @@ contains
   end subroutine compute_error
   
   subroutine setup_refinement_strategy()
-    real(rp) :: ref_fraction, coarse_fraction
-    if ( triangulation%get_num_dims() == 2 ) then
-      ref_fraction    = 0.10_rp
-      coarse_fraction = 0.05_rp
-    else 
-      ref_fraction    = 0.10_rp
-      coarse_fraction = 0.05_rp
-    end if  
-    call parameter_handler%update(key = ffrs_refinement_fraction_key, value = ref_fraction)
-    call parameter_handler%update(key = ffrs_coarsening_fraction_key, value = coarse_fraction)
+    call parameter_handler%update(key = ffrs_refinement_fraction_key, value = 0.10_rp)
+    call parameter_handler%update(key = ffrs_coarsening_fraction_key, value = 0.05_rp)
     call parameter_handler%update(key = ffrs_max_num_mesh_iterations_key, value = num_amr_steps )
     call refinement_strategy%create(error_estimator,parameter_handler%get_values())
   end subroutine setup_refinement_strategy

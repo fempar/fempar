@@ -368,7 +368,6 @@ module tutorial_03_error_estimator_names
      type(vector_field_t)                , allocatable :: exact_solution_gradients(:) 
    contains
      procedure :: create                    => poisson_error_estimator_create
-     procedure :: reallocate_after_remesh   => poisson_error_estimator_reallocate_after_remesh
      procedure :: free                      => poisson_error_estimator_free
      procedure :: set_exact_solution        => poisson_error_estimator_set_exact_solution
      procedure :: set_discrete_solution     => poisson_error_estimator_set_discrete_solution
@@ -395,25 +394,7 @@ contains
     allocate(this%exact_solution_gradients(fe_space%get_max_num_quadrature_points()),stat=istat)
     check(istat==0)
   end subroutine poisson_error_estimator_create
-  
-  subroutine poisson_error_estimator_reallocate_after_remesh ( this )
-    implicit none
-    integer(ip) :: istat
-    class(poisson_error_estimator_t), intent(inout) :: this
-    class(serial_fe_space_t)  , pointer :: fe_space
-    fe_space => this%get_fe_space()
-    assert ( associated(fe_space) )
-    if (allocated(this%exact_solution_gradients)) then 
-       deallocate(this%exact_solution_gradients,stat=istat)
-       check(istat==0)
-    end if
-    ! The maximum number of quadrature points in any cell may have changed once the fe_space has been
-    ! adapted/redistributed. This typically happens in the first levels of an AMR hierarchy, where it 
-    ! may happen that some subdomain(s) do not hold any cell of the whole triangulation.
-    allocate(this%exact_solution_gradients(fe_space%get_max_num_quadrature_points()),stat=istat)
-    check(istat==0)
-  end subroutine poisson_error_estimator_reallocate_after_remesh
-  
+    
   subroutine poisson_error_estimator_free ( this )
     implicit none
     class(poisson_error_estimator_t), intent(inout) :: this
@@ -455,44 +436,51 @@ contains
     integer(ip) :: qpoint, num_quad_points
     real(rp) :: sq_local_true_error
     integer(ip) :: istat 
-    type(environment_t), pointer :: environment
 
     assert (associated(this%exact_solution))
     assert (associated(this%discrete_solution))
     fe_space => this%get_fe_space()
     assert ( associated(fe_space) )
+    
+    if (allocated(this%exact_solution_gradients)) then 
+       deallocate(this%exact_solution_gradients,stat=istat)
+       check(istat==0)
+    end if
+    ! The maximum number of quadrature points in any cell may have changed once the fe_space has been
+    ! adapted/redistributed. This typically happens in the first levels of an AMR hierarchy, where it 
+    ! may happen that some subdomain(s) do not hold any cell of the whole triangulation.
+    allocate(this%exact_solution_gradients(fe_space%get_max_num_quadrature_points()),stat=istat)
+    check(istat==0)
+    
     triangulation => fe_space%get_triangulation()
     sq_local_true_errors => this%get_sq_local_true_errors()
     call sq_local_true_errors%resize(0)
-    environment => fe_space%get_environment()
-    if ( environment%am_i_l1_task() ) then
-      call sq_local_true_errors%resize(triangulation%get_num_local_cells(), 0.0_rp)
-      sq_local_true_errors_entries => sq_local_true_errors%get_pointer()
-      call fe_space%create_fe_cell_iterator(fe)
-      do while(.not. fe%has_finished())
-         if ( fe%is_local() ) then
-           call fe%update_integration()
-           call this%fe_cell_function%update(fe,this%discrete_solution)
-           quad => fe%get_quadrature()
-           num_quad_points = quad%get_num_quadrature_points()
-           quad_coords => fe%get_quadrature_points_coordinates()
-           call this%exact_solution%get_gradients_set( quad_coords, &
-                                                       this%exact_solution_gradients )
-           discrete_solution_gradients => this%fe_cell_function%get_quadrature_points_gradients()
-           sq_local_true_error = 0.0_rp
-           do qpoint = 1, num_quad_points
+    call sq_local_true_errors%resize(triangulation%get_num_local_cells(), 0.0_rp)
+    sq_local_true_errors_entries => sq_local_true_errors%get_pointer()
+    call fe_space%create_fe_cell_iterator(fe)
+    do while(.not. fe%has_finished())
+       if ( fe%is_local() ) then
+          call fe%update_integration()
+          call this%fe_cell_function%update(fe,this%discrete_solution)
+          quad => fe%get_quadrature()
+          num_quad_points = quad%get_num_quadrature_points()
+          quad_coords => fe%get_quadrature_points_coordinates()
+          call this%exact_solution%get_gradients_set( quad_coords, &
+               this%exact_solution_gradients )
+          discrete_solution_gradients => this%fe_cell_function%get_quadrature_points_gradients()
+          sq_local_true_error = 0.0_rp
+          do qpoint = 1, num_quad_points
              factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              this%exact_solution_gradients(qpoint) = this%exact_solution_gradients(qpoint) - &
-                                                     discrete_solution_gradients(qpoint)
+                  discrete_solution_gradients(qpoint)
              sq_local_true_error = sq_local_true_error + factor * this%exact_solution_gradients(qpoint) * &
-                                        this%exact_solution_gradients(qpoint)
-           end do
-           sq_local_true_errors_entries(fe%get_gid()) = sq_local_true_error
-         end if 
-         call fe%next()
-      end do
-      call fe_space%free_fe_cell_iterator(fe)
-    end if
+                  this%exact_solution_gradients(qpoint)
+          end do
+          sq_local_true_errors_entries(fe%get_gid()) = sq_local_true_error
+       end if
+       call fe%next()
+    end do
+    call fe_space%free_fe_cell_iterator(fe)
   end subroutine poisson_error_estimator_compute_local_true_errors
 
   subroutine poisson_error_estimator_compute_local_estimates(this)
