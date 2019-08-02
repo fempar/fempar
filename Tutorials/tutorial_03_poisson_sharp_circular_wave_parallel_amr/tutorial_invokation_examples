@@ -1,0 +1,12 @@
+# 2D benchmark problem solved with 5 parallel MPI tasks, CG FE formulation, bilinear FE discretization, 15 AMR steps, generation of post-processing data files deactivated
+mpirun -np 5 --oversubscribe tutorial_03_poisson_sharp_circular_wave_parallel_amr --P4EST_TRIANG_NUM_DIMS 2 --NUM_UNIFORM_REFINEMENT_STEPS 4 --NUM_AMR_STEPS 15 --FES_REF_FE_ORDERS 1 --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE
+
+# 3D benchmark problem solved with 5 parallel MPI tasks, CG FE formulation, trilinear FE discretization, 8 AMR steps, generation of post-processing data files deactivated
+mpirun -np 5 --oversubscribe tutorial_03_poisson_sharp_circular_wave_parallel_amr --P4EST_TRIANG_NUM_DIMS 3 --NUM_UNIFORM_REFINEMENT_STEPS 2 --NUM_AMR_STEPS 8 --FES_REF_FE_ORDERS 1  --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE
+
+# A selected example invokation from the list above with:
+# (1) BDDC space supplied only with corner and edge coarse DoFs (i.e., face coarse DoFs disabled).
+# (2) A relative residual tolerance of 10^{-10} for the Preconditioned Conjugate Gradients Iterative Solver.
+# (3) fixed_fraction_refinement_strategy_t log output activated.
+# (4) Post-processing data files activated, XH5 output data format (i.e., XDMF+HDF5).
+mpirun -np 5 --oversubscribe tutorial_03_poisson_sharp_circular_wave_parallel_amr --P4EST_TRIANG_NUM_DIMS 3 --NUM_UNIFORM_REFINEMENT_STEPS 2 --NUM_AMR_STEPS 8 --FES_REF_FE_ORDERS 1 --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 -0.05 --COARSE_FE_HANDLER_USE_VERTICES TRUE --COARSE_FE_HANDLER_USE_EDGES TRUE --COARSE_FE_HANDLER_USE_FACES FALSE --ILS_RTOL 1.0e-10 --FIXED_FRACTION_REFINEMENT_STRATEGY_PRINT_INFO TRUE --WRITE_POSTPROCESS_DATA TRUE --OUTPUT_HANDLER_DIR_PATH output --OUTPUT_HANDLER_PREFIX solution

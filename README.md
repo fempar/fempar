@@ -28,7 +28,7 @@ FEMPAR: An object-oriented parallel finite element framework. \
 
 The quickest and easiest way to start with FEMPAR is using [Docker](https://www.docker.com). [Docker](https://opensource.com/resources/what-docker) is a tool designed to make it easier to create, deploy, and run applications by using containers.
 
-FEMPAR provides a Docker [container with the required environment](https://hub.docker.com/u/fempar) to compile the project source code and to run tutorials and tests. 
+FEMPAR provides a Docker [container with the required environment](https://hub.docker.com/u/fempar) to compile the project source code and to run tutorials and tests. Click on [this link](https://gitlab.com/fempar/fempar/tree/experimental/Containers/Docker) for additional details. 
 
 Please, follow the steps below to compile FEMPAR using the Docker container:
 
@@ -56,13 +56,15 @@ After completing the previous compilation steps, you can compile and run FEMPAR 
 $ FEMPAR_TUTORIALS_DIR=$SOURCES_DIR/Tutorials
 $ mkdir -p $FEMPAR_TUTORIALS_DIR
 $ cd $FEMPAR_TUTORIALS_DIR
-$ cmake -DFEMPAR_DIR=$FEMPAR_DIR -DFEMPAR_TUTORIAL=tutorial_01_steady_poisson $SOURCES_DIR/Tutorials
+$ cmake -DFEMPAR_DIR=$FEMPAR_DIR -DFEMPAR_TUTORIAL=tutorial_01_poisson_sharp_circular_wave $SOURCES_DIR/Tutorials
 $ make -j 4
-$ bin/tutorial_01_steady_poisson --help                              # get informative message on screen
-$ bin/tutorial_01_steady_poisson [optional command line arguments]   # execute the tutorial
+$ bin/tutorial_01_poisson_sharp_circular_wave --help                              # get informative message on screen
+$ bin/tutorial_01_poisson_sharp_circular_wave [optional command line arguments]   # execute the tutorial
 ```
 
-This particular set of commands compiles the tutorial program named `tutorial_01_steady_poisson`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well.
+This particular set of commands compiles the tutorial program named `tutorial_01_poisson_sharp_circular_wave`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well. 
+The main source code folder of each tutorial is supplied with the `tutorial_invokation_examples` file. This file contains command-line invokation examples of the corresponding tutorial, and thus is
+a good starting point to start playing with the tutorial.
 
 At present, we only offer a reduced set of tutorial programs which show the usage of the most simple FEMPAR features. However, we plan in the near future to extend the current 
 tutorial suite towards demonstration of the various aspects of the library. 
