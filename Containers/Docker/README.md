@@ -13,7 +13,7 @@ Docker can run in Linux, Mac and Windows. Please take a look to [supported-platf
 Instructions to install Docker in your platform can be read in the following links:
 
  - Linux: [CentOS](https://docs.docker.com/install/linux/docker-ce/centos/), [Debian](https://docs.docker.com/install/linux/docker-ce/debian/), [Fedora](https://docs.docker.com/install/linux/docker-ce/fedora/), [Ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
- - Mac: [MacOS](https://docs.docker.com/docker-for-mac/install/
+ - Mac: [MacOS](https://docs.docker.com/docker-for-mac/install/)
  - Windows: [Windows 10](https://docs.docker.com/docker-for-windows/install/)
  
 After installing Docker, you can check its correct funcioning by typing the following command:
@@ -113,13 +113,13 @@ After completing the previous compilation steps, you can compile and run FEMPAR 
 $ FEMPAR_TUTORIALS_DIR=$SOURCES_DIR/Tutorials
 $ mkdir -p $FEMPAR_TUTORIALS_DIR
 $ cd $FEMPAR_TUTORIALS_DIR
-$ cmake -DFEMPAR_DIR=$FEMPAR_DIR -DFEMPAR_TUTORIAL=tutorial_01_steady_poisson $SOURCES_DIR/Tutorials
+$ cmake -DFEMPAR_DIR=$FEMPAR_DIR -DFEMPAR_TUTORIAL=tutorial_01_poisson_sharp_circular_wave $SOURCES_DIR/Tutorials
 $ make -j 4
-$ bin/tutorial_01_steady_poisson --help                              # get informative message on screen
-$ bin/tutorial_01_steady_poisson [optional command line arguments]   # execute the tutorial
+$ bin/tutorial_01_poisson_sharp_circular_wave --help                              # get informative message on screen
+$ bin/tutorial_01_poisson_sharp_circular_wave [optional command line arguments]   # execute the tutorial
 ```
 
-This particular set of commands compiles the tutorial program named `tutorial_01_steady_poisson`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well.
+This particular set of commands compiles the tutorial program named `tutorial_01_poisson_sharp_circular_wave`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well.
 
 At present, we only offer a reduced set of tutorial programs which show the usage of the most simple FEMPAR features. However, we plan in the near future to extend the current 
 tutorial suite towards demonstration of the various aspects of the library. 
