@@ -62,7 +62,9 @@ $ bin/tutorial_01_poisson_sharp_circular_wave --help                            
 $ bin/tutorial_01_poisson_sharp_circular_wave [optional command line arguments]   # execute the tutorial
 ```
 
-This particular set of commands compiles the tutorial program named `tutorial_01_poisson_sharp_circular_wave`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well.
+This particular set of commands compiles the tutorial program named `tutorial_01_poisson_sharp_circular_wave`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well. 
+The main source code folder of each tutorial is supplied with the `tutorial_invokation_examples` file. This file contains command-line invokation examples of the corresponding tutorial, and thus is
+a good starting point to start playing with the tutorial.
 
 At present, we only offer a reduced set of tutorial programs which show the usage of the most simple FEMPAR features. However, we plan in the near future to extend the current 
 tutorial suite towards demonstration of the various aspects of the library. 
