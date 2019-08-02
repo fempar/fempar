@@ -28,7 +28,7 @@ FEMPAR: An object-oriented parallel finite element framework. \
 
 The quickest and easiest way to start with FEMPAR is using [Docker](https://www.docker.com). [Docker](https://opensource.com/resources/what-docker) is a tool designed to make it easier to create, deploy, and run applications by using containers.
 
-FEMPAR provides a Docker [container with the required environment](https://hub.docker.com/u/fempar) to compile the project source code and to run tutorials and tests. 
+FEMPAR provides a Docker [container with the required environment](https://hub.docker.com/u/fempar) to compile the project source code and to run tutorials and tests. Click on [this link](https://gitlab.com/fempar/fempar/tree/experimental/Containers/Docker) for additional details. 
 
 Please, follow the steps below to compile FEMPAR using the Docker container:
 
