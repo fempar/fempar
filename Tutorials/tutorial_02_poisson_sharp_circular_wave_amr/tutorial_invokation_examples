@@ -4,10 +4,10 @@ tutorial_02_poisson_sharp_circular_wave_amr --P4EST_TRIANG_NUM_DIMS 2 --NUM_UNIF
 # 2D benchmark problem, DG FE formulation, bilinear FE discretization, 15 AMR steps, generation of post-processing data files deactivated
 tutorial_02_poisson_sharp_circular_wave_amr --P4EST_TRIANG_NUM_DIMS 2 --NUM_UNIFORM_REFINEMENT_STEPS 4 --NUM_AMR_STEPS 15 --FES_REF_FE_ORDERS 1 --FE_FORMULATION DG --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE
 
-# 3D benchmark problem, CG FE formulation, bilinear FE discretization, 8 AMR steps, generation of post-processing data files deactivated
+# 3D benchmark problem, CG FE formulation, trilinear FE discretization, 8 AMR steps, generation of post-processing data files deactivated
 tutorial_02_poisson_sharp_circular_wave_amr --P4EST_TRIANG_NUM_DIMS 3 --NUM_UNIFORM_REFINEMENT_STEPS 2 --NUM_AMR_STEPS 8 --FES_REF_FE_ORDERS 1 --FE_FORMULATION CG --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE
 
-# 3D benchmark problem, DG FE formulation, bilinear FE discretization, 8 AMR steps, generation of post-processing data files deactivated
+# 3D benchmark problem, DG FE formulation, trilinear FE discretization, 8 AMR steps, generation of post-processing data files deactivated
 tutorial_02_poisson_sharp_circular_wave_amr --P4EST_TRIANG_NUM_DIMS 3 --NUM_UNIFORM_REFINEMENT_STEPS 2 --NUM_AMR_STEPS 8 --FES_REF_FE_ORDERS 1 --FE_FORMULATION DG --ALPHA 200.0 --CIRCLE_RADIUS 0.7 --CIRCLE_CENTER -0.05 -0.05 -0.05 --WRITE_POSTPROCESS_DATA FALSE
 
 # A selected example invokation from the list above, with fixed_fraction_refinement_strategy_t log output activated, and post-processing data files activated, default output data format (i.e., VTK) 
