@@ -1,7 +1,8 @@
 
-
 ### Command line options:
 
+
+Optional switches:
 
 Optional switches:
 
@@ -22,6 +23,7 @@ Optional switches:
     Activate/deactivate set up of a cell-wise data array within triangulation. In this array, 
     referred to as disconnected_cells_set_id, cells that belong to the same disconnected component
     are labelled with the same ID, starting from 0. If deactivated, all cells are labelled with ID 0.
+
 
 * `--TRIANG_IDENTIFY_DISCONNECTED_COMPONENTS_DGRAPH_COUPLING value`, value in: `VERTEX_COUPLING,FACE_COUPLING`  
     default value VERTEX_COUPLING  
@@ -77,6 +79,14 @@ Optional switches:
       graph vertex identifiers) are re-ordered using the Reverse
       Cuthill-McKee algorithm in advance
 
+* `--MESH_PARTITIONER_VTK_FORMAT value`, value in: `ASCII,RAW,BINARY-APPENDED,BINARY`  
+    default value RAW  
+    VTK output data formats
+    * ASCII: data are saved in ASCII format
+    * RAW: data are saved in raw-binary format in the appended tag of the XML file
+    * BINARY-APPENDED: data are saved in base64 encoded format in the appended tag of the XML file
+    * BINARY: data are saved in base64 encoded format
+
 * `--MESH_PARTITIONER_METIS_DEBUG value`  
     default value +0  
     METIS_OPTION_DBGLVL (see METIS users' manual for additional details)
@@ -114,7 +124,7 @@ Optional switches:
     * 4: METIS_IPTYPE_METISRB
 
 * `--STRUCT_HEX_MESH_GENERATOR_NUM_DIMS value`, value in: `2,3`  
-    default value +2  
+    default value +3  
     Number of space dimensions
 
 * `--STRUCT_HEX_MESH_GENERATOR_DOMAIN_LIMITS value#1 [value#2...]`  
@@ -130,12 +140,16 @@ Optional switches:
     Number of parts per dimension per level
 
 * `--P4EST_TRIANG_NUM_DIMS value`, value in: `2,3`  
-    default value +2  
+    default value +3  
     p4est triangulation number of space dimensions
 
 * `--P4EST_TRIANG_DOMAIN_LIMITS value#1 [value#2...]`  
     default value 0.000000000000000E+000 +0.100000000000000E+001 0.000000000000000E+000 +0.100000000000000E+001 0.000000000000000E+000 +0.100000000000000E+001  
     p4est triangulation domain interval per dimension
+
+* `--P4EST_TRIANG_GEOMETRY_INTERPOLATION_ORDER value`  
+    default value +1  
+    p4est triangulation polynomial order of the Lagrangian FE space used to discretize the geometry of the domain
 
 * `--P4EST_TRIANG_LOG_LEVEL value`, value in: `-1,0,1,2,3,4,5,6,7,8,9`  
     default value +9  
@@ -321,17 +335,17 @@ Optional switches:
     default value T  
     Print output per nonlinear solver iteration
 
-* `--FES_COARSE_SPACE_USE_VERTICES value`  
+* `--COARSE_FE_HANDLER_USE_VERTICES value`  
     default value T  
-    Coarse-space shape functions on vertices
+    Enable/Disable coarse FE space DOFs on coarse triangulation vertices
 
-* `--FES_COARSE_SPACE_USE_EDGES value`  
+* `--COARSE_FE_HANDLER_USE_EDGES value`  
     default value T  
-    Coarse-space shape functions on edges
+    Enable/Disable coarse FE space DOFs on coarse triangulation edges
 
-* `--FES_COARSE_SPACE_USE_FACES value`  
+* `--COARSE_FE_HANDLER_USE_FACES value`  
     default value T  
-    Coarse-space shape functions on faces
+    Enable/Disable coarse FE space DOFs on coarse triangulation faces
 
 * `--BDDC_SCALING_FUNCTION_CASE value`  
     default value cardinality  
@@ -372,6 +386,47 @@ Optional switches:
 * `--OUTPUT_HANDLER_XH5_INFO value`  
     default value +0  
     HDF5 I/O low level configuration based on MPI info
+
+* `--UNIFORM_REFINEMENT_STRATEGY_NUM_UNIFORM_REFINEMENTS value`  
+    default value +0  
+    Number of uniform mesh refinement steps to be
+    performed using the uniform refinement strategy.
+
+* `--ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJECTIVE value`  
+    default value 0.000000000000000E+000  
+    Real quantity expressing the ABSOLUTE global error value
+    to be achieved by the error objective refinement strategy.
+
+* `--ERROR_OBJECTIVE_REFINEMENT_STRATEGY_OBJETIVE_TOLERANCE value`  
+    default value 0.000000000000000E+000  
+    Real quantity that increments ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJECTIVE
+    to facilitate convergence of the error objective refinement strategy.
+
+* `--ERROR_OBJECTIVE_REFINEMENT_STRATEGY_MAX_NUM_MESH_ITERATIONS value`  
+    default value +100  
+    Maximum number of iterations allowed to the error objective refinement
+    strategy to find a mesh with ABSOLUTE global error below
+    ERROR_OBJECTIVE_REFINEMENT_STRATEGY_ERROR_OBJECTIVE.
+
+* `--FIXED_FRACTION_REFINEMENT_STRATEGY_REFINEMENT_FRACTION value`  
+    default value +0.500000000000000E+000  
+    Fraction of total number of cells to be set for REFINEMENT
+    in a single mesh adaptation step of the fixed fraction refinement strategy.
+
+* `--FIXED_FRACTION_REFINEMENT_STRATEGY_COARSENING_FRACTION value`  
+    default value +0.500000000000000E+000  
+    Fraction of total number of cells to be set for COARSENING
+    in a single mesh adaptation step of the fixed fraction refinement strategy.
+
+* `--FIXED_FRACTION_REFINEMENT_STRATEGY_MAX_NUM_MESH_ITERATIONS value`  
+    default value +10  
+    Number of mesh adaptation steps to be performed
+    within the fixed fraction refinement strategy.
+
+* `--FIXED_FRACTION_REFINEMENT_STRATEGY_PRINT_INFO value`  
+    default value F  
+    Print convergence status and computed thresholds of
+    a single step of the fixed fraction refinement strategy.
 
 * `--help`, `-h`  
     Print this help message
