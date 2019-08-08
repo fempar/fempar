@@ -23,6 +23,7 @@ FEMPAR: An object-oriented parallel finite element framework. \
 - [Mirror repository](https://www.github.com/fempar/fempar)
 - [Testing dashboard](https://cdash.cimne.upc.edu/user.php)
 - [Documentation](http://fempar.gitlab.io/documentation/)
+- [Developers mailing list](https://listas.cimne.upc.edu/mailman/listinfo/fempar-dev)
 
 ## Quick Start
 
