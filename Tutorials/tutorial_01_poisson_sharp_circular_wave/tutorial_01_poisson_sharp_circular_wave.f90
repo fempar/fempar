@@ -26,13 +26,29 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!* ### Module loading
+!* The [[tutorial_01_poisson_sharp_circular_wave]],
 program tutorial_01_poisson_sharp_circular_wave
+!* uses the [[fempar_names]] to import all **`FEMPAR`** library symbols (i.e., derived types, parameter constants, system-wide variables, etc.),
+!* and a set of tutorial-specific module units, 
+!*
+!* - [[tutorial_01_discrete_integration_names]]
+!* - [[tutorial_01_functions_names]]
+!* - [[tutorial_01_error_estimator_names]]
+!*
+!* These modules are not part of the **`FEMPAR`** library, but developed specifically for the problem at hand. Each of these modules defines a tutorial-specific data type and its TBPs.
   use fempar_names
   use tutorial_01_discrete_integration_names
   use tutorial_01_functions_names
   use tutorial_01_error_estimator_names
+
+!* ### Variable definition
+!* This tutorial declares:
+!*
+!* - a set of parameter constants, typically the tutorial name, authors, problem description, etc. (to be output on screen on demand by the user),
+!* - the tutorial data type instances in charge of the FE simulation, such as the triangulation (mesh) of the computational domain or the FE space from which the approximate solution of the PDE is sought, 
+!* - and a set of variables to hold the values of the Command-Line-Arguments (CLAs) which are specific to the tutorial.
   implicit none
-  
   character(*), parameter :: tutorial_name = "tutorial_01_poisson_sharp_circular_wave"
   character(*), parameter :: tutorial_version = "v1.0.0"
   character(*), parameter :: tutorial_description = "Solves a 2D/3D Poisson problem on the unit &
@@ -44,31 +60,40 @@ program tutorial_01_poisson_sharp_circular_wave
                                                      a-posteriori error estimators.)"
   character(*), parameter :: tutorial_authors = "Santiago Badia and Alberto F. Martín"
   
+
+  !* The [[tutorial_01_poisson_sharp_circular_wave:world_context]] is a software abstraction 
+  !* for a group of parallel tasks (a.k.a. processes) and the communication layer that orchestrates their concurrent execution.
+  !* In this case is declared of type [[serial context t]] as it is designed to work in serial computing environments.
   type(serial_context_t)                  :: world_context
+  !* the [[tutorial_01_poisson_sharp_circular_wave:environment]] organizes the tasks of the context from which it is set up into subgroups of tasks, referred to as
+  !* levels, and builds up additional communication mechanisms to communicate tasks belonging
+  !* to different levels.
   type(environment_t)                     :: environment
-  !* The triangulation_t object provides the mesh. In this case, we consider a serial static triangulation, i.e., 
-  ! a triangulation that is not distributed among processors, and that cannot be h-adapted during the simulation.
+  !* The [[tutorial_01_poisson_sharp_circular_wave:triangulation]] object provides the mesh. 
+  !* In this case, we consider a serial static triangulation, i.e., 
+  !* a triangulation that is not distributed among processors, and that cannot be h-adapted during the simulation.
   type(serial_triangulation_t)            :: triangulation
-  !* The fe_space_t is the global finite element space to be used.
+  !* The [[tutorial_01_poisson_sharp_circular_wave:fe_space]] is the global finite element space to be used.
   type(serial_fe_space_t)                 :: fe_space
+  !* The [[tutorial_01_poisson_sharp_circular_wave:strong_boundary_conditions]] is the object that provides the strong boundary conditions definition.
   type(strong_boundary_conditions_t)      :: strong_boundary_conditions 
-  !* A scalar-valued function with the right hand side of the PDE problem at hand.
+  !* The [[tutorial_01_poisson_sharp_circular_wave:source_terhm]] is a scalar-valued function with the right hand side of the PDE problem at hand.
   type(sharp_circular_wave_source_term_t) :: source_term
-  !* A scalar-valued function with the exact (analytical) solution of the PDE problem at hand.
+  !* The [[tutorial_01_poisson_sharp_circular_wave:exact_solution]] ia a scalar-valued function with the exact (analytical) solution of the PDE problem at hand.
   type(sharp_circular_wave_solution_t)    :: exact_solution
-  !* A fe_affine_operator_t that represents the affine operator the solution of which is the one we want, i.e., B = Ax-f.
+  !* [[tutorial_01_poisson_sharp_circular_wave:fe_affine_operator]] that represents the affine operator the solution of which is the one we want, i.e., \(B = Ax-f\).
   !* The solution is the root of this operator.
   type(fe_affine_operator_t)              :: fe_affine_operator
-  !* A fe_function_t belonging to the FE space defined above. Here, we will store the computed solution.
+  !* The [[tutorial_01_poisson_sharp_circular_wave:discrete_solution]] is the object belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                     :: discrete_solution
   !* poisson_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
   type(cg_discrete_integration_t), target :: cg_discrete_integration
   type(dg_discrete_integration_t), target :: dg_discrete_integration
-  !* direct_solver_t provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK)
+  !* The [[tutorial_01_poisson_sharp_circular_wave:direct_solver]] provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK).
   type(direct_solver_t)                   :: direct_solver
-  !* The output handler type is used to generate the simulation data files for later visualization using, e.g., ParaView
+  !* The [[tutorial_01_poisson_sharp_circular_wave:output_handler]] object is used to generate the simulation data files for later visualization using, e.g., ParaView.
   type(output_handler_t)                  :: output_handler
-  !* The following object is used to compute the (square) of the error energy norm for all cells, i.e., ||u-u_h||_E,K
+  !* The [[tutorial_01_poisson_sharp_circular_wave:error_estimator]] object is used to compute the (square) of the error energy norm for all cells, i.e., \(||u-u_h||_E,K\).
   type(poisson_error_estimator_t)         :: error_estimator
   
   !* Variables to store the values of the command-line arguments which are particular to this tutorial.
@@ -78,8 +103,17 @@ program tutorial_01_poisson_sharp_circular_wave
   real(rp), allocatable     :: circle_center(:)
   character(:), allocatable :: fe_formulation
   logical                   :: write_postprocess_data
-  
-  !* Initialize FEMPAR library (i.e., construct system-wide variables)
+
+  !* ### Main code  
+  !* Initialize **`FEMPAR`** library (i.e., construct system-wide variables)
+  !* Finalize **`FEMPAR`** library (i.e., destruct system-wide variables)
+
+  !* Here you can see the main code of this tutorial representing the entire flow
+  !* of actions/computations performed by this tutorial.
+  !*
+  !* As there is almost a one-to-one mapping among the data type instances and the
+  !* helper procedures called by tutorial 01, we will introduce them in the sequel step-by-step along
+  !* with code snippets of the corresponding [helper procedures](#helper_procedures).
   call fempar_init()
   call setup_parameter_handler()
   call get_tutorial_cla_values()
@@ -94,19 +128,25 @@ program tutorial_01_poisson_sharp_circular_wave
   call compute_error()
   call write_postprocess_data_files()
   call free_all_objects()
-  !* Finalize FEMPAR library (i.e., destruct system-wide variables)
   call fempar_finalize()
-contains
 
+  !* ### Helper procedures
+contains
+  !* #### Parameter handling
+  !* The [[fempar_parameter_handler_names:parameter_handler]] is connected with the tutorial's command-line interface. 
+  !* It parses the arguments provided to the command-line, and stores their values into a polymorphic dictionary of `<key,value>` pairs 
+  !* (i.e., of type [[parameterlist_t]]); a pointer to such dictionary can be obtained calling [[fempar_parameter_handler_t:get_values]], 
+  !* as it will be required later on to create most of the objects provided by **`FEMPAR`**. 
+  !*
+  !* In [[tutorial_01_poisson_sharp_circular_wave:setup_parameter_handler]] subroutine 
+  !* we set up the system-wide variable referred to as [[fempar_parameter_handler_names:parameter_handler]].
+  !* 
+  !* **`FEMPAR`** users may define additional command-line arguments by means of a user-provided subroutine. 
+  !* [[tutorial_01_poisson_sharp_circular_wave:define_tutorial_clas]] 
+  !* subroutine (defined right below) is indeed the one that defines the command-line arguments for this particular 
+  !* tutorial
   subroutine setup_parameter_handler()
-    !* In this subroutine we set up the system-wide variable referred to as "parameter_handler".
-    !* This object is connected with the tutorial's command-line interface. It parses the arguments 
-    !* provided to the command-line, and stores their values into a polymorphic dictionary of <key,value> pairs 
-    !* (i.e., of type parameterlist_t); a pointer to such dictionary can be obtained calling "parameter_handler%get_values()", 
-    !* as it will be required later on to create most of the objects provided by FEMPAR. FEMPAR users may define 
-    !* additional command-line arguments by means of a user-provided subroutine. "define_tutorial_clas" 
-    !* subroutine (defined right below) is indeed the one that defines the command-line arguments for this particular 
-    !* tutorial
+    !> Define tutorial metadata and process CLI parameters
     call parameter_handler%process_parameters(& 
          define_user_parameters_procedure = define_tutorial_clas, & 
          progname = tutorial_name, &
@@ -115,14 +155,22 @@ contains
          authors     = tutorial_authors)
   end subroutine setup_parameter_handler
 
+  !* In [[tutorial_01_poisson_sharp_circular_wave:define_tutorial_clas]] subroutine 
+  !* we use [[fempar_parameter_handler_names:parameter_handler]] in order to add and describe the command-line arguments 
+  !* which are particular to this tutorial program. 
+  !*
+  !* Describing a command-line argument involves defining:
+  !* 
+  !* - a [[parameterlist_t]] dictionary _key_ (e.g., `FE_FORMULATION`),
+  !* - a command-line argument _name_ (e.g., `--FE_FORMULATION`), 
+  !* - a _default value_ for the command-line argument (in case it is not passed )(e.g., `CG`), 
+  !* - a _help message_, 
+  !* - and (optionally) a set of admissible _choices_ for the command-line argument.
+  !*
+  !* The dictionary key can be used later on in order to get the value of the corresponding command-line argument
+  !* or to override (update) it with a fixed value, thus ignoring the value provided to the command-line argument
   subroutine define_tutorial_clas()
-    !* In this subroutine we use parameter_handler in order to add and describe the command-line arguments 
-    !* which are particular to this tutorial program. Describing a command-line argument involves
-    !* defining a parameterlist_t dictionary key (e.g., "FE_FORMULATION"), a command-line argument name 
-    !* (e.g., --FE_FORMULATION), a default value for the command-line argument in case it is not passed 
-    !* (e.g., "CG"), a help message, and (optionally) a set of admissible choices for the command-line argument.
-    !* The dictionary key can be used later on in order to get the value of the corresponding command-line argument
-    !* or to override (update) it with a fixed value, thus ignoring the value provided to the command-line argument
+    !> Define tutorial CLAs
     call parameter_handler%add("FE_FORMULATION",   &
                                "--FE_FORMULATION", & 
                                "CG",  & 
@@ -151,9 +199,11 @@ contains
                                using, e.g., ParaView")
   end subroutine define_tutorial_clas
   
+  !* In [[tutorial_01_poisson_sharp_circular_wave:get_tutorial_cla_values]] subroutine 
+  !* we use the [[fempar_parameter_handler_names:parameter_handler]] to obtain the values of the command-line arguments 
+  !* which are particular to this tutorial.
   subroutine get_tutorial_cla_values()
-    !* In this subroutine we use parameter_handler to obtain the values of the command-line arguments 
-    !* which are particular to this tutorial
+    !> Obtain CLA values from [[fempar_parameter_handler_names:parameter_handler]]
     call parameter_handler%getasstring("FE_FORMULATION", fe_formulation)
     call parameter_handler%get("ALPHA", alpha)
     call parameter_handler%get("CIRCLE_RADIUS", circle_radius)
@@ -171,25 +221,54 @@ contains
     write(*,'(a54)')  repeat('=', 54)
   end subroutine get_tutorial_cla_values
 
+  !* #### Environment initialization
+  !* In [[tutorial_01_poisson_sharp_circular_wave:setup_context_and_environment]] subroutine 
+  !* a single-task group of tasks is created.
+  !* 
+  !* Environment related parameters are also updated to preserve the coherence with this context
+  !* (as [[tutorial_01_poisson_sharp_circular_wave:world_context]] is of type [[serial_context_t]]).
+  !* 
+  !* When parameters are already update, the [[tutorial_01_poisson_sharp_circular_wave:environment]] is created.
+  !*
+  !* @note
+  !* As `world_context` is of type [[serial_context_t]], 
+  !* any other environment configuration is not possible
+  !* @endnote
   subroutine setup_context_and_environment()
-    !* Create a single-task group of tasks (as world_context is of type serial_context_t)
+    !> Create the context and the environment.
     call world_context%create()
-    !* Force the environment to split world_context into a single group of 
-    !* tasks (level) composed by a single task. As world_context is of type serial_context_t, 
-    !* any other environment configuration is not possible
     call parameter_handler%update(environment_num_levels_key, 1)
     call parameter_handler%update(environment_num_tasks_x_level_key, [1])
     call environment%create(world_context, parameter_handler%get_values())
   end subroutine setup_context_and_environment
-  
+
+  !* #### Tringulation
+  !* In [[tutorial_01_poisson_sharp_circular_wave:setup_triangulation]] subroutine 
+  !* the triangulation (of type [[triangulation_t]]) is created.  
+  !* The structure hex mesh generator creates a domain that has:
+  !*
+  !*   - 8 boundary objects (corners+edges) in 2D
+  !*   - 26 boundary objects (face+corners+edges) in 3D
+  !*   - 1 interior object  (i.e., the cell interior).
+  !*
+  !* A graphical example for a 2D case is presented next
+  !* ```text
+  !* |          6
+  !* |     3 - - - - 4
+  !* |     -         -         1,2,3,4,5,6,7,8 are id for the boundary of the domain
+  !* |   7 -    9    - 8
+  !* |     -         -         9 is the id for the interior
+  !* |     1 - - - - 2
+  !* |          5     
+  !* ```
+  !* This configuration, the hexaedral uniform unit square/cube mesh (to be meshed by [[uniform_hex_mesh_t]]), 
+  !* is forced by means of the [[fempar_parameter_handler_names:parameter_handler]].
   subroutine setup_triangulation()
+    !> Create the triangulation
      integer(ip) :: num_dims
-     !* Force the triangulation to be generated from struct_hex_mesh_generator, i.e.,
-     !* an hexaedral uniform mesh generator of rectangular shape domains
      call parameter_handler%update(static_triang_generate_from_key, &
                                    static_triang_generate_from_struct_hex_mesh_generator)
      
-     !* Force the domain to be meshed by struct_hex_mesh_generator to be the unit square/cube
      call parameter_handler%get(struct_hex_mesh_generator_num_dims_key, num_dims)
      if ( num_dims == 2 ) then
        call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, &
@@ -198,33 +277,67 @@ contains
        call parameter_handler%update(struct_hex_mesh_generator_domain_limits_key, &
                                      [0.0_rp,1.0_rp,0.0_rp,1.0_rp,0.0,1.0_rp])
      end if
-     
-     !* ### Triangulation
-     !* Create triangulation.  
-     !* The structure hex mesh generator creates a domain that has:
-     !*   8 boundary objects (corners+edges) in 2D
-     !*   26 boundary objects (face+corners+edges) in 3D
-     !* and 1 interior object  (i.e., the cell interior).
-     !* A graphical example for a 2D case is presented next
-     !* ```text
-     !*           6
-     !*      3 - - - - 4
-     !*      -         -         1,2,3,4,5,6,7,8 are id for the boundary of the domain
-     !*    7 -    9    - 8
-     !*      -         -         9 is the id for the interior
-     !*      1 - - - - 2
-     !*           5     
-     !* ```
+
      call triangulation%create(environment, parameter_handler%get_values())
   end subroutine setup_triangulation
-  
+
+  !* #### Analytical expressions
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:setup_problem_functions]] 
+  !* sets up the exact solution and source term objects. 
+  !* These represent the exact (analytical) solution  \(u\) and source term \(f\) of our problem. 
+  !* The program does not need to implement the Dirichlet function \(g\), 
+  !* as it is equivalent to \(u\) in our model problem. 
+  !*
+  !* While we do not cover their implementation here, 
+  !* the reader is encouraged to inspect the [[tutorial_01_functions_names]] module. 
+  !* Essentially, this module implements a pair of program-specific data types extending
+  !* the so-called [[scalar_function_t]] **`FEMPAR`** data type. 
+  !* 
+  !* This latter data type represents an scalar-valued function \(h\), 
+  !* and provides interfaces for the evaluation of \(h(x)\), \(\nabla h(x)\), etc., 
+  !* with \(x \in \overline{\Omega}\), to be implemented by type extensions. 
+  !*
+  !* In particular, this tutorial requires \(u(x)\) and \(\nabla u(x)\) for the imposition of Dirichlet BCs, 
+  !* and the evaluation of the energy norm, resp., and \(f(x)\) for the evaluation of the source term.
   subroutine setup_problem_functions()
-      call source_term%create(triangulation%get_num_dims(),& 
-                              alpha,circle_radius,circle_center)
-      call exact_solution%create(triangulation%get_num_dims(),&
-                                 alpha,circle_radius,circle_center)
+     !> Create the source term and the the exact solution.
+     call source_term%create(triangulation%get_num_dims(),& 
+                             alpha,circle_radius,circle_center)
+     call exact_solution%create(triangulation%get_num_dims(),&
+                             alpha,circle_radius,circle_center)
   end subroutine setup_problem_functions
-  
+
+
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:setup_strong_boundary_conditions]] 
+  !* sets up the strong boundary conditions object. With this object one can define
+  !* the regions of the domain boundary on which to impose strong BCs, along with the function to
+  !* be imposed on each of these regions. 
+  !* It is required for the FE formulation, in this method, Dirichlet BCs are imposed strongly. 
+  !* 
+  !* The rationale behind this subroutine is as follows.
+  !* Any **`FEMPAR`** triangulation handles internally (and provides on client demand) a set identifier
+  !* (i.e., an integer number) per each Vertex, Edge, and Face (VEF) of the mesh. On the other
+  !* hand, it is assumed that the mesh generator from which the triangulation is imported classifies
+  !* the boundary of the domain into geometrical regions, and that, when the mesh is generated, it
+  !* assigns the same set identifier to all VEFs which belong to the same geometrical region. 
+  !* 
+  !* For example, for \(d = 2\), the uniform mesh generator classifies the domain into 9 regions
+  !*
+  !* - the four corners of the box, which are assigned identifiers \(1, \dots, 4\), 
+  !* - the four faces of the box, which are assigned identifiers \(5, \dots, 8\), 
+  !* - and the interior of the box, which is assigned identifier \(9\). 
+  !*
+  !* For \(d = 3\), we have 27 regions, i.e., 8 corners, 12 edges, 6 faces, and the interior of the domain. (At
+  !* this point, the reader should be able to grasp where the numbers 8 and 26 in
+  !* [[tutorial_01_poisson_sharp_circular_wave:setup_strong_boundary_conditions]] come from.) 
+  !*
+  !* With the aforementioned in mind, subroutine [[tutorial_01_poisson_sharp_circular_wave:setup_strong_boundary_conditions]]
+  !* sets up the strong boundary conditions
+  !* instance conformally with how the VEFs of the triangulation laying on the boundary are flagged
+  !* with set identifiers. In the loop, it defines a strong boundary condition to be
+  !* imposed for each of the regions that span the boundary of the unit box domain, and the same
+  !* function, i.e., exact solution, to be imposed on all these regions, as required by the model
+  !* problem of this tutorial.
   subroutine setup_strong_boundary_conditions()
     integer(ip) :: i, boundary_ids
     if ( fe_formulation == "CG" ) then
@@ -239,6 +352,30 @@ contains
     end if 
   end subroutine setup_strong_boundary_conditions
   
+  !* #### System setup
+  !* In subroutine [[tutorial_01_poisson_sharp_circular_wave:setup_strong_boundary_conditions]], 
+  !* this tutorial sets up the fe space instance, i.e., the computer representation of \(V_h\). 
+  !* 
+  !* The subroutine forces fe space to build a single-field FE space 
+  !* that it is built from the same local FE for all cells \(K \in \mathcal{T}_h\). 
+  !* In particular, from a scalar-valued Lagrangian-type FE, as required by our model problem. 
+  !* The parameter value corresponding to the polynomial order of \(V_h|_K\) is not forced, and thus can be selected from
+  !* the CLI. 
+  !*
+  !* Besides, [[tutorial_01_poisson_sharp_circular_wave:setup_strong_boundary_conditions]] also forces the construction 
+  !* of either a conforming or non-conforming \(V_h\), depending on the FE formulation selected by the user. 
+  !* In the latter case, fe space does not require strong boundary conditions, as there
+  !* are not BCs to be strongly enforced in this case. The call in these lines generates a global
+  !* numbering of the DOFs in \(V_h\), and (if it applies) identifies the DOFs sitting on the regions of
+  !* the boundary of the domain which are subject to strong BCs (combining the data provided by
+  !* the triangulation and strong boundary conditions). 
+  !*
+  !* Finally, [[tutorial_01_poisson_sharp_circular_wave:setup_strong_boundary_conditions]]
+  !* activates the internal data structures that fe space provides for the numerical evaluation of cell
+  !* and facet integrals, resp. These are required later on to evaluate the discrete bilinear and linear
+  !* forms of the FE formulations implemented by this tutorial. We note that the last `call` is
+  !* only required for the IP `DG` formulation, as in the `CG` formulation there are not facet integrals
+  !* to be evaluated.
   subroutine setup_fe_space()
     type(string) :: fes_field_types(1), fes_ref_fe_types(1)
     call parameter_handler%update(fes_num_fields_key, 1 )
@@ -248,10 +385,6 @@ contains
     call parameter_handler%update(fes_field_types_key,fes_field_types)  
     fes_ref_fe_types(1) = String(fe_type_lagrangian)
     call parameter_handler%update(fes_ref_fe_types_key, fes_ref_fe_types )
-    !* Next, we build the global FE space. It only requires to know:
-    !*   The triangulation
-    !*   The Dirichlet data
-    !*   The reference FE to be used (extracted from parameter_handler).
     if ( fe_formulation == "CG" ) then
        call parameter_handler%update(fes_ref_fe_conformities_key, [.true.] )
        call fe_space%create( triangulation  = triangulation, &
@@ -262,13 +395,28 @@ contains
        call fe_space%create( triangulation  = triangulation, &
                              parameters     = parameter_handler%get_values())
     end if
-    ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
     call fe_space%set_up_cell_integration()
     if ( fe_formulation == "DG" ) then
       call fe_space%set_up_facet_integration()
     end if
   end subroutine setup_fe_space
-  
+
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:setup_discrete_solution]]
+  !* sets up the discrete solution object, of type [[fe_function_t]]. This FEMPAR
+  !* data type represents an element of \(V_h\) , the FE solution \(u_h\) in the case of this tutorial. 
+  !*
+  !* This subroutine allocates room for storing the DOF values of \(u_h\) , and then it
+  !* computes the values of those DOFs of \(u_h\) which lay on a region of the domain boundary which
+  !* is subject to strong BCs, the whole boundary of the domain in the case of this tutorial. 
+  !* 
+  !* The [[interpolate_dirichlet_values]] TBP of [[tutorial_01_poisson_sharp_circular_wave:fe_space]] 
+  !* interpolates exact solution, i.e., \(u\), which is extracted from strong boundary conditions, 
+  !* using a suitable FE interpolator for the FE space at hand, i.e., the Lagrangian interpolator in the case of this tutorial.
+  !* 
+  !* @note
+  !***`FEMPAR`**supports interpolators for _curl-_ and _div-_conforming FE spaces as well. Interpolation in such FE spaces
+  !* involves the numerical evaluation of the functionals (moments) associated to the DOFs of \(V_h\)
+  !* @endnote
   subroutine setup_discrete_solution()
     call discrete_solution%create(fe_space) 
     if ( fe_formulation == "CG" ) then
@@ -276,13 +424,30 @@ contains
     end if  
   end subroutine setup_discrete_solution
   
+  !* In subroutine [[tutorial_01_poisson_sharp_circular_wave:setup_and_assemble_fe_affine_operator]], 
+  !* this tutorial program builds the fe affine operator instance, i.e., the computer
+  !* representation of the previously operator defined. Building this instance is a two-step process. 
+  !* 
+  !* First, we have to call the [[fe_affine_operator_t:create]] TBP. Apart from specifying the data storage format and
+  !* properties of the stiffness matrix \(A\), this call equips [[fe_affine_operator_t]] with all that it re-
+  !* quires in order to evaluate the entries of the operator. 
+  !* 
+  !* Second, we have to call the [[fe_affine_operator_t:compute]]
+  !* TBP , that triggers the actual numerical evaluation and assembly of the discrete
+  !* weak form. With extensibility and flexibility in mind, this latter responsibility does not fall on
+  !* [[fe_affine_operator_t]], but actually on the data type extensions of a key abstract class defined
+  !* within *`FEMPAR`*, referred to as [[discrete_integration_t]]. 
+  !* 
+  !* This tutorial 01 implements two type extensions of discrete integration t, 
+  !* namely [[tutorial_01_discrete_integration_names:cg_discrete_integration_t]],
+  !* and [[tutorial_01_discrete_integration_names:dg_discrete_integration_t]]. 
+  !* 
+  !* First lines of this procedure passes to these instances the source term and boundary function to be
+  !* imposed on the Dirichlet boundary. We note that the _IP DG_ formulation works directly with
+  !* the analytical expression of the boundary function (i.e., exact solution), while the _CG_ formulation
+  !* with its interpolation (i.e., discrete solution). 
   subroutine setup_and_assemble_fe_affine_operator()
     class(discrete_integration_t), pointer :: discrete_integration
-    !* First, we provide to the discrete_integration all ingredients required to build the weak form of the Poisson problem.
-    !* Namely, the source term of the PDE, and the function to be imposed interpolated on the Dirichlet boundary (discrete_solution)
-    !* Next, we create the affine operator, i.e., Ax-b, providing the info for the matrix (storage, symmetric, etc.), and the form to
-    !* be used to fill it, e.g., the bilinear form related that represents the weak form of the Poisson problem and the right hand
-    !* side.  
     if ( fe_formulation == "CG" ) then
        call cg_discrete_integration%set_source_term(source_term)
        call cg_discrete_integration%set_boundary_function(discrete_solution)
@@ -298,24 +463,50 @@ contains
                                      diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                      fe_space                          = fe_space, &
                                      discrete_integration              = discrete_integration )
-    !* Now, we can compute the entries of the affine operator Ax-b by assembling the discrete weak form of the Poisson problem
     call fe_affine_operator%compute()
   end subroutine setup_and_assemble_fe_affine_operator
-  
+
+  !* #### System solving
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:solve_system]], 
+  !* finds the root of the FE operator, i.e., \(u_h \in V_h\) such that \(F_h(u_h) = 0\). For such
+  !* purpose, it first sets up the [[tutorial_01_poisson_sharp_circular_wave:direct_solver]] instance 
+  !* and later uses its [[direct_solver_t:solve]] TBP. This latter method is fed with the “translation” of \(F_h\) , 
+  !* i.e., the right hand side \(f\) of the linear system, and the free DOF values of \(u_h\) as the unknown to be found. 
+  !* The free DOFs of \(u_h\) are those whose values are not constrained, e.g., by strong BCs. direct solver t is a
+  !***`FEMPAR`**data type that offers interfaces to (non-distributed) sparse direct solvers provided by
+  !* external libraries. 
+  !* 
+  !* This subroutine does not force any parameter value related to [[direct_solver_t]]; the default CLA values are
+  !* appropriate for the Poisson problem. In any case, at this point the reader is encouraged to
+  !* inspect the CLAs linked to direct solver t and play around them.
+  !*
+  !* @note
+  !* In its first public release,**`FEMPAR`**provides interfaces to PARDISO (the
+  !* version available in the Intel MKL library) and UMFPACK , although it is designed such that
+  !* additional sparse direct solver implementations can be easily added.
+  !* @endnote
+
   subroutine solve_system()
     class(vector_t), pointer :: dof_values
-    !* Direct solver setup
     call direct_solver%set_type_from_pl(parameter_handler%get_values())
     call direct_solver%set_parameters_from_pl(parameter_handler%get_values())
-    !* Next, we set the matrix in our system from the fe_affine operator
     call direct_solver%set_matrix(fe_affine_operator%get_matrix())
-    !* We extract a pointer to the free nodal values of our FE function, which is the place in which we will store the result.
     dof_values => discrete_solution%get_free_dof_values()
-    !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
-    !* putting the result in dof_values.
     call direct_solver%solve(fe_affine_operator%get_translation(),dof_values) 
   end subroutine solve_system
-  
+
+  !* #### Error computation
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:compute_error]] 
+  !* computes \(e^2_k\) for each \(K \in \mathcal{T}_h\), and the global error \(e\);
+  !* 
+  !* This subroutine relies on the[[tutorial_01_poisson_sharp_circular_wave:error_estimator]] instance.
+  !* In particular, the actual computation of \(e^2_k\) occurs at
+  !* the call to the [[error_estimator_t:compute_local_true_errors]] TBP of this data type.
+  !*
+  !* @note
+  !* At this point, the user is encouraged to inspect the implementation of this data type in order to
+  !* grasp how the numerical evaluation of the integr
+  !* @endnote
   subroutine compute_error()
     real(rp) :: global_error_energy_norm
     call error_estimator%create(fe_space,parameter_handler%get_values())
@@ -331,7 +522,12 @@ contains
     write(*,'(a30,e24.10)') 'GLOBAL ERROR ENERGY NORM:'// repeat(' ', 80), global_error_energy_norm
     write(*,'(a54)')  repeat('=', 54)
   end subroutine compute_error
-  
+
+  !* #### Results plotting
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:write_postprocess_data_files]] 
+  !* write estimated error quantities along with the FE solution \(u_h\) to
+  !* output data files for later visualization. The [[tutorial_01_poisson_sharp_circular_wave:output_handler]]
+  !* is in charge of output data files generation.
   subroutine write_postprocess_data_files()
     if ( write_postprocess_data ) then
       call output_handler%create(parameter_handler%get_values())
@@ -344,9 +540,11 @@ contains
       call output_handler%close()
     end if  
   end subroutine write_postprocess_data_files
-  
+
+  !* #### Environment finalization
+  !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:free_all_objects]] 
+  !* free all the objects created in the course of the program.
   subroutine free_all_objects()
-    !* Free all the objects created in the course of the program
     call output_handler%free()
     call error_estimator%free()
     call direct_solver%free()
