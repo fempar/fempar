@@ -77,7 +77,7 @@ program tutorial_01_poisson_sharp_circular_wave
   type(serial_fe_space_t)                 :: fe_space
   !* The [[tutorial_01_poisson_sharp_circular_wave:strong_boundary_conditions]] is the object that provides the strong boundary conditions definition.
   type(strong_boundary_conditions_t)      :: strong_boundary_conditions 
-  !* The [[tutorial_01_poisson_sharp_circular_wave:source_terhm]] is a scalar-valued function with the right hand side of the PDE problem at hand.
+  !* The [[tutorial_01_poisson_sharp_circular_wave:source_term]] is a scalar-valued function with the right hand side of the PDE problem at hand.
   type(sharp_circular_wave_source_term_t) :: source_term
   !* The [[tutorial_01_poisson_sharp_circular_wave:exact_solution]] ia a scalar-valued function with the exact (analytical) solution of the PDE problem at hand.
   type(sharp_circular_wave_solution_t)    :: exact_solution
@@ -86,7 +86,7 @@ program tutorial_01_poisson_sharp_circular_wave
   type(fe_affine_operator_t)              :: fe_affine_operator
   !* The [[tutorial_01_poisson_sharp_circular_wave:discrete_solution]] is the object belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                     :: discrete_solution
-  !* poisson_discrete_integration_t provides the definition of the bilinear and linear forms for the problem at hand.
+  !* [[tutorial_01_discrete_integration_names:poisson_discrete_integration_t]] provides the definition of the bilinear and linear forms for the problem at hand.
   type(cg_discrete_integration_t), target :: cg_discrete_integration
   type(dg_discrete_integration_t), target :: dg_discrete_integration
   !* The [[tutorial_01_poisson_sharp_circular_wave:direct_solver]] provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK).
@@ -105,15 +105,12 @@ program tutorial_01_poisson_sharp_circular_wave
   logical                   :: write_postprocess_data
 
   !* ### Main code  
-  !* Initialize **`FEMPAR`** library (i.e., construct system-wide variables)
-  !* Finalize **`FEMPAR`** library (i.e., destruct system-wide variables)
-
   !* Here you can see the main code of this tutorial representing the entire flow
   !* of actions/computations performed by this tutorial.
   !*
   !* As there is almost a one-to-one mapping among the data type instances and the
   !* helper procedures called by tutorial 01, we will introduce them in the sequel step-by-step along
-  !* with code snippets of the corresponding [helper procedures](#helper_procedures).
+  !* with code snippets of the corresponding [helper procedures](#helper-procedures).
   call fempar_init()
   call setup_parameter_handler()
   call get_tutorial_cla_values()
@@ -135,7 +132,7 @@ contains
   !* #### Parameter handling
   !* The [[fempar_parameter_handler_names:parameter_handler]] is connected with the tutorial's command-line interface. 
   !* It parses the arguments provided to the command-line, and stores their values into a polymorphic dictionary of `<key,value>` pairs 
-  !* (i.e., of type [[parameterlist_t]]); a pointer to such dictionary can be obtained calling [[fempar_parameter_handler_t:get_values]], 
+  !* (i.e., of type [parameterlist_t](http://victorsndvg.github.io/FPL/type/parameterlist_t.html)); a pointer to such dictionary can be obtained calling [[fempar_parameter_handler_t:get_values]], 
   !* as it will be required later on to create most of the objects provided by **`FEMPAR`**. 
   !*
   !* In [[tutorial_01_poisson_sharp_circular_wave:setup_parameter_handler]] subroutine 
@@ -161,7 +158,7 @@ contains
   !*
   !* Describing a command-line argument involves defining:
   !* 
-  !* - a [[parameterlist_t]] dictionary _key_ (e.g., `FE_FORMULATION`),
+  !* - a [[FPL]] dictionary _key_ (e.g., `FE_FORMULATION`),
   !* - a command-line argument _name_ (e.g., `--FE_FORMULATION`), 
   !* - a _default value_ for the command-line argument (in case it is not passed )(e.g., `CG`), 
   !* - a _help message_, 
@@ -409,12 +406,12 @@ contains
   !* computes the values of those DOFs of \(u_h\) which lay on a region of the domain boundary which
   !* is subject to strong BCs, the whole boundary of the domain in the case of this tutorial. 
   !* 
-  !* The [[interpolate_dirichlet_values]] TBP of [[tutorial_01_poisson_sharp_circular_wave:fe_space]] 
+  !* The [[serial_fe_space_t:interpolate_dirichlet_values]] TBP of [[tutorial_01_poisson_sharp_circular_wave:fe_space]] 
   !* interpolates exact solution, i.e., \(u\), which is extracted from strong boundary conditions, 
   !* using a suitable FE interpolator for the FE space at hand, i.e., the Lagrangian interpolator in the case of this tutorial.
   !* 
   !* @note
-  !***`FEMPAR`**supports interpolators for _curl-_ and _div-_conforming FE spaces as well. Interpolation in such FE spaces
+  !* **`FEMPAR`** supports interpolators for _curl-_ and _div-_conforming FE spaces as well. Interpolation in such FE spaces
   !* involves the numerical evaluation of the functionals (moments) associated to the DOFs of \(V_h\)
   !* @endnote
   subroutine setup_discrete_solution()
@@ -482,7 +479,7 @@ contains
   !*
   !* @note
   !* In its first public release,**`FEMPAR`**provides interfaces to PARDISO (the
-  !* version available in the Intel MKL library) and UMFPACK , although it is designed such that
+  !* version available in the Intel MKL library) and UMFPACK, although it is designed such that
   !* additional sparse direct solver implementations can be easily added.
   !* @endnote
 
@@ -499,13 +496,14 @@ contains
   !* Subroutine [[tutorial_01_poisson_sharp_circular_wave:compute_error]] 
   !* computes \(e^2_k\) for each \(K \in \mathcal{T}_h\), and the global error \(e\);
   !* 
-  !* This subroutine relies on the[[tutorial_01_poisson_sharp_circular_wave:error_estimator]] instance.
+  !* This subroutine relies on the [[tutorial_01_poisson_sharp_circular_wave:error_estimator]] instance.
   !* In particular, the actual computation of \(e^2_k\) occurs at
   !* the call to the [[error_estimator_t:compute_local_true_errors]] TBP of this data type.
   !*
   !* @note
   !* At this point, the user is encouraged to inspect the implementation of this data type in order to
-  !* grasp how the numerical evaluation of the integr
+  !* grasp how the numerical evaluation of the integrals required for the computation of \(e^2_k\)
+  !* is carried out using **`FEMPAR`**.
   !* @endnote
   subroutine compute_error()
     real(rp) :: global_error_energy_norm
