@@ -25,7 +25,12 @@ $ bin/tutorial_01_poisson_sharp_circular_wave [optional command line arguments] 
 
 ### What this program does
 
-This tutorial tackles the Poisson problem. In strong form this problem reads: 
+This tutorial tackles the Poisson problem. 
+
+
+#### Model problem
+
+In strong form this problem reads: 
 
 > find ![u](https://latex.codecogs.com/svg.latex?%5Cinline%20u) such that ![strongform](https://latex.codecogs.com/svg.latex?%5Cinline%20-%5CDelta%20u%20%3D%20f%20%5Cqquad%20%5Chbox%7Bin%20%7D%20%5C%2C%20%5COmega%2C) where ![sourceterm](https://latex.codecogs.com/svg.latex?%5Cinline%20f%20%3A%20%5COmega%20%5Crightarrow%20%5Cmathbb%7BR%7D) is a given source term, and ![domain](https://latex.codecogs.com/svg.latex?%5Cinline%20%24%5COmega%3A%3D%5B0%2C1%5D%5Ed%24) is the unit box domain, with ![dimensions](https://latex.codecogs.com/svg.latex?%5Cinline%20d%3A%3D2%2C3) being the number of space dimensions.
 
@@ -47,6 +52,12 @@ Figures below illustrate the solution for ![dimensions](https://latex.codecogs.c
 <img src="media/circular_sharp_wave_2d.png" alt="2D benchmark problem." width=45%/>
 <img src="media/circular_sharp_wave_3d.png" alt="3D benchmark problem." width=45%/>
 
+
+#### FE discretization
+
+This tutorial implements two different FE formulations for the Poisson problem. A conforming CG formulation and a non-conforming DG one. In this tutorial, both formulations are used in combination with a uniform (thus conforming) triangulation ![triang](https://latex.codecogs.com/svg.latex?%5Cinline%20%5Cmathcal%7BT%7D_h) of ![Omega](https://latex.codecogs.com/svg.latex?%5Cinline%20%5COmega) made of quadrilateral/hexahedral cells. 
+
+Apart from solving Poisson equation, this tutorial  also evaluates the FE discretization error. In particular, for each cell $![k](https://latex.codecogs.com/svg.latex?%5Cinline%20K), it computes the square of the error energy norm, which for the Poisson problem is defined as ![error](https://latex.codecogs.com/svg.latex?%5Cinline%20e_K%5E2%20%3A%3D%20%5Cint_K%20%5Cgrad%20%28u-u_h%29%5Ccdot%20%5Cgrad%20%28u-u_h%29), with ![u](https://latex.codecogs.com/svg.latex?%5Cinline%20u) and ![u_h](https://latex.codecogs.com/svg.latex?%5Cinline%20u_h) being the exact and FE solution, resp. It also records and prints on screen the total error ![totalerror](https://latex.codecogs.com/svg.latex?%5Cinline%20e%3A%3D%28%5Csum_K%20e_K%5E2%29%5E%7B1/2%7D). On user-demand, the cell quantities ![e](https://latex.codecogs.com/svg.latex?%5Cinline%20e_K%5E2) can be written to post-processing data files for later visualization.
 
 
 
