@@ -32,15 +32,15 @@ program tutorial_02_poisson_sharp_circular_wave_amr
 !* uses the [[fempar_names]] to import all **`FEMPAR`** library symbols (i.e., derived types, parameter constants, system-wide variables, etc.),
 !* and a set of tutorial-specific module units, 
 !*
-!* - [[tutorial_01_discrete_integration_names]]
 !* - [[tutorial_01_functions_names]]
 !* - [[tutorial_01_error_estimator_names]]
+!* - [[tutorial_01_discrete_integration_names]]
 !*
 !* These modules are not part of the **`FEMPAR`** library, but developed specifically for the problem at hand. Each of these modules defines a tutorial-specific data type and its TBPs.
   use fempar_names
-  use tutorial_01_discrete_integration_names
   use tutorial_01_functions_names
   use tutorial_01_error_estimator_names
+  use tutorial_01_discrete_integration_names
 
 !* ### Variable definition
 !* This tutorial declares:
@@ -63,9 +63,9 @@ program tutorial_02_poisson_sharp_circular_wave_amr
   
   !* The [[tutorial_02_poisson_sharp_circular_wave_amr:world_context]] is a software abstraction 
   !* for a group of parallel tasks (a.k.a. processes) and the communication layer that orchestrates their concurrent execution.
-  !* In this case is declared of type [[serial context t]] as it is designed to work in serial computing environments.
+  !* In this case is declared of type [[serial_context_t]] as it is designed to work in serial computing environments.
   type(serial_context_t)                      :: world_context
-  !* the [[tutorial_02_poisson_sharp_circular_wave_amr:environment]], of type [[serial context t]], organizes the tasks of the context
+  !* the [[tutorial_02_poisson_sharp_circular_wave_amr:environment]], of type [[environment_t]], organizes the tasks of the context
   !* from which it is set up into subgroups of tasks, referred to as levels, and builds up additional communication mechanisms 
   !* to communicate tasks belonging to different levels.
   type(environment_t)                         :: environment
@@ -75,11 +75,11 @@ program tutorial_02_poisson_sharp_circular_wave_amr
   type(p4est_serial_triangulation_t)          :: triangulation
   !* The [[tutorial_02_poisson_sharp_circular_wave_amr:fe_space]], of type [[serial_fe_space_t]] is the global finite element space to be used.
   type(serial_fe_space_t)                     :: fe_space
-  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:strong_boundary_conditions]] is the object that provides the strong boundary conditions definition.
+  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:strong_boundary_conditions]], of type [[strong_boundary_conditions_t]], is the object that provides the strong boundary conditions definition.
   type(strong_boundary_conditions_t)          :: strong_boundary_conditions 
-  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:source_term]] is a scalar-valued function with the right hand side of the PDE problem at hand.
+  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:source_term]], of type [[tutorial_01_functions_names:sharp_circular_wave_source_term_t]], is a scalar-valued function with the right hand side of the PDE problem at hand.
   type(sharp_circular_wave_source_term_t)     :: source_term
-  !* A scalar-valued function with the exact (analytical) solution of the PDE problem at hand.
+  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:exact_solution]], of type [[tutorial_01_functions_names:sharp_circular_wave_solution_t]], is a scalar-valued function with the exact (analytical) solution of the PDE problem at hand.
   type(sharp_circular_wave_solution_t)        :: exact_solution
   !* [[tutorial_02_poisson_sharp_circular_wave_amr:fe_affine_operator]], of type [[fe_affine_operator_t]],
   !* represents the affine operator the solution of which is the one we want, i.e., \(B = Ax-f\).
@@ -88,14 +88,14 @@ program tutorial_02_poisson_sharp_circular_wave_amr
   !* The [[tutorial_02_poisson_sharp_circular_wave_amr:discrete_solution]], of type [[fe_function_t]], 
   !* is the object belonging to the FE space defined above. Here, we will store the computed solution.
   type(fe_function_t)                         :: discrete_solution
-  !* [[tutorial_02_poisson_sharp_circular_wave_amr:poisson_discrete_integration_t]] provides the base definition of the bilinear and linear forms for the problem at hand.
+  !* [[tutorial_01_discrete_integration_names:base_discrete_integration_t]] provides the base definition of the bilinear and linear forms for the problem at hand.
   type(cg_discrete_integration_t), target     :: cg_discrete_integration
   type(dg_discrete_integration_t), target     :: dg_discrete_integration
   !* The [[tutorial_02_poisson_sharp_circular_wave_amr:direct_solver]], of type [[direct_solver_t]], provides an interface to several external sparse direct solver packages (PARDISO, UMFPACK).
   type(direct_solver_t)                       :: direct_solver
   !* The [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler]] object, of type [[output_handler_t]], is used to generate the simulation data files for later visualization using, e.g., ParaView.
   type(output_handler_t)                      :: output_handler
-  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:error_estimator]] object is used to compute the (square) of the error energy norm for all cells, i.e., \(||u-u_h||_E,K\).
+  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:error_estimator]] object, of type [[tutorial_01_error_estimator_names:poisson_error_estimator_t]], is used to compute the (square) of the error energy norm for all cells, i.e., \(||u-u_h||_E,K\).
   type(poisson_error_estimator_t)             :: error_estimator
   !* The [[tutorial_02_poisson_sharp_circular_wave_amr:refinement_strategy]] object, of type [[fixed_fraction_refinement_strategy_t]], 
   !* implements the strategy used for mesh refinement and coarsening.
@@ -588,9 +588,9 @@ contains
   !* #### Results plotting
   !* The handling the output writers is distributed in three different subroutines:
   !*
-  !* Subroutine [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_initialize]] 
-  !* Subroutine [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_write_current_amr_step]] 
-  !* Subroutine [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_finalize]] 
+  !* - [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_initialize]] 
+  !* - [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_write_current_amr_step]] 
+  !* - [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_finalize]] 
   !* 
   !* Subroutine [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler_initialize]] 
   !* create the [[tutorial_02_poisson_sharp_circular_wave_amr:output_handler]] 

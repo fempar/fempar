@@ -59,7 +59,7 @@ While [tutorial 01](../tutorial_01_poisson_sharp_circular_wave/index.html) uses 
 
 Given that the solution of Poisson equation exhibits highly localized features, in particular an internal sharp circular/spherical wave front layer, this tutorial exploits a **`FEMPAR`** triangulation data structure that efficiently supports dynamic ![h](https://latex.codecogs.com/svg.latex?%5Cinline%20h)-adaptivity techniques (a.k.a. Adaptive Mesh Refinement and coarsening (AMR)), i.e., the ability of the mesh to be refined _in the course of the simulation_ in those regions of the domain that present a complex behaviour (e.g., the internal layer in the case of Poisson problem}), and to be coarsened  in those areas where essentially nothing relevant happens (e.g., those areas away from the internal layer).
 
-This tutorial restricts itself to ![h](https://latex.codecogs.com/svg.latex?%5Cinline%20h)-adaptivity techniques with a fixed polynomial order. This is in contrast to ![hp](https://latex.codecogs.com/svg.latex?%5Cinline%20hp)-adaptivity techniques, in which the local FE space polynomial order ![h]https://latex.codecogs.com/svg.latex?%5Cinline%20p) also varies among cells.
+This tutorial restricts itself to ![h](https://latex.codecogs.com/svg.latex?%5Cinline%20h)-adaptivity techniques with a fixed polynomial order. This is in contrast to ![hp](https://latex.codecogs.com/svg.latex?%5Cinline%20hp)-adaptivity techniques, in which the local FE space polynomial order ![h](https://latex.codecogs.com/svg.latex?%5Cinline%20p) also varies among cells.
 In its first public release, the support of ![hp](https://latex.codecogs.com/svg.latex?%5Cinline%20hp)-adaptivity techniques in **`FEMPAR`** is restricted to non-conforming FE formulations.
 
 
