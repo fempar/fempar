@@ -69,7 +69,7 @@ program tutorial_02_poisson_sharp_circular_wave_amr
   !* from which it is set up into subgroups of tasks, referred to as levels, and builds up additional communication mechanisms 
   !* to communicate tasks belonging to different levels.
   type(environment_t)                         :: environment
-  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:triangulation]], of type [[p4est_serial_triangulation_t]]. object provides the mesh. 
+  !* The [[tutorial_02_poisson_sharp_circular_wave_amr:triangulation]] object, of type [[p4est_serial_triangulation_t]], provides the mesh. 
   !* In this case, we consider a serial p4est triangulation, i.e., 
   !* a triangulation that is not distributed among processors, and that can be h-adapted during the simulation.
   type(p4est_serial_triangulation_t)          :: triangulation
@@ -303,7 +303,6 @@ contains
   subroutine setup_triangulation()
      integer(ip) :: i, num_dims
      if ( current_amr_step == 0 ) then
-       !* Force the domain to be meshed by p4est triangulation to be the unit square/cube
        call parameter_handler%get(p4est_triang_num_dims_key, num_dims)
        if ( num_dims == 2 ) then
          call parameter_handler%update(p4est_triang_domain_limits_key, &

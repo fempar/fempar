@@ -62,5 +62,19 @@ Given that the solution of Poisson equation exhibits highly localized features, 
 This tutorial restricts itself to ![h](https://latex.codecogs.com/svg.latex?%5Cinline%20h)-adaptivity techniques with a fixed polynomial order. This is in contrast to ![hp](https://latex.codecogs.com/svg.latex?%5Cinline%20hp)-adaptivity techniques, in which the local FE space polynomial order ![h](https://latex.codecogs.com/svg.latex?%5Cinline%20p) also varies among cells.
 In its first public release, the support of ![hp](https://latex.codecogs.com/svg.latex?%5Cinline%20hp)-adaptivity techniques in **`FEMPAR`** is restricted to non-conforming FE formulations.
 
+#### Numerical results
 
+In Figures below we show the FE solution computed by this tutorial, along with ![e](https://latex.codecogs.com/svg.latex?e_K%5E2), for all ![KinT](https://latex.codecogs.com/svg.latex?K%20%5Cin%20%5Cmathcal%7BT%7D_h), for the 2D version of the problem discretized with an adapted mesh resulting from 8 and 20 AMR steps, resp., and bilinear Lagrangian FE. The number of initial uniform refinement steps was set to 2, resulting in an initial conforming triangulation made of 16 quadrilateral cells. As expected, the mesh tends to be locally refined close to the internal layer.
+
+<img src="media/circular_sharp_wave_amr_solution_8_steps.png" alt="Solution (8 AMR steps; 322 cells; 243 (true) DOFs)." width=45%/>
+<img src="media/circular_sharp_wave_amr_error_8_steps.png" alt="Error (8 AMR steps; 322 cells; 243 (true) DOFs)." width=45%/>
+
+On the other hand, in Figures below, we show error convergence history plots for the 2D benchmark problem. The results in left Figure were obtained with `Tutorial 01`, while those in right Figure, with `Tutorial 02`. As expected, the benefit of using local refinement is substantial for the problem at hand.
+
+<img src="media/circular_sharp_wave_amr_solution_20_steps.png" alt="Solution (20 AMR steps; 13,564 cells; 11,535 (true) DOFs)." width=45%/>
+<img src="media/circular_sharp_wave_amr_error_20_steps.png" alt="Error (20 AMR steps; 13,564 cells; 11,535 (true) DOFs)." width=45%/>
+
+@note
+We note that the plots in these Figure can be automatically generated using the Unix bash shell scripts located at the `convergence_plot` subfolder accompanying the source code of `Tutorial 01` and `Tutorial 02`.
+@endnote
 
