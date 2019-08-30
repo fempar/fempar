@@ -77,10 +77,10 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   !* a triangulation that is distributed among processors, and that can be h-adapted during the simulation.
   type(p4est_par_triangulation_t)             :: triangulation
   !* The [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:coarse_fe_handlers]] array, of type [[p_l1_coarse_fe_handler_t]], 
-  !* holds polymorphic pointers to data type extensions of [[coarse_fe_handler_t]], as many as fields in the system of PDEs at hand.
+  !* holds polymorphic pointers to data type extensions of `coarse fe handler`, as many as fields in the system of PDEs at hand.
   type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
   !* The [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:coarse_fe_handler]] object, of type [[h_adaptive_algebraic_l1_coarse_fe_handler_t]], 
-  !* a type extension of [[coarse_fe_handler_t]] suitable for grad-conforming FE spaces on h-adaptive meshes
+  !* a type extension of `coarse fe handler` suitable for grad-conforming FE spaces on h-adaptive meshes
   type(h_adaptive_algebraic_l1_coarse_fe_handler_t), target :: coarse_fe_handler
   !* The [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:fe_space]], of type [[par_fe_space_t]] is the global finite element space to be used.
   type(par_fe_space_t)                        :: fe_space
@@ -150,7 +150,7 @@ program tutorial_03_poisson_sharp_circular_wave_parallel_amr
   !* library data types can be called safely from any task in world context.
   !* 
   !* The reader may also observe some new helper procedures in this main code.
-  !* This tutorial declares extra procedures which are not necessary in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* This tutorial declares extra procedures which are not necessary in [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !*
   !* On one hand, This tutorial tackles a single-field PDE, this array is set up in the
   !* [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_coarse_fe_handler]] 
@@ -314,7 +314,7 @@ contains
   !* #### Tringulation
   !* [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_triangulation]] helper procedure
   !* very much resemble [[tutorial_02_poisson_sharp_circular_wave_amr:setup_triangulation]] procedure 
-  !* in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* in [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !* In particular, when the value of current amr step is zero, setup triangulation calls the 
   !* [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_coarse_triangulation]] TBP of
   !* [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:triangulation]], 
@@ -366,7 +366,7 @@ contains
   !* #### Analytical expressions
   !* Subroutine [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_problem_functions]] 
   !* looks like [[tutorial_02_poisson_sharp_circular_wave_amr:setup_problem_functions]] 
-  !* in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* in [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !* It sets up the exact solution and source term objects. 
   subroutine setup_problem_functions()
       call source_term%create(triangulation%get_num_dims(),& 
@@ -378,7 +378,7 @@ contains
 
   !* Subroutine [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_strong_boundary_conditions]] 
   !* looks like [[tutorial_02_poisson_sharp_circular_wave_amr:setup_strong_boundary_conditions]] 
-  !* in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* in [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !* It sets up the strong boundary conditions
   !* instance conformally with how the VEFs of the triangulation laying on the boundary are flagged
   !* with set identifiers. In the loop, it defines a strong boundary condition to be
@@ -400,7 +400,7 @@ contains
   !* #### System setup
   !* Subroutine [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_strong_boundary_conditions]] 
   !* implements the `CG` strategy as in [[tutorial_02_poisson_sharp_circular_wave_amr:setup_strong_boundary_conditions]] 
-  !* in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* in [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !*
   !* When the value of current AMR step is zero, it sets up the [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:fe_space]], 
   !* instance using exactly the same sequence of calls as [[tutorial_01_poisson_sharp_circular_wave:setup_fe_space]] in
@@ -438,7 +438,7 @@ contains
   !* Alternatively, the user might associate to each cell a partition weight. 
   !* In this case, the primitive balances the sums of the cell partition weights among processors. 
   !* The data that the user might have attached to the mesh objects (i.e., cells and VEFs set identifiers) is also migrated. 
-  !* On the other hand, it also calls the [[par_fe_space_t::redistribute]] TBP of [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:fe_space]],
+  !* On the other hand, it also calls the [[par_fe_space_t:redistribute]] TBP of [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:fe_space]],
   !* which migrates the data that fe space holds conformally to how the triangulation has been
   !* redistributed. Optionally, this TBP can by supplied with a FE function \(u_h\) 
   !* (or, more generally,an arbitrary number of them)
@@ -452,7 +452,7 @@ contains
 
   !* Subroutine [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_discrete_solution]] 
   !* looks like [[tutorial_02_poisson_sharp_circular_wave_amr:setup_discrete_solution]] 
-  !* in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* in [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !*
   !* It sets up the discrete solution object, of type [[fe_function_t]]. This FEMPAR
   !* data type represents an element of \(V_h\) , the FE solution \(u_h\) in the case of this tutorial. 
@@ -463,7 +463,7 @@ contains
 
   !* Subroutine [[tutorial_03_poisson_sharp_circular_wave_parallel_amr:setup_and_assemble_fe_affine_operator]] 
   !* looks like [[tutorial_02_poisson_sharp_circular_wave_amr:setup_and_assemble_fe_affine_operator]] 
-  !* in [tutorial 02](../tutorial_02_poisson_sharp_circular_wave_amr/index.html).
+  !* in [tutorial [[tutorial_02_poisson_sharp_circular_wave_amr]].
   !*
   !* When the value of current AMR step is zero, it sets up the [[discrete_integration_t]], 
   !* instance using exactly the same sequence of calls as [[tutorial_01_poisson_sharp_circular_wave:setup_and_assemble_fe_affine_operator]] in
