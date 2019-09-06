@@ -1,6 +1,8 @@
+[TOC]
+
 # Downloading and installing FEMPAR and its tutorial programs
 
-The quickest and easiest way to start with \FEMPAR{} is using Docker. Docker is a tool designed to easily create, deploy, and run applications by using containers. **`FEMPAR`** provides a set of Docker containers with the required environment (serial or parallel, debug or release) to compile the project source code and to run tutorials and tests. A detailed and very simple installation guide can be found in  [FEMPAR README](https://gitlab.com/fempar/fempar/blob/experimental/README.md), together with instructions for the compilation of the tutorial programs explained below.
+The quickest and easiest way to start with **`FEMPAR`** is using Docker. Docker is a tool designed to easily create, deploy, and run applications by using containers. **`FEMPAR`** provides a set of Docker containers with the required environment (serial or parallel, debug or release) to compile the project source code and to run tutorials and tests. A detailed and very simple installation guide can be found in  [FEMPAR README](https://gitlab.com/fempar/fempar/blob/experimental/README.md), together with instructions for the compilation of the tutorial programs explained below.
 
 # Common structure and usage instructions of FEMPAR tutorials
 
