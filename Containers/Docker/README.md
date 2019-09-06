@@ -1,3 +1,5 @@
+[TOC]
+
 ## Introduction
 
 Docker containers are lightweight and are based on open standards that run on all major Linux distributions, macOS and Microsoft Windows platforms. For more information, visit [wath-docker](https://www.docker.com/what-docker).
