@@ -1,10 +1,9 @@
-[TOC]
 
-# Downloading and installing FEMPAR and its tutorial programs
+## Downloading and installing FEMPAR and its tutorial programs
 
 The quickest and easiest way to start with **`FEMPAR`** is using Docker. Docker is a tool designed to easily create, deploy, and run applications by using containers. **`FEMPAR`** provides a set of Docker containers with the required environment (serial or parallel, debug or release) to compile the project source code and to run tutorials and tests. A detailed and very simple installation guide can be found in  [FEMPAR README](https://gitlab.com/fempar/fempar/blob/experimental/README.md), together with instructions for the compilation of the tutorial programs explained below.
 
-# Common structure and usage instructions of FEMPAR tutorials
+## Common structure and usage instructions of FEMPAR tutorials
 
 A **`FEMPAR`** tutorial is a FE application program that uses the tools (i.e., Fortran200X derived data types and their TBPs) provided by **`FEMPAR`** in order to approximate the solution of a PDE (or, more generally, a system of such equations). We strive to follow a common structure for all **`FEMPAR`** tutorials in the seek of uniformity and ease of presentation of the different features of the library. Such structure is sketched in code below. Most of the code of tutorial programs is encompassed within a single program unit. Such unit is in turn composed of four parts:
 
@@ -34,9 +33,15 @@ contains
 end program tutorial_ # _ ...
 ```
 
+### Modules
+
 In part 1), the tutorial uses the `fempar_names` module to import all **`FEMPAR`** library symbols (i.e., derived types, parameter constants, system-wide variables, etc.), and a set of tutorial-specific module units, which are not part of the **`FEMPAR`** library, but developed specifically for the problem at hand. Each of these modules defines a tutorial-specific data type and its TBPs. Although not necessarily, these are typically type extensions (i.e., subclasses) of parent classes defined within **`FEMPAR`**. These data type extensions let the user define problem-specific ingredients such as, e.g., the source term of the PDE, the function to be imposed on the Dirichlet and/or Neumann boundaries, or the definition of a discrete weak form suitable for the problem at hand, while leveraging (re-using) the code within **`FEMPAR`** by means of Fortran200X native support of run-time polymorphism.
 
+### Constants and variables.
+
 In part 2), the tutorial declares a set of parameter constants, typically the tutorial name, authors, problem description, etc. (to be output on screen on demand by the user), the tutorial data type instances in charge of the FE simulation, such as the triangulation (mesh) of the computational domain or the FE space from which the approximate solution of the PDE is sought, and a set of variables to hold the values of the CLAs (_Command Line Arguments_) which are specific to the tutorial. As covered in the sequel in more detail, tutorial users are provided with a CLI (_Command Line Interface_). Such interface constitutes the main communication mechanism to provide the input required by tutorial programs apart from, e.g., mesh data files generated from the GiD unstructured mesh generator (if the application problem requires such kind of meshes).
+
+### Main code 
 
 Part 3) contains the main tutorial executable code, which is in charge of driving all the necessary FE simulation steps. This code in turn relies on part 4), i.e., a set of helper procedures implemented within the `contains` section of the program unit. The main tasks of a FE program (and thus, a **`FEMPAR`** tutorial), even for transient, non-linear PDE problems, typically encompass:
 
@@ -46,6 +51,8 @@ Part 3) contains the main tutorial executable code, which is in charge of drivin
 4. to numerically post-process and/or visualize the solution. There is an almost one-to-one correspondence among these tasks and the helper procedures within the `contains` section.
 
 The main executable code of the prototypical **`FEMPAR`** tutorial is (and _must be_) encompassed within calls to `fempar_init()` and `fempar_finalize()`. The former constructs/initializes all system-wide objects, while the latter performs the reverse operation. For example, in the call to `fempar_init()`, a system-wide dictionary of creational methods for iterative linear solver instances is set up. Such dictionary lays at the kernel of a _Creational OO design pattern_  that lets **`FEMPAR`** users to add new iterative linear solver implementations _without the need to recompile the library at all_. Apart from these two calls, the tutorial main executable code also calls the `setup_parameter_handler()` and `get_tutorial_cla_values()` helper procedures in, which are related to CLI processing.
+
+### Parameter handler
 
 The code of the `setup_parameter_handler()` helper procedure is shown in the code snippet below. It sets up the so-called `parameter_handler` system-wide object, which is  directly connected with the tutorial CLI. The `process_parameters` TBP registers/defines a set of CLAs to be parsed, parses the CLAs provided by the tutorial user through the CLI, and internally stores their values into a parameter dictionary of _<key,value>_ pairs; a pointer to such dictionary can be obtained by calling `parameter_handler%get_values()` later on.
 
