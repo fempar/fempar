@@ -13,6 +13,26 @@ SET(${PROJECT_NAME}_SOVERSION 1)
 SET(CMAKE_VERBOSE_MAKEFILE TRUE)
 
 #################################################################
+# COMPILERS SUPPORT
+#################################################################
+
+# See README.md for more details
+IF(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    IF( CMAKE_Fortran_COMPILER_VERSION VERSION_EQUAL 5.5.0 OR
+        CMAKE_Fortran_COMPILER_VERSION VERSION_EQUAL 6.3.0 OR
+        CMAKE_Fortran_COMPILER_VERSION VERSION_EQUAL 7.3.0)
+        message(FATAL_ERROR "GNU Fortran compiler version ${CMAKE_Fortran_COMPILER_VERSION} not supported")
+    ENDIF()
+ELSEIF(CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    IF( CMAKE_Fortran_COMPILER_VERSION MATCHES "18.0.0" OR
+        CMAKE_Fortran_COMPILER_VERSION MATCHES "19.0.3" OR
+        CMAKE_Fortran_COMPILER_VERSION MATCHES "19.0.4")
+        message(FATAL_ERROR "Intel Fortran compiler version ${CMAKE_Fortran_COMPILER_VERSION} not supported")
+    ENDIF()
+ENDIF()
+
+
+#################################################################
 # DEFINE PATHS (IN)
 #################################################################
 
