@@ -78,7 +78,17 @@ so they are only recommended for advanced users.  Test programs are compiled as 
 
 ## Native compilation
 
+| Compiler Vendor Support                                                    | Notes                       |
+|----------------------------------------------------------------------------|-----------------------------|
+|[![Compiler](https://img.shields.io/badge/GNU-v8.1.0+-brightgreen.svg)]()   | Full support                |
+|[![Compiler](https://img.shields.io/badge/Intel-v19.0.0+-brightgreen.svg)]()| Full support                |
+
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
+
+| Build Managgers Support                                                    | Notes                             |
+|----------------------------------------------------------------------------|-----------------------------------|
+|[![Compiler](https://img.shields.io/badge/CMake-v2.8.11+-yellow.svg)]()     | Does not support `fortran_tester` |
+|[![Compiler](https://img.shields.io/badge/CMake-v3.1.0+-brightgreen.svg)]() | Full support                      |
 
 Native compilation is only recommended for experienced users. It requires to set up (configure, compile, install, etc) in your own all the mandatory (and optional) software dependencies required to deploy FEMPAR in your Desktop/Laptop or HPC cluster computing environment. This approach is not fully documented here yet.
 In the meantime, you may take a look at the **Dockerfile recipes** ([1](https://gitlab.com/fempar/fempar/blob/experimental/Containers/Docker/gnu/Dockerfile), [2](https://gitlab.com/fempar/fempar/blob/experimental/Containers/Docker/gnu/debug/Dockerfile), [3](https://gitlab.com/fempar/fempar/blob/experimental/Containers/Docker/gnu/debug/p4est_serial/Dockerfile)) which are used to create the `fempar/fempar-env:gnu-debug_p4est-serial` Docker image above in order to grasp how you may compile FEMPAR's dependencies on your Desktop/Laptop or HPC infrastructure.
