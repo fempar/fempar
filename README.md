@@ -85,7 +85,7 @@ so they are only recommended for advanced users.  Test programs are compiled as 
 
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
-| Compiler Vendor Support                                                    | Notes                             |
+| Build Managgers Support                                                    | Notes                             |
 |----------------------------------------------------------------------------|-----------------------------------|
 |[![Compiler](https://img.shields.io/badge/CMake-v2.8.11+-yellow.svg)]()     | Does not support `fortran_tester` |
 |[![Compiler](https://img.shields.io/badge/CMake-v3.1.0+-brightgreen.svg)]() | Full support                      |
