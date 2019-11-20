@@ -16,11 +16,11 @@ variables:
 
 .script_template:
   script: &script_template
-      if [[ "$TEST_LABEL" == *"SERIAL"* ]]
+      if [[ "$TEST_LABEL" == *"SERIAL"* ]];
       then
-        NUM_THREADS_CTEST=8
+        NUM_THREADS_CTEST=8;
       else
-        NUM_THREADS_CTEST=1
+        NUM_THREADS_CTEST=1;
       fi
     - $SOURCE_COMMAND
     - $CLEAN_ENV_COMMAND
