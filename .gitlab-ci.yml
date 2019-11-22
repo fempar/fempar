@@ -16,6 +16,7 @@ variables:
 
 .script_template:
   script: &script_template
+    - NUM_THREADS_CTEST=$( [[ "$TEST_LABEL" == *"SERIAL"* ]] && echo 8 || echo 1 )
     - $SOURCE_COMMAND
     - $CLEAN_ENV_COMMAND
     - $LOAD_ENV_COMMAND
@@ -36,7 +37,7 @@ variables:
     - cmake -DCMAKE_BUILD_TYPE=$BUILD_MODE -DFEMPAR_BUILD_LABEL=$TEST_LABEL -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=$THIRDPARTY_DIR -DFORTRAN_EXTRA_FLAGS="$FORTRAN_EXTRA_FLAGS" -DMPIEXEC_PREFLAGS="--allow-run-as-root -oversubscribe --mca btl_vader_single_copy_mechanism none" $ROOT_DIR
     - set +e
     - cmake --build . -- -j8
-    - ctest -j8 -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
+    - ctest -j$NUM_THREADS_CTEST -V -L $TEST_LABEL -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest $EXTRA_DASHBOARDS -D ExperimentalSubmit
     - tests_passed=0
     - test -f $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log && tests_passed=1
     - ls -l $FEMPAR_DIR/Testing/Temporary/LastTestsFailed*.log
