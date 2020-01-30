@@ -12,7 +12,7 @@ SHELL ["/bin/bash", "-c"]
 # This repo fail in gcc:6.2.0 \
 RUN apt-get -qq -y update \
     && apt-get -qq -y install --no-install-recommends wget git make cmake vim metis libmetis-dev flex bison gnupg apt-transport-https ca-certificates zlib1g zlib1g-dev valgrind \
-    && apt-get -qq -y install --no-install-recommends dkms infiniband-diags libibverbs* ibacm librdmacm* libmlx4* libmlx5* mstflint libibcm.* libibmad.* libibumad* opensm srptools libmlx4-dev librdmacm-dev rdmacm-utils ibverbs-utils perftest vlan ibutils \
+    && apt-get -qq -y install --no-install-recommends dkms infiniband-diags libibverbs* ibacm librdmacm* mstflint  libibmad.* libibumad* opensm srptools librdmacm-dev rdmacm-utils ibverbs-* perftest vlan ibutils \
     && INSTALL_ROOT=/opt \
 ################################################ \
 # Install MKL \
