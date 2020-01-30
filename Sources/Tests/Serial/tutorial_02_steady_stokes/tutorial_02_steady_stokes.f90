@@ -30,14 +30,14 @@
 program tutorial_02_steady_stokes
 !* uses the `fempar_names` and `tutorial_02_steady_stokes_driver_names`:
   use fempar_names
-  use stokes_discrete_integration_names  
-  !* First, declare the `test_driver` and the `world_context`  
-  implicit none  
+  use stokes_discrete_integration_names
+  !* First, declare the `test_driver` and the `world_context`
+  implicit none
 # include "debug.i90"
   type(serial_context_t)               :: world_context
   type(environment_t)                  :: serial_environment
   !* The parameter_handler is an object that provides default values for all the keys that FEMPAR uses to run. They can be be
-  !* 1) default values of the library, 2) the ones provided by the user through the command line (using the keys in 
+  !* 1) default values of the library, 2) the ones provided by the user through the command line (using the keys in
   !* fempar_parameter_handler_t, 3) or overwritten by the user. Option 3) overwrites 2) which overwrites 1). In this tutorial
   !* we will explicitly provide the values in the code (option 3) but they could be provided by the command line argument instead.
   !* This is the object in parameter_handler that provides the list of parameters
@@ -77,14 +77,14 @@ program tutorial_02_steady_stokes
   class(vector_t), pointer :: dof_values
   class(vector_t), allocatable :: rhs
   real(rp) :: l2
-  
-  !* Initialize properly the FEMPAR library 
+
+  !* Initialize properly the FEMPAR library
   call fempar_init()
-  !* Initialize the FEMPAR context 
+  !* Initialize the FEMPAR context
   call world_context%create()
   !* Initialize the list of parameters with all the options that are provided by FEMPAR
   !* It involves to create a parameter handler that is usually used to extract the values
-  !* provided by the user through the command line. In this test, we assume that we are 
+  !* provided by the user through the command line. In this test, we assume that we are
   !* not going to make use of the command line, and we are going to set the desired values
   !* in the driver instead.
   call parameter_handler%process_parameters(tutorial_02_steady_stokes_define_user_parameters)
@@ -96,6 +96,7 @@ program tutorial_02_steady_stokes
 
 
   ! Update mesh generator parameters in 2D
+  call parameter_handler%update(key = struct_hex_mesh_generator_num_dims_key, value = 2)
   call parameter_handler%get(key = struct_hex_mesh_generator_num_dims_key, value = num_dims)
   if(num_dims == 2) then
       call parameter_handler%update(struct_hex_mesh_generator_num_cells_x_dim_key, value = [10,10] )       ! Number of cells per each dimension
@@ -115,13 +116,13 @@ program tutorial_02_steady_stokes
   !* used.
   ! The structured mesh generator has 8 (corner+edge) boundary objects (w/ different set id) in the triangulation, following the
   ! same numbering as the 2-cube in the FEMPAR article. Analogously, 26 (corner+edge+face) boundary objects in 3D.
-  boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2) 
+  boundary_ids = merge(8, 26, triangulation%get_num_dims() == 2)
   call stokes_conditions%create()
   do i = 1, boundary_ids
     call stokes_conditions%insert_boundary_condition(boundary_id=i, field_id=1, &
                                                      cond_type=component_2, boundary_function=zero_function)
   end do
-  ! 
+  !
   call stokes_conditions%insert_boundary_condition(boundary_id=1, field_id=1, &
                                                    cond_type=component_1, boundary_function=zero_function)
   call stokes_conditions%insert_boundary_condition(boundary_id=2, field_id=1, &
@@ -152,16 +153,16 @@ program tutorial_02_steady_stokes
   call parameter_handler%update(key = fes_ref_fe_continuities_key, value = [.true., .false.])
   call parameter_handler%update(key = fes_field_types_key, value =  fes_field_types)
   call parameter_handler%update(key = fes_field_blocks_key, value = [1, 1])
-  
+
   call fe_space%create( triangulation            = triangulation,      &
                         conditions               = stokes_conditions, &
                         parameters               = parameter_list )
-  ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc. 
+  ! We must explicitly say that we want to use integration arrays, e.g., quadratures, maps, etc.
   call fe_space%set_up_cell_integration()
 
   ! Now, we define the source term with the function we have created in our module.
   ! Besides, we get the value of the desired value of the viscosity, possibly the one provided via
-  ! the command line argument --VISCOSITY. Otherwise, defaults to 1.0. 
+  ! the command line argument --VISCOSITY. Otherwise, defaults to 1.0.
   ! (see tutorial_02_steady_stokes_define_user_parameters subroutine below)
   call source_term%create(zero_function)
   call stokes_integration%set_source_term(source_term)
@@ -170,17 +171,17 @@ program tutorial_02_steady_stokes
 
   !* Now, we create the affine operator, i.e., b - Ax, providing the info for the matrix (storage, symmetric, etc.), and the form to
   !* be used to fill it, e.g., the bilinear form related that represents the weak form of the stokes problem and the right hand
-  !* side.  
+  !* side.
   call fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                    diagonal_blocks_symmetric_storage = [ .false. ], &
                                    diagonal_blocks_symmetric         = [ .false. ], &
                                    diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
                                    fe_space                          = fe_space, &
                                    discrete_integration              = stokes_integration )
-  
+
   !* In the next lines, we create a FE function of the FE space defined above, load the Dirichlet values defined above, and put it
   !* in the discrete integration (note that for linear operators, the Dirichlet values are used to compute the RHS).
-  call solution%create(fe_space) 
+  call solution%create(fe_space)
   call fe_space%interpolate_dirichlet_values(solution)
   call stokes_integration%set_fe_function(solution)
 
@@ -193,22 +194,22 @@ program tutorial_02_steady_stokes
   call parameter_handler%update(key = ils_max_num_iterations_key, value = 5000)
   call parameter_handler%update(key = ils_output_frequency_key, value = 50)
   call parameter_handler%update(key = ils_type_key, value = rgmres_name )
-  
+
   !* Now, we create a serial iterative solver with the values in the parameter list.
   call iterative_linear_solver%create(fe_space%get_environment())
   call iterative_linear_solver%set_type_and_parameters_from_pl(parameter_list)
 
   !* Next, we set the matrix in our system from the fe_affine operator (i.e., its tangent)
-  call iterative_linear_solver%set_operators(fe_affine_operator%get_tangent(), .identity. fe_affine_operator) 
+  call iterative_linear_solver%set_operators(fe_affine_operator%get_tangent(), .identity. fe_affine_operator)
   !* We extract a pointer to the free nodal values of our FE function, which is the plae in which we will store the result.
   dof_values => solution%get_free_dof_values()
-  !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and 
+  !* We solve the problem with the matrix already associated, the RHS obtained from the fe_affine_operator using get_translation, and
   !* putting the result in dof_values.
   call iterative_linear_solver%apply(-fe_affine_operator%get_translation(), &
-                                     dof_values)   
-  
+                                     dof_values)
+
   call parameter_handler%update(key = output_handler_dir_path_key, Value= 'tutorial_02_steady_stokes_results')
-  
+
   call output_handler%create(parameter_handler%get_values())
   call output_handler%attach_fe_space(fe_space)
   call output_handler%add_fe_function(solution, 1, 'velocity')
@@ -217,12 +218,12 @@ program tutorial_02_steady_stokes
   call output_handler%write()
   call output_handler%close()
   call output_handler%free()
-  
-  !* Now, we want to compute error wrt an exact solution. It needs the FE space above to be constructed.                                       
-  !call error_norm%create(fe_space,1)  
+
+  !* Now, we want to compute error wrt an exact solution. It needs the FE space above to be constructed.
+  !call error_norm%create(fe_space,1)
   !call exact_solution%set_num_dims(triangulation%get_num_dims())
   !* We compute the L2 norm of the difference between the exact and computed solution.
-  !l2 = error_norm%compute(exact_solution, solution, l2_norm) 
+  !l2 = error_norm%compute(exact_solution, solution, l2_norm)
 
   !* We finally write the result and check we have solved the problem "exactly", since the exact solution belongs to the FE space.
   !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
@@ -242,6 +243,6 @@ program tutorial_02_steady_stokes
   contains
     subroutine tutorial_02_steady_stokes_define_user_parameters()
       implicit none
-      call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity') 
+      call parameter_handler%add('viscosity', '--VISCOSITY', 1.0, 'Value of the viscosity')
     end subroutine  tutorial_02_steady_stokes_define_user_parameters
 end program tutorial_02_steady_stokes
