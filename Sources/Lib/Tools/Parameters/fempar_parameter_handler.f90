@@ -1119,7 +1119,7 @@ contains
            fes_set_ids_ref_fes_cla_help)
 
       ! Reference FE IDs    
-      string_array(1) = fe_type_lagrangian 
+      string_array(1) = string(fe_type_lagrangian)
       call this%add(fes_ref_fe_types_key, &
            fes_ref_fe_types_cla_name, &
            string_array, &
@@ -1147,7 +1147,7 @@ contains
            fes_ref_fe_continuities_cla_help)
 
       ! FE field types (scalar, vector, tensor)
-      string_array(1) = field_type_scalar 
+      string_array(1) = string(field_type_scalar)
       call this%add(fes_field_types_key, &
            fes_field_types_cla_name, &
            string_array, &

@@ -177,11 +177,11 @@ private
         procedure(base_output_handler_create_body),                    public, deferred :: create_body
         procedure(base_output_handler_open_body),                      public, deferred :: open_body
         procedure(base_output_handler_append_time_step),               public, deferred :: append_time_step
-        procedure(base_output_handler_allocate_cell_and_nodal_arrays),         deferred :: allocate_cell_and_nodal_arrays
-        procedure(base_output_handler_append_cell),                            deferred :: append_cell
+        procedure(base_output_handler_allocate_cell_and_nodal_arrays), public, deferred :: allocate_cell_and_nodal_arrays
+        procedure(base_output_handler_append_cell),                    public, deferred :: append_cell
         procedure(base_output_handler_write),                          public, deferred :: write
         procedure(base_output_handler_close_body),                     public, deferred :: close_body
-        procedure(base_output_handler_free_body),                              deferred :: free_body
+        procedure(base_output_handler_free_body),                      public, deferred :: free_body
     end type
 
     interface

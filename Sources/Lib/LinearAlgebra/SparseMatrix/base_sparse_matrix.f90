@@ -119,12 +119,12 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_is_by_rows),                public, deferred :: is_by_rows
      procedure(base_sparse_matrix_is_by_cols),                public, deferred :: is_by_cols
      procedure(base_sparse_matrix_get_format_name),           public, deferred :: get_format_name
-     procedure(base_sparse_matrix_copy_to_coo_body),                  deferred :: copy_to_coo_body
-     procedure(base_sparse_matrix_copy_from_coo_body),                deferred :: copy_from_coo_body
-     procedure(base_sparse_matrix_move_to_coo_body),                  deferred :: move_to_coo_body
-     procedure(base_sparse_matrix_move_from_coo_body),                deferred :: move_from_coo_body
-     procedure(base_sparse_matrix_move_to_fmt_body),                  deferred :: move_to_fmt_body
-     procedure(base_sparse_matrix_move_from_fmt_body),                deferred :: move_from_fmt_body
+     procedure(base_sparse_matrix_copy_to_coo_body),          public, deferred :: copy_to_coo_body
+     procedure(base_sparse_matrix_copy_from_coo_body),        public, deferred :: copy_from_coo_body
+     procedure(base_sparse_matrix_move_to_coo_body),          public, deferred :: move_to_coo_body
+     procedure(base_sparse_matrix_move_from_coo_body),        public, deferred :: move_from_coo_body
+     procedure(base_sparse_matrix_move_to_fmt_body),          public, deferred :: move_to_fmt_body
+     procedure(base_sparse_matrix_move_from_fmt_body),        public, deferred :: move_from_fmt_body
      procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
      procedure(base_sparse_matrix_scal)             ,         public, deferred :: scal
      procedure(base_sparse_matrix_add)              ,         public, deferred :: add
@@ -156,10 +156,10 @@ module base_sparse_matrix_names
           public, deferred :: permute_and_split_2x2_numeric
      procedure(base_sparse_matrix_permute_and_split_2x2_symbolic),          &
           public, deferred :: permute_and_split_2x2_symbolic
-     procedure(base_sparse_matrix_expand_matrix_numeric_array),       deferred :: expand_matrix_numeric_array
-     procedure(base_sparse_matrix_expand_matrix_numeric_coo),         deferred :: expand_matrix_numeric_coo
-     procedure(base_sparse_matrix_expand_matrix_symbolic_array),      deferred :: expand_matrix_symbolic_array
-     procedure(base_sparse_matrix_expand_matrix_symbolic_coo),        deferred :: expand_matrix_symbolic_coo
+     procedure(base_sparse_matrix_expand_matrix_numeric_array),  public, deferred :: expand_matrix_numeric_array
+     procedure(base_sparse_matrix_expand_matrix_numeric_coo),    public, deferred :: expand_matrix_numeric_coo
+     procedure(base_sparse_matrix_expand_matrix_symbolic_array), public, deferred :: expand_matrix_symbolic_array
+     procedure(base_sparse_matrix_expand_matrix_symbolic_coo),   public, deferred :: expand_matrix_symbolic_coo
      procedure(base_sparse_matrix_extract_diagonal),          public, deferred :: extract_diagonal
      procedure(base_sparse_matrix_print_matrix_market_body),  public, deferred :: print_matrix_market_body
      procedure(base_sparse_matrix_free_coords),               public, deferred :: free_coords
@@ -385,10 +385,10 @@ module base_sparse_matrix_names
         procedure, public :: split_2x2_numeric                       => coo_sparse_matrix_split_2x2_numeric
         procedure, public :: permute_and_split_2x2_numeric           => coo_sparse_matrix_permute_and_split_2x2_numeric
         procedure, public :: permute_and_split_2x2_symbolic          => coo_sparse_matrix_permute_and_split_2x2_symbolic
-        procedure         :: expand_matrix_numeric_array             => coo_sparse_matrix_expand_matrix_numeric_array
-        procedure         :: expand_matrix_numeric_coo               => coo_sparse_matrix_expand_matrix_numeric_coo
-        procedure         :: expand_matrix_symbolic_array            => coo_sparse_matrix_expand_matrix_symbolic_array
-        procedure         :: expand_matrix_symbolic_coo              => coo_sparse_matrix_expand_matrix_symbolic_coo
+        procedure, public :: expand_matrix_numeric_array             => coo_sparse_matrix_expand_matrix_numeric_array
+        procedure, public :: expand_matrix_numeric_coo               => coo_sparse_matrix_expand_matrix_numeric_coo
+        procedure, public :: expand_matrix_symbolic_array            => coo_sparse_matrix_expand_matrix_symbolic_array
+        procedure, public :: expand_matrix_symbolic_coo              => coo_sparse_matrix_expand_matrix_symbolic_coo
         procedure, public :: extract_diagonal                        => coo_sparse_matrix_extract_diagonal
         procedure, public :: is_by_rows                              => coo_sparse_matrix_is_by_rows
         procedure, public :: is_by_cols                              => coo_sparse_matrix_is_by_cols
