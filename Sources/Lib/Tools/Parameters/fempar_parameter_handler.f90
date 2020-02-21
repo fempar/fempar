@@ -605,7 +605,7 @@ contains
         character(len=:), allocatable             :: key
         type(ParameterListIterator_t)             :: Iterator
     !------------------------------------------------------------------
-        call this%cli%parse(error=error); assert(error==0)
+        call this%cli%parse(error=error); assert(error==0 .or. error==1004)
 
         call this%parse_group(this%switches, this%values)
         Iterator = this%switches%GetIterator()
@@ -651,7 +651,8 @@ contains
         call this%cli%init(progname, version, help, description, &
                          license, authors, examples, epilog, disable_hv, &
                          usage_lun, error_lun, version_lun, &
-                         error_color='red', error_style='underline_on')
+                         error_color='red', error_style='underline_on', &
+                         ignore_unknown_clas=.true.)
         this%cli_initialized = .true.
     end subroutine parameter_handler_init_cli  
 
