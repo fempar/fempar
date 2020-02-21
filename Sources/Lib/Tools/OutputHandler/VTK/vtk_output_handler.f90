@@ -121,10 +121,10 @@ private
         procedure,                 public :: open_body                      => vtk_output_handler_open_body
         procedure,                 public :: append_time_step               => vtk_output_handler_append_time_step
         procedure,                 public :: write                          => vtk_output_handler_write
-        procedure                         :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
-        procedure                         :: append_cell                    => vtk_output_handler_append_cell
+        procedure,                 public :: allocate_cell_and_nodal_arrays => vtk_output_handler_allocate_cell_and_nodal_arrays
+        procedure,                 public :: append_cell                    => vtk_output_handler_append_cell
         procedure,                 public :: close_body                     => vtk_output_handler_close_body
-        procedure                         :: free_body                      => vtk_output_handler_free_body
+        procedure,                 public :: free_body                      => vtk_output_handler_free_body
     end type
 
 public :: vtk_output_handler_t

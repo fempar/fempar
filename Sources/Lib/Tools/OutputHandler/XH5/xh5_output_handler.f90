@@ -118,11 +118,11 @@ private
         procedure,                 public :: create_body                    => xh5_output_handler_create_body
         procedure,                 public :: open_body                      => xh5_output_handler_open_body
         procedure,                 public :: append_time_step               => xh5_output_handler_append_time_step
-        procedure                         :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
-        procedure                         :: append_cell                    => xh5_output_handler_append_cell
+        procedure,                 public :: allocate_cell_and_nodal_arrays => xh5_output_handler_allocate_cell_and_nodal_arrays
+        procedure,                 public :: append_cell                    => xh5_output_handler_append_cell
         procedure,                 public :: write                          => xh5_output_handler_write
         procedure,                 public :: close_body                     => xh5_output_handler_close_body
-        procedure                         :: free_body                      => xh5_output_handler_free_body
+        procedure,                 public :: free_body                      => xh5_output_handler_free_body
     end type
 
 public :: xh5_output_handler_t

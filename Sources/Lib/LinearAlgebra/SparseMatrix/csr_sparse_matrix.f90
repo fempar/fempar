@@ -91,10 +91,10 @@ private
         procedure, public :: permute_and_split_2x2_symbolic          => csr_sparse_matrix_permute_and_split_2x2_symbolic
         procedure         :: permute_and_split_2x2_symbolic_body     => csr_sparse_matrix_permute_and_split_2x2_symbolic_body
         procedure         :: permute_and_split_2x2_numeric_body      => csr_sparse_matrix_permute_and_split_2x2_numeric_body
-        procedure         :: expand_matrix_numeric_array             => csr_sparse_matrix_expand_matrix_numeric_array
-        procedure         :: expand_matrix_numeric_coo               => csr_sparse_matrix_expand_matrix_numeric_coo
-        procedure         :: expand_matrix_symbolic_array            => csr_sparse_matrix_expand_matrix_symbolic_array
-        procedure         :: expand_matrix_symbolic_coo              => csr_sparse_matrix_expand_matrix_symbolic_coo
+        procedure, public :: expand_matrix_numeric_array             => csr_sparse_matrix_expand_matrix_numeric_array
+        procedure, public :: expand_matrix_numeric_coo               => csr_sparse_matrix_expand_matrix_numeric_coo
+        procedure, public :: expand_matrix_symbolic_array            => csr_sparse_matrix_expand_matrix_symbolic_array
+        procedure, public :: expand_matrix_symbolic_coo              => csr_sparse_matrix_expand_matrix_symbolic_coo
         procedure         :: expand_matrix_numeric_array_body        => csr_sparse_matrix_expand_matrix_numeric_array_body
         procedure         :: expand_matrix_numeric_coo_body          => csr_sparse_matrix_expand_matrix_numeric_coo_body
         procedure         :: expand_matrix_symbolic_array_body       => csr_sparse_matrix_expand_matrix_symbolic_array_body
