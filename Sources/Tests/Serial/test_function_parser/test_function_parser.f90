@@ -330,7 +330,14 @@ program test_function_parser
           call tensor_coded_function%get_value_space(points(i), tensor_result(i))
         enddo
       endif
-      assert(all((/(((abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<error,k=1,ops),j=1,ops),i=1,num)/)))
+      do k=1, ops
+        do j=1, ops
+          do i=1, num
+            assert(abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<error)
+          enddo
+        enddo
+      enddo
+
     elseif(ftype == 'scalar_function_and_gradient') then
       allocate(parser_result(num))
       allocate(result(num))
@@ -401,8 +408,15 @@ program test_function_parser
           call tensor_result(i)%set(3, 1, 2*points(i)%get(1))
         enddo
       endif
-      assert(all((/ (abs(vector_result(i)%get_value() - vector_parser_result(i)%get_value()) < error , i=1, num) /)))
-      assert(all((/(((abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<error,k=1,ops),j=1,ops),i=1,num)/)))
+
+      do i=1, num
+        assert(all(abs(vector_result(i)%get_value() - vector_parser_result(i)%get_value()) < error))
+        do j=1, ops
+          do k=1, ops
+            assert(abs(tensor_result(i)%get(j,k)-tensor_parser_result(i)%get(j,k))<error)
+          enddo
+        enddo
+      enddo
     endif
 
   call scalar_function_and_gradient_parser%free()
