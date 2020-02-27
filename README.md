@@ -16,6 +16,19 @@ FEMPAR: An object-oriented parallel finite element framework. \
 *Archives of Computational Methods in Engineering* 25, 2 (2018), 195–271. \
 [[ArXiv link]](https://arxiv.org/abs/1708.01773) [[DOI]](https://link.springer.com/article/10.1007%2Fs11831-017-9244-1)
 
+## Tutorial-Driven Introduction
+
+A very nice tutorial-driven introduction to the software library (v1.0.0) can be found at the following reference:
+
+Santiago Badia, and Alberto F. Martín. \
+FEMPAR: An object-oriented parallel finite element framework. \
+*Computer Physics Communications* Volume 248, March 2020, 107059. \
+[[ArXiv link]](https://arxiv.org/abs/1908.00891) [[DOI]](https://www.sciencedirect.com/science/article/pii/S0010465519303832)
+
+
+
+
+
 ## Links
 
 - [Web page](http://www.fempar.org/)
