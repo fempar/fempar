@@ -47,7 +47,7 @@ FEMPAR provides a Docker [container with the required environment](https://hub.d
 Please, follow the steps below to compile FEMPAR using the Docker container:
 
 ```bash
-# You must Sing up at https://hub.docker.com/ to get your_username_at_dockerhub
+# You must Sign up at https://hub.docker.com/ to get your_username_at_dockerhub
 $ sudo docker login --username=your_username_at_dockerhub
 $ sudo docker pull fempar/fempar-env:gnu-debug_p4est-serial          # Get Docker image from Docker Hub
 $ sudo docker run -ti fempar/fempar-env:gnu-debug_p4est-serial
@@ -77,7 +77,7 @@ $ bin/tutorial_01_poisson_sharp_circular_wave [optional command line arguments] 
 ```
 
 This particular set of commands compiles the tutorial program named `tutorial_01_poisson_sharp_circular_wave`. You may use any of the tutorial names at `$SOURCES_DIR/Tutorials` as well. 
-The main source code folder of each tutorial is supplied with the `tutorial_invokation_examples` file. This file contains command-line invokation examples of the corresponding tutorial, and thus is
+The main source code folder of each tutorial is supplied with the `tutorial_invokation_examples` file. This file contains command-line invocation examples of the corresponding tutorial, and thus is
 a good starting point to start playing with the tutorial.
 
 At present, we only offer a reduced set of tutorial programs which show the usage of the most simple FEMPAR features. However, we plan in the near future to extend the current 
@@ -98,7 +98,7 @@ so they are only recommended for advanced users.  Test programs are compiled as 
 
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
-| Build Managgers Support                                                    | Notes                             |
+| Build Managers Support                                                     | Notes                             |
 |----------------------------------------------------------------------------|-----------------------------------|
 |[![Compiler](https://img.shields.io/badge/CMake-v2.8.11+-yellow.svg)]()     | Does not support `fortran_tester` |
 |[![Compiler](https://img.shields.io/badge/CMake-v3.1.0+-brightgreen.svg)]() | Full support                      |
